@@ -121,6 +121,9 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
           }
         });
         writeAdapter.init(request, new BridgeMessageEncoder<>(methodDescriptor.getRequestMarshaller(), compressor));
+      } else {
+        //Maybe the client.request will fail
+        throw new RuntimeException(ar1.cause());
       }
     });
   }
