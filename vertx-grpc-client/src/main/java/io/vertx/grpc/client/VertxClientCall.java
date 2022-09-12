@@ -17,6 +17,8 @@ import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.common.impl.WriteStreamAdapter;
 
 import javax.annotation.Nullable;
+import java.net.ConnectException;
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.Executor;
 
 class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, ResponseT> {
@@ -122,8 +124,11 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
         });
         writeAdapter.init(request, new BridgeMessageEncoder<>(methodDescriptor.getRequestMarshaller(), compressor));
       } else {
-        //Maybe the client.request will fail
-        throw new RuntimeException(ar1.cause());
+        //Maybe the client.request will fail, eg: server interrupt
+        Throwable err = ar1.cause();
+        if (err instanceof ConnectException || err instanceof ClosedChannelException){
+          doClose(Status.UNAVAILABLE,new Metadata());
+        }
       }
     });
   }
