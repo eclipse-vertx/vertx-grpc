@@ -11,10 +11,10 @@
   <packaging>pom</packaging>
 
   <artifactId>vertx-grpc-aggregator</artifactId>
-  <version>4.3.7-SNAPSHOT</version>
+  <version>4.3.8-SNAPSHOT</version>
 
   <properties>
-    <stack.version>4.3.7-SNAPSHOT</stack.version>
+    <stack.version>4.3.8-SNAPSHOT</stack.version>
     <grpc.version>1.50.2</grpc.version>
     <protoc.version>3.21.8</protoc.version>
     <doc.skip>true</doc.skip>
