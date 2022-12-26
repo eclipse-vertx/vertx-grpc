@@ -12,12 +12,8 @@ package io.vertx.grpc.client;
 
 import io.grpc.CallOptions;
 import io.grpc.ClientCall;
-import io.grpc.Compressor;
-import io.grpc.CompressorRegistry;
 import io.grpc.MethodDescriptor;
 import io.vertx.core.net.SocketAddress;
-
-import java.util.concurrent.Executor;
 
 /**
  * Bridge a gRPC service with a {@link io.vertx.grpc.client.GrpcClient}.
@@ -34,20 +30,7 @@ public class GrpcClientChannel extends io.grpc.Channel {
 
   @Override
   public <RequestT, ResponseT> ClientCall<RequestT, ResponseT> newCall(MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions) {
-
-    String encoding = callOptions.getCompressor();
-
-    Compressor compressor;
-    if (encoding != null) {
-      compressor = CompressorRegistry.getDefaultInstance().lookupCompressor(encoding);
-    } else {
-      compressor = null;
-    }
-
-
-    Executor exec = callOptions.getExecutor();
-
-    return new VertxClientCall<>(client, server, exec, methodDescriptor, encoding, compressor);
+    return new VertxClientCall<>(client, server, methodDescriptor, callOptions, authority());
   }
 
   @Override
