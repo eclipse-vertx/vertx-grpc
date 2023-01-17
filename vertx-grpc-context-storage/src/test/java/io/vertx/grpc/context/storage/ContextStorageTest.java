@@ -6,8 +6,8 @@ import io.grpc.ClientCall;
 import io.grpc.ClientInterceptor;
 import io.grpc.ClientInterceptors;
 import io.grpc.Context;
+import io.grpc.Contexts;
 import io.grpc.ForwardingClientCall;
-import io.grpc.ForwardingServerCallListener;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
@@ -86,14 +86,7 @@ public class ContextStorageTest {
         String traceId = headers.get(traceMetadataKey);
         should.assertNotNull(traceId);
         Context context = Context.current().withValue(traceContextKey, traceId);
-        Context previous = context.attach();
-        return new ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>(next.startCall(call, headers)) {
-          @Override
-          public void onComplete() {
-            context.detach(previous);
-            super.onComplete();
-          }
-        };
+        return Contexts.interceptCall(context, call, headers, next);
       }
     });
 
