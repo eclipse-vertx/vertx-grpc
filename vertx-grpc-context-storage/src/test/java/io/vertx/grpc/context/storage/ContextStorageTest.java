@@ -6,8 +6,8 @@ import io.grpc.ClientCall;
 import io.grpc.ClientInterceptor;
 import io.grpc.ClientInterceptors;
 import io.grpc.Context;
-import io.grpc.Contexts;
 import io.grpc.ForwardingClientCall;
+import io.grpc.ForwardingServerCallListener;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
@@ -25,11 +25,14 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.ext.unit.junit.Repeat;
+import io.vertx.ext.unit.junit.RepeatRule;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServiceBridge;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -39,6 +42,9 @@ import static io.grpc.Metadata.*;
 
 @RunWith(VertxUnitRunner.class)
 public class ContextStorageTest {
+
+  @Rule
+  public RepeatRule repeatRule = new RepeatRule();
 
   private Vertx vertx;
   private volatile HttpServer httpServer;
@@ -63,6 +69,7 @@ public class ContextStorageTest {
   }
 
   @Test
+  @Repeat(10)
   public void testGrpcContextPropagatedAcrossVertxAsyncCalls(TestContext should) {
     CallOptions.Key<String> traceOptionsKey = CallOptions.Key.create("trace");
     Key<String> traceMetadataKey = Key.of("trace", ASCII_STRING_MARSHALLER);
@@ -86,7 +93,14 @@ public class ContextStorageTest {
         String traceId = headers.get(traceMetadataKey);
         should.assertNotNull(traceId);
         Context context = Context.current().withValue(traceContextKey, traceId);
-        return Contexts.interceptCall(context, call, headers, next);
+        Context previous = context.attach();
+        return new ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>(next.startCall(call, headers)) {
+          @Override
+          public void onComplete() {
+            context.detach(previous);
+            super.onComplete();
+          }
+        };
       }
     });
 
