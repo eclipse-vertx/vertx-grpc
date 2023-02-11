@@ -77,7 +77,6 @@ public interface GrpcReadStream<T> extends ReadStream<T> {
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <R, A> Future<R> collecting(java.util.stream.Collector<T , A , R> collector);
 
-  @GenIgnore
   default void pipeTo(WriteStream<T> dst, Handler<AsyncResult<Void>> handler) {
     ReadStream.super.pipeTo(dst, handler);
   }

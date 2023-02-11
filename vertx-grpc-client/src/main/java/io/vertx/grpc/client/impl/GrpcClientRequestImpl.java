@@ -229,6 +229,11 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
     end().onComplete(handler);
   }
 
+  @Override
+  public void end(Req message, Handler<AsyncResult<Void>> handler) {
+    end(message).onComplete(handler);
+  }
+
   @Override public Future<GrpcClientResponse<Req, Resp>> response() {
     return response;
   }

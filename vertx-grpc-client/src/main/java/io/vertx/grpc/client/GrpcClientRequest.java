@@ -14,6 +14,7 @@ import io.vertx.codegen.annotations.CacheReturn;
 import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.codegen.annotations.VertxGen;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpConnection;
@@ -94,4 +95,13 @@ public interface GrpcClientRequest<Req, Resp> extends GrpcWriteStream<Req> {
    * @return the underlying HTTP connection
    */
   HttpConnection connection();
+
+  @Override
+  void write(Req message, Handler<AsyncResult<Void>> handler);
+
+  @Override
+  void end(Handler<AsyncResult<Void>> handler);
+
+  @Override
+  void end(Req message, Handler<AsyncResult<Void>> handler);
 }

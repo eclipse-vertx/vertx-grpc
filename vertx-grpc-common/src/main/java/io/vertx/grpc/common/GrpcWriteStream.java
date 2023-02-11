@@ -61,15 +61,12 @@ public interface GrpcWriteStream<T> extends WriteStream<T> {
    */
   boolean cancel();
 
-  @GenIgnore
   @Override
   void write(T t, Handler<AsyncResult<Void>> handler);
 
-  @GenIgnore
   @Override
   void end(Handler<AsyncResult<Void>> handler);
 
-  @GenIgnore
   @Override
   default void end(T data, Handler<AsyncResult<Void>> handler) {
     WriteStream.super.end(data, handler);

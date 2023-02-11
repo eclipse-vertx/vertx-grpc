@@ -233,4 +233,9 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   public void end(Handler<AsyncResult<Void>> handler) {
     end().onComplete(handler);
   }
+
+  @Override
+  public void end(Resp data, Handler<AsyncResult<Void>> handler) {
+    end(data).onComplete(handler);
+  }
 }

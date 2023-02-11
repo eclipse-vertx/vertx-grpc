@@ -13,6 +13,7 @@ package io.vertx.grpc.server;
 import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.codegen.annotations.VertxGen;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.grpc.common.GrpcStatus;
@@ -47,4 +48,12 @@ public interface GrpcServerResponse<Req, Resp> extends GrpcWriteStream<Resp> {
   @Override
   GrpcServerResponse<Req, Resp> drainHandler(@Nullable Handler<Void> handler);
 
+  @Override
+  void write(Resp data, Handler<AsyncResult<Void>> handler);
+
+  @Override
+  void end(Handler<AsyncResult<Void>> handler);
+
+  @Override
+  void end(Resp data, Handler<AsyncResult<Void>> handler);
 }
