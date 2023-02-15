@@ -71,11 +71,31 @@ public interface GrpcClient {
    * Connect to the remote {@code server} and create a request for given {@code method} of a hosted gRPC service.
    *
    * @param server the server hosting the service
+   * @method the grpc method
    * @return a future request
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(SocketAddress server, MethodDescriptor<Req, Resp> method);
 
+  /**
+   * Get the last element of the stream  after connect to the remote {@code server} and create a request
+   *
+   * @param server the server hosting the service
+   * @method the grpc method
+   * @req the grpc request message
+   * @return a future with the reply of request   
+   */
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
+  default <Req, Resp> Future<Resp> last(SocketAddress server, MethodDescriptor<Req, Resp> method, Req req) {
+    return request(server, method)
+        .compose(
+            request -> {
+              request.end(req);
+              return request.response();
+            })
+        .compose(response -> response.last());
+  }
+  
   /**
    * Close this client.
    */
