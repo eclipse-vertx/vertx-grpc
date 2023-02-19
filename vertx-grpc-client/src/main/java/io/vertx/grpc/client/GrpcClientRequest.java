@@ -18,6 +18,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpConnection;
+import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.ServiceName;
 
@@ -104,4 +105,14 @@ public interface GrpcClientRequest<Req, Resp> extends GrpcWriteStream<Req> {
 
   @Override
   void end(Req message, Handler<AsyncResult<Void>> handler);
+
+  default Future<GrpcClientResponse<Req, Resp>> send(Req item) {
+    this.end(item);
+    return this.response();
+  }
+
+  default Future<GrpcClientResponse<Req, Resp>> send(ReadStream<Req> body) {
+    body.pipeTo(this);
+    return this.response();
+  }
 }

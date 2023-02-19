@@ -14,8 +14,10 @@ import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
+import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.GrpcWriteStream;
 
@@ -56,4 +58,11 @@ public interface GrpcServerResponse<Req, Resp> extends GrpcWriteStream<Resp> {
 
   @Override
   void end(Resp data, Handler<AsyncResult<Void>> handler);
+  default Future<Void> send(Resp item) {
+    return end(item);
+  }
+
+  default Future<Void> send(ReadStream<Resp> body) {
+    return body.pipeTo(this);
+  }
 }
