@@ -44,6 +44,7 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   /**
    * Create a blank gRPC server
    *
+   * @param vertx the vertx instance
    * @return the created server
    */
   static GrpcServer server(Vertx vertx) {
@@ -67,4 +68,5 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
+
 }

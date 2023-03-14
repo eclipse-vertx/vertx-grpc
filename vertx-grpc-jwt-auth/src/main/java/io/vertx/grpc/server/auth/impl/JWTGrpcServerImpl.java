@@ -43,7 +43,7 @@ public class JWTGrpcServerImpl implements JWTGrpcServer {
         handler.handle(req);
         return;
       }
-      authHandler.authenticate(req, authN -> {
+      authHandler.authenticate(req, requireAuthentication, authN -> {
         if (authN.succeeded()) {
           User authenticated = authN.result();
           req.setUser(authenticated);

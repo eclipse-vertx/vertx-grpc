@@ -18,8 +18,8 @@ public class JWTAuthGrpcHandlerImpl extends AbstractGrpcAuthorizationHandler<JWT
   }
 
   @Override
-  public void authenticate(GrpcServerRequest req, Handler<AsyncResult<User>> handler) {
-    parseAuthorization(req, parseAuthorization -> {
+  public <Req, Resp> void authenticate(GrpcServerRequest<Req, Resp> req, boolean requireAuthentication, Handler<AsyncResult<User>> handler) {
+    parseAuthorization(req, requireAuthentication, parseAuthorization -> {
       if (parseAuthorization.failed()) {
         handler.handle(Future.failedFuture(parseAuthorization.cause()));
         return;

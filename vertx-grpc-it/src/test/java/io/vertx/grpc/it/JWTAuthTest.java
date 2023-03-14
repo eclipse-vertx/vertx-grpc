@@ -45,7 +45,6 @@ public class JWTAuthTest extends ServerTestBase {
     expiredToken = authProvider.generateToken(new JsonObject().put("sub", "johannes"), new JWTOptions().setExpiresInSeconds(1));
 
     jwtServer = JWTGrpcServer.create(vertx, authProvider);
-
     jwtServer.callHandler(GreeterGrpc.getSayHelloMethod(), true, request -> {
       request.handler(hello -> {
         GrpcServerResponse<HelloRequest, HelloReply> response = request.response();
