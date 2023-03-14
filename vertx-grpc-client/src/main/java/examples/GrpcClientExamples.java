@@ -5,13 +5,16 @@ import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientChannel;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
+import io.vertx.grpc.common.GrpcException;
 import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 
 @Source
@@ -189,4 +192,18 @@ public class GrpcClientExamples {
       });
     });
   }
+
+  public void errorHandling(GrpcClientRequest<HelloRequest, HelloReply> request) {
+    request.response().onSuccess(response -> {
+      Future<HelloReply> fut = response.last();
+      fut.onFailure(error -> {
+        if (error instanceof GrpcException) {
+          GrpcException grpcError = (GrpcException) error;
+          GrpcStatus status = grpcError.status();
+          HttpClientResponse httpResponse = grpcError.response();
+        }
+      });
+    });
+  }
+
 }
