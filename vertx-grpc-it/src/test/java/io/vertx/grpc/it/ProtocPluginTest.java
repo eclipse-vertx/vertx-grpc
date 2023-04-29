@@ -11,6 +11,10 @@
 package io.vertx.grpc.it;
 
 import com.google.protobuf.ByteString;
+import io.grpc.examples.helloworld.HelloReply;
+import io.grpc.examples.helloworld.HelloRequest;
+import io.grpc.examples.helloworld.VertxGreeterGrpcClient;
+import io.grpc.examples.helloworld.VertxGreeterGrpcServer;
 import io.grpc.testing.integration.Messages;
 import io.grpc.testing.integration.VertxTestServiceGrpcClient;
 import io.grpc.testing.integration.VertxTestServiceGrpcServer;
@@ -30,6 +34,37 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ProtocPluginTest extends ProxyTestBase {
+
+  @Test
+  public void testHelloWorld(TestContext should) throws IOException {
+    port = getFreePort();
+
+    // Create gRPC Server
+    VertxGreeterGrpcServer server = new VertxGreeterGrpcServer(vertx)
+      .callHandlers(new VertxGreeterGrpcServer.GreeterApi() {
+        @Override
+        public void sayHello(HelloRequest request, Promise<HelloReply> response) {
+          response.complete(HelloReply.newBuilder()
+            .setMessage("Hello " + request.getName())
+            .build());
+        }
+      });
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(server.getGrpcServer())
+      .listen(port)
+      .onFailure(should::fail);
+
+    // Create gRPC Client
+    VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(vertx, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    Async test = should.async();
+    client.sayHello(HelloRequest.newBuilder()
+        .setName("World")
+        .build())
+      .onSuccess(reply -> should.assertEquals("Hello World", reply.getMessage()))
+      .onSuccess(reply -> test.complete())
+      .onFailure(should::fail);
+  }
 
   @Test
   public void testUnary(TestContext should) throws IOException {

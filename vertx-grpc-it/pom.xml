@@ -128,7 +128,7 @@
               <id>vertx-grpc-protoc-plugin</id>
               <groupId>io.vertx</groupId>
               <artifactId>vertx-grpc-protoc-plugin</artifactId>
-              <version>${project.version}</version>
+              <version>${stack.version}</version>
               <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
             </protocPlugin>
           </protocPlugins>
