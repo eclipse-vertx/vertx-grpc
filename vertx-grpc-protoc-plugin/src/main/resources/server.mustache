@@ -24,7 +24,14 @@ public class {{className}}  {
     default void {{methodName}}({{inputType}} request, Promise<{{outputType}}> response) {}
 {{/unaryMethods}}
 {{#unaryManyMethods}}
-    default void {{methodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {}
+    default ReadStream<{{outputType}}> {{methodName}}({{inputType}} request) {
+      throw new UnsupportedOperationException("Not implemented");
+    }
+    default void {{methodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
+      {{methodName}}(request)
+        .handler(msg -> response.write(msg))
+        .endHandler(msg -> response.end());
+    }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
     default void {{methodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {}

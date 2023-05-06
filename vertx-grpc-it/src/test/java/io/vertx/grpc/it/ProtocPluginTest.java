@@ -27,6 +27,8 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.test.fakestream.FakeStream;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -165,6 +167,53 @@ public class ProtocPluginTest extends ProxyTestBase {
             .build());
           response.end();
         };
+      });
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer)
+      .listen(port)
+      .onFailure(should::fail);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    Async test = should.async();
+    Messages.StreamingOutputCallRequest request = Messages.StreamingOutputCallRequest.newBuilder()
+      .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest", StandardCharsets.UTF_8)).build())
+      .build();
+    client.streamingOutputCall(request)
+      .onSuccess(response -> {
+        List<Messages.StreamingOutputCallResponse> list = new ArrayList<>();
+        response.handler(list::add);
+        response.endHandler($ -> {
+          should.assertEquals(2, list.size());
+          test.complete();
+        });
+        response.exceptionHandler(should::fail);
+      });
+  }
+
+  @Ignore
+  @Test
+  public void testUnaryMany_2(TestContext should) throws IOException {
+    int port = getFreePort();
+
+    // Create gRPC Server
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(grpcServer)
+      .callHandlers(new VertxTestServiceGrpcServer.TestServiceApi() {
+        @Override
+        public ReadStream<Messages.StreamingOutputCallResponse> streamingOutputCall(Messages.StreamingOutputCallRequest request) {
+          FakeStream<Messages.StreamingOutputCallResponse> response = new FakeStream<>();
+          response.write(Messages.StreamingOutputCallResponse.newBuilder()
+            .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
+            .build());
+          response.write(Messages.StreamingOutputCallResponse.newBuilder()
+            .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-2", StandardCharsets.UTF_8)).build())
+            .build());
+          response.end();
+          return response;
+        }
       });
     HttpServer httpServer = vertx.createHttpServer();
     httpServer.requestHandler(grpcServer)
