@@ -4,7 +4,6 @@ package {{packageName}};
 
 import io.vertx.core.Promise;
 import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
@@ -16,8 +15,8 @@ import java.util.List;
 public class {{className}}  {
   private final GrpcServer server;
 
-  public {{className}}(Vertx vertx) {
-    this.server = GrpcServer.server(vertx);
+  public {{className}}(GrpcServer server) {
+    this.server = server;
   }
 
   public interface {{serviceName}}Api {
@@ -61,9 +60,5 @@ public class {{className}}  {
     });
 {{/manyManyMethods}}
     return this;
-  }
-
-  public Handler<HttpServerRequest> getGrpcServer() {
-    return server;
   }
 }

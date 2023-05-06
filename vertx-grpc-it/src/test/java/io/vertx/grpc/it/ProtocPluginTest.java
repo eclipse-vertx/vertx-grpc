@@ -25,6 +25,8 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.server.GrpcServer;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -40,7 +42,8 @@ public class ProtocPluginTest extends ProxyTestBase {
     port = getFreePort();
 
     // Create gRPC Server
-    VertxGreeterGrpcServer server = new VertxGreeterGrpcServer(vertx)
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    VertxGreeterGrpcServer server = new VertxGreeterGrpcServer(grpcServer)
       .callHandlers(new VertxGreeterGrpcServer.GreeterApi() {
         @Override
         public void sayHello(HelloRequest request, Promise<HelloReply> response) {
@@ -50,12 +53,13 @@ public class ProtocPluginTest extends ProxyTestBase {
         }
       });
     HttpServer httpServer = vertx.createHttpServer();
-    httpServer.requestHandler(server.getGrpcServer())
+    httpServer.requestHandler(grpcServer)
       .listen(port)
       .onFailure(should::fail);
 
     // Create gRPC Client
-    VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(vertx, SocketAddress.inetSocketAddress(port, "localhost"));
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.sayHello(HelloRequest.newBuilder()
@@ -71,7 +75,8 @@ public class ProtocPluginTest extends ProxyTestBase {
     port = getFreePort();
 
     // Create gRPC Server
-    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(vertx)
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(grpcServer)
       .callHandlers(new VertxTestServiceGrpcServer.TestServiceApi() {
         @Override
         public void unaryCall(Messages.SimpleRequest request, Promise<Messages.SimpleResponse> response) {
@@ -81,12 +86,13 @@ public class ProtocPluginTest extends ProxyTestBase {
         }
       });
     HttpServer httpServer = vertx.createHttpServer();
-    httpServer.requestHandler(server.getGrpcServer())
+    httpServer.requestHandler(grpcServer)
       .listen(port)
       .onFailure(should::fail);
 
     // Create gRPC Client
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(vertx, SocketAddress.inetSocketAddress(port, "localhost"));
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.unaryCall(Messages.SimpleRequest.newBuilder()
@@ -102,7 +108,8 @@ public class ProtocPluginTest extends ProxyTestBase {
     int port = getFreePort();
 
     // Create gRPC Server
-    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(vertx)
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(grpcServer)
       .callHandlers(new VertxTestServiceGrpcServer.TestServiceApi() {
         @Override
         public void streamingInputCall(ReadStream<Messages.StreamingInputCallRequest> request, Promise<Messages.StreamingInputCallResponse> response) {
@@ -117,12 +124,13 @@ public class ProtocPluginTest extends ProxyTestBase {
         }
       });
     HttpServer httpServer = vertx.createHttpServer();
-    httpServer.requestHandler(server.getGrpcServer())
+    httpServer.requestHandler(grpcServer)
       .listen(port)
       .onFailure(should::fail);
 
     // Create gRPC Client
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(vertx, SocketAddress.inetSocketAddress(port, "localhost"));
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.streamingInputCall(req -> {
@@ -144,7 +152,8 @@ public class ProtocPluginTest extends ProxyTestBase {
     int port = getFreePort();
 
     // Create gRPC Server
-    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(vertx)
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(grpcServer)
       .callHandlers(new VertxTestServiceGrpcServer.TestServiceApi() {
         @Override
         public void streamingOutputCall(Messages.StreamingOutputCallRequest request, WriteStream<Messages.StreamingOutputCallResponse> response) {
@@ -158,12 +167,13 @@ public class ProtocPluginTest extends ProxyTestBase {
         };
       });
     HttpServer httpServer = vertx.createHttpServer();
-    httpServer.requestHandler(server.getGrpcServer())
+    httpServer.requestHandler(grpcServer)
       .listen(port)
       .onFailure(should::fail);
 
     // Create gRPC Client
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(vertx, SocketAddress.inetSocketAddress(port, "localhost"));
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     Messages.StreamingOutputCallRequest request = Messages.StreamingOutputCallRequest.newBuilder()
@@ -186,7 +196,8 @@ public class ProtocPluginTest extends ProxyTestBase {
     int port = getFreePort();
 
     // Create gRPC Server
-    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(vertx)
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(grpcServer)
       .callHandlers(new VertxTestServiceGrpcServer.TestServiceApi() {
         @Override
         public void fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request, WriteStream<Messages.StreamingOutputCallResponse> response) {
@@ -202,12 +213,13 @@ public class ProtocPluginTest extends ProxyTestBase {
         };
       });
     HttpServer httpServer = vertx.createHttpServer();
-    httpServer.requestHandler(server.getGrpcServer())
+    httpServer.requestHandler(grpcServer)
       .listen(port)
       .onFailure(should::fail);
 
     // Create gRPC Client
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(vertx, SocketAddress.inetSocketAddress(port, "localhost"));
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.fullDuplexCall(req -> {
