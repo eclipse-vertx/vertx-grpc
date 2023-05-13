@@ -18,6 +18,7 @@ import io.grpc.examples.helloworld.VertxGreeterGrpcServer;
 import io.grpc.testing.integration.Messages;
 import io.grpc.testing.integration.VertxTestServiceGrpcClient;
 import io.grpc.testing.integration.VertxTestServiceGrpcServer;
+import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.net.SocketAddress;
@@ -28,7 +29,6 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.test.fakestream.FakeStream;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -48,8 +48,8 @@ public class ProtocPluginTest extends ProxyTestBase {
     VertxGreeterGrpcServer server = new VertxGreeterGrpcServer(grpcServer)
       .callHandlers(new VertxGreeterGrpcServer.GreeterApi() {
         @Override
-        public void sayHello(HelloRequest request, Promise<HelloReply> response) {
-          response.complete(HelloReply.newBuilder()
+        public Future<HelloReply> sayHello(HelloRequest request) {
+          return Future.succeededFuture(HelloReply.newBuilder()
             .setMessage("Hello " + request.getName())
             .build());
         }
@@ -73,7 +73,40 @@ public class ProtocPluginTest extends ProxyTestBase {
   }
 
   @Test
-  public void testUnary(TestContext should) throws IOException {
+  public void testUnary_FutureReturn(TestContext should) throws IOException {
+    port = getFreePort();
+
+    // Create gRPC Server
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(grpcServer)
+      .callHandlers(new VertxTestServiceGrpcServer.TestServiceApi() {
+        @Override
+        public Future<Messages.SimpleResponse> unaryCall(Messages.SimpleRequest request) {
+          return Future.succeededFuture(Messages.SimpleResponse.newBuilder()
+            .setUsername("FooBar")
+            .build());
+        }
+      });
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer)
+      .listen(port)
+      .onFailure(should::fail);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    Async test = should.async();
+    client.unaryCall(Messages.SimpleRequest.newBuilder()
+        .setFillUsername(true)
+        .build())
+      .onSuccess(reply -> should.assertEquals("FooBar", reply.getUsername()))
+      .onSuccess(reply -> test.complete())
+      .onFailure(should::fail);
+  }
+
+  @Test
+  public void testUnary_PromiseArg(TestContext should) throws IOException {
     port = getFreePort();
 
     // Create gRPC Server
@@ -150,7 +183,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   }
 
   @Test
-  public void testUnaryMany(TestContext should) throws IOException {
+  public void testUnaryMany_WriteStreamArg(TestContext should) throws IOException {
     int port = getFreePort();
 
     // Create gRPC Server
@@ -193,9 +226,8 @@ public class ProtocPluginTest extends ProxyTestBase {
       });
   }
 
-  @Ignore
   @Test
-  public void testUnaryMany_2(TestContext should) throws IOException {
+  public void testUnaryMany_ReadStreamReturn(TestContext should) throws IOException {
     int port = getFreePort();
 
     // Create gRPC Server
@@ -205,6 +237,7 @@ public class ProtocPluginTest extends ProxyTestBase {
         @Override
         public ReadStream<Messages.StreamingOutputCallResponse> streamingOutputCall(Messages.StreamingOutputCallRequest request) {
           FakeStream<Messages.StreamingOutputCallResponse> response = new FakeStream<>();
+          response.pause();
           response.write(Messages.StreamingOutputCallResponse.newBuilder()
             .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
             .build());

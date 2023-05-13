@@ -2,6 +2,7 @@
 package {{packageName}};
 {{/packageName}}
 
+import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
@@ -21,7 +22,14 @@ public class {{className}}  {
 
   public interface {{serviceName}}Api {
 {{#unaryMethods}}
-    default void {{methodName}}({{inputType}} request, Promise<{{outputType}}> response) {}
+  default Future<{{outputType}}> {{methodName}}({{inputType}} request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+  default void {{methodName}}({{inputType}} request, Promise<{{outputType}}> response) {
+    {{methodName}}(request)
+      .onSuccess(msg -> response.complete(msg))
+      .onFailure(error -> response.fail(error));
+  }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
     default ReadStream<{{outputType}}> {{methodName}}({{inputType}} request) {
@@ -30,7 +38,8 @@ public class {{className}}  {
     default void {{methodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
       {{methodName}}(request)
         .handler(msg -> response.write(msg))
-        .endHandler(msg -> response.end());
+        .endHandler(msg -> response.end())
+        .resume();
     }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
