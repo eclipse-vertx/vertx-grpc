@@ -43,10 +43,25 @@ public class {{className}}  {
     }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
-    default void {{methodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {}
+    default Future<{{outputType}}> {{methodName}}(ReadStream<{{inputType}}> request) {
+      throw new UnsupportedOperationException("Not implemented");
+    }
+    default void {{methodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
+      {{methodName}}(request)
+        .onSuccess(msg -> response.complete(msg))
+        .onFailure(error -> response.fail(error));
+    }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
-    default void {{methodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {}
+    default ReadStream<{{outputType}}> {{methodName}}(ReadStream<{{inputType}}> request) {
+      throw new UnsupportedOperationException("Not implemented");
+    }
+    default void {{methodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
+      {{methodName}}(request)
+        .handler(msg -> response.write(msg))
+        .endHandler(msg -> response.end())
+        .resume();
+    }
 {{/manyManyMethods}}
   }
 
