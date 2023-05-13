@@ -125,9 +125,9 @@
           <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
           <protocPlugins>
             <protocPlugin>
-              <id>vertx-grpc-protoc-plugin</id>
+              <id>vertx-grpc-protoc2-plugin</id>
               <groupId>io.vertx</groupId>
-              <artifactId>vertx-grpc-protoc-plugin</artifactId>
+              <artifactId>vertx-grpc-protoc2-plugin</artifactId>
               <version>${stack.version}</version>
               <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
             </protocPlugin>
