@@ -52,9 +52,13 @@ public class {{className}}  {
       throw new UnsupportedOperationException("Not implemented");
     }
     default void {{methodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
-      {{methodName}}(request)
-        .onSuccess(msg -> response.complete(msg))
-        .onFailure(error -> response.fail(error));
+      try {
+        {{methodName}}(request)
+          .onSuccess(msg -> response.complete(msg))
+          .onFailure(error -> response.fail(error));
+      } catch (Throwable err) {
+        response.fail(err);
+      }
     }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
@@ -89,7 +93,9 @@ public class {{className}}  {
     server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
       Promise<{{outputType}}> promise = Promise.promise();
       implementation.{{methodName}}(request, promise);
-      promise.future().onSuccess(resp -> request.response().end(resp));
+      promise.future()
+        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+        .onSuccess(resp -> request.response().end(resp));
     });
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
