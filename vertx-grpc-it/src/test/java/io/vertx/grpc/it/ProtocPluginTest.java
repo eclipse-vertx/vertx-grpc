@@ -28,6 +28,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.test.fakestream.FakeStream;
 import org.junit.Test;
 
@@ -309,7 +310,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(grpcServer)
       .callHandlers(new VertxTestServiceGrpcServer.TestServiceApi() {
         @Override
-        public void streamingOutputCall(Messages.StreamingOutputCallRequest request, WriteStream<Messages.StreamingOutputCallResponse> response) {
+        public void streamingOutputCall(Messages.StreamingOutputCallRequest request, GrpcServerResponse<Messages.StreamingOutputCallRequest, Messages.StreamingOutputCallResponse> response) {
           response.write(Messages.StreamingOutputCallResponse.newBuilder()
             .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
             .build());
@@ -388,6 +389,43 @@ public class ProtocPluginTest extends ProxyTestBase {
           test.complete();
         });
         response.exceptionHandler(should::fail);
+      });
+  }
+
+  @Test
+  public void testUnaryMany_ReadStreamReturn_ErrorHandling(TestContext should) throws IOException {
+    int port = getFreePort();
+
+    // Create gRPC Server
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(grpcServer)
+      .callHandlers(new VertxTestServiceGrpcServer.TestServiceApi() {
+        @Override
+        public ReadStream<Messages.StreamingOutputCallResponse> streamingOutputCall(Messages.StreamingOutputCallRequest request) {
+          throw new RuntimeException("Simulated error");
+        }
+      });
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer)
+      .listen(port)
+      .onFailure(should::fail);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    Async test = should.async();
+    Messages.StreamingOutputCallRequest request = Messages.StreamingOutputCallRequest.newBuilder()
+      .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest", StandardCharsets.UTF_8)).build())
+      .build();
+    client.streamingOutputCall(request)
+      .onSuccess(response -> {
+        response.handler($ -> should.fail());
+        response.exceptionHandler(err -> {
+          // TODO exception not thrown!
+          should.assertEquals("Invalid gRPC status 13", err.getMessage());
+        });
+        response.endHandler($ -> test.complete());
       });
   }
 

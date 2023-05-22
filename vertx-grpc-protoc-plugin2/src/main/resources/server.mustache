@@ -10,6 +10,7 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerResponse;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,11 +41,15 @@ public class {{className}}  {
     default ReadStream<{{outputType}}> {{methodName}}({{inputType}} request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{methodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
-      {{methodName}}(request)
-        .handler(msg -> response.write(msg))
-        .endHandler(msg -> response.end())
-        .resume();
+    default void {{methodName}}({{inputType}} request, GrpcServerResponse<{{inputType}}, {{outputType}}> response) {
+      try {
+        {{methodName}}(request)
+          .handler(msg -> response.write(msg))
+          .endHandler(msg -> response.end())
+          .resume();
+      } catch  (Throwable err) {
+        response.status(GrpcStatus.INTERNAL).end();
+      }
     }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
