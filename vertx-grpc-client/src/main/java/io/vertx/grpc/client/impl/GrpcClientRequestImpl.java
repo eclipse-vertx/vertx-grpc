@@ -189,11 +189,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
       if (headers != null) {
         MultiMap requestHeaders = httpRequest.headers();
         for (Map.Entry<String, String> header : headers) {
-          if (!header.getKey().startsWith("grpc-")) {
-            requestHeaders.add(header.getKey(), header.getValue());
-          } else {
-            // Log ?
-          }
+          requestHeaders.add(header.getKey(), header.getValue());
         }
       }
       String uri = serviceName.pathOf(methodName);
