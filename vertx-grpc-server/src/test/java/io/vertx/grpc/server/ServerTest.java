@@ -333,7 +333,8 @@ public abstract class ServerTest extends ServerTestBase {
       assertEquals(should, new byte[] { 0,1,2 }, trailers.get(Metadata.Key.of("custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER)));
       should.assertEquals("grpc-custom_response_trailer_value", trailers.get(Metadata.Key.of("grpc-custom_response_trailer", Metadata.ASCII_STRING_MARSHALLER)));
       assertEquals(should, new byte[] { 2,1,0 }, trailers.get(Metadata.Key.of("grpc-custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER)));
-      should.assertEquals(Status.INVALID_ARGUMENT, e.getStatus());
+      should.assertEquals(Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+      should.assertEquals("grpc-status-message-value +*~", e.getStatus().getDescription());
     }
   }
 

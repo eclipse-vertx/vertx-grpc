@@ -129,6 +129,7 @@ public class ClientRequestTest extends ClientTest {
           });
           callResponse.endHandler(v2 -> {
             should.assertEquals(GrpcStatus.UNAVAILABLE, callResponse.status());
+            should.assertEquals("~Greeter temporarily unavailable...~", callResponse.statusMessage());
             test.complete();
           });
         }));

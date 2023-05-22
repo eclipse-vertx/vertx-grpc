@@ -15,6 +15,8 @@ import io.grpc.Metadata;
 import io.netty.util.AsciiString;
 import io.vertx.core.MultiMap;
 
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -53,5 +55,16 @@ public class Utils {
       array[idx++] = data;
     }
     return InternalMetadata.newMetadata(array);
+  }
+
+  public static String utf8PercentEncode(String s) {
+    try {
+      return URLEncoder.encode(s, StandardCharsets.UTF_8.name())
+        .replace("+", "%20")
+        .replace("*", "%2A")
+        .replace("~", "%7E");
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }

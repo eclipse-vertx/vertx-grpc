@@ -280,7 +280,7 @@ public abstract class ClientTest extends ClientTestBase {
       @Override
       public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
         responseObserver.onError(Status.UNAVAILABLE
-          .withDescription("Greeter temporarily unavailable...").asRuntimeException());
+          .withDescription("~Greeter temporarily unavailable...~").asRuntimeException());
       }
     };
     startServer(called);

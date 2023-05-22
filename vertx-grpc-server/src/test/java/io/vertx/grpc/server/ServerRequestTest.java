@@ -274,6 +274,7 @@ public class ServerRequestTest extends ServerTest {
     startServer(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
       call.handler(helloRequest -> {
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+        response.statusMessage("grpc-status-message-value +*~");
         response.trailers().set("custom_response_trailer", "custom_response_trailer_value");
         response.trailers().set("custom_response_trailer-bin", Base64.getEncoder().encodeToString(new byte[] { 0,1,2 }));
         response.trailers().set("grpc-custom_response_trailer", "grpc-custom_response_trailer_value");
