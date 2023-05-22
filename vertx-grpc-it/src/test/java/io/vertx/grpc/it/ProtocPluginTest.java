@@ -423,9 +423,61 @@ public class ProtocPluginTest extends ProxyTestBase {
         response.handler($ -> should.fail());
         response.exceptionHandler(err -> {
           // TODO exception not thrown!
+          System.out.println("Exception thrown " + err.getMessage());
           should.assertEquals("Invalid gRPC status 13", err.getMessage());
         });
         response.endHandler($ -> test.complete());
+      });
+  }
+
+  @Test
+  public void testmanyMany_WriteStreamArg(TestContext should) throws IOException {
+    int port = getFreePort();
+
+    // Create gRPC Server
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(grpcServer)
+      .callHandlers(new VertxTestServiceGrpcServer.TestServiceApi() {
+        @Override
+        public void fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request, GrpcServerResponse<Messages.StreamingOutputCallRequest, Messages.StreamingOutputCallResponse> response) {
+          request.endHandler($ -> {
+            response.write(Messages.StreamingOutputCallResponse.newBuilder()
+              .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
+              .build());
+            response.write(Messages.StreamingOutputCallResponse.newBuilder()
+              .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-2", StandardCharsets.UTF_8)).build())
+              .build());
+            response.end();
+          });
+        };
+      });
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer)
+      .listen(port)
+      .onFailure(should::fail);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    Async test = should.async();
+    client.fullDuplexCall(req -> {
+        req.write(Messages.StreamingOutputCallRequest.newBuilder()
+          .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest-1", StandardCharsets.UTF_8)).build())
+          .build());
+        req.write(Messages.StreamingOutputCallRequest.newBuilder()
+          .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest-2", StandardCharsets.UTF_8)).build())
+          .build());
+        req.end();
+      })
+      .onSuccess(response -> {
+        List<Messages.StreamingOutputCallResponse> list = new ArrayList<>();
+        response.handler(list::add);
+        response.endHandler($ -> {
+          should.assertEquals(2, list.size());
+          test.complete();
+        });
+        response.exceptionHandler(should::fail);
       });
   }
 
@@ -483,7 +535,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   }
 
   @Test
-  public void testmanyMany_WriteStreamArg(TestContext should) throws IOException {
+  public void testmanyMany_ReadStreamReturn_ErrorHandling(TestContext should) throws IOException {
     int port = getFreePort();
 
     // Create gRPC Server
@@ -491,17 +543,9 @@ public class ProtocPluginTest extends ProxyTestBase {
     VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(grpcServer)
       .callHandlers(new VertxTestServiceGrpcServer.TestServiceApi() {
         @Override
-        public void fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request, WriteStream<Messages.StreamingOutputCallResponse> response) {
-          request.endHandler($ -> {
-            response.write(Messages.StreamingOutputCallResponse.newBuilder()
-              .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
-              .build());
-            response.write(Messages.StreamingOutputCallResponse.newBuilder()
-              .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-2", StandardCharsets.UTF_8)).build())
-              .build());
-            response.end();
-          });
-        };
+        public ReadStream<Messages.StreamingOutputCallResponse> fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request) {
+          throw new RuntimeException("Simulated error");
+        }
       });
     HttpServer httpServer = vertx.createHttpServer();
     httpServer.requestHandler(grpcServer)
@@ -523,13 +567,13 @@ public class ProtocPluginTest extends ProxyTestBase {
         req.end();
       })
       .onSuccess(response -> {
-        List<Messages.StreamingOutputCallResponse> list = new ArrayList<>();
-        response.handler(list::add);
-        response.endHandler($ -> {
-          should.assertEquals(2, list.size());
-          test.complete();
+        response.handler($ -> should.fail());
+        response.exceptionHandler(err -> {
+          // TODO exception not thrown!
+          System.out.println("Exception thrown " + err.getMessage());
+          should.assertEquals("Invalid gRPC status 13", err.getMessage());
         });
-        response.exceptionHandler(should::fail);
+        response.endHandler($ -> test.complete());
       });
   }
 

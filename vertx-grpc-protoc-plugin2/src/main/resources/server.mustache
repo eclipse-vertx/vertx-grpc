@@ -46,8 +46,9 @@ public class {{className}}  {
         {{methodName}}(request)
           .handler(msg -> response.write(msg))
           .endHandler(msg -> response.end())
+          .exceptionHandler(err -> response.status(GrpcStatus.INTERNAL).end())
           .resume();
-      } catch  (Throwable err) {
+      } catch (Throwable err) {
         response.status(GrpcStatus.INTERNAL).end();
       }
     }
@@ -70,11 +71,16 @@ public class {{className}}  {
     default ReadStream<{{outputType}}> {{methodName}}(ReadStream<{{inputType}}> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{methodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
-      {{methodName}}(request)
-        .handler(msg -> response.write(msg))
-        .endHandler(msg -> response.end())
-        .resume();
+    default void {{methodName}}(ReadStream<{{inputType}}> request, GrpcServerResponse<{{inputType}}, {{outputType}}> response) {
+      try {
+        {{methodName}}(request)
+          .handler(msg -> response.write(msg))
+          .endHandler(msg -> response.end())
+          .exceptionHandler(err -> response.status(GrpcStatus.INTERNAL).end())
+          .resume();
+      } catch (Throwable err) {
+        response.status(GrpcStatus.INTERNAL).end();
+      }
     }
 {{/manyManyMethods}}
   }
