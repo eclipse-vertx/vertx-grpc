@@ -366,7 +366,10 @@ public class ServerBridgeTest extends ServerTest {
         md.put(Metadata.Key.of("grpc-custom_response_trailer-bin", io.grpc.Metadata.BINARY_BYTE_MARSHALLER), new byte[]{2,1,0});
         final StatusRuntimeException t =
           StatusProto.toStatusRuntimeException(
-            com.google.rpc.Status.newBuilder().setCode(Code.INVALID_ARGUMENT_VALUE).build(), md);
+            com.google.rpc.Status.newBuilder()
+              .setCode(Code.INVALID_ARGUMENT_VALUE)
+              .setMessage("grpc-status-message-value +*~")
+              .build(), md);
         responseObserver.onError(t);
       }
     };

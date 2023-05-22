@@ -32,6 +32,15 @@ public interface GrpcServerResponse<Req, Resp> extends GrpcWriteStream<Resp> {
   @Fluent
   GrpcServerResponse<Req, Resp> status(GrpcStatus status);
 
+  /**
+   * Set the grpc status response message
+   *
+   * @param msg the message
+   * @return a reference to this, so the API can be used fluently
+   */
+  @Fluent
+  GrpcServerResponse<Req, Resp> statusMessage(String msg);
+
   @Fluent
   GrpcServerResponse<Req, Resp> encoding(String encoding);
 

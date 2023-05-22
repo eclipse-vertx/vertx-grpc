@@ -333,7 +333,8 @@ public class ClientBridgeTest extends ClientTest {
     try {
       stub.sayHello(request);
     } catch (StatusRuntimeException e) {
-      should.assertEquals(Status.UNAVAILABLE, e.getStatus());
+      should.assertEquals(Status.UNAVAILABLE.getCode(), e.getStatus().getCode());
+      should.assertEquals("~Greeter temporarily unavailable...~", e.getStatus().getDescription());
     }
   }
 
