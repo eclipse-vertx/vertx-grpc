@@ -139,6 +139,38 @@ public class ProtocPluginTest extends ProxyTestBase {
   }
 
   @Test
+  public void testUnary_FutureReturn_Error(TestContext should) throws IOException {
+    port = getFreePort();
+
+    // Create gRPC Server
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    VertxTestServiceGrpcServer server = new VertxTestServiceGrpcServer(grpcServer)
+      .callHandlers(new VertxTestServiceGrpcServer.TestServiceApi() {
+        @Override
+        public Future<Messages.SimpleResponse> unaryCall(Messages.SimpleRequest request) {
+          throw new RuntimeException("Simulated error");
+        }
+      });
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer)
+      .listen(port)
+      .onFailure(should::fail);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    Async test = should.async();
+    client.unaryCall(Messages.SimpleRequest.newBuilder()
+        .setFillUsername(true)
+        .build())
+      .onFailure(err -> {
+        should.assertEquals("Invalid gRPC status 13", err.getMessage());
+        test.complete();
+      });
+  }
+
+  @Test
   public void testManyUnary_FutureReturn(TestContext should) throws IOException {
     int port = getFreePort();
 

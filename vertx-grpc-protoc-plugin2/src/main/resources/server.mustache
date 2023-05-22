@@ -8,6 +8,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcServer;
 
 import java.util.ArrayList;
@@ -26,9 +27,13 @@ public class {{className}}  {
     throw new UnsupportedOperationException("Not implemented");
   }
   default void {{methodName}}({{inputType}} request, Promise<{{outputType}}> response) {
-    {{methodName}}(request)
-      .onSuccess(msg -> response.complete(msg))
-      .onFailure(error -> response.fail(error));
+    try {
+      {{methodName}}(request)
+        .onSuccess(msg -> response.complete(msg))
+        .onFailure(error -> response.fail(error));
+    } catch (Throwable err) {
+      response.fail(err);
+    }
   }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
@@ -70,7 +75,9 @@ public class {{className}}  {
     server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
       Promise<{{outputType}}> promise = Promise.promise();
       request.handler(req -> implementation.{{methodName}}(req, promise));
-      promise.future().onSuccess(resp -> request.response().end(resp));
+      promise.future()
+        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+        .onSuccess(resp -> request.response().end(resp));
     });
 {{/unaryMethods}}
 {{#unaryManyMethods}}
