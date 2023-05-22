@@ -190,11 +190,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
       headersSent = true;
       if (headers != null && headers.size() > 0) {
         for (Map.Entry<String, String> header : headers) {
-          if (!header.getKey().startsWith("grpc-")) {
-            responseHeaders.add(header.getKey(), header.getValue());
-          } else {
-            // Log ?
-          }
+          responseHeaders.add(header.getKey(), header.getValue());
         }
       }
       responseHeaders.set("content-type", "application/grpc");
@@ -213,17 +209,13 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
         responseTrailers = httpResponse.trailers();
       }
 
-      if (!responseHeaders.contains("grpc-status")) {
-        responseTrailers.set("grpc-status", status.toString());
-      }
       if (trailers != null && trailers.size() > 0) {
         for (Map.Entry<String, String> trailer : trailers) {
-          if (!trailer.getKey().startsWith("grpc-")) {
-            responseTrailers.add(trailer.getKey(), trailer.getValue());
-          } else {
-            // Log ?
-          }
+          responseTrailers.add(trailer.getKey(), trailer.getValue());
         }
+      }
+      if (!responseHeaders.contains("grpc-status")) {
+        responseTrailers.set("grpc-status", status.toString());
       }
       if (message != null) {
         return httpResponse.end(GrpcMessageImpl.encode(message));
