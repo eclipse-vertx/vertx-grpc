@@ -48,6 +48,9 @@ public abstract class ClientTest extends ClientTestBase {
   static final int NUM_ITEMS = 128;
   static final int NUM_BATCHES = 5;
 
+  protected GrpcClient client;
+
+
   @Test
   public void testUnary(TestContext should) throws IOException {
     testUnary(should, "identity", "identity");

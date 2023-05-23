@@ -62,7 +62,7 @@ public class ClientBridgeTest extends ClientTest {
 
     super.testUnary(should, requestEncoding, responseEncoding);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel).withCompression(requestEncoding);
@@ -76,7 +76,7 @@ public class ClientBridgeTest extends ClientTest {
 
     super.testUnary(should, "identity", "identity");
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     AtomicInteger status = new AtomicInteger();
@@ -112,7 +112,7 @@ public class ClientBridgeTest extends ClientTest {
 
     super.testServerStreaming(should);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     StreamingGrpc.StreamingBlockingStub stub = StreamingGrpc.newBlockingStub(channel);
@@ -127,7 +127,7 @@ public class ClientBridgeTest extends ClientTest {
 
     super.testServerStreamingBackPressure(should);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     StreamingGrpc.StreamingBlockingStub stub = StreamingGrpc.newBlockingStub(channel);
@@ -157,7 +157,7 @@ public class ClientBridgeTest extends ClientTest {
 
     super.testClientStreaming(should);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     StreamingGrpc.StreamingStub stub = StreamingGrpc.newStub(channel);
@@ -188,7 +188,7 @@ public class ClientBridgeTest extends ClientTest {
 
     super.testClientStreamingBackPressure(should);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     StreamingGrpc.StreamingStub stub = StreamingGrpc.newStub(channel);
@@ -230,7 +230,7 @@ public class ClientBridgeTest extends ClientTest {
 
     super.testClientStreamingCompletedBeforeHalfClose(should);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     StreamingGrpc.StreamingStub stub = StreamingGrpc.newStub(channel);
@@ -261,7 +261,7 @@ public class ClientBridgeTest extends ClientTest {
 
     super.testBidiStreaming(should);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     StreamingGrpc.StreamingStub stub = StreamingGrpc.newStub(channel);
@@ -297,7 +297,7 @@ public class ClientBridgeTest extends ClientTest {
 
     super.testBidiStreamingCompletedBeforeHalfClose(should);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     StreamingGrpc.StreamingStub stub = StreamingGrpc.newStub(channel);
@@ -325,7 +325,7 @@ public class ClientBridgeTest extends ClientTest {
 
     super.testStatus(should);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
@@ -341,7 +341,7 @@ public class ClientBridgeTest extends ClientTest {
   public void testFail(TestContext should) throws Exception {
     super.testFail(should);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     StreamingGrpc.StreamingStub stub = StreamingGrpc.newStub(channel);
@@ -371,7 +371,7 @@ public class ClientBridgeTest extends ClientTest {
 
     super.testMetadata(should);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     ClientInterceptor interceptor = new ClientInterceptor() {
@@ -411,7 +411,7 @@ public class ClientBridgeTest extends ClientTest {
   @Test
   public void testGrpcConnectError(TestContext should) throws Exception {
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
@@ -469,7 +469,7 @@ public class ClientBridgeTest extends ClientTest {
     };
     startServer(called);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port + 1, "localhost"));
 
     StreamingGrpc.StreamingBlockingStub stub = StreamingGrpc.newBlockingStub(channel);
@@ -524,7 +524,7 @@ public class ClientBridgeTest extends ClientTest {
       .onComplete(should.asyncAssertSuccess(v -> listenLatch.countDown()));
     listenLatch.awaitSuccess(20_000);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
 
     GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
