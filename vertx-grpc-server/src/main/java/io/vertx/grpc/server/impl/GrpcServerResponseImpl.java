@@ -23,6 +23,7 @@ import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
@@ -39,6 +40,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   private final GrpcMessageEncoder<Resp> encoder;
   private String encoding;
   private GrpcStatus status = GrpcStatus.OK;
+  private String statusMessage;
   private boolean headersSent;
   private boolean trailersSent;
   private boolean cancelled;
@@ -53,6 +55,12 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
     Objects.requireNonNull(status);
     this.status = status;
+    return this;
+  }
+
+  @Override
+  public GrpcServerResponse<Req, Resp> statusMessage(String msg) {
+    this.statusMessage = msg;
     return this;
   }
 
@@ -190,11 +198,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
       headersSent = true;
       if (headers != null && headers.size() > 0) {
         for (Map.Entry<String, String> header : headers) {
-          if (!header.getKey().startsWith("grpc-")) {
-            responseHeaders.add(header.getKey(), header.getValue());
-          } else {
-            // Log ?
-          }
+          responseHeaders.add(header.getKey(), header.getValue());
         }
       }
       responseHeaders.set("content-type", "application/grpc");
@@ -213,17 +217,21 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
         responseTrailers = httpResponse.trailers();
       }
 
+      if (trailers != null && trailers.size() > 0) {
+        for (Map.Entry<String, String> trailer : trailers) {
+          responseTrailers.add(trailer.getKey(), trailer.getValue());
+        }
+      }
       if (!responseHeaders.contains("grpc-status")) {
         responseTrailers.set("grpc-status", status.toString());
       }
-      if (trailers != null && trailers.size() > 0) {
-        for (Map.Entry<String, String> trailer : trailers) {
-          if (!trailer.getKey().startsWith("grpc-")) {
-            responseTrailers.add(trailer.getKey(), trailer.getValue());
-          } else {
-            // Log ?
-          }
+      if (status != GrpcStatus.OK) {
+        String msg = statusMessage;
+        if (msg != null && !responseHeaders.contains("grpc-status-message")) {
+          responseTrailers.set("grpc-message", Utils.utf8PercentEncode(msg));
         }
+      } else {
+        responseTrailers.remove("grpc-message");
       }
       if (message != null) {
         return httpResponse.end(GrpcMessageImpl.encode(message));

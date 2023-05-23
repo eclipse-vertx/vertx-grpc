@@ -101,6 +101,9 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
               Metadata trailers;
               if (grpcResponse.status() != null) {
                 status = Status.fromCodeValue(grpcResponse.status().code);
+                if (grpcResponse.statusMessage() != null) {
+                  status = status.withDescription(grpcResponse.statusMessage());
+                }
                 trailers = Utils.readMetadata(grpcResponse.trailers());
               } else {
                 status = Status.fromThrowable(ar.cause());

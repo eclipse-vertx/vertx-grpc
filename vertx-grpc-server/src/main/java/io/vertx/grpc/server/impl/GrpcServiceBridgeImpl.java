@@ -149,6 +149,7 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
       } else {
         Utils.writeMetadata(trailers, response.trailers());
         response.status(GrpcStatus.valueOf(status.getCode().value()));
+        response.statusMessage(status.getDescription());
         response.end();
       }
       listener.onComplete();
