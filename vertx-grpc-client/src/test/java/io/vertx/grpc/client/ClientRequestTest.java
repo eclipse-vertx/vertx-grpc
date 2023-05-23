@@ -32,6 +32,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -128,6 +129,7 @@ public class ClientRequestTest extends ClientTest {
           });
           callResponse.endHandler(v2 -> {
             should.assertEquals(GrpcStatus.UNAVAILABLE, callResponse.status());
+            should.assertEquals("~Greeter temporarily unavailable...~", callResponse.statusMessage());
             test.complete();
           });
         }));
@@ -374,6 +376,9 @@ public class ClientRequestTest extends ClientTest {
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), GreeterGrpc.getSayHelloMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.headers().set("custom_request_header", "custom_request_header_value");
+        callRequest.headers().set("custom_request_header-bin", Base64.getEncoder().encodeToString(new byte[] { 0,1,2 }));
+        callRequest.headers().set("grpc-custom_request_header", "grpc-custom_request_header_value");
+        callRequest.headers().set("grpc-custom_request_header-bin", Base64.getEncoder().encodeToString(new byte[] { 2,1,0 }));
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
           should.assertEquals("custom_response_header_value", callResponse.headers().get("custom_response_header"));
           should.assertEquals(3, testMetadataStep.getAndIncrement());

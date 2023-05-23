@@ -38,6 +38,12 @@ public interface GrpcClientResponse<Req, Resp> extends GrpcReadStream<Resp> {
   GrpcStatus status();
 
   /**
+   * @return the gRPC status message of {@code null} when the status has not yet been received or not transmitted
+   */
+  @CacheReturn
+  String statusMessage();
+
+  /**
    * @return the {@link MultiMap} to write metadata trailers
    */
   MultiMap trailers();

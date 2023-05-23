@@ -333,7 +333,8 @@ public class ClientBridgeTest extends ClientTest {
     try {
       stub.sayHello(request);
     } catch (StatusRuntimeException e) {
-      should.assertEquals(Status.UNAVAILABLE, e.getStatus());
+      should.assertEquals(Status.UNAVAILABLE.getCode(), e.getStatus().getCode());
+      should.assertEquals("~Greeter temporarily unavailable...~", e.getStatus().getDescription());
     }
   }
 
@@ -381,17 +382,26 @@ public class ClientBridgeTest extends ClientTest {
           @Override
           public void start(Listener<RespT> responseListener, Metadata headers) {
             headers.put(Metadata.Key.of("custom_request_header", io.grpc.Metadata.ASCII_STRING_MARSHALLER), "custom_request_header_value");
+            headers.put(Metadata.Key.of("custom_request_header-bin", Metadata.BINARY_BYTE_MARSHALLER), new byte[] { 0,1,2 });
+            headers.put(Metadata.Key.of("grpc-custom_request_header", io.grpc.Metadata.ASCII_STRING_MARSHALLER), "grpc-custom_request_header_value");
+            headers.put(Metadata.Key.of("grpc-custom_request_header-bin", Metadata.BINARY_BYTE_MARSHALLER), new byte[] { 2,1,0 });
             super.start(new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(responseListener) {
               @Override
               public void onHeaders(Metadata headers) {
                 should.assertEquals(3, testMetadataStep.getAndIncrement());
                 should.assertEquals("custom_response_header_value", headers.get(Metadata.Key.of("custom_response_header", Metadata.ASCII_STRING_MARSHALLER)));
+                assertEquals(should, new byte[] { 0,1,2 }, headers.get(Metadata.Key.of("custom_response_header-bin", Metadata.BINARY_BYTE_MARSHALLER)));
+                should.assertEquals("grpc-custom_response_header_value", headers.get(Metadata.Key.of("grpc-custom_response_header", Metadata.ASCII_STRING_MARSHALLER)));
+                assertEquals(should, new byte[] { 2,1,0 }, headers.get(Metadata.Key.of("grpc-custom_response_header-bin", Metadata.BINARY_BYTE_MARSHALLER)));
                 super.onHeaders(headers);
               }
               @Override
               public void onClose(Status status, Metadata trailers) {
                 should.assertEquals(4, testMetadataStep.getAndIncrement());
-                should.assertEquals("custom_response_trailer_value", trailers.get(Metadata.Key.of("custom_response_trailer", io.grpc.Metadata.ASCII_STRING_MARSHALLER)));
+                should.assertEquals("custom_response_trailer_value", trailers.get(Metadata.Key.of("custom_response_trailer", Metadata.ASCII_STRING_MARSHALLER)));
+                assertEquals(should, new byte[] { 0,1,2 }, trailers.get(Metadata.Key.of("custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER)));
+                should.assertEquals("grpc-custom_response_trailer_value", trailers.get(Metadata.Key.of("grpc-custom_response_trailer", Metadata.ASCII_STRING_MARSHALLER)));
+                assertEquals(should, new byte[] { 2,1,0 }, trailers.get(Metadata.Key.of("grpc-custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER)));
                 super.onClose(status, trailers);
               }
             }, headers);
