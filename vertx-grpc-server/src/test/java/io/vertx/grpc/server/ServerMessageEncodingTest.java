@@ -46,6 +46,8 @@ import java.util.function.Consumer;
 
 public class ServerMessageEncodingTest extends ServerTestBase {
 
+  private HttpClient client;
+
   @Test
   public void testZipResponseCompress(TestContext should) {
     testEncode(should, "gzip", GrpcMessage.message("identity", Buffer.buffer("Hello World")), true);
@@ -79,7 +81,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
       });
     }));
 
-    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+    client = vertx.createHttpClient(new HttpClientOptions()
       .setProtocolVersion(HttpVersion.HTTP_2)
       .setHttp2ClearTextUpgrade(true)
     );
@@ -193,7 +195,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
       impl.accept(call);
     }));
 
-    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+    client = vertx.createHttpClient(new HttpClientOptions()
       .setProtocolVersion(HttpVersion.HTTP_2)
       .setHttp2ClearTextUpgrade(false)
     );
