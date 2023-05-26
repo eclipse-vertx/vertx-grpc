@@ -7,6 +7,7 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
+import io.vertx.grpc.common.GrpcStatus;
 import java.util.function.Consumer;
 
 public class {{className}} {
@@ -31,7 +32,13 @@ public class {{className}} {
   public Future<ReadStream<{{outputType}}>> {{methodName}}({{inputType}} request) {
     return client.request(socketAddress, {{serviceName}}Grpc.{{methodNameGetter}}()).compose(req -> {
       req.end(request);
-      return req.response().map(resp -> resp);
+      return req.response().flatMap(resp -> {
+        if (resp.status() != null && resp.status() != GrpcStatus.OK) {
+          return Future.failedFuture("Invalid gRPC status " + resp.status());
+        } else {
+          return Future.succeededFuture(resp);
+        }
+      });
     });
   }
 
@@ -49,7 +56,13 @@ public class {{className}} {
   public Future<ReadStream<{{outputType}}>> {{methodName}}(Consumer<WriteStream<{{inputType}}>> request) {
     return client.request(socketAddress, {{serviceName}}Grpc.{{methodNameGetter}}()).compose(req -> {
       request.accept(req);
-      return req.response().map(resp -> resp);
+      return req.response().flatMap(resp -> {
+        if (resp.status() != null && resp.status() != GrpcStatus.OK) {
+          return Future.failedFuture("Invalid gRPC status " + resp.status());
+        } else {
+          return Future.succeededFuture(resp);
+        }
+      });
     });
   }
 
