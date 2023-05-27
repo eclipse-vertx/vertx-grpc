@@ -39,8 +39,15 @@ public class ServiceNameImpl implements ServiceName {
   @Override
   public String packageName() {
     if (packageName == null) {
+      if (fullyQualifiedName == null) {
+        return "";
+      }
       int idx = fullyQualifiedName.lastIndexOf('.');
-      packageName = fullyQualifiedName.substring(0, idx);
+      if (idx < 0) {
+        packageName = "";
+      } else {
+        packageName = fullyQualifiedName.substring(0, idx);
+      }
     }
     return packageName;
   }
@@ -62,7 +69,11 @@ public class ServiceNameImpl implements ServiceName {
     if (fullyQualifiedName != null) {
       return '/' + fullyQualifiedName + '/' + method;
     } else {
-      return '/' + packageName + '.' + name + '/' + method;
+      if (packageName == null || packageName.isEmpty()) {
+        return '/' + name + '/' + method;
+      } else {
+        return '/' + packageName + '.' + name + '/' + method;
+      }
     }
   }
 }
