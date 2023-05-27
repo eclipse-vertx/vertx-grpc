@@ -50,7 +50,11 @@ public class ServiceNameImpl implements ServiceName {
   @Override
   public String fullyQualifiedName() {
     if (fullyQualifiedName == null) {
-      fullyQualifiedName = packageName + '.' + name;
+      if (packageName == null || packageName.isEmpty()) {
+        fullyQualifiedName = name;
+      } else {
+        fullyQualifiedName = packageName + '.' + name;
+      }
     }
     return fullyQualifiedName;
   }
