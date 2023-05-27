@@ -25,10 +25,9 @@ public class ServiceNameTest {
   ServiceName sn4;
 
   String method0 = "Method0";
-  String method1 = "Method1";
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     sn0 = ServiceName.create("com.examples.MyService");
     sn1 = ServiceName.create("com.examples", "MyService");
     sn2 = ServiceName.create("MyService");
@@ -74,11 +73,10 @@ public class ServiceNameTest {
 
   @Test
   public void pathOf() {
-
     assertEquals("/com.examples.MyService/Method0", sn0.pathOf(method0));
-      assertEquals("/com.examples.MyService/Method0", sn1.pathOf(method0));
-      assertEquals("/MyService/Method0", sn2.pathOf(method0));
-      assertEquals("/MyService/Method0", sn3.pathOf(method0));
-      assertEquals("/MyService/Method0", sn4.pathOf(method0));
+    assertEquals("/com.examples.MyService/Method0", sn1.pathOf(method0));
+    assertEquals("/MyService/Method0", sn2.pathOf(method0));
+    assertEquals("/MyService/Method0", sn3.pathOf(method0));
+    assertEquals("/MyService/Method0", sn4.pathOf(method0));
   }
 }
