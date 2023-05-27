@@ -16,26 +16,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class {{className}}  {
-  private final GrpcServer server;
-
-  public {{className}}(GrpcServer server) {
-    this.server = server;
-  }
-
   public interface {{serviceName}}Api {
 {{#unaryMethods}}
-  default Future<{{outputType}}> {{methodName}}({{inputType}} request) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-  default void {{methodName}}({{inputType}} request, Promise<{{outputType}}> response) {
-    try {
-      {{methodName}}(request)
-        .onSuccess(msg -> response.complete(msg))
-        .onFailure(error -> response.fail(error));
-    } catch (Throwable err) {
-      response.fail(err);
+    default Future<{{outputType}}> {{methodName}}({{inputType}} request) {
+      throw new UnsupportedOperationException("Not implemented");
     }
-  }
+    default void {{methodName}}({{inputType}} request, Promise<{{outputType}}> response) {
+      try {
+        {{methodName}}(request)
+          .onSuccess(msg -> response.complete(msg))
+          .onFailure(error -> response.fail(error));
+      } catch (Throwable err) {
+        response.fail(err);
+      }
+    }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
     default ReadStream<{{outputType}}> {{methodName}}({{inputType}} request) {
@@ -83,37 +77,53 @@ public class {{className}}  {
       }
     }
 {{/manyManyMethods}}
-  }
 
-  public {{className}} callHandlers({{serviceName}}Api implementation) {
 {{#unaryMethods}}
-    server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
-      Promise<{{outputType}}> promise = Promise.promise();
-      request.handler(req -> implementation.{{methodName}}(req, promise));
-      promise.future()
-        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-        .onSuccess(resp -> request.response().end(resp));
-    });
+    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+      server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
+        Promise<{{outputType}}> promise = Promise.promise();
+        request.handler(req -> {{methodName}}(req, promise));
+        promise.future()
+          .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+          .onSuccess(resp -> request.response().end(resp));
+      });
+      return this;
+    }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
-    server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
-      request.handler(req -> implementation.{{methodName}}(req, request.response()));
-    });
+    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+      server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
+        request.handler(req -> {{methodName}}(req, request.response()));
+      });
+      return this;
+    }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
-    server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
-      Promise<{{outputType}}> promise = Promise.promise();
-      implementation.{{methodName}}(request, promise);
-      promise.future()
-        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-        .onSuccess(resp -> request.response().end(resp));
-    });
+    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+      server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
+        Promise<{{outputType}}> promise = Promise.promise();
+        {{methodName}}(request, promise);
+        promise.future()
+          .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+          .onSuccess(resp -> request.response().end(resp));
+      });
+      return this;
+    }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
-    server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
-      implementation.{{methodName}}(request, request.response());
-    });
+    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+      server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
+        {{methodName}}(request, request.response());
+      });
+      return this;
+    }
 {{/manyManyMethods}}
-    return this;
+
+    default {{serviceName}}Api bindAll(GrpcServer server) {
+{{#methods}}
+      bind_{{methodName}}(server);
+{{/methods}}
+      return this;
+    }
   }
 }
