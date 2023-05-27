@@ -35,8 +35,8 @@ public class GrpcMethodCallTest extends TestCase {
 
   @Test
   public void testMethodName() {
-    assertEquals("/Method1", grpcMethodCall0.methodName());
-    assertEquals("/Method2", grpcMethodCall1.methodName());
-    assertEquals("/Method3", grpcMethodCall2.methodName());
+    assertEquals("Method1", grpcMethodCall0.methodName());
+    assertEquals("Method2", grpcMethodCall1.methodName());
+    assertEquals("Method3", grpcMethodCall2.methodName());
   }
 }
