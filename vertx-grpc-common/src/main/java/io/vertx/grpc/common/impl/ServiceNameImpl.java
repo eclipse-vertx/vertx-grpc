@@ -66,8 +66,12 @@ public class ServiceNameImpl implements ServiceName {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     ServiceNameImpl that = (ServiceNameImpl) o;
     return Objects.equals(fullyQualifiedName(), that.fullyQualifiedName());
   }
