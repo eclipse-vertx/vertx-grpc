@@ -12,6 +12,8 @@ package io.vertx.grpc.common.impl;
 
 import io.vertx.grpc.common.ServiceName;
 
+import java.util.Objects;
+
 public class ServiceNameImpl implements ServiceName {
 
   private String name;
@@ -60,5 +62,22 @@ public class ServiceNameImpl implements ServiceName {
     } else {
       return '/' + packageName + '.' + name + '/' + method;
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ServiceNameImpl that = (ServiceNameImpl) o;
+    return Objects.equals(fullyQualifiedName(), that.fullyQualifiedName());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(fullyQualifiedName());
   }
 }
