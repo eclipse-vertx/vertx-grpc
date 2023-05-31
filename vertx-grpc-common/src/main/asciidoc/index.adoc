@@ -30,4 +30,6 @@ include::server.adoc[]
 
 include::client.adoc[]
 
+include::plugin.adoc[]
+
 include::storage.adoc[]
