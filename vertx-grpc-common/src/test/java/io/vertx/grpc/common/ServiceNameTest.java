@@ -16,6 +16,7 @@ import org.junit.Test;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 public class ServiceNameTest {
   ServiceName sn0;
@@ -78,5 +79,53 @@ public class ServiceNameTest {
     assertEquals("/MyService/Method0", sn2.pathOf(method0));
     assertEquals("/MyService/Method0", sn3.pathOf(method0));
     assertEquals("/MyService/Method0", sn4.pathOf(method0));
+  }
+
+  @Test
+  public void equalsTest() {
+    ServiceName snt0 = ServiceName.create("com.examples.MyService");
+    ServiceName snt1 = ServiceName.create("com.examples", "MyService");
+    ServiceName snt2 = ServiceName.create("com.examples.OtherService");
+    ServiceName snt3 = ServiceName.create("org.examples", "MyService");
+
+    assertEquals(sn0, sn1);
+    assertEquals(sn2, sn3);
+    assertEquals(sn2, sn4);
+    assertEquals(sn3, sn4);
+    assertEquals(sn0, snt0);
+    assertEquals(sn0, snt1);
+    assertEquals(sn1, snt0);
+    assertEquals(sn1, snt1);
+
+    assertNotEquals(sn0, sn2);
+    assertNotEquals(sn1, sn3);
+    assertNotEquals(sn0, snt2);
+    assertNotEquals(sn0, snt3);
+    assertNotEquals(sn1, snt2);
+    assertNotEquals(sn1, snt3);
+  }
+
+  @Test
+  public void hashCodeTest() {
+    ServiceName snt0 = ServiceName.create("com.examples.MyService");
+    ServiceName snt1 = ServiceName.create("com.examples", "MyService");
+    ServiceName snt2 = ServiceName.create("com.examples.OtherService");
+    ServiceName snt3 = ServiceName.create("org.examples", "MyService");
+
+    assertEquals(sn0.hashCode(), sn1.hashCode());
+    assertEquals(sn2.hashCode(), sn3.hashCode());
+    assertEquals(sn2.hashCode(), sn4.hashCode());
+    assertEquals(sn3.hashCode(), sn4.hashCode());
+    assertEquals(sn0.hashCode(), snt0.hashCode());
+    assertEquals(sn0.hashCode(), snt1.hashCode());
+    assertEquals(sn1.hashCode(), snt0.hashCode());
+    assertEquals(sn1.hashCode(), snt1.hashCode());
+
+    assertNotEquals(sn0.hashCode(), sn2.hashCode());
+    assertNotEquals(sn1.hashCode(), sn3.hashCode());
+    assertNotEquals(sn0.hashCode(), snt2.hashCode());
+    assertNotEquals(sn0.hashCode(), snt3.hashCode());
+    assertNotEquals(sn1.hashCode(), snt2.hashCode());
+    assertNotEquals(sn1.hashCode(), snt3.hashCode());
   }
 }
