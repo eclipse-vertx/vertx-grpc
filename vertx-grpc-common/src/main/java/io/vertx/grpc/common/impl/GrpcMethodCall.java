@@ -34,7 +34,11 @@ public class GrpcMethodCall {
     if (serviceName == null) {
       int idx1 = path.lastIndexOf('.');
       int idx2 = path.lastIndexOf('/');
-      serviceName = ServiceName.create(path.substring(1, idx1), path.substring(idx1 + 1, idx2));
+      if (idx1 < 1) {
+        serviceName = ServiceName.create("", path.substring(1, idx2));
+      } else {
+        serviceName = ServiceName.create(path.substring(1, idx1), path.substring(idx1 + 1, idx2));
+      }
     }
     return serviceName;
   }
@@ -42,7 +46,7 @@ public class GrpcMethodCall {
   public String methodName() {
     if (methodName == null) {
       int idx = path.lastIndexOf('/');
-      methodName = path.substring(idx);
+      methodName = path.substring(idx + 1);
     }
     return methodName;
   }
