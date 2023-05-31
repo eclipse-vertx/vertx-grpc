@@ -46,7 +46,7 @@ public class GrpcMethodCall {
   public String methodName() {
     if (methodName == null) {
       int idx = path.lastIndexOf('/');
-      methodName = path.substring(idx);
+      methodName = path.substring(idx + 1);
     }
     return methodName;
   }
