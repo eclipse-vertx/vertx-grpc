@@ -22,6 +22,7 @@ import io.vertx.core.http.RequestOptions;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.grpc.client.GrpcClientRequestOptions;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
@@ -43,15 +44,23 @@ public class GrpcClientImpl implements GrpcClient {
     this(new HttpClientOptions().setHttp2ClearTextUpgrade(false), vertx);
   }
 
-  @Override public Future<GrpcClientRequest<Buffer, Buffer>> request(SocketAddress server) {
+  @Override
+  public Future<GrpcClientRequest<Buffer, Buffer>> request(SocketAddress server) {
     RequestOptions options = new RequestOptions()
       .setMethod(HttpMethod.POST)
       .setServer(server);
     return client.request(options)
+        .map(request -> new GrpcClientRequestImpl<>(request, GrpcMessageEncoder.IDENTITY, GrpcMessageDecoder.IDENTITY));
+  }
+
+  @Override
+  public Future<GrpcClientRequest<Buffer, Buffer>> request(SocketAddress server, GrpcClientRequestOptions options) {
+    return client.request(options.createHttpRequestOptions(server))
       .map(request -> new GrpcClientRequestImpl<>(request, GrpcMessageEncoder.IDENTITY, GrpcMessageDecoder.IDENTITY));
   }
 
-  @Override public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(SocketAddress server, MethodDescriptor<Req, Resp> service) {
+  @Override
+  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(SocketAddress server, MethodDescriptor<Req, Resp> service) {
     RequestOptions options = new RequestOptions()
       .setMethod(HttpMethod.POST)
       .setServer(server);
@@ -63,6 +72,19 @@ public class GrpcClientImpl implements GrpcClient {
         call.fullMethodName(service.getFullMethodName());
         return call;
       });
+  }
+
+  @Override
+  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(SocketAddress server, MethodDescriptor<Req, Resp> service,
+      GrpcClientRequestOptions options) {
+    GrpcMessageDecoder<Resp> messageDecoder = GrpcMessageDecoder.unmarshaller(service.getResponseMarshaller());
+    GrpcMessageEncoder<Req> messageEncoder = GrpcMessageEncoder.marshaller(service.getRequestMarshaller());
+    return client.request(options.createHttpRequestOptions(server))
+        .map(request -> {
+          GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(request, messageEncoder, messageDecoder);
+          call.fullMethodName(service.getFullMethodName());
+          return call;
+        });
   }
 
   @Override

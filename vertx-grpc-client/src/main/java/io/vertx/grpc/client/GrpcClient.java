@@ -19,7 +19,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.client.impl.GrpcClientImpl;
 
 import java.util.function.Function;
@@ -72,14 +71,35 @@ public interface GrpcClient {
   Future<GrpcClientRequest<Buffer, Buffer>> request(SocketAddress server);
 
   /**
+   * Connect to the remote {@code server} and create a request for any hosted gRPC service.
+   *
+   * @param server the server hosting the service
+   * @return a future request
+   */
+  Future<GrpcClientRequest<Buffer, Buffer>> request(SocketAddress server, GrpcClientRequestOptions options);
+
+  /**
    * Connect to the remote {@code server} and create a request for given {@code method} of a hosted gRPC service.
    *
    * @param server the server hosting the service
    * @param service the service to be called
+   * @param options the grpc client request options
    * @return a future request
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(SocketAddress server, MethodDescriptor<Req, Resp> service);
+
+  /**
+   * Connect to the remote {@code server} and create a request for given
+   * {@code method} of a hosted gRPC service.
+   *
+   * @param server  the server hosting the service
+   * @param service the service to be called
+   * @param options the grpc client request options
+   * @return a future request
+   */
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
+  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(SocketAddress server, MethodDescriptor<Req, Resp> service, GrpcClientRequestOptions options);
 
   /**
    * Call the {@code service} gRPC service hosted by {@code server}.
@@ -104,6 +124,38 @@ public interface GrpcClient {
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   default <Req, Resp, T> Future<T> call(SocketAddress server, MethodDescriptor<Req, Resp> service, Handler<GrpcClientRequest<Req, Resp>> requestHandler, Function<GrpcClientResponse<Req, Resp>, Future<T>> resultFn) {
+    return request(server, service).compose(req -> {
+      requestHandler.handle(req);
+      return req
+        .response()
+        .compose(resultFn);
+    });
+  }
+
+  /**
+   * Call the {@code service} gRPC service hosted by {@code server}.
+   * <p>
+   *   The {@code requestHandler} is called to send the request, e.g. {@code req -> req.send(item)}
+   * <p>
+   *   The {@code responseFunction} extracts the result, e.g. {@code resp -> resp.last()}
+   * <p>
+   *   It can be used in various ways:
+   * <ul>
+   *   <li>{@code Future<Resp> fut = client.call(..., req -> req.send(item), resp -> resp.last());}</li>
+   *   <li>{@code Future<Void> fut = client.call(..., req -> req.send(stream), resp -> resp.pipeTo(anotherService));}</li>
+   *   <li>{@code Future<List<Resp>> fut = client.call(..., req -> req.send(stream), resp -> resp.collecting(Collectors.toList()));}</li>
+   * </ul>
+   * <pre>
+   *
+   * @param server the server hosting the service
+   * @param service the service to call
+   * @param options the grpc client request options
+   * @param requestHandler the handler called to send the request
+   * @param resultFn the function applied to extract the result.
+   * @return a future of the result
+   */
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
+  default <Req, Resp, T> Future<T> call(SocketAddress server, MethodDescriptor<Req, Resp> service, GrpcClientRequestOptions options, Handler<GrpcClientRequest<Req, Resp>> requestHandler, Function<GrpcClientResponse<Req, Resp>, Future<T>> resultFn) {
     return request(server, service).compose(req -> {
       requestHandler.handle(req);
       return req
