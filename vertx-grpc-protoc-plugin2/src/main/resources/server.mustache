@@ -22,29 +22,20 @@ public class {{className}}  {
       throw new UnsupportedOperationException("Not implemented");
     }
     default void {{methodName}}({{inputType}} request, Promise<{{outputType}}> response) {
-      try {
-        {{methodName}}(request)
-          .onSuccess(msg -> response.complete(msg))
-          .onFailure(error -> response.fail(error));
-      } catch (Throwable err) {
-        response.fail(err);
-      }
+      {{methodName}}(request)
+        .onSuccess(msg -> response.complete(msg))
+        .onFailure(error -> response.fail(error));
     }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
     default ReadStream<{{outputType}}> {{methodName}}({{inputType}} request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{methodName}}({{inputType}} request, GrpcServerResponse<{{inputType}}, {{outputType}}> response) {
-      try {
-        {{methodName}}(request)
-          .handler(msg -> response.write(msg))
-          .endHandler(msg -> response.end())
-          .exceptionHandler(err -> response.status(GrpcStatus.INTERNAL).end())
-          .resume();
-      } catch (Throwable err) {
-        response.status(GrpcStatus.INTERNAL).end();
-      }
+    default void {{methodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
+      {{methodName}}(request)
+        .handler(msg -> response.write(msg))
+        .endHandler(msg -> response.end())
+        .resume();
     }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
@@ -52,29 +43,20 @@ public class {{className}}  {
       throw new UnsupportedOperationException("Not implemented");
     }
     default void {{methodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
-      try {
-        {{methodName}}(request)
-          .onSuccess(msg -> response.complete(msg))
-          .onFailure(error -> response.fail(error));
-      } catch (Throwable err) {
-        response.fail(err);
-      }
+      {{methodName}}(request)
+        .onSuccess(msg -> response.complete(msg))
+        .onFailure(error -> response.fail(error));
     }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
     default ReadStream<{{outputType}}> {{methodName}}(ReadStream<{{inputType}}> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{methodName}}(ReadStream<{{inputType}}> request, GrpcServerResponse<{{inputType}}, {{outputType}}> response) {
-      try {
-        {{methodName}}(request)
-          .handler(msg -> response.write(msg))
-          .endHandler(msg -> response.end())
-          .exceptionHandler(err -> response.status(GrpcStatus.INTERNAL).end())
-          .resume();
-      } catch (Throwable err) {
-        response.status(GrpcStatus.INTERNAL).end();
-      }
+    default void {{methodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
+      {{methodName}}(request)
+        .handler(msg -> response.write(msg))
+        .endHandler(msg -> response.end())
+        .resume();
     }
 {{/manyManyMethods}}
 
@@ -82,7 +64,13 @@ public class {{className}}  {
     default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
         Promise<{{outputType}}> promise = Promise.promise();
-        request.handler(req -> {{methodName}}(req, promise));
+        request.handler(req -> {
+          try {
+            {{methodName}}(req, promise);
+          } catch (RuntimeException err) {
+            promise.tryFail(err);
+          }
+        });
         promise.future()
           .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
           .onSuccess(resp -> request.response().end(resp));
@@ -93,7 +81,13 @@ public class {{className}}  {
 {{#unaryManyMethods}}
     default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
-        request.handler(req -> {{methodName}}(req, request.response()));
+        request.handler(req -> {
+          try {
+            {{methodName}}(req, request.response());
+          } catch (RuntimeException err) {
+            request.response().status(GrpcStatus.INTERNAL).end();
+          }
+        });
       });
       return this;
     }
@@ -102,10 +96,14 @@ public class {{className}}  {
     default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
         Promise<{{outputType}}> promise = Promise.promise();
-        {{methodName}}(request, promise);
         promise.future()
           .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
           .onSuccess(resp -> request.response().end(resp));
+        try {
+          {{methodName}}(request, promise);
+        } catch (RuntimeException err) {
+          promise.tryFail(err);
+        }
       });
       return this;
     }
@@ -113,7 +111,11 @@ public class {{className}}  {
 {{#manyManyMethods}}
     default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
-        {{methodName}}(request, request.response());
+        try {
+          {{methodName}}(request, request.response());
+        } catch (RuntimeException err) {
+          request.response().status(GrpcStatus.INTERNAL).end();
+        }
       });
       return this;
     }
