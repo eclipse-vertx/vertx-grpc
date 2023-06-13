@@ -23,12 +23,14 @@ import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.streams.ReadStream;
+import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.test.fakestream.FakeStream;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -287,7 +289,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public void streamingOutputCall(Messages.StreamingOutputCallRequest request, GrpcServerResponse<Messages.StreamingOutputCallRequest, Messages.StreamingOutputCallResponse> response) {
+      public void streamingOutputCall(Messages.StreamingOutputCallRequest request, WriteStream<Messages.StreamingOutputCallResponse> response) {
         response.write(Messages.StreamingOutputCallResponse.newBuilder()
           .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
           .build());
@@ -402,7 +404,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public void fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request, GrpcServerResponse<Messages.StreamingOutputCallRequest, Messages.StreamingOutputCallResponse> response) {
+      public void fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request, WriteStream<Messages.StreamingOutputCallResponse> response) {
         request.endHandler($ -> {
           response.write(Messages.StreamingOutputCallResponse.newBuilder()
             .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
