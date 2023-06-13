@@ -73,13 +73,6 @@ If you’re using Apache Maven you need to add the plugin:
         <goal>compile-custom</goal>
       </goals>
     </execution>
-    <execution>
-      <id>test-compile</id>
-      <goals>
-        <goal>test-compile</goal>
-        <goal>test-compile-custom</goal>
-      </goals>
-    </execution>
   </executions>
 </plugin>
 ----
@@ -142,3 +135,128 @@ protobuf {
 ----
 
 This plugin will compile your proto files under `build/generated/source/proto/main` and make them available to your project.
+
+=== Writing a service
+
+The plugin generates vertx idiomatic Vert.x service stubs.
+
+Each service comes in two flavors, you can override the method you like depending on the style.
+
+Unary services can return a Vert.x `Future`:
+
+```java
+VertxGreeterGrpcServer.GreeterApi stub = new VertxGreeterGrpcServer.GreeterApi() {
+  @Override
+  public Future<HelloReply> sayHello(HelloRequest request) {
+    return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+  }
+};
+```
+
+or process a Vert.x `Promise`
+
+```java
+VertxGreeterGrpcServer.GreeterApi stub = new VertxGreeterGrpcServer.GreeterApi() {
+  @Override
+  public void sayHello(HelloRequest request, Promise<HelloReply> response) {
+    response.complete(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+  }
+};
+```
+
+In both case you need to bind the stub to an existing `GrpcServer`:
+
+```java
+server.bindAll(stub);
+```
+
+==== Streaming requests
+
+Streaming requests are implemented with Vert.x `ReadStream`:
+
+```java
+VertxStreamingGrpcServer.StreamingApi stub = new VertxStreamingGrpcServer.StreamingApi() {
+  @Override
+  public void sink(ReadStream<Item> stream, Promise<Empty> response) {
+    stream.handler(item -> {
+      System.out.println("Process item " + item.getValue());
+    });
+    // Send response
+    stream.endHandler(v -> response.complete(Empty.getDefaultInstance()));
+  }
+};
+```
+
+==== Streaming responses
+
+Streaming responses are implemented with Vert.x streams and comes in two flavors.
+
+You can return a Vert.x `ReadStream` and let the service send it for you:
+
+```java
+VertxStreamingGrpcServer.StreamingApi stub = new VertxStreamingGrpcServer.StreamingApi() {
+  @Override
+  public ReadStream<Item> source(Empty request) {
+    return streamOfItem();
+  }
+};
+```
+
+or you can process a `WriteStream`:
+
+```java
+VertxStreamingGrpcServer.StreamingApi stub = new VertxStreamingGrpcServer.StreamingApi() {
+  @Override
+  public void source(Empty request, WriteStream<Item> response) {
+    response.write(Item.newBuilder().setValue("value-1").build());
+    response.end(Item.newBuilder().setValue("value-2").build());
+  }
+};
+```
+
+=== Writing a client
+
+The plugin generates Vert.x service clients.
+
+A client wraps a `GrpcClient` and provides Vert.x idiomatic API to interact with the service:
+
+```java
+VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, server);
+```
+
+Unary services returns a Vert.x `Future`
+
+```java
+Future<HelloReply> response = client.sayHello(HelloRequest.newBuilder().setName("John").build());
+
+response.onSuccess(result -> System.out.println("Service responded: " + ar.result().getMessage()));
+
+response.onFailure(err -> System.out.println("Service failure: " + ar.cause().getMessage()));
+```
+
+=== Streaming requests
+
+Streaming requests use a lambda passed a Vert.x `WriteStream` of messages sent to the service
+
+```java
+Future<Empty> response = client.sink(stream -> {
+  stream.write(Item.newBuilder().setValue("Value 1").build());
+  stream.write(Item.newBuilder().setValue("Value 2").build());
+  stream.end(Item.newBuilder().setValue("Value 3").build());
+});
+```
+
+=== Streaming responses
+
+Streaming responses get a Vert.x `ReadStream` of messages sent by the service
+
+```java
+Future<ReadStream<Item>> response = client.source(Empty.getDefaultInstance());
+
+response.onSuccess(stream -> stream
+  .handler(item -> System.out.println("Item " + item.getValue()))
+  .exceptionHandler(err -> System.out.println("Stream failed " + err.getMessage()));
+  .endHandler(v -> System.out.println("Stream ended")));
+
+response.onFailure(err -> System.out.println("Service failure: " + ar.cause().getMessage()));
+```
