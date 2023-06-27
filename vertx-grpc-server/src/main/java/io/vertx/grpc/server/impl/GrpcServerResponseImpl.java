@@ -103,6 +103,11 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   }
 
   @Override
+  public void write(Resp resp, Handler<AsyncResult<Void>> handler) {
+    write(resp).onComplete(handler);
+  }
+
+  @Override
   public Future<Void> end(Resp message) {
     return endMessage(encoder.encode(message));
   }
@@ -119,6 +124,11 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
 
   public Future<Void> end() {
     return writeMessage(null, true);
+  }
+
+  @Override
+  public void end(Handler<AsyncResult<Void>> handler) {
+    end().onComplete(handler);
   }
 
   @Override

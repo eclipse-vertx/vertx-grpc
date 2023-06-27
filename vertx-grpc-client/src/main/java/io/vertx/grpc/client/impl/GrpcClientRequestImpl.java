@@ -148,6 +148,11 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
     return httpRequest.end();
   }
 
+  @Override
+  public void end(Handler<AsyncResult<Void>> handler) {
+    end().onComplete(handler);
+  }
+
   private Future<Void> writeMessage(GrpcMessage message, boolean end) {
     if (cancelled) {
       throw new IllegalStateException("The stream has been cancelled");
@@ -215,6 +220,11 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
   @Override
   public Future<Void> write(Req message) {
     return writeMessage(messageEncoder.encode(message));
+  }
+
+  @Override
+  public void write(Req req, Handler<AsyncResult<Void>> handler) {
+   write(req).onComplete(handler);
   }
 
   @Override
