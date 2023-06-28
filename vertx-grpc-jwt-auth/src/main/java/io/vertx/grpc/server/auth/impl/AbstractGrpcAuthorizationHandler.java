@@ -74,16 +74,16 @@ public abstract class AbstractGrpcAuthorizationHandler<T extends AuthenticationP
     parseAuthorization(req, false, handler);
   }
 
-  protected final void parseAuthorization(GrpcServerRequest req, boolean optional, Handler<AsyncResult<String>> handler) {
+  protected final void parseAuthorization(GrpcServerRequest req, boolean requireAuthentication, Handler<AsyncResult<String>> handler) {
 
     final String authorization = req.headers().get(HttpHeaders.AUTHORIZATION);
 
     if (authorization == null) {
-      if (optional) {
+      if (requireAuthentication) {
+        handler.handle(Future.failedFuture(UNAUTHENTICATED));
+      } else {
         // this is allowed
         handler.handle(Future.succeededFuture());
-      } else {
-        handler.handle(Future.failedFuture(UNAUTHENTICATED));
       }
       return;
     }
