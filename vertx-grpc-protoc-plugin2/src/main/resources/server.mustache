@@ -2,13 +2,15 @@
 package {{packageName}};
 {{/packageName}}
 
+import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
-import io.vertx.grpc.common.GrpcException;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
@@ -87,9 +89,9 @@ public class {{className}}  {
         });
         promise.future()
           .onFailure(err -> {
-            if (err instanceof GrpcException) {
-              GrpcException grpcException = (GrpcException)err;
-              request.response().status(grpcException.status()).statusMessage(grpcException.getMessage()).end();
+            if (err instanceof StatusRuntimeException) {
+              StatusRuntimeException grpcException = (StatusRuntimeException)err;
+              request.response().status(GrpcStatus.valueOf(grpcException.getStatus().getCode().value())).statusMessage(grpcException.getMessage()).end();
             } else {
               request.response().status(GrpcStatus.INTERNAL).end();
             }
@@ -105,8 +107,8 @@ public class {{className}}  {
         request.handler(req -> {
           try {
             {{methodName}}(request, req, request.response());
-          } catch (GrpcException grpcException) {
-            request.response().status(grpcException.status()).statusMessage(grpcException.getMessage()).end();
+          } catch (StatusRuntimeException grpcException) {
+            request.response().status(GrpcStatus.valueOf(grpcException.getStatus().getCode().value())).statusMessage(grpcException.getMessage()).end();
           } catch (RuntimeException err) {
             request.response().status(GrpcStatus.INTERNAL).end();
           }
@@ -121,9 +123,9 @@ public class {{className}}  {
         Promise<{{outputType}}> promise = Promise.promise();
         promise.future()
           .onFailure(err -> {
-            if (err instanceof GrpcException) {
-              GrpcException grpcException = (GrpcException)err;
-              request.response().status(grpcException.status()).statusMessage(grpcException.getMessage()).end();
+            if (err instanceof StatusRuntimeException) {
+              StatusRuntimeException grpcException = (StatusRuntimeException)err;
+              request.response().status(GrpcStatus.valueOf(grpcException.getStatus().getCode().value())).statusMessage(grpcException.getMessage()).end();
             } else {
               request.response().status(GrpcStatus.INTERNAL).end();
             }
@@ -143,8 +145,8 @@ public class {{className}}  {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
         try {
           {{methodName}}(request, request, request.response());
-        } catch (GrpcException grpcException) {
-          request.response().status(grpcException.status()).statusMessage(grpcException.getMessage()).end();
+        } catch (StatusRuntimeException grpcException) {
+          request.response().status(GrpcStatus.valueOf(grpcException.getStatus().getCode().value())).statusMessage(grpcException.getMessage()).end();
         } catch (RuntimeException err) {
           request.response().status(GrpcStatus.INTERNAL).end();
         }
