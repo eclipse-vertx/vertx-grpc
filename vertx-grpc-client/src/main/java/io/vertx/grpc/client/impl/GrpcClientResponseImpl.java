@@ -100,7 +100,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
       if (status == GrpcStatus.OK) {
         return Future.succeededFuture();
       } else {
-        return Future.failedFuture(new GrpcException("Invalid gRPC status " + status, status, httpResponse));
+        return Future.failedFuture(new GrpcException(statusMessage, status, httpResponse));
       }
     });
   }

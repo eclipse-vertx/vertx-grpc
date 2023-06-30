@@ -8,6 +8,7 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
+import io.vertx.grpc.common.GrpcException;
 import io.vertx.grpc.common.GrpcStatus;
 
 public class {{className}} {
@@ -34,7 +35,7 @@ public class {{className}} {
       req.end(request);
       return req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-          return Future.failedFuture("Invalid gRPC status " + resp.status());
+          return Future.failedFuture(new GrpcException(resp.statusMessage(), resp.status(), null));
         } else {
           return Future.succeededFuture(resp);
         }
@@ -58,7 +59,7 @@ public class {{className}} {
       request.handle(req);
       return req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-          return Future.failedFuture("Invalid gRPC status " + resp.status());
+          return Future.failedFuture(new GrpcException(resp.statusMessage(), resp.status(), null));
         } else {
           return Future.succeededFuture(resp);
         }

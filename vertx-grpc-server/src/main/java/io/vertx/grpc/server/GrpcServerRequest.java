@@ -17,6 +17,7 @@ import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.ext.auth.User;
+import io.vertx.ext.web.RoutingContext;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcReadStream;
@@ -80,7 +81,5 @@ public interface GrpcServerRequest<Req, Resp> extends GrpcReadStream<Req> {
    */
   HttpConnection connection();
 
-  GrpcServerRequest<Req, Resp> setUser(User user);
-
-  User user();
+  RoutingContext routingContext();
 }
