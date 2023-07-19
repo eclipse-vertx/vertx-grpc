@@ -11,13 +11,12 @@ public class GrpcContextStorageExamples {
   public void example(Vertx vertx) {
     Context grpcCtx1 = Context.current();
 
-    vertx.<String>executeBlocking(prom -> {
+    vertx.executeBlocking(() -> {
 
       // Same as grpcCtx1
       Context grpcCtx2 = Context.current();
 
-      String result = doSomething();
-      prom.complete(result);
+      return doSomething();
 
     }).onComplete(ar -> {
 
