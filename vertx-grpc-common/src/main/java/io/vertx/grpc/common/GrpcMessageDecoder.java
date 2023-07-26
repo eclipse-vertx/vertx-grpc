@@ -19,6 +19,7 @@ import io.netty.handler.codec.compression.ZlibWrapper;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.buffer.impl.BufferInternal;
 import io.vertx.core.buffer.impl.VertxByteBufAllocator;
 
 import java.io.ByteArrayInputStream;
@@ -41,7 +42,7 @@ public interface GrpcMessageDecoder<T> {
       EmbeddedChannel channel = new EmbeddedChannel(ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP));
       channel.config().setAllocator(VertxByteBufAllocator.UNPOOLED_ALLOCATOR);
       try {
-        ChannelFuture fut = channel.writeOneInbound(msg.payload().getByteBuf());
+        ChannelFuture fut = channel.writeOneInbound(((BufferInternal)msg.payload()).getByteBuf());
         if (fut.isSuccess()) {
           Buffer decoded = null;
           while (true) {
@@ -50,9 +51,9 @@ public interface GrpcMessageDecoder<T> {
               break;
             }
             if (decoded == null) {
-              decoded = Buffer.buffer(buf);
+              decoded = BufferInternal.buffer(buf);
             } else {
-              decoded.appendBuffer(Buffer.buffer(buf));
+              decoded.appendBuffer(BufferInternal.buffer(buf));
             }
           }
           if (decoded == null) {
