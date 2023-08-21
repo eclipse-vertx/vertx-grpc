@@ -38,15 +38,26 @@ public class GrpcMessageImpl implements GrpcMessage {
   }
 
   public static Buffer encode(GrpcMessage message) {
-    ByteBuf bbuf = ((BufferInternal)message.payload()).getByteBuf();
+    ByteBuf bbuf = ((BufferInternal) message.payload()).getByteBuf();
     int len = bbuf.readableBytes();
     boolean compressed = !message.encoding().equals("identity");
+    if (len <= 128) {
+      // it is worthy to just copy here, 'cause composite (heap) buffers are slower to be sent to the wire or copied
+      int totalBytes = 5 + len;
+      ByteBuf fullMsg = Unpooled.buffer(totalBytes, totalBytes);
+      fullMsg.setByte(0, compressed ? 1 : 0); // Compression flag
+      fullMsg.setInt(1, len);                 // Length
+      fullMsg.setBytes(5, bbuf, bbuf.readerIndex(), len);
+      fullMsg.writerIndex(totalBytes);
+      return BufferInternal.buffer(fullMsg);
+    }
+    // slow-path
     ByteBuf prefix = Unpooled.buffer(5, 5);
     prefix.writeByte(compressed ? 1 : 0);      // Compression flag
     prefix.writeInt(len);                      // Length
-    CompositeByteBuf composite = Unpooled.compositeBuffer();
-    composite.addComponent(true, prefix);
-    composite.addComponent(true, bbuf);
+    CompositeByteBuf composite = Unpooled.compositeBuffer(2);
+    composite.addComponent(true, 0, prefix);
+    composite.addComponent(true, 1, bbuf);
     return BufferInternal.buffer(composite);
   }
 }
