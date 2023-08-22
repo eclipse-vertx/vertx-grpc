@@ -15,6 +15,7 @@ import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.buffer.impl.BufferInternal;
+import io.vertx.core.buffer.impl.VertxByteBufAllocator;
 import io.vertx.grpc.common.GrpcMessage;
 
 public class GrpcMessageImpl implements GrpcMessage {
@@ -41,15 +42,20 @@ public class GrpcMessageImpl implements GrpcMessage {
     ByteBuf bbuf = ((BufferInternal) message.payload()).getByteBuf();
     int len = bbuf.readableBytes();
     boolean compressed = !message.encoding().equals("identity");
+    // it is worthy to just copy here, 'cause composite (heap) buffers are slower to be sent to the wire or copied
     if (len <= 128) {
-      // it is worthy to just copy here, 'cause composite (heap) buffers are slower to be sent to the wire or copied
       int totalBytes = 5 + len;
-      ByteBuf fullMsg = Unpooled.buffer(totalBytes, totalBytes);
+      // let's use vertx buffer here because it doesn't have any atomic release, if unpooled
+      ByteBuf fullMsg = VertxByteBufAllocator.DEFAULT.heapBuffer(totalBytes, totalBytes);
       fullMsg.setByte(0, compressed ? 1 : 0); // Compression flag
       fullMsg.setInt(1, len);                 // Length
       fullMsg.setBytes(5, bbuf, bbuf.readerIndex(), len);
       fullMsg.writerIndex(totalBytes);
-      return BufferInternal.buffer(fullMsg);
+      try {
+        return BufferInternal.buffer(fullMsg);
+      } finally {
+        bbuf.release();
+      }
     }
     // slow-path
     ByteBuf prefix = Unpooled.buffer(5, 5);
