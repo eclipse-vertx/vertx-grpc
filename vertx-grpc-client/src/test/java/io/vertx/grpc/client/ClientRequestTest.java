@@ -36,6 +36,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -506,6 +507,8 @@ public class ClientRequestTest extends ClientTest {
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.end(HelloRequest.newBuilder().setName("Liu").build());
         callRequest.response().onComplete(ar -> {
+          assert ar.failed();
+          assert ar.cause().getMessage().contains("timeout");
           test.complete();
         });
       }));
@@ -521,6 +524,8 @@ public class ClientRequestTest extends ClientTest {
       .toCompletableFuture()
       .get(20, TimeUnit.SECONDS);
 
+    AtomicBoolean completed = new AtomicBoolean(false);
+
     client = GrpcClient.client(vertx);
     // request without options so do not have a timeout
     client.request(SocketAddress.inetSocketAddress(port, "localhost"),
@@ -528,10 +533,14 @@ public class ClientRequestTest extends ClientTest {
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.end(HelloRequest.newBuilder().setName("Chong").build());
         callRequest.response().onComplete(ar -> {
-          should.fail("Should not complete without timeout");
+          if (!completed.get()) {
+            should.fail("Should not complete before setTimer without request timeout");
+          }
+          assert ar.failed();
       });
       // complete finally
-      vertx.setTimer(3000, tid -> {
+      vertx.setTimer(5000, tid -> {
+        completed.set(true);
         test.complete();
       });
     }));
