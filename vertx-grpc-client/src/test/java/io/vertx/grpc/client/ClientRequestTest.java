@@ -487,4 +487,53 @@ public class ClientRequestTest extends ClientTest {
         should.assertEquals("Hello Julien", reply.getMessage());
       }));
   }
+
+  @Test
+  public void testRequestWithTimeout(TestContext should) throws Exception {
+    Async test = should.async();
+    vertx.createHttpServer().requestHandler(req -> {
+      // do nothing not respond
+    }).listen(8080, "localhost")
+      .toCompletionStage()
+      .toCompletableFuture()
+      .get(20, TimeUnit.SECONDS);
+
+    client = GrpcClient.client(vertx);
+    // request with grpc client options with timeout 1000 milliseconds
+    client.request(SocketAddress.inetSocketAddress(port, "localhost"),
+        GreeterGrpc.getSayHelloMethod(),
+        new GrpcClientRequestOptions().setTimeout(1000))
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.end(HelloRequest.newBuilder().setName("Liu").build());
+        callRequest.response().onComplete(ar -> {
+          test.complete();
+        });
+      }));
+  }
+
+  @Test
+  public void testRequestHangWithoutTimeout(TestContext should) throws Exception {
+    Async test = should.async();
+    vertx.createHttpServer().requestHandler(req -> {
+      // do nothing not respond
+    }).listen(8080, "localhost")
+      .toCompletionStage()
+      .toCompletableFuture()
+      .get(20, TimeUnit.SECONDS);
+
+    client = GrpcClient.client(vertx);
+    // request without options so do not have a timeout
+    client.request(SocketAddress.inetSocketAddress(port, "localhost"),
+        GreeterGrpc.getSayHelloMethod())
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.end(HelloRequest.newBuilder().setName("Chong").build());
+        callRequest.response().onComplete(ar -> {
+          should.fail("Should not complete without timeout");
+      });
+      // complete finally
+      vertx.setTimer(3000, tid -> {
+        test.complete();
+      });
+    }));
+  }
 }

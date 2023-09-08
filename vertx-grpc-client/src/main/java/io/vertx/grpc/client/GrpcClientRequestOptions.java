@@ -66,6 +66,7 @@ public class GrpcClientRequestOptions {
 
     options.setMethod(HttpMethod.POST);
     options.setServer(server);
+    options.setTimeout(timeout);
 
     return options;
   }
