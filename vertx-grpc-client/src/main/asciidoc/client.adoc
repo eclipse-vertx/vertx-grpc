@@ -163,3 +163,12 @@ handle the message encoding:
 
 - when the message uses the response encoding, the message is sent as is
 - when the message uses a different encoding, it will be encoded, e.g. compressed or uncompressed
+
+=== Error Handling
+
+A `{@link io.vertx.grpc.common.GrpcException}` may be throw and accessed via a `onFailure` handler. It may grant access to the response and the gRPC status via `{@link io.vertx.grpc.common.GrpcStatus}`.
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#errorHandling}
+----

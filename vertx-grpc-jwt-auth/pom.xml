@@ -25,9 +25,9 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>vertx-grpc-server</artifactId>
+  <artifactId>vertx-grpc-jwt-auth</artifactId>
 
-  <name>Vert.x gRPC Server</name>
+  <name>Vert.x gRPC JWT Auth</name>
 
   <properties>
     <doc.skip>false</doc.skip>
@@ -39,9 +39,21 @@
       <groupId>io.vertx</groupId>
       <artifactId>vertx-grpc-common</artifactId>
     </dependency>
-   <dependency>
+    <dependency>
+        <groupId>io.vertx</groupId>
+        <artifactId>vertx-auth-jwt-client</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>io.vertx</groupId>
+        <artifactId>vertx-grpc-client</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>io.vertx</groupId>
+        <artifactId>vertx-grpc-server</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-auth-common</artifactId>
+      <artifactId>vertx-auth-jwt</artifactId>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
@@ -73,30 +85,6 @@
       <artifactId>bcpkix-jdk15on</artifactId>
       <version>1.65</version>
       <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-netty</artifactId>
-      <version>${grpc.version}</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.google.errorprone</groupId>
-          <artifactId>error_prone_annotations</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>animal-sniffer-annotations</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
   </dependencies>
 

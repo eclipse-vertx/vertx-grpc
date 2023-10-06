@@ -1,0 +1,53 @@
+== Vert.x gRPC JWT Auth
+
+The JWT Auth module may be used to handle JWT authentication in client/server usecases.
+
+
+=== Using Vert.x gRPC JWT Auth
+
+* Maven (in your `pom.xml`):
+
+[source,xml,subs="+attributes"]
+----
+<dependency>
+  <groupId>io.vertx</groupId>
+  <artifactId>vertx-grpc-jwt-auth</artifactId>
+  <version>${maven.version}</version>
+</dependency>
+----
+
+* Gradle (in your `build.gradle` file):
+
+[source,groovy,subs="+attributes"]
+----
+dependencies {
+  compile 'io.vertx:vertx-grpc-jwt-auth:${maven.version}'
+}
+----
+
+=== gRPC JWT Client usage
+
+The `{@link io.vertx.grpc.server.auth.jwt.JWTGrpcClient}` can be used to create a JWT enabled gRPC client.
+
+[source,java]
+----
+{@link examples.JWTGrpcClientExamples#createClient}
+----
+
+==== gRPC JWT Server usage
+
+The `{@link io.vertx.grpc.server.auth.jwt.JWTGrpcServer}` enables JWT handling on the server side. 
+Service method which were implemented using the `JWTGrpcServer#authCallHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler)` method will utilize JWT authentication.
+
+
+[source,java]
+----
+{@link examples.JWTGrpcServerExamples#setupJWTServer}
+----
+
+The authenticated `{@link io.vertx.ext.auth.User}` can be accessed from the `{@link io.vertx.grpc.server.GrpcServerRequest}`.
+
+[source,java]
+----
+{@link examples.JWTGrpcServerExamples#accessUser}
+----

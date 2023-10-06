@@ -258,4 +258,9 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
   public HttpConnection connection() {
     return httpRequest.connection();
   }
+
+  @Override
+  public HttpClientRequest delegate() {
+    return httpRequest;
+  }
 }
