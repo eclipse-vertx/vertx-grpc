@@ -78,9 +78,7 @@ public class ContextStorageTest {
     GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
       @Override
       public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        vertx.<String>executeBlocking(prom -> {
-          prom.complete("Hello " + request.getName() + ", trace: " + traceContextKey.get());
-        }).onSuccess(greeting -> {
+        vertx.executeBlocking(() -> "Hello " + request.getName() + ", trace: " + traceContextKey.get()).onSuccess(greeting -> {
           responseObserver.onNext(HelloReply.newBuilder().setMessage(greeting).build());
           responseObserver.onCompleted();
         }).onFailure(should::fail);

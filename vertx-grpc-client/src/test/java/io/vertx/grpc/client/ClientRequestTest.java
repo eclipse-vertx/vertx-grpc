@@ -174,14 +174,14 @@ public class ClientRequestTest extends ClientTest {
           callResponse.pause();
           AtomicInteger num = new AtomicInteger();
           Runnable readBatch = () -> {
-            vertx.<Integer>executeBlocking(p -> {
+            vertx.<Integer>executeBlocking(() -> {
               while (batchQueue.size() == 0) {
                 try {
                   Thread.sleep(10);
                 } catch (InterruptedException e) {
                 }
               }
-              p.complete(batchQueue.poll());;
+              return batchQueue.poll();
             }).onSuccess(toRead -> {
               num.set(toRead);
               callResponse.resume();
