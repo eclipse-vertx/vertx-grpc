@@ -20,6 +20,9 @@ import io.vertx.core.http.HttpClientRequest;
 import java.util.Map;
 import java.util.Objects;
 
+import io.vertx.core.http.HttpConnection;
+import io.vertx.core.impl.ContextInternal;
+import io.vertx.core.impl.future.FutureInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.CodecException;
@@ -132,17 +135,26 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
   }
 
   @Override public Future<Void> end() {
-    if (!headersSent || trailersSent) {
-      throw new IllegalStateException();
+    if (cancelled) {
+      throw new IllegalStateException("The stream has been cancelled");
+    }
+    if (!headersSent) {
+      throw new IllegalStateException("You must send a message before terminating the stream");
+    }
+    if (trailersSent) {
+      throw new IllegalStateException("The stream has been closed");
     }
     trailersSent = true;
     return httpRequest.end();
   }
 
   private Future<Void> writeMessage(GrpcMessage message, boolean end) {
-
-    checkState();
-
+    if (cancelled) {
+      throw new IllegalStateException("The stream has been cancelled");
+    }
+    if (trailersSent) {
+      throw new IllegalStateException("The stream has been closed");
+    }
     if (encoding != null && !encoding.equals(message.encoding())) {
       switch (encoding) {
         case "gzip":
@@ -177,11 +189,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
       if (headers != null) {
         MultiMap requestHeaders = httpRequest.headers();
         for (Map.Entry<String, String> header : headers) {
-          if (!header.getKey().startsWith("grpc-")) {
-            requestHeaders.add(header.getKey(), header.getValue());
-          } else {
-            // Log ?
-          }
+          requestHeaders.add(header.getKey(), header.getValue());
         }
       }
       String uri = serviceName.pathOf(methodName);
@@ -197,18 +205,10 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
     }
 
     if (end) {
+      trailersSent = true;
       return httpRequest.end(GrpcMessageImpl.encode(message));
     } else {
       return httpRequest.write(GrpcMessageImpl.encode(message));
-    }
-  }
-
-  private void checkState() {
-    if (cancelled) {
-      throw new IllegalStateException("The stream has been cancelled");
-    }
-    if (trailersSent) {
-      throw new IllegalStateException("The stream has been closed");
     }
   }
 
@@ -222,24 +222,40 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
     return endMessage(messageEncoder.encode(message));
   }
 
-  @Override
-  public void write(Req data, Handler<AsyncResult<Void>> handler) {
-    write(data).onComplete(handler);
-  }
-
-  @Override
-  public void end(Handler<AsyncResult<Void>> handler) {
-    end().onComplete(handler);
-  }
-
   @Override public Future<GrpcClientResponse<Req, Resp>> response() {
     return response;
   }
 
   @Override
   public void cancel() {
-    checkState();
+    if (cancelled) {
+      return;
+    }
     cancelled = true;
-    httpRequest.reset(GrpcError.CANCELLED.http2ResetCode);
+    // That's a bit convoluted, the reset API should be improved instead
+    ContextInternal ctx = ((FutureInternal) (response)).context();
+    ctx.execute(() -> {
+      boolean responseEnded;
+      if (response.failed()) {
+        return;
+      } else if (response.succeeded()) {
+        GrpcClientResponse<Req, Resp> resp = response.result();
+        if (resp.end().failed()) {
+          return;
+        } else {
+          responseEnded = resp.end().succeeded();
+        }
+      } else {
+        responseEnded = false;
+      }
+      if (!trailersSent || !responseEnded) {
+        httpRequest.reset(GrpcError.CANCELLED.http2ResetCode);
+      }
+    });
+  }
+
+  @Override
+  public HttpConnection connection() {
+    return httpRequest.connection();
   }
 }

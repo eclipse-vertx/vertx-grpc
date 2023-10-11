@@ -10,9 +10,11 @@
  */
 package io.vertx.grpc.client.impl;
 
+import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClientResponse;
 
@@ -22,6 +24,8 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.GrpcStatus;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
@@ -30,6 +34,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   private final GrpcClientRequestImpl<Req, Resp> request;
   private final HttpClientResponse httpResponse;
   private GrpcStatus status;
+  private String statusMessage;
   private String encoding;
 
   public GrpcClientResponseImpl(GrpcClientRequestImpl<Req, Resp> request, HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
@@ -41,6 +46,12 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
     String responseStatus = httpResponse.getHeader("grpc-status");
     if (responseStatus != null) {
       status = GrpcStatus.valueOf(Integer.parseInt(responseStatus));
+      if (status != GrpcStatus.OK) {
+        String msg = httpResponse.getHeader("grpc-message");
+        if (msg != null) {
+          statusMessage = QueryStringDecoder.decodeComponent(msg, StandardCharsets.UTF_8);
+        }
+      }
     }
   }
 
@@ -63,11 +74,14 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
     String responseStatus = httpResponse.getTrailer("grpc-status");
     if (responseStatus != null) {
       status = GrpcStatus.valueOf(Integer.parseInt(responseStatus));
+      if (status != GrpcStatus.OK) {
+        statusMessage = httpResponse.getTrailer("grpc-message");
+      }
     }
+    super.handleEnd();
     if (!request.trailersSent) {
       request.cancel();
     }
-    super.handleEnd();
   }
 
   @Override
@@ -76,9 +90,13 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   }
 
   @Override
+  public String statusMessage() {
+    return statusMessage;
+  }
+
+  @Override
   public Future<Void> end() {
-    return httpResponse
-      .end()
+    return super.end()
       .compose(v -> {
       if (status == GrpcStatus.OK) {
         return Future.succeededFuture();

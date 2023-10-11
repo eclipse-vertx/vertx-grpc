@@ -46,6 +46,8 @@ import java.util.function.Consumer;
 
 public class ServerMessageEncodingTest extends ServerTestBase {
 
+  private HttpClient client;
+
   @Test
   public void testZipResponseCompress(TestContext should) {
     testEncode(should, "gzip", GrpcMessage.message("identity", Buffer.buffer("Hello World")), true);
@@ -79,21 +81,23 @@ public class ServerMessageEncodingTest extends ServerTestBase {
       });
     }));
 
-    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+    client = vertx.createHttpClient(new HttpClientOptions()
       .setProtocolVersion(HttpVersion.HTTP_2)
       .setHttp2ClearTextUpgrade(true)
     );
 
     Async done = should.async();
 
-    client.request(HttpMethod.POST, 8080, "localhost", "/", should.asyncAssertSuccess(request -> {
+    client
+      .request(HttpMethod.POST, 8080, "localhost", "/")
+      .onComplete(should.asyncAssertSuccess(request -> {
       request.putHeader("grpc-encoding", "identity");
       request.send(Buffer
         .buffer()
         .appendByte((byte)1)
         .appendInt(expected.length())
-        .appendBuffer(expected), should.asyncAssertSuccess(resp -> {
-          resp.body(should.asyncAssertSuccess(body -> {
+        .appendBuffer(expected)).onComplete(should.asyncAssertSuccess(resp -> {
+          resp.body().onComplete(should.asyncAssertSuccess(body -> {
             should.assertEquals(compressed ? 1 : 0, (int)body.getByte(0));
             int len = body.getInt(1);
             Buffer received = body.slice(5, 5 + len);
@@ -153,7 +157,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
         should.assertEquals(1, count.get());
         callResponse.response().end();
       });
-    }, req -> req.response(should.asyncAssertSuccess()));
+    }, req -> req.response().onComplete(should.asyncAssertSuccess()));
   }
 
   @Test
@@ -168,7 +172,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
         should.assertEquals(1, count.get());
         callResponse.response().end();
       });
-    }, req -> req.response(should.asyncAssertSuccess()));
+    }, req -> req.response().onComplete(should.asyncAssertSuccess()));
   }
 
   @Test
@@ -177,7 +181,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
       req.handler(msg -> {
         should.fail();
       });
-    }, req -> req.response(should.asyncAssertFailure(err -> {
+    }, req -> req.response().onComplete(should.asyncAssertFailure(err -> {
       should.assertEquals(StreamResetException.class, err.getClass());
       StreamResetException reset = (StreamResetException) err;
       should.assertEquals(GrpcError.CANCELLED.http2ResetCode, reset.getCode());
@@ -191,12 +195,12 @@ public class ServerMessageEncodingTest extends ServerTestBase {
       impl.accept(call);
     }));
 
-    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+    client = vertx.createHttpClient(new HttpClientOptions()
       .setProtocolVersion(HttpVersion.HTTP_2)
       .setHttp2ClearTextUpgrade(false)
     );
 
-    client.request(HttpMethod.POST, 8080, "localhost", "/", should.asyncAssertSuccess(request -> {
+    client.request(HttpMethod.POST, 8080, "localhost", "/").onComplete( should.asyncAssertSuccess(request -> {
       request.putHeader("grpc-encoding", "gzip");
       request.end(Buffer
         .buffer()

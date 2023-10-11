@@ -12,6 +12,8 @@ package io.vertx.grpc.common.impl;
 
 import io.vertx.grpc.common.ServiceName;
 
+import java.util.Objects;
+
 public class ServiceNameImpl implements ServiceName {
 
   private String name;
@@ -39,8 +41,15 @@ public class ServiceNameImpl implements ServiceName {
   @Override
   public String packageName() {
     if (packageName == null) {
+      if (fullyQualifiedName == null) {
+        return "";
+      }
       int idx = fullyQualifiedName.lastIndexOf('.');
-      packageName = fullyQualifiedName.substring(0, idx);
+      if (idx < 0) {
+        packageName = "";
+      } else {
+        packageName = fullyQualifiedName.substring(0, idx);
+      }
     }
     return packageName;
   }
@@ -48,7 +57,11 @@ public class ServiceNameImpl implements ServiceName {
   @Override
   public String fullyQualifiedName() {
     if (fullyQualifiedName == null) {
-      fullyQualifiedName = packageName + '.' + name;
+      if (packageName == null || packageName.isEmpty()) {
+        fullyQualifiedName = name;
+      } else {
+        fullyQualifiedName = packageName + '.' + name;
+      }
     }
     return fullyQualifiedName;
   }
@@ -58,7 +71,28 @@ public class ServiceNameImpl implements ServiceName {
     if (fullyQualifiedName != null) {
       return '/' + fullyQualifiedName + '/' + method;
     } else {
-      return '/' + packageName + '.' + name + '/' + method;
+      if (packageName == null || packageName.isEmpty()) {
+        return '/' + name + '/' + method;
+      } else {
+        return '/' + packageName + '.' + name + '/' + method;
+      }
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ServiceNameImpl that = (ServiceNameImpl) o;
+    return Objects.equals(fullyQualifiedName(), that.fullyQualifiedName());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(fullyQualifiedName());
   }
 }

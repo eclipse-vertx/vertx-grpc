@@ -10,12 +10,7 @@
  */
 package io.vertx.grpc.server;
 
-import io.grpc.ChannelCredentials;
-import io.grpc.Grpc;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.TlsChannelCredentials;
+import io.grpc.*;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
@@ -24,6 +19,7 @@ import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.net.SelfSignedCertificate;
 import io.vertx.ext.unit.Async;
@@ -34,8 +30,8 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Base64;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -183,13 +179,23 @@ public class ServerRequestTest extends ServerTest {
 
     startServer(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
       should.assertEquals(0, testMetadataStep.getAndIncrement());
-      should.assertEquals("custom_request_header_value", call.headers().get("custom_request_header"));
+      MultiMap headers = call.headers();
+      should.assertEquals("custom_request_header_value", headers.get("custom_request_header"));
+      assertEquals(should, new byte[]{ 0,1,2 }, headers.get("custom_request_header-bin"));
+      should.assertEquals("grpc-custom_request_header_value", headers.get("grpc-custom_request_header"));
+      assertEquals(should, new byte[] { 2,1,0 }, headers.get("grpc-custom_request_header-bin"));
       call.handler(helloRequest -> {
         should.assertEquals(1, testMetadataStep.getAndAdd(2));
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
         response.headers().set("custom_response_header", "custom_response_header_value");
+        response.headers().set("custom_response_header-bin", Base64.getEncoder().encodeToString(new byte[]{0,1,2}));
+        response.headers().set("grpc-custom_response_header", "grpc-custom_response_header_value");
+        response.headers().set("grpc-custom_response_header-bin", Base64.getEncoder().encodeToString(new byte[]{2,1,0}));
         response.trailers().set("custom_response_trailer", "custom_response_trailer_value");
+        response.trailers().set("custom_response_trailer-bin", Base64.getEncoder().encodeToString(new byte[]{0,1,2}));
+        response.trailers().set("grpc-custom_response_trailer", "grpc-custom_response_trailer_value");
+        response.trailers().set("grpc-custom_response_trailer-bin", Base64.getEncoder().encodeToString(new byte[]{2,1,0}));
         response
           .end(helloReply);
       });
@@ -260,6 +266,26 @@ public class ServerRequestTest extends ServerTest {
     }));
 
     super.testHandleCancel(should);
+  }
+
+  @Override
+  public void testTrailersOnly(TestContext should) {
+
+    startServer(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
+      call.handler(helloRequest -> {
+        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+        response.statusMessage("grpc-status-message-value +*~");
+        response.trailers().set("custom_response_trailer", "custom_response_trailer_value");
+        response.trailers().set("custom_response_trailer-bin", Base64.getEncoder().encodeToString(new byte[] { 0,1,2 }));
+        response.trailers().set("grpc-custom_response_trailer", "grpc-custom_response_trailer_value");
+        response.trailers().set("grpc-custom_response_trailer-bin", Base64.getEncoder().encodeToString(new byte[] { 2,1,0 }));
+        response
+          .status(GrpcStatus.INVALID_ARGUMENT)
+          .end();
+      });
+    }));
+
+    super.testTrailersOnly(should);
   }
 
   @Test

@@ -10,17 +10,14 @@
  */
 package io.vertx.grpc.client;
 
-import io.grpc.Grpc;
-import io.grpc.ServerCredentials;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.TlsServerCredentials;
+import io.grpc.*;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.examples.streaming.Empty;
 import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.StreamResetException;
@@ -28,12 +25,14 @@ import io.vertx.core.net.SelfSignedCertificate;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcStatus;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +48,7 @@ public class ClientRequestTest extends ClientTest {
     super.testUnary(should, requestEncoding, responseEncoding);
 
     Async test = should.async(2);
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), GreeterGrpc.getSayHelloMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.encoding(requestEncoding);
@@ -94,7 +93,7 @@ public class ClientRequestTest extends ClientTest {
     startServer(called, Grpc.newServerBuilderForPort(8443, creds));
 
     Async test = should.async();
-    GrpcClient client = GrpcClient.client(vertx, new HttpClientOptions().setSsl(true)
+    client = GrpcClient.client(vertx, new HttpClientOptions().setSsl(true)
       .setUseAlpn(true)
       .setPemTrustOptions(cert.trustOptions()));
     client.request(SocketAddress.inetSocketAddress(8443, "localhost"), GreeterGrpc.getSayHelloMethod())
@@ -121,7 +120,7 @@ public class ClientRequestTest extends ClientTest {
     super.testStatus(should);
 
     Async test = should.async();
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), GreeterGrpc.getSayHelloMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
@@ -130,6 +129,7 @@ public class ClientRequestTest extends ClientTest {
           });
           callResponse.endHandler(v2 -> {
             should.assertEquals(GrpcStatus.UNAVAILABLE, callResponse.status());
+            should.assertEquals("~Greeter temporarily unavailable...~", callResponse.statusMessage());
             test.complete();
           });
         }));
@@ -143,7 +143,7 @@ public class ClientRequestTest extends ClientTest {
     super.testServerStreaming(should);
 
     final Async test = should.async();
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSourceMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
@@ -167,21 +167,21 @@ public class ClientRequestTest extends ClientTest {
     super.testServerStreamingBackPressure(should);
 
     Async test = should.async();
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSourceMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
           callResponse.pause();
           AtomicInteger num = new AtomicInteger();
           Runnable readBatch = () -> {
-            vertx.<Integer>executeBlocking(p -> {
+            vertx.<Integer>executeBlocking(() -> {
               while (batchQueue.size() == 0) {
                 try {
                   Thread.sleep(10);
                 } catch (InterruptedException e) {
                 }
               }
-              p.complete(batchQueue.poll());;
+              return batchQueue.poll();
             }).onSuccess(toRead -> {
               num.set(toRead);
               callResponse.resume();
@@ -209,7 +209,7 @@ public class ClientRequestTest extends ClientTest {
     super.testClientStreaming(should);
 
     Async done = should.async();
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSinkMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
@@ -242,7 +242,7 @@ public class ClientRequestTest extends ClientTest {
     super.testClientStreamingBackPressure(should);
 
     Async done = should.async();
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSinkMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
@@ -281,7 +281,7 @@ public class ClientRequestTest extends ClientTest {
     super.testClientStreamingCompletedBeforeHalfClose(should);
 
     Async done = should.async();
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSinkMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.response().onComplete(should.asyncAssertFailure(failure -> {
@@ -300,7 +300,7 @@ public class ClientRequestTest extends ClientTest {
     super.testBidiStreaming(should);
 
     Async done = should.async();
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getPipeMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
@@ -334,7 +334,7 @@ public class ClientRequestTest extends ClientTest {
     super.testBidiStreamingCompletedBeforeHalfClose(should);
 
     Async done = should.async();
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getPipeMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.write(Item.newBuilder().setValue("the-value").build());
@@ -351,7 +351,7 @@ public class ClientRequestTest extends ClientTest {
 
     super.testFail(should);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getPipeMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.write(Item.newBuilder().setValue("item").build());
@@ -372,10 +372,13 @@ public class ClientRequestTest extends ClientTest {
     super.testMetadata(should);
 
     Async test = should.async();
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), GreeterGrpc.getSayHelloMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.headers().set("custom_request_header", "custom_request_header_value");
+        callRequest.headers().set("custom_request_header-bin", Base64.getEncoder().encodeToString(new byte[] { 0,1,2 }));
+        callRequest.headers().set("grpc-custom_request_header", "grpc-custom_request_header_value");
+        callRequest.headers().set("grpc-custom_request_header-bin", Base64.getEncoder().encodeToString(new byte[] { 2,1,0 }));
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
           should.assertEquals("custom_response_header_value", callResponse.headers().get("custom_response_header"));
           should.assertEquals(3, testMetadataStep.getAndIncrement());
@@ -413,7 +416,7 @@ public class ClientRequestTest extends ClientTest {
       .toCompletableFuture()
       .get(20, TimeUnit.SECONDS);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), GreeterGrpc.getSayHelloMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.write(HelloRequest.newBuilder().setName("Julien").build());
@@ -448,7 +451,7 @@ public class ClientRequestTest extends ClientTest {
       }
     });
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSinkMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.write(Item.getDefaultInstance());
@@ -459,6 +462,29 @@ public class ClientRequestTest extends ClientTest {
           } catch (IllegalStateException ignore) {
           }
         });
+      }));
+  }
+
+  @Test
+  public void testCall(TestContext should) throws IOException {
+
+    GreeterGrpc.GreeterImplBase called = new GreeterGrpc.GreeterImplBase() {
+      @Override
+      public void sayHello(HelloRequest request, StreamObserver<HelloReply> plainResponseObserver) {
+        ServerCallStreamObserver<HelloReply> responseObserver =
+          (ServerCallStreamObserver<HelloReply>) plainResponseObserver;
+        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+        responseObserver.onCompleted();
+      }
+    };
+    startServer(called, ServerBuilder.forPort(port));
+
+    client = GrpcClient.client(vertx);
+    client.call(SocketAddress.inetSocketAddress(port, "localhost"), GreeterGrpc.getSayHelloMethod(),
+        callRequest -> callRequest.end(HelloRequest.newBuilder().setName("Julien").build()),
+        GrpcReadStream::last)
+      .onComplete(should.asyncAssertSuccess(reply -> {
+        should.assertEquals("Hello Julien", reply.getMessage());
       }));
   }
 }

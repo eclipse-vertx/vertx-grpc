@@ -23,6 +23,8 @@ import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.common.impl.Utils;
+import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
 import java.util.Map;
@@ -33,16 +35,19 @@ import java.util.Objects;
  */
 public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req, Resp> {
 
+  private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
   private final GrpcMessageEncoder<Resp> encoder;
   private String encoding;
   private GrpcStatus status = GrpcStatus.OK;
+  private String statusMessage;
   private boolean headersSent;
   private boolean trailersSent;
   private boolean cancelled;
   private MultiMap headers, trailers;
 
-  public GrpcServerResponseImpl(HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
+  public GrpcServerResponseImpl(GrpcServerRequestImpl<Req, Resp> request, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
+    this.request = request;
     this.httpResponse = httpResponse;
     this.encoder = encoder;
   }
@@ -50,6 +55,12 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
     Objects.requireNonNull(status);
     this.status = status;
+    return this;
+  }
+
+  @Override
+  public GrpcServerResponse<Req, Resp> statusMessage(String msg) {
+    this.statusMessage = msg;
     return this;
   }
 
@@ -129,23 +140,30 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
 
   @Override
   public void cancel() {
-    checkState();
+    if (cancelled) {
+      return;
+    }
     cancelled = true;
-    httpResponse.reset(GrpcError.CANCELLED.http2ResetCode);
+    Future<Void> fut = request.end();
+    boolean requestEnded;
+    if (fut.failed()) {
+      return;
+    } else {
+      requestEnded = fut.succeeded();
+    }
+    if (!requestEnded || !trailersSent) {
+      httpResponse.reset(GrpcError.CANCELLED.http2ResetCode);
+    }
   }
 
-  private void checkState() {
+  private Future<Void> writeMessage(GrpcMessage message, boolean end) {
+
     if (cancelled) {
       throw new IllegalStateException("The stream has been cancelled");
     }
     if (trailersSent) {
       throw new IllegalStateException("The stream has been closed");
     }
-  }
-
-  private Future<Void> writeMessage(GrpcMessage message, boolean end) {
-
-    checkState();
 
     if (message == null && !end) {
       throw new IllegalStateException();
@@ -173,41 +191,47 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
       }
     }
 
+    boolean trailersOnly = status != GrpcStatus.OK && !headersSent && end;
+
     MultiMap responseHeaders = httpResponse.headers();
     if (!headersSent) {
       headersSent = true;
       if (headers != null && headers.size() > 0) {
         for (Map.Entry<String, String> header : headers) {
-          if (!header.getKey().startsWith("grpc-")) {
-            responseHeaders.add(header.getKey(), header.getValue());
-          } else {
-            // Log ?
-          }
+          responseHeaders.add(header.getKey(), header.getValue());
         }
       }
       responseHeaders.set("content-type", "application/grpc");
       responseHeaders.set("grpc-encoding", encoding);
       responseHeaders.set("grpc-accept-encoding", "gzip");
-      if (message == null && end) {
-        responseHeaders.set("grpc-status", status.toString());
-      }
     }
 
     if (end) {
-      trailersSent = true;
+      if (!trailersSent) {
+        trailersSent = true;
+      }
+      MultiMap responseTrailers;
+      if (trailersOnly) {
+        responseTrailers = httpResponse.headers();
+      } else {
+        responseTrailers = httpResponse.trailers();
+      }
+
+      if (trailers != null && trailers.size() > 0) {
+        for (Map.Entry<String, String> trailer : trailers) {
+          responseTrailers.add(trailer.getKey(), trailer.getValue());
+        }
+      }
       if (!responseHeaders.contains("grpc-status")) {
-        MultiMap responseTrailers = httpResponse.trailers();
         responseTrailers.set("grpc-status", status.toString());
       }
-      if (trailers != null && trailers.size() > 0) {
-        MultiMap responseTrailers = httpResponse.trailers();
-        for (Map.Entry<String, String> trailer : trailers) {
-          if (!trailer.getKey().startsWith("grpc-")) {
-            responseTrailers.add(trailer.getKey(), trailer.getValue());
-          } else {
-            // Log ?
-          }
+      if (status != GrpcStatus.OK) {
+        String msg = statusMessage;
+        if (msg != null && !responseHeaders.contains("grpc-status-message")) {
+          responseTrailers.set("grpc-message", Utils.utf8PercentEncode(msg));
         }
+      } else {
+        responseTrailers.remove("grpc-message");
       }
       if (message != null) {
         return httpResponse.end(GrpcMessageImpl.encode(message));
@@ -217,15 +241,5 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     } else {
       return httpResponse.write(GrpcMessageImpl.encode(message));
     }
-  }
-
-  @Override
-  public void write(Resp data, Handler<AsyncResult<Void>> handler) {
-    write(data).onComplete(handler);
-  }
-
-  @Override
-  public void end(Handler<AsyncResult<Void>> handler) {
-    end().onComplete(handler);
   }
 }

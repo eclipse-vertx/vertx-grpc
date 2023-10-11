@@ -11,10 +11,12 @@
   <packaging>pom</packaging>
 
   <artifactId>vertx-grpc-aggregator</artifactId>
-  <version>4.3.4-SNAPSHOT</version>
+  <version>5.0.0-SNAPSHOT</version>
 
   <properties>
-    <stack.version>4.3.4-SNAPSHOT</stack.version>
+    <stack.version>5.0.0-SNAPSHOT</stack.version>
+    <grpc.version>1.50.2</grpc.version>
+    <protoc.version>3.21.12</protoc.version>
     <doc.skip>true</doc.skip>
   </properties>
 
@@ -61,6 +63,8 @@
     <module>vertx-grpc-common</module>
     <module>vertx-grpc-server</module>
     <module>vertx-grpc-client</module>
+    <module>vertx-grpc-context-storage</module>
+    <module>vertx-grpc-protoc-plugin2</module>
     <module>vertx-grpc-it</module>
   </modules>
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2022 Contributors to the Eclipse Foundation
+ * Copyright (c) 2011-2023 Contributors to the Eclipse Foundation
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
@@ -15,25 +15,56 @@ import io.grpc.Metadata;
 import io.netty.util.AsciiString;
 import io.vertx.core.MultiMap;
 
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 
 public class Utils {
 
   public static void writeMetadata(Metadata metadata, MultiMap mmap) {
-    byte[][] t = InternalMetadata.serialize(metadata);
-    for (int i = 0;i < t.length;i+=2) {
-      mmap.add(new AsciiString(t[i], false), new AsciiString(t[i + 1], false));
+    byte[][] array = InternalMetadata.serialize(metadata);
+    for (int i = 0; i < array.length; i += 2) {
+      AsciiString key = new AsciiString(array[i], false);
+      AsciiString value;
+      if (key.endsWith("-bin")) {
+        value = new AsciiString(Base64.getEncoder().encode(array[i + 1]), false);
+      } else {
+        value = new AsciiString(array[i + 1], false);
+      }
+      mmap.add(key, value);
     }
   }
 
   public static Metadata readMetadata(MultiMap headers) {
-    byte[][] abc = new byte[headers.size() * 2][];
+    List<Map.Entry<String, String>> entries = headers.entries();
+    byte[][] array = new byte[entries.size() * 2][];
     int idx = 0;
-    for (Map.Entry<String, String> entry : headers) {
-      abc[idx++] = entry.getKey().getBytes(StandardCharsets.UTF_8);
-      abc[idx++] = entry.getValue().getBytes(StandardCharsets.UTF_8);
+    for (Map.Entry<String, String> entry : entries) {
+      String key = entry.getKey();
+      array[idx++] = key.getBytes(StandardCharsets.UTF_8);
+      String value = entry.getValue();
+      byte[] data;
+      if (key.endsWith("-bin")) {
+        data = Base64.getDecoder().decode(value);
+      } else {
+        data = value.getBytes(StandardCharsets.UTF_8);
+      }
+      array[idx++] = data;
     }
-    return InternalMetadata.newMetadata(abc);
+    return InternalMetadata.newMetadata(array);
+  }
+
+  public static String utf8PercentEncode(String s) {
+    try {
+      return URLEncoder.encode(s, StandardCharsets.UTF_8.name())
+        .replace("+", "%20")
+        .replace("*", "%2A")
+        .replace("~", "%7E");
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }
