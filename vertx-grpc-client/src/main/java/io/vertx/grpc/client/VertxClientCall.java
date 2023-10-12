@@ -17,7 +17,7 @@ import io.vertx.grpc.common.impl.ReadStreamAdapter;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.common.impl.WriteStreamAdapter;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 import java.util.concurrent.Executor;
 
 class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, ResponseT> {

@@ -7,7 +7,7 @@ import static io.grpc.MethodDescriptor.generateFullMethodName;
  * Interface exported by the server.
  * </pre>
  */
-@javax.annotation.Generated(
+@jakarta.annotation.Generated(
     value = "by gRPC proto compiler (version 1.50.2)",
     comments = "Source: streaming.proto")
 @io.grpc.stub.annotations.GrpcGenerated
