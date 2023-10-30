@@ -49,6 +49,37 @@ public final class GreeterGrpc {
     return getSayHelloMethod;
   }
 
+  private static volatile io.grpc.MethodDescriptor<examples.HelloRequest,
+      examples.HelloReply> getSaySecuredHelloMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "SaySecuredHello",
+      requestType = examples.HelloRequest.class,
+      responseType = examples.HelloReply.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<examples.HelloRequest,
+      examples.HelloReply> getSaySecuredHelloMethod() {
+    io.grpc.MethodDescriptor<examples.HelloRequest, examples.HelloReply> getSaySecuredHelloMethod;
+    if ((getSaySecuredHelloMethod = GreeterGrpc.getSaySecuredHelloMethod) == null) {
+      synchronized (GreeterGrpc.class) {
+        if ((getSaySecuredHelloMethod = GreeterGrpc.getSaySecuredHelloMethod) == null) {
+          GreeterGrpc.getSaySecuredHelloMethod = getSaySecuredHelloMethod =
+              io.grpc.MethodDescriptor.<examples.HelloRequest, examples.HelloReply>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "SaySecuredHello"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  examples.HelloRequest.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  examples.HelloReply.getDefaultInstance()))
+              .setSchemaDescriptor(new GreeterMethodDescriptorSupplier("SaySecuredHello"))
+              .build();
+        }
+      }
+    }
+    return getSaySecuredHelloMethod;
+  }
+
   /**
    * Creates a new async stub that supports all call types for the service
    */
@@ -110,6 +141,13 @@ public final class GreeterGrpc {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getSayHelloMethod(), responseObserver);
     }
 
+    /**
+     */
+    public void saySecuredHello(examples.HelloRequest request,
+        io.grpc.stub.StreamObserver<examples.HelloReply> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getSaySecuredHelloMethod(), responseObserver);
+    }
+
     @java.lang.Override public final io.grpc.ServerServiceDefinition bindService() {
       return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
           .addMethod(
@@ -119,6 +157,13 @@ public final class GreeterGrpc {
                 examples.HelloRequest,
                 examples.HelloReply>(
                   this, METHODID_SAY_HELLO)))
+          .addMethod(
+            getSaySecuredHelloMethod(),
+            io.grpc.stub.ServerCalls.asyncUnaryCall(
+              new MethodHandlers<
+                examples.HelloRequest,
+                examples.HelloReply>(
+                  this, METHODID_SAY_SECURED_HELLO)))
           .build();
     }
   }
@@ -150,6 +195,14 @@ public final class GreeterGrpc {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getSayHelloMethod(), getCallOptions()), request, responseObserver);
     }
+
+    /**
+     */
+    public void saySecuredHello(examples.HelloRequest request,
+        io.grpc.stub.StreamObserver<examples.HelloReply> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getSaySecuredHelloMethod(), getCallOptions()), request, responseObserver);
+    }
   }
 
   /**
@@ -177,6 +230,13 @@ public final class GreeterGrpc {
     public examples.HelloReply sayHello(examples.HelloRequest request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getSayHelloMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public examples.HelloReply saySecuredHello(examples.HelloRequest request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getSaySecuredHelloMethod(), getCallOptions(), request);
     }
   }
 
@@ -207,9 +267,18 @@ public final class GreeterGrpc {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getSayHelloMethod(), getCallOptions()), request);
     }
+
+    /**
+     */
+    public com.google.common.util.concurrent.ListenableFuture<examples.HelloReply> saySecuredHello(
+        examples.HelloRequest request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getSaySecuredHelloMethod(), getCallOptions()), request);
+    }
   }
 
   private static final int METHODID_SAY_HELLO = 0;
+  private static final int METHODID_SAY_SECURED_HELLO = 1;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -230,6 +299,10 @@ public final class GreeterGrpc {
       switch (methodId) {
         case METHODID_SAY_HELLO:
           serviceImpl.sayHello((examples.HelloRequest) request,
+              (io.grpc.stub.StreamObserver<examples.HelloReply>) responseObserver);
+          break;
+        case METHODID_SAY_SECURED_HELLO:
+          serviceImpl.saySecuredHello((examples.HelloRequest) request,
               (io.grpc.stub.StreamObserver<examples.HelloReply>) responseObserver);
           break;
         default:
@@ -294,6 +367,7 @@ public final class GreeterGrpc {
           serviceDescriptor = result = io.grpc.ServiceDescriptor.newBuilder(SERVICE_NAME)
               .setSchemaDescriptor(new GreeterFileDescriptorSupplier())
               .addMethod(getSayHelloMethod())
+              .addMethod(getSaySecuredHelloMethod())
               .build();
         }
       }

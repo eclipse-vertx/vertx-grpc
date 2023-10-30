@@ -11,15 +11,21 @@
 package io.vertx.grpc.server.impl;
 
 import io.grpc.MethodDescriptor;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.ext.auth.User;
+import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.server.GrpcException;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.auth.impl.GrpcJWTAuthorizationHandler;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,11 +36,23 @@ import java.util.Map;
 public class GrpcServerImpl implements GrpcServer {
 
   private final Vertx vertx;
+  private final JWTAuth authProvider;
+  private final GrpcJWTAuthorizationHandler authHandler;
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
   private Map<String, MethodCallHandler<?, ?>> methodCallHandlers = new HashMap<>();
 
   public GrpcServerImpl(Vertx vertx) {
+    this(vertx, null);
+  }
+
+  public GrpcServerImpl(Vertx vertx, JWTAuth authProvider) {
+    this(vertx, authProvider, "");
+  }
+
+  public GrpcServerImpl(Vertx vertx, JWTAuth authProvider, String realm) {
     this.vertx = vertx;
+    this.authProvider = authProvider;
+    this.authHandler = new GrpcJWTAuthorizationHandler(authProvider, realm);
   }
 
   @Override
@@ -42,6 +60,7 @@ public class GrpcServerImpl implements GrpcServer {
     GrpcMethodCall methodCall = new GrpcMethodCall(httpRequest.path());
     String fmn = methodCall.fullMethodName();
     MethodCallHandler<?, ?> method = methodCallHandlers.get(fmn);
+
     if (method != null) {
       handle(method, httpRequest, methodCall);
     } else {
@@ -59,6 +78,26 @@ public class GrpcServerImpl implements GrpcServer {
   private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall) {
     GrpcServerRequestImpl<Req, Resp> grpcRequest = new GrpcServerRequestImpl<>(httpRequest, method.messageDecoder, method.messageEncoder, methodCall);
     grpcRequest.init();
+    if (method.useAuthHandler) {
+      Future<User> fut = authHandler.authenticate(httpRequest, true);
+
+      // Handle authentication failures
+      if (fut.failed()) {
+        if (fut.cause() instanceof GrpcException) {
+          GrpcException ex = (GrpcException) fut.cause();
+          GrpcServerResponse<?, ?> response = grpcRequest.response();
+          response.status(ex.status()).end();
+        } else {
+          httpRequest.response().setStatusCode(500).end();
+        }
+        return;
+      } else {
+        User user = fut.result();
+        if (user != null) {
+          grpcRequest.setUser(user);
+        }
+      }
+    }
     method.handle(grpcRequest);
   }
 
@@ -68,8 +107,17 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   public <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    return callHandler(methodDesc, handler, false);
+  }
+
+  @Override
+  public <Req, Resp> GrpcServer authenticatedCallHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    return callHandler(methodDesc, handler, true);
+  }
+
+  private <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler, boolean useAuthHandler) {
     if (handler != null) {
-      methodCallHandlers.put(methodDesc.getFullMethodName(), new MethodCallHandler<>(methodDesc, GrpcMessageDecoder.unmarshaller(methodDesc.getRequestMarshaller()), GrpcMessageEncoder.marshaller(methodDesc.getResponseMarshaller()), handler));
+      methodCallHandlers.put(methodDesc.getFullMethodName(), new MethodCallHandler<>(methodDesc, GrpcMessageDecoder.unmarshaller(methodDesc.getRequestMarshaller()), GrpcMessageEncoder.marshaller(methodDesc.getResponseMarshaller()), handler, useAuthHandler));
     } else {
       methodCallHandlers.remove(methodDesc.getFullMethodName());
     }
@@ -82,12 +130,14 @@ public class GrpcServerImpl implements GrpcServer {
     final GrpcMessageDecoder<Req> messageDecoder;
     final GrpcMessageEncoder<Resp> messageEncoder;
     final Handler<GrpcServerRequest<Req, Resp>> handler;
+    final boolean useAuthHandler;
 
-    MethodCallHandler(MethodDescriptor<Req, Resp> def, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    MethodCallHandler(MethodDescriptor<Req, Resp> def, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, Handler<GrpcServerRequest<Req, Resp>> handler, boolean useAuthHandler) {
       this.def = def;
       this.messageDecoder = messageDecoder;
       this.messageEncoder = messageEncoder;
       this.handler = handler;
+      this.useAuthHandler = useAuthHandler;
     }
 
     @Override

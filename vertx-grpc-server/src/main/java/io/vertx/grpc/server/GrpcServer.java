@@ -18,6 +18,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 
 /**
@@ -51,6 +52,24 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   }
 
   /**
+   * Create a blank gRPC server
+   *
+   * @return the created server
+   */
+  static GrpcServer server(Vertx vertx, JWTAuth authProvider) {
+    return new GrpcServerImpl(vertx, authProvider);
+  }
+
+  /**
+   * Create a blank gRPC server
+   *
+   * @return the created server
+   */
+  static GrpcServer server(Vertx vertx, JWTAuth authProvider, String realm) {
+    return new GrpcServerImpl(vertx, authProvider, realm);
+  }
+
+  /**
    * Set a call handler that handles any call made to the server.
    *
    * @param handler the service method call handler
@@ -67,5 +86,14 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
+
+  /**
+   * Set a service method call handler that handles any call call made to the server for the {@link MethodDescriptor} service method and that uses the provided auth provider to authenticate the request.
+   *
+   * @param handler the service method call handler
+   * @return a reference to this, so the API can be used fluently
+   */
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
+  <Req, Resp> GrpcServer authenticatedCallHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
 
 }
