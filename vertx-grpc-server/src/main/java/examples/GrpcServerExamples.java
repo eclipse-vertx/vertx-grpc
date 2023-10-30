@@ -1,6 +1,12 @@
 package examples;
 
-import io.grpc.stub.ServerCallStreamObserver;
+import com.google.common.net.HttpHeaders;
+
+import examples.GreeterGrpc.GreeterBlockingStub;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.Metadata;
+import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -8,6 +14,10 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.docgen.Source;
+import io.vertx.ext.auth.KeyStoreOptions;
+import io.vertx.ext.auth.User;
+import io.vertx.ext.auth.jwt.JWTAuth;
+import io.vertx.ext.auth.jwt.JWTAuthOptions;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
@@ -123,6 +133,42 @@ public class GrpcServerExamples {
     response.write(Item.newBuilder().setValue("item-1").build());
     response.write(Item.newBuilder().setValue("item-2").build());
     response.write(Item.newBuilder().setValue("item-3").build());
+  }
+
+
+  public void jwtServerAuthExample(Vertx vertx, HttpServerOptions options) {
+    JWTAuthOptions config = new JWTAuthOptions()
+      .setKeyStore(new KeyStoreOptions()
+        .setPath("keystore.jceks")
+        .setPassword("secret")
+        .setType("jceks"));
+
+    JWTAuth jwtAuth = JWTAuth.create(vertx, config);
+    GrpcServer server = GrpcServer.server(vertx, jwtAuth);
+
+    server.authenticatedCallHandler(GreeterGrpc.getSayHelloMethod(), request -> {
+
+      request.handler(hello -> {
+        User authenticatedUser = request.user();
+
+        GrpcServerResponse<HelloRequest, HelloReply> response = request.response();
+
+        HelloReply reply = HelloReply.newBuilder().setMessage("Hello " + hello.getName()
+                + " via " + authenticatedUser.subject()).build();
+
+        response.end(reply);
+      });
+    });
+  }
+
+  public void jwtClientAuthExample(String token, int port) {
+
+    ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", port).usePlaintext().build();
+
+    Metadata header = new Metadata();
+    header.put(Metadata.Key.of(HttpHeaders.AUTHORIZATION, Metadata.ASCII_STRING_MARSHALLER), "Bearer " + token);
+    GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel)
+      .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(header));
   }
 
   public void stubExample(Vertx vertx, HttpServerOptions options) {
