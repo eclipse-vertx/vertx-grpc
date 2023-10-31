@@ -9,8 +9,9 @@ import io.vertx.ext.auth.authentication.TokenCredentials;
 import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcException;
+import io.vertx.grpc.server.auth.GrpcJWTAuthenticationHandler;
 
-public class GrpcJWTAuthorizationHandler {
+public class GrpcJWTAuthenticationHandlerImpl implements GrpcJWTAuthenticationHandler {
 
   static final GrpcException UNAUTHENTICATED = new GrpcException(
     GrpcStatus.UNAUTHENTICATED);
@@ -44,11 +45,11 @@ public class GrpcJWTAuthorizationHandler {
   private final Type type;
   private final String realm;
 
-  public GrpcJWTAuthorizationHandler(JWTAuth authProvider, String realm) {
+  public GrpcJWTAuthenticationHandlerImpl(JWTAuth authProvider, String realm) {
     this(authProvider, Type.BEARER, realm);
   }
 
-  public GrpcJWTAuthorizationHandler(AuthenticationProvider authProvider,
+  public GrpcJWTAuthenticationHandlerImpl(AuthenticationProvider authProvider,
     Type type, String realm) {
     this.authProvider = authProvider;
     this.type = type;
@@ -99,8 +100,7 @@ public class GrpcJWTAuthorizationHandler {
     return parseAuthorization(req, false);
   }
 
-  public Future<User> authenticate(HttpServerRequest req,
-    boolean requireAuthentication) {
+  public Future<User> authenticate(HttpServerRequest req, boolean requireAuthentication) {
     return parseAuthorization(req, !requireAuthentication)
       .compose(token -> {
 

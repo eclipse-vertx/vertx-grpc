@@ -17,7 +17,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.auth.User;
-import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
@@ -25,7 +24,7 @@ import io.vertx.grpc.server.GrpcException;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
-import io.vertx.grpc.server.auth.impl.GrpcJWTAuthorizationHandler;
+import io.vertx.grpc.server.auth.GrpcAuthenticationHandler;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,8 +35,7 @@ import java.util.Map;
 public class GrpcServerImpl implements GrpcServer {
 
   private final Vertx vertx;
-  private final JWTAuth authProvider;
-  private final GrpcJWTAuthorizationHandler authHandler;
+  private final GrpcAuthenticationHandler authHandler;
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
   private Map<String, MethodCallHandler<?, ?>> methodCallHandlers = new HashMap<>();
 
@@ -45,14 +43,9 @@ public class GrpcServerImpl implements GrpcServer {
     this(vertx, null);
   }
 
-  public GrpcServerImpl(Vertx vertx, JWTAuth authProvider) {
-    this(vertx, authProvider, "");
-  }
-
-  public GrpcServerImpl(Vertx vertx, JWTAuth authProvider, String realm) {
+  public GrpcServerImpl(Vertx vertx, GrpcAuthenticationHandler authHandler) {
     this.vertx = vertx;
-    this.authProvider = authProvider;
-    this.authHandler = new GrpcJWTAuthorizationHandler(authProvider, realm);
+    this.authHandler = authHandler;
   }
 
   @Override

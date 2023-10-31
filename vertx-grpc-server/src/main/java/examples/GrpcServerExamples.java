@@ -25,6 +25,8 @@ import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServiceBridge;
+import io.vertx.grpc.server.auth.GrpcAuthenticationHandler;
+import io.vertx.grpc.server.auth.GrpcJWTAuthenticationHandler;
 
 @Source
 public class GrpcServerExamples {
@@ -144,7 +146,8 @@ public class GrpcServerExamples {
         .setType("jceks"));
 
     JWTAuth jwtAuth = JWTAuth.create(vertx, config);
-    GrpcServer server = GrpcServer.server(vertx, jwtAuth);
+    GrpcAuthenticationHandler authHandler = GrpcJWTAuthenticationHandler.create(jwtAuth);
+    GrpcServer server = GrpcServer.server(vertx, authHandler);
 
     server.authenticatedCallHandler(GreeterGrpc.getSayHelloMethod(), request -> {
 

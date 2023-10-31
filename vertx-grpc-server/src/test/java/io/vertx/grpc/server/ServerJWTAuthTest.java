@@ -23,6 +23,8 @@ import io.vertx.ext.auth.User;
 import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.ext.auth.jwt.JWTAuthOptions;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.server.auth.GrpcAuthenticationHandler;
+import io.vertx.grpc.server.auth.GrpcJWTAuthenticationHandler;
 
 public class ServerJWTAuthTest extends ServerTestBase {
 
@@ -43,10 +45,11 @@ public class ServerJWTAuthTest extends ServerTestBase {
         .setType("jceks"));
 
     JWTAuth authProvider = JWTAuth.create(vertx, config);
+    GrpcAuthenticationHandler authHandler = GrpcJWTAuthenticationHandler.create(authProvider, "");
     validToken = authProvider.generateToken(new JsonObject().put("sub", "johannes"), new JWTOptions().setIgnoreExpiration(true));
     expiredToken = authProvider.generateToken(new JsonObject().put("sub", "johannes"), new JWTOptions().setExpiresInSeconds(1));
 
-    jwtServer = GrpcServer.server(vertx, authProvider);
+    jwtServer = GrpcServer.server(vertx, authHandler);
 
     // Register the secured
     jwtServer.authenticatedCallHandler(GreeterGrpc.getSaySecuredHelloMethod(), request -> {

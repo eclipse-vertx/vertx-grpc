@@ -18,7 +18,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.ext.auth.jwt.JWTAuth;
+import io.vertx.grpc.server.auth.GrpcAuthenticationHandler;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 
 /**
@@ -44,7 +44,8 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
 
   /**
    * Create a blank gRPC server
-   *
+   * 
+   * @param vertx Vert.x instance
    * @return the created server
    */
   static GrpcServer server(Vertx vertx) {
@@ -54,19 +55,12 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   /**
    * Create a blank gRPC server
    *
+   * @param vertx Vert.x instance
+   * @param authHandler Handler for the authentication
    * @return the created server
    */
-  static GrpcServer server(Vertx vertx, JWTAuth authProvider) {
-    return new GrpcServerImpl(vertx, authProvider);
-  }
-
-  /**
-   * Create a blank gRPC server
-   *
-   * @return the created server
-   */
-  static GrpcServer server(Vertx vertx, JWTAuth authProvider, String realm) {
-    return new GrpcServerImpl(vertx, authProvider, realm);
+  static GrpcServer server(Vertx vertx, GrpcAuthenticationHandler authHandler) {
+    return new GrpcServerImpl(vertx, authHandler);
   }
 
   /**
