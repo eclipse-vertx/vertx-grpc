@@ -147,9 +147,9 @@ public class GrpcServerExamples {
 
     JWTAuth jwtAuth = JWTAuth.create(vertx, config);
     GrpcAuthenticationHandler authHandler = GrpcJWTAuthenticationHandler.create(jwtAuth);
-    GrpcServer server = GrpcServer.server(vertx, authHandler);
+    GrpcServer server = GrpcServer.server(vertx);
 
-    server.authenticatedCallHandler(GreeterGrpc.getSayHelloMethod(), request -> {
+    server.callHandler(authHandler, GreeterGrpc.getSayHelloMethod(), request -> {
 
       request.handler(hello -> {
         User authenticatedUser = request.user();

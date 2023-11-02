@@ -111,7 +111,7 @@ Decompression is done transparently by the server when the client send encoded r
 
 === JWT Authentication
 
-Authentication can be provided via an {@link io.vertx.grpc.server.auth.GrpcAuthenticationHandler} during creation of the {@link io.vertx.grpc.server.GrpcServer}.
+Service method handlers can be secured by providing an {@link io.vertx.grpc.server.auth.GrpcAuthenticationHandler} in the {@link  io.vertx.grpc.server.GrpcServer#callHandler} method.
 
 For JWT a handler can be created via {@link io.vertx.grpc.server.auth.GrpcJWTAuthenticationHandler#create}.
 
@@ -125,7 +125,7 @@ Add the required dependency to provide JWT via {@link io.vertx.ext.auth.jwt.JWTA
 </dependency>
 ----
 
-Secured handler can be registered via the {@link io.vertx.grpc.server.GrpcServer#authenticatedCallHandler} method. Handlers that were registered via {@link io.vertx.grpc.server.GrpcServer#callHandler} will use authentication.
+Handlers that were registered without the handler will not use authentication.
 
 [source,java]
 ----

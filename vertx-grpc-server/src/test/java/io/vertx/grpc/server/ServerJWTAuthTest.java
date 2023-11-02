@@ -49,10 +49,10 @@ public class ServerJWTAuthTest extends ServerTestBase {
     validToken = authProvider.generateToken(new JsonObject().put("sub", "johannes"), new JWTOptions().setIgnoreExpiration(true));
     expiredToken = authProvider.generateToken(new JsonObject().put("sub", "johannes"), new JWTOptions().setExpiresInSeconds(1));
 
-    jwtServer = GrpcServer.server(vertx, authHandler);
+    jwtServer = GrpcServer.server(vertx);
 
     // Register the secured
-    jwtServer.authenticatedCallHandler(GreeterGrpc.getSaySecuredHelloMethod(), request -> {
+    jwtServer.callHandler(authHandler, GreeterGrpc.getSaySecuredHelloMethod(), request -> {
       handleHelloRequest(should, request, expectUser);
     });
     // And public handler
