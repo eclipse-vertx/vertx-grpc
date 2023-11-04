@@ -82,6 +82,4 @@ public interface GrpcServerRequest<Req, Resp> extends GrpcReadStream<Req> {
 
   User user();
 
-  GrpcServerRequest<Req, Resp> setUser(User user);
-
 }

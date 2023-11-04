@@ -98,7 +98,6 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
     return user;
   }
 
-  @Override
   public GrpcServerRequest<Req, Resp> setUser(User user) {
     this.user = user;
     return this;
