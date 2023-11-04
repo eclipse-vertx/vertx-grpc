@@ -11,6 +11,7 @@
 package io.vertx.grpc.client;
 
 import io.grpc.*;
+import io.grpc.ServerCall.Listener;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
@@ -20,9 +21,11 @@ import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.net.SelfSignedCertificate;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.ext.auth.authentication.TokenCredentials;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcReadStream;
@@ -31,9 +34,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -69,6 +70,52 @@ public class ClientRequestTest extends ClientTest {
               should.assertEquals("Hello Julien", reply.getMessage());
               test.countDown();
           }));
+        }));
+        callRequest.end(HelloRequest.newBuilder().setName("Julien").build());
+      }));
+  }
+
+  @Test
+  public void testJWT(TestContext should) throws IOException {
+    final Async test = should.async();
+    final String clientToken = "ABC";
+
+    GreeterGrpc.GreeterImplBase called = new GreeterGrpc.GreeterImplBase() {
+      @Override
+      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+        responseObserver.onCompleted();
+      }
+    };
+
+    ServerInterceptor interceptor = new ServerInterceptor() {
+      @Override
+      public <ReqT, RespT> Listener<ReqT> interceptCall(
+        ServerCall<ReqT, RespT> call, Metadata headers,
+        ServerCallHandler<ReqT, RespT> next) {
+        String serverToken = headers.get(Metadata.Key.of(HttpHeaders.AUTHORIZATION.toString(), Metadata.ASCII_STRING_MARSHALLER));
+        serverToken = serverToken.substring("Bearer ".length());
+        should.assertEquals(clientToken, serverToken);
+        return next.startCall(call, headers);
+      }
+    };
+
+    Server server = ServerBuilder.forPort(0).addService(called).intercept(interceptor).build().start();
+
+    client = GrpcClient.client(vertx).withCredentials(new TokenCredentials(clientToken));
+    client.request(SocketAddress.inetSocketAddress(server.getPort(), "localhost"), GreeterGrpc.getSayHelloMethod())
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
+          AtomicInteger count = new AtomicInteger();
+          callResponse.handler(reply -> {
+            should.assertEquals(1, count.incrementAndGet());
+            should.assertEquals("Hello Julien", reply.getMessage());
+          });
+          callResponse.endHandler(v2 -> {
+            should.assertEquals(GrpcStatus.OK, callResponse.status());
+            should.assertEquals(1, count.get());
+            test.complete();
+          });
         }));
         callRequest.end(HelloRequest.newBuilder().setName("Julien").build());
       }));

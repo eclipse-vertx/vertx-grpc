@@ -10,16 +10,21 @@
  */
 package io.vertx.grpc.client.impl;
 
+import com.google.common.net.HttpHeaders;
+
 import io.grpc.MethodDescriptor;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.ext.auth.authentication.Credentials;
+import io.vertx.ext.auth.authentication.TokenCredentials;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.common.GrpcMessageDecoder;
@@ -32,6 +37,7 @@ public class GrpcClientImpl implements GrpcClient {
 
   private final Vertx vertx;
   private HttpClient client;
+  private Credentials credentials;
 
   public GrpcClientImpl(HttpClientOptions options, Vertx vertx) {
     this.vertx = vertx;
@@ -48,7 +54,10 @@ public class GrpcClientImpl implements GrpcClient {
       .setMethod(HttpMethod.POST)
       .setServer(server);
     return client.request(options)
-      .map(request -> new GrpcClientRequestImpl<>(request, GrpcMessageEncoder.IDENTITY, GrpcMessageDecoder.IDENTITY));
+      .map(request -> {
+        addCredentials(request);
+        return new GrpcClientRequestImpl<>(request, GrpcMessageEncoder.IDENTITY, GrpcMessageDecoder.IDENTITY);
+      });
   }
 
   @Override public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(SocketAddress server, MethodDescriptor<Req, Resp> service) {
@@ -59,6 +68,7 @@ public class GrpcClientImpl implements GrpcClient {
     GrpcMessageEncoder<Req> messageEncoder = GrpcMessageEncoder.marshaller(service.getRequestMarshaller());
     return client.request(options)
       .map(request -> {
+        addCredentials(request);
         GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(request, messageEncoder, messageDecoder);
         call.fullMethodName(service.getFullMethodName());
         return call;
@@ -66,7 +76,24 @@ public class GrpcClientImpl implements GrpcClient {
   }
 
   @Override
+  public GrpcClient withCredentials(Credentials credentials) {
+    if (credentials == null) {
+      throw new NullPointerException("Credentials passed to GrpcClient can not be null");
+    }
+
+    this.credentials = credentials;
+    return this;
+  }
+
+  @Override
   public Future<Void> close() {
     return client.close();
+  }
+
+  private void addCredentials(HttpClientRequest request) {
+    if (credentials == null) {
+      return;
+    }
+    request.headers().add(HttpHeaders.AUTHORIZATION, credentials.toHttpAuthorization());
   }
 }

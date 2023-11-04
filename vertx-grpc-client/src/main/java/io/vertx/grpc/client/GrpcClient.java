@@ -10,6 +10,8 @@
  */
 package io.vertx.grpc.client;
 
+import java.util.function.Function;
+
 import io.grpc.MethodDescriptor;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.VertxGen;
@@ -19,10 +21,8 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.core.streams.ReadStream;
+import io.vertx.ext.auth.authentication.Credentials;
 import io.vertx.grpc.client.impl.GrpcClientImpl;
-
-import java.util.function.Function;
 
 /**
  * A gRPC client for Vert.x
@@ -111,6 +111,14 @@ public interface GrpcClient {
         .compose(resultFn);
     });
   }
+
+  /**
+   * Mark that request should be dispatched with authentication obtained from passed {@code JWTAuth} provider
+   *
+   * @param credentials
+   * @return a reference to this, so the API can be used fluently
+   */
+  GrpcClient withCredentials(Credentials credentials);
 
   /**
    * Close this client.
