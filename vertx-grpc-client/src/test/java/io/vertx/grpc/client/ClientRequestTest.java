@@ -466,6 +466,49 @@ public class ClientRequestTest extends ClientTest {
   }
 
   @Test
+  public void testIdleTimeout(TestContext should) throws Exception {
+
+    CompletableFuture<Void> cf = new CompletableFuture<>();
+
+    Async done = should.async(2);
+    startServer(new StreamingGrpc.StreamingImplBase() {
+      @Override
+      public StreamObserver<Item> sink(StreamObserver<Empty> responseObserver) {
+        return new StreamObserver<Item>() {
+          @Override
+          public void onNext(Item item) {
+            cf.complete(null);
+          }
+          @Override
+          public void onError(Throwable t) {
+            should.assertEquals(StatusRuntimeException.class, t.getClass());
+            StatusRuntimeException sre = (StatusRuntimeException) t;
+            should.assertEquals(Status.CANCELLED.getCode(), sre.getStatus().getCode());
+            done.countDown();
+          }
+          @Override
+          public void onCompleted() {
+          }
+        };
+      }
+    });
+
+    GrpcClient client = GrpcClient.client(vertx);
+    client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSinkMethod())
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.write(Item.getDefaultInstance());
+        cf.whenComplete((v, t) -> {
+          long now = System.currentTimeMillis();
+          callRequest.idleTimeout(1000);
+          callRequest.exceptionHandler(err -> {
+            should.assertTrue(System.currentTimeMillis() - now >= 1000);
+            done.countDown();
+          });
+        });
+      }));
+  }
+
+  @Test
   public void testCall(TestContext should) throws IOException {
 
     GreeterGrpc.GreeterImplBase called = new GreeterGrpc.GreeterImplBase() {
