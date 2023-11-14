@@ -96,6 +96,16 @@ public interface GrpcClientRequest<Req, Resp> extends GrpcWriteStream<Req> {
   GrpcClientRequest<Req, Resp> drainHandler(@Nullable Handler<Void> handler);
 
   /**
+   * Sets the amount of time after which, if the request does not return any data within the timeout period,
+   * the request/response is cancelled and the related futures.
+   *
+   * @param timeout the amount of time in milliseconds.
+   * @return a reference to this, so the API can be used fluently
+   */
+  @Fluent
+  GrpcClientRequest<Req, Resp> idleTimeout(long timeout);
+
+  /**
    * @return the underlying HTTP connection
    */
   HttpConnection connection();
