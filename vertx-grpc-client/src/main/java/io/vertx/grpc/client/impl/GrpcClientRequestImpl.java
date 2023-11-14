@@ -126,6 +126,12 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
     return this;
   }
 
+  @Override
+  public GrpcClientRequest<Req, Resp> idleTimeout(long timeout) {
+    httpRequest.idleTimeout(timeout);
+    return this;
+  }
+
   @Override public Future<Void> writeMessage(GrpcMessage message) {
     return writeMessage(message, false);
   }
