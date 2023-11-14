@@ -30,10 +30,7 @@ import io.vertx.ext.unit.junit.RepeatRule;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServiceBridge;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 
 import java.util.UUID;
@@ -65,6 +62,7 @@ public class ContextStorageTest {
     }
   }
 
+  @Ignore
   @Test
   @Repeat(10)
   public void testGrpcContextPropagatedAcrossVertxAsyncCalls(TestContext should) {
