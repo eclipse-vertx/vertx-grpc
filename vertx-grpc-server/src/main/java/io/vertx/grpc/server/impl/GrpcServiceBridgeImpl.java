@@ -65,6 +65,12 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
   private <Req, Resp> void bind(GrpcServer server, ServerMethodDefinition<Req, Resp> methodDef) {
     server.callHandler(methodDef.getMethodDescriptor(), req -> {
       ServerCallHandler<Req, Resp> callHandler = methodDef.getServerCallHandler();
+
+//      if (req.timeout() > 0L) {
+//        Context ctx = Context.current();
+//        ctx.withDeadlineAfter(req.timeout(), req.timeoutExpiration())
+//      }
+
       ServerCallImpl<Req, Resp> call = new ServerCallImpl<>(req, methodDef);
       ServerCall.Listener<Req> listener = callHandler.startCall(call, Utils.readMetadata(req.headers()));
       call.init(listener);

@@ -33,10 +33,17 @@ import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.http.*;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -416,6 +423,47 @@ public class ServerBridgeTest extends ServerTest {
     startServer(server);
 
     super.testHandleCancel(should);
+  }
+
+  @Ignore
+  @Test
+  public void testDeadline(TestContext should) {
+
+    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+      @Override
+      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+        System.out.println("HELLO");
+      }
+    };
+
+    GrpcServer server = GrpcServer.server(vertx);
+    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    serverStub.bind(server);
+    startServer(server);
+
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setHttp2ClearTextUpgrade(false)
+      .setProtocolVersion(HttpVersion.HTTP_2));
+    Async async = should.async();
+    client.request(HttpMethod.POST, port, "localhost", "/helloworld.Greeter/SayHello")
+      .onComplete(should.asyncAssertSuccess(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
+        req.putHeader("grpc-timeout", TimeUnit.SECONDS.toMillis(1) + "m");
+        GrpcMessageEncoder<HelloRequest> encoder = GrpcMessageEncoder.marshaller(GreeterGrpc.getSayHelloMethod().getRequestMarshaller());
+        GrpcMessage msg = encoder.encode(HelloRequest.newBuilder().setName("test").build());
+        req.end(GrpcMessageImpl.encode(msg));
+//        req.response().onComplete(should.asyncAssertSuccess(resp -> {
+//          resp.endHandler(v -> {
+//            String status = resp.getTrailer("grpc-status");
+//            should.assertEquals(String.valueOf(GrpcStatus.OK.code), status);
+//            req.exceptionHandler(err -> {
+//              async.complete();
+//            });
+//          });
+//        }));
+      }));
+
+    async.awaitSuccess();
   }
 
   @Test

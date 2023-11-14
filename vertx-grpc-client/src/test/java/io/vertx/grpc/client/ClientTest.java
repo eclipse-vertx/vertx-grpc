@@ -10,15 +10,7 @@
  */
 package io.vertx.grpc.client;
 
-import io.grpc.ForwardingServerCall;
-import io.grpc.Metadata;
-import io.grpc.ServerBuilder;
-import io.grpc.ServerCall;
-import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
-import io.grpc.ServerInterceptors;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
@@ -27,8 +19,12 @@ import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.StreamResetException;
+import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -36,7 +32,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -373,5 +371,35 @@ public abstract class ClientTest extends ClientTestBase {
   protected static void assertEquals(TestContext should, byte[] expected, String actual) {
     should.assertNotNull(actual);
     should.assertTrue(Arrays.equals(expected, Base64.getDecoder().decode(actual)));
+  }
+
+  public void testTimeoutOnClient(TestContext should) throws Exception {
+    Async done = should.async();
+    Async listenLatch = should.async();
+    HttpServer server = vertx.createHttpServer();
+    server
+      .requestHandler(request -> {
+        request.response().exceptionHandler(err -> {
+          should.assertEquals(StreamResetException.class, err.getClass());
+          StreamResetException reset = (StreamResetException) err;
+          should.assertEquals(8L, reset.getCode());
+          done.complete();
+        });
+      })
+      .listen(port, "localhost")
+      .onComplete(should.asyncAssertSuccess(v -> listenLatch.countDown()));
+    listenLatch.awaitSuccess(20_000);
+  }
+
+  public void testTimeoutPropagationToServer(CompletableFuture<Long> cf) throws Exception {
+    startServer(new GreeterGrpc.GreeterImplBase() {
+      @Override
+      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+        long timeRemaining = Context.current().getDeadline().timeRemaining(TimeUnit.MILLISECONDS);
+        cf.complete(timeRemaining);
+        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+        responseObserver.onCompleted();
+      }
+    });
   }
 }

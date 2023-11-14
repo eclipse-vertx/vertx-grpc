@@ -1,12 +1,6 @@
 package io.vertx.grpc.client;
 
-import io.grpc.ClientCall;
-import io.grpc.Compressor;
-import io.grpc.Decompressor;
-import io.grpc.DecompressorRegistry;
-import io.grpc.Metadata;
-import io.grpc.MethodDescriptor;
-import io.grpc.Status;
+import io.grpc.*;
 import io.vertx.core.Future;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.net.SocketAddress;
@@ -19,6 +13,7 @@ import io.vertx.grpc.common.impl.WriteStreamAdapter;
 
 import javax.annotation.Nullable;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, ResponseT> {
 
@@ -28,6 +23,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
   private final MethodDescriptor<RequestT, ResponseT> methodDescriptor;
   private final String encoding;
   private final Compressor compressor;
+  private final Deadline deadline;
   private Future<GrpcClientRequest<RequestT, ResponseT>> fut;
   private Listener<ResponseT> listener;
   private WriteStreamAdapter<RequestT> writeAdapter;
@@ -35,13 +31,20 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
   private GrpcClientRequest<RequestT, ResponseT> request;
   private GrpcClientResponse<RequestT, ResponseT> grpcResponse;
 
-  VertxClientCall(GrpcClient client, SocketAddress server, Executor exec, MethodDescriptor<RequestT, ResponseT> methodDescriptor, String encoding, Compressor compressor) {
+  VertxClientCall(GrpcClient client,
+                  SocketAddress server,
+                  Executor exec,
+                  MethodDescriptor<RequestT, ResponseT> methodDescriptor,
+                  String encoding,
+                  Compressor compressor,
+                  Deadline deadline) {
     this.client = client;
     this.server = server;
     this.exec = exec;
     this.methodDescriptor = methodDescriptor;
     this.encoding = encoding;
     this.compressor = compressor;
+    this.deadline = deadline;
     writeAdapter = new WriteStreamAdapter<RequestT>() {
       @Override
       protected void handleReady() {
@@ -73,6 +76,10 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
       if (ar1.succeeded()) {
         request = ar1.result();
         Utils.writeMetadata(headers, request.headers());
+        if (deadline != null) {
+          long timeout = deadline.timeRemaining(TimeUnit.MILLISECONDS);
+          request.timeout(timeout, TimeUnit.MILLISECONDS);
+        }
         if (encoding != null) {
           request.encoding(encoding);
         }

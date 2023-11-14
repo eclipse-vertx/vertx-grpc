@@ -11,6 +11,7 @@
 package io.vertx.grpc.server.impl;
 
 import io.netty.handler.codec.base64.Base64;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -19,7 +20,13 @@ import io.vertx.core.buffer.impl.BufferInternal;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.HttpVersion;
-import io.vertx.grpc.common.*;
+import io.vertx.core.impl.ContextInternal;
+import io.vertx.grpc.common.CodecException;
+import io.vertx.grpc.common.GrpcError;
+import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -35,6 +42,7 @@ import static io.vertx.grpc.common.GrpcMediaType.*;
  */
 public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req, Resp> {
 
+  private final ContextInternal context;
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
   private final GrpcMessageEncoder<Resp> encoder;
@@ -47,20 +55,16 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   private boolean cancelled;
   private MultiMap headers, trailers;
 
-  public GrpcServerResponseImpl(GrpcServerRequestImpl<Req, Resp> request, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
+  public GrpcServerResponseImpl(ContextInternal context,
+                                GrpcServerRequestImpl<Req, Resp> request,
+                                CharSequence contentType,
+                                HttpServerResponse httpResponse,
+                                GrpcMessageEncoder<Resp> encoder) {
+    this.context = context;
     this.request = request;
     this.httpResponse = httpResponse;
     this.encoder = encoder;
-    if (request.httpRequest.version() != HttpVersion.HTTP_2) {
-      String requestMediaType = request.headers().get(CONTENT_TYPE);
-      if (isGrpcWebText(requestMediaType)) {
-        contentType = GRPC_WEB_TEXT_PROTO;
-      } else {
-        contentType = GRPC_WEB_PROTO;
-      }
-    } else {
-      contentType = GRPC_PROTO;
-    }
+    this.contentType = contentType;
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
@@ -147,6 +151,17 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   public GrpcServerResponse<Req, Resp> drainHandler(Handler<Void> handler) {
     httpResponse.drainHandler(handler);
     return this;
+  }
+
+  void handleTimeout() {
+    if (!cancelled) {
+      if (!trailersSent) {
+        status(GrpcStatus.DEADLINE_EXCEEDED);
+        end();
+      } else {
+        cancel();
+      }
+    }
   }
 
   @Override

@@ -10,17 +10,7 @@
  */
 package io.vertx.grpc.client;
 
-import io.grpc.CallOptions;
-import io.grpc.Channel;
-import io.grpc.ClientCall;
-import io.grpc.ClientInterceptor;
-import io.grpc.ClientInterceptors;
-import io.grpc.ForwardingClientCall;
-import io.grpc.ForwardingClientCallListener;
-import io.grpc.Metadata;
-import io.grpc.MethodDescriptor;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
@@ -45,9 +35,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -544,6 +537,69 @@ public class ClientBridgeTest extends ClientTest {
       fail();
     } catch (StatusRuntimeException e) {
       should.assertEquals(expectedStatus, e.getStatus().getCode());
+    }
+  }
+
+  @Test
+  public void testTimeoutOnClient(TestContext should) throws Exception {
+    testTimeoutOnClient(should, stub -> {
+      HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
+      stub
+        .withDeadlineAfter(2, TimeUnit.SECONDS)
+        .sayHello(request);
+    });
+  }
+
+  @Test
+  public void testTimeoutOnClientPropagation(TestContext should) throws Exception {
+    testTimeoutOnClient(should, stub -> {
+      Context current = Context.current();
+      Context.CancellableContext ctx = current.withDeadlineAfter(2, TimeUnit.SECONDS, Executors.newSingleThreadScheduledExecutor());
+      try {
+        ctx.call(() -> {
+          HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
+          stub
+            .withDeadlineAfter(2, TimeUnit.SECONDS)
+            .sayHello(request);
+          return null;
+        });
+      } catch (Exception e) {
+        if (e instanceof RuntimeException) {
+          throw (RuntimeException)e;
+        } else {
+          should.fail();
+        }
+      }
+    });
+  }
+
+  public void testTimeoutOnClient(TestContext should, Consumer<GreeterGrpc.GreeterBlockingStub> c) throws Exception {
+    super.testTimeoutOnClient(should);
+    client = GrpcClient.client(vertx);
+    GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
+    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
+    try {
+      c.accept(stub);
+    } catch (StatusRuntimeException e) {
+      should.assertEquals(Status.Code.CANCELLED, e.getStatus().getCode());
+    }
+  }
+
+  @Test
+  public void testTimeoutPropagationToServer(TestContext should) throws Exception {
+    CompletableFuture<Long> cf = new CompletableFuture<>();
+    super.testTimeoutPropagationToServer(cf);
+    client = GrpcClient.client(vertx);
+    GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
+    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
+    try {
+      HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
+      stub
+        .withDeadlineAfter(2, TimeUnit.SECONDS)
+        .sayHello(request);
+    } catch (StatusRuntimeException e) {
+      e.printStackTrace();
+      should.assertEquals(Status.Code.CANCELLED, e.getStatus().getCode());
     }
   }
 }
