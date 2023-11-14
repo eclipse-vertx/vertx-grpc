@@ -10,17 +10,7 @@
  */
 package io.vertx.grpc.server.impl;
 
-import io.grpc.Compressor;
-import io.grpc.CompressorRegistry;
-import io.grpc.Decompressor;
-import io.grpc.DecompressorRegistry;
-import io.grpc.Metadata;
-import io.grpc.MethodDescriptor;
-import io.grpc.ServerCall;
-import io.grpc.ServerCallHandler;
-import io.grpc.ServerMethodDefinition;
-import io.grpc.ServerServiceDefinition;
-import io.grpc.Status;
+import io.grpc.*;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.BridgeMessageEncoder;
@@ -58,6 +48,12 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
   private <Req, Resp> void bind(GrpcServer server, ServerMethodDefinition<Req, Resp> methodDef) {
     server.callHandler(methodDef.getMethodDescriptor(), req -> {
       ServerCallHandler<Req, Resp> callHandler = methodDef.getServerCallHandler();
+
+//      if (req.timeout() > 0L) {
+//        Context ctx = Context.current();
+//        ctx.withDeadlineAfter(req.timeout(), req.timeoutExpiration())
+//      }
+
       ServerCallImpl<Req, Resp> call = new ServerCallImpl<>(req, methodDef);
       ServerCall.Listener<Req> listener = callHandler.startCall(call, Utils.readMetadata(req.headers()));
       call.init(listener);

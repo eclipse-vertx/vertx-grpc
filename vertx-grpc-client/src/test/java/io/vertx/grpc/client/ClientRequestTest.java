@@ -31,9 +31,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -529,6 +527,40 @@ public class ClientRequestTest extends ClientTest {
         GrpcReadStream::last)
       .onComplete(should.asyncAssertSuccess(reply -> {
         should.assertEquals("Hello Julien", reply.getMessage());
+      }));
+  }
+
+  @Test
+  public void testTimeoutOnClient(TestContext should) throws Exception {
+    super.testTimeoutOnClient(should);
+    client = GrpcClient.client(vertx);
+    client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSinkMethod())
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.timeout(1, TimeUnit.SECONDS);
+        callRequest.write(Item.getDefaultInstance());
+        callRequest.response().onComplete(should.asyncAssertFailure(err -> {
+          should.assertTrue(err instanceof StreamResetException);
+          StreamResetException sre = (StreamResetException) err;
+          should.assertEquals(8L, sre.getCode());
+        }));
+      }));
+  }
+
+  @Test
+  public void testTimeoutPropagationToServer(TestContext should) throws Exception {
+    CompletableFuture<Long> cf = new CompletableFuture<>();
+    super.testTimeoutPropagationToServer(cf);
+    Async done = should.async();
+    client = GrpcClient.client(vertx);
+    client.request(SocketAddress.inetSocketAddress(port, "localhost"), GreeterGrpc.getSayHelloMethod())
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.timeout(10, TimeUnit.SECONDS);
+        callRequest.end(HelloRequest.newBuilder().setName("Julien").build());
+        callRequest.response().onComplete(should.asyncAssertSuccess(e -> {
+          long timeRemaining = cf.getNow(-1L);
+          should.assertTrue(timeRemaining > 7500);
+          done.complete();
+        }));
       }));
   }
 }

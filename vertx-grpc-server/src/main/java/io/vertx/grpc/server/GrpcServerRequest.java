@@ -78,4 +78,15 @@ public interface GrpcServerRequest<Req, Resp> extends GrpcReadStream<Req> {
    * @return the underlying HTTP connection
    */
   HttpConnection connection();
+
+  /**
+   * @return the request timeout sent by the client or {@code 0L} if none.
+   */
+  long timeout();
+
+  /**
+   * @return the clock value when the timeout expires or {@code 0L} if none.
+   */
+  long timeoutExpiration();
+
 }
