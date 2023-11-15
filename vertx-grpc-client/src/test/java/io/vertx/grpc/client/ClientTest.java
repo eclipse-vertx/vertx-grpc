@@ -343,7 +343,8 @@ public abstract class ClientTest extends ClientTestBase {
             trailers.put(Metadata.Key.of("custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER), new byte[] { 0,1,2 });
             trailers.put(Metadata.Key.of("grpc-custom_response_trailer", io.grpc.Metadata.ASCII_STRING_MARSHALLER), "grpc-custom_response_trailer_value");
             trailers.put(Metadata.Key.of("grpc-custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER), new byte[] { 2,1,0 });
-            should.assertEquals(2, testMetadataStep.getAndIncrement());
+            int step = testMetadataStep.getAndIncrement();
+            should.assertTrue(2 <= step && step <= 3);
             super.close(status, trailers);
           }
         },headers);

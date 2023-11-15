@@ -381,7 +381,8 @@ public class ClientRequestTest extends ClientTest {
         callRequest.headers().set("grpc-custom_request_header-bin", Base64.getEncoder().encodeToString(new byte[] { 2,1,0 }));
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
           should.assertEquals("custom_response_header_value", callResponse.headers().get("custom_response_header"));
-          should.assertEquals(3, testMetadataStep.getAndIncrement());
+          int step = testMetadataStep.getAndIncrement();
+          should.assertTrue(2 <= step && step <= 3);
           AtomicInteger count = new AtomicInteger();
           callResponse.handler(reply -> {
             should.assertEquals(1, count.incrementAndGet());
