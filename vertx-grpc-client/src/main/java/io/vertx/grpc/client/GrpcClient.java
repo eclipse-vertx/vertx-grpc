@@ -118,6 +118,7 @@ public interface GrpcClient {
    * @param credentials
    * @return a reference to this, so the API can be used fluently
    */
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
   GrpcClient withCredentials(Credentials credentials);
 
   /**
