@@ -102,7 +102,7 @@ public class ClientRequestTest extends ClientTest {
 
     Server server = ServerBuilder.forPort(0).addService(called).intercept(interceptor).build().start();
 
-    client = GrpcClient.client(vertx).withCredentials(new TokenCredentials(clientToken));
+    client = GrpcClient.client(vertx).credentials(new TokenCredentials(clientToken));
     client.request(SocketAddress.inetSocketAddress(server.getPort(), "localhost"), GreeterGrpc.getSayHelloMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {

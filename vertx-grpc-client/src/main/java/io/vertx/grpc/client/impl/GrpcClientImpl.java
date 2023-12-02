@@ -76,7 +76,7 @@ public class GrpcClientImpl implements GrpcClient {
   }
 
   @Override
-  public GrpcClient withCredentials(Credentials credentials) {
+  public GrpcClient credentials(Credentials credentials) {
     if (credentials == null) {
       throw new NullPointerException("Credentials passed to GrpcClient can not be null");
     }
