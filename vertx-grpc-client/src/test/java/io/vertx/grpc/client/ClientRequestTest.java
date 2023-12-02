@@ -142,7 +142,7 @@ public class ClientRequestTest extends ClientTest {
     Async test = should.async();
     client = GrpcClient.client(vertx, new HttpClientOptions().setSsl(true)
       .setUseAlpn(true)
-      .setPemTrustOptions(cert.trustOptions()));
+      .setTrustOptions(cert.trustOptions()));
     client.request(SocketAddress.inetSocketAddress(8443, "localhost"), GreeterGrpc.getSayHelloMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
