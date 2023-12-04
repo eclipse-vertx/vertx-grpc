@@ -17,6 +17,7 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
 
@@ -33,8 +34,8 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
     if (msg.encoding().equals("identity")) {
       return marshaller.parse(new ByteArrayInputStream(msg.payload().getBytes()));
     } else {
-      try {
-        return marshaller.parse(decompressor.decompress(new ByteArrayInputStream(msg.payload().getBytes())));
+      try (InputStream in = decompressor.decompress(new ByteArrayInputStream(msg.payload().getBytes()))) {
+        return marshaller.parse(in);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
