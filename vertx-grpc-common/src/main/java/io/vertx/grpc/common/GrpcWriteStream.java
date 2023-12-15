@@ -12,7 +12,7 @@ import io.vertx.core.streams.WriteStream;
 public interface GrpcWriteStream<T> extends WriteStream<T> {
 
   /**
-   * @return the {@link MultiMap} to reader metadata headers
+   * @return the {@link MultiMap} to writer metadata headers
    */
   MultiMap headers();
 

@@ -18,6 +18,8 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 
 /**
@@ -44,6 +46,7 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   /**
    * Create a blank gRPC server
    *
+   * @param vertx the vertx instance
    * @return the created server
    */
   static GrpcServer server(Vertx vertx) {
@@ -68,4 +71,8 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
 
+  Handler<RoutingContext> routeHandler();
+
+  @Fluent
+  GrpcServer mount(Router router);
 }

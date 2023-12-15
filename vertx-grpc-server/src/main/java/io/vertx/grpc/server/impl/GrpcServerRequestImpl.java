@@ -10,12 +10,13 @@
  */
 package io.vertx.grpc.server.impl;
 
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.impl.HttpServerRequestInternal;
+import io.vertx.ext.auth.User;
+import io.vertx.ext.web.RoutingContext;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
@@ -31,12 +32,14 @@ import io.vertx.grpc.server.GrpcServerResponse;
 public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcServerRequestImpl<Req, Resp>, Req> implements GrpcServerRequest<Req, Resp> {
 
   final HttpServerRequest httpRequest;
+  final RoutingContext routingContext;
   final GrpcServerResponse<Req, Resp> response;
   private GrpcMethodCall methodCall;
 
-  public GrpcServerRequestImpl(HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, GrpcMethodCall methodCall) {
+  public GrpcServerRequestImpl(HttpServerRequest httpRequest, RoutingContext routingContext, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, GrpcMethodCall methodCall) {
     super(((HttpServerRequestInternal) httpRequest).context(), httpRequest, httpRequest.headers().get("grpc-encoding"), messageDecoder);
     this.httpRequest = httpRequest;
+    this.routingContext = routingContext;
     this.response = new GrpcServerResponseImpl<>(this, httpRequest.response(), messageEncoder);
     this.methodCall = methodCall;
   }
@@ -63,6 +66,11 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   @Override
   public String methodName() {
     return methodCall.methodName();
+  }
+
+  @Override
+  public RoutingContext routingContext() {
+    return this.routingContext;
   }
 
   @Override

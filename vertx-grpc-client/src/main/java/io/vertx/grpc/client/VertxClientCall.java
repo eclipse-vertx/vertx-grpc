@@ -1,12 +1,6 @@
 package io.vertx.grpc.client;
 
-import io.grpc.ClientCall;
-import io.grpc.Compressor;
-import io.grpc.Decompressor;
-import io.grpc.DecompressorRegistry;
-import io.grpc.Metadata;
-import io.grpc.MethodDescriptor;
-import io.grpc.Status;
+import io.grpc.*;
 import io.vertx.core.Future;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.net.SocketAddress;
@@ -22,12 +16,14 @@ import java.util.concurrent.Executor;
 
 class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, ResponseT> {
 
+  private final String authority;
   private final GrpcClient client;
   private final SocketAddress server;
   private final Executor exec;
   private final MethodDescriptor<RequestT, ResponseT> methodDescriptor;
   private final String encoding;
   private final Compressor compressor;
+  private final CallOptions callOptions;
   private Future<GrpcClientRequest<RequestT, ResponseT>> fut;
   private Listener<ResponseT> listener;
   private WriteStreamAdapter<RequestT> writeAdapter;
@@ -35,13 +31,21 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
   private GrpcClientRequest<RequestT, ResponseT> request;
   private GrpcClientResponse<RequestT, ResponseT> grpcResponse;
 
-  VertxClientCall(GrpcClient client, SocketAddress server, Executor exec, MethodDescriptor<RequestT, ResponseT> methodDescriptor, String encoding, Compressor compressor) {
+  VertxClientCall(GrpcClient client, SocketAddress server, MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions, String authority) {
+    this.authority = authority;
     this.client = client;
     this.server = server;
-    this.exec = exec;
+    this.exec = callOptions.getExecutor();
     this.methodDescriptor = methodDescriptor;
-    this.encoding = encoding;
-    this.compressor = compressor;
+    this.encoding = callOptions.getCompressor();
+    this.callOptions = callOptions;
+
+    if (callOptions.getCompressor() != null) {
+      this.compressor = CompressorRegistry.getDefaultInstance().lookupCompressor(callOptions.getCompressor());
+    } else {
+      this.compressor = null;
+    }
+
     writeAdapter = new WriteStreamAdapter<RequestT>() {
       @Override
       protected void handleReady() {
@@ -72,6 +76,13 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
     fut.onComplete(ar1 -> {
       if (ar1.succeeded()) {
         request = ar1.result();
+
+        Status applyCallOptionsResult = applyCallOptions();
+        if (!applyCallOptionsResult.isOk()) {
+          doClose(applyCallOptionsResult, new Metadata());
+          return;
+        }
+
         Utils.writeMetadata(headers, request.headers());
         if (encoding != null) {
           request.encoding(encoding);
@@ -133,6 +144,40 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
     });
   }
 
+  private Status applyCallOptions() {
+    if (this.callOptions.getAuthority() != null) {
+      return Status.INTERNAL.withCause(new UnsupportedOperationException("unsupported callOptions: authority"));
+    }
+
+    if (this.callOptions.getMaxInboundMessageSize() != null) {
+      return Status.INTERNAL.withCause(new UnsupportedOperationException("unsupported callOptions: maxInboundMessageSize"));
+    }
+
+    if (this.callOptions.getMaxOutboundMessageSize() != null) {
+      return Status.INTERNAL.withCause(new UnsupportedOperationException("unsupported callOptions: maxOutboundMessageSize"));
+    }
+
+    if (this.callOptions.getDeadline() != null) {
+      return Status.INTERNAL.withCause(new UnsupportedOperationException("unsupported callOptions: deadline"));
+    }
+
+    if (this.callOptions.getCredentials() != null) {
+      VertxCallCredentialsMetadataApplier metadataApplier = new VertxCallCredentialsMetadataApplier();
+
+      try {
+        this.callOptions.getCredentials().applyRequestMetadata(new VertxCallCredentialsRequestInfo(), exec, metadataApplier);
+
+        if (metadataApplier.failure() != null) {
+          return metadataApplier.failure();
+        }
+
+      } catch (Throwable throwable) {
+        return Status.UNAUTHENTICATED.withDescription("Credentials should use fail() instead of throwing exceptions").withCause(throwable);
+      }
+    }
+    return Status.OK;
+  }
+
   private void doClose(Status status, Metadata trailers) {
     Runnable cmd = () -> {
       listener.onClose(status, trailers);
@@ -168,5 +213,48 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
     fut.onSuccess(v -> {
       writeAdapter.write(message);
     });
+  }
+
+  private class VertxCallCredentialsRequestInfo extends CallCredentials.RequestInfo {
+    public MethodDescriptor<?, ?> getMethodDescriptor() {
+      return methodDescriptor;
+    }
+
+    public CallOptions getCallOptions() {
+      return callOptions;
+    }
+
+    public SecurityLevel getSecurityLevel() {
+      return SecurityLevel.NONE;
+    }
+
+    public String getAuthority() {
+      return authority;
+    }
+
+    public Attributes getTransportAttrs() {
+      return Attributes.EMPTY;
+    }
+  }
+
+  private class VertxCallCredentialsMetadataApplier extends CallCredentials.MetadataApplier {
+    Status failure = null;
+
+    Status failure() {
+      return failure;
+    }
+
+    public VertxCallCredentialsMetadataApplier() {
+    }
+
+    @Override
+    public void apply(Metadata metadata) {
+      Utils.writeMetadata(metadata, request.headers());
+    }
+
+    @Override
+    public void fail(Status status) {
+      failure = status;
+    }
   }
 }

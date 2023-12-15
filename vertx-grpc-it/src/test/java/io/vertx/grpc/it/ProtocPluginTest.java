@@ -27,10 +27,11 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.common.GrpcException;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.test.fakestream.FakeStream;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -77,7 +78,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public void unaryCall(Messages.SimpleRequest request, Promise<Messages.SimpleResponse> response) {
+      public void unaryCall(GrpcServerRequest<Messages.SimpleRequest, Messages.SimpleResponse> grpcServerRequest, Messages.SimpleRequest request, Promise<Messages.SimpleResponse> response) {
         response.complete(Messages.SimpleResponse.newBuilder()
           .setUsername("FooBar")
           .build());
@@ -156,7 +157,9 @@ public class ProtocPluginTest extends ProxyTestBase {
         .setFillUsername(true)
         .build())
       .onComplete(should.asyncAssertFailure(err -> {
-        should.assertEquals("Invalid gRPC status 13", err.getMessage());
+        should.assertTrue(err instanceof GrpcException);
+        GrpcException grpcException = (GrpcException)err;
+        should.assertEquals(GrpcStatus.INTERNAL, grpcException.status());
         test.complete();
       }));
     test.awaitSuccess();
@@ -168,7 +171,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public void streamingInputCall(ReadStream<Messages.StreamingInputCallRequest> request, Promise<Messages.StreamingInputCallResponse> response) {
+      public void streamingInputCall(GrpcServerRequest<Messages.StreamingInputCallRequest, Messages.StreamingInputCallResponse> grpcServerRequest, ReadStream<Messages.StreamingInputCallRequest> request, Promise<Messages.StreamingInputCallResponse> response) {
         List<Messages.StreamingInputCallRequest> list = new ArrayList<>();
         request.handler(list::add);
         request.endHandler($ -> {
@@ -277,7 +280,9 @@ public class ProtocPluginTest extends ProxyTestBase {
         req.end();
       })
       .onComplete(should.asyncAssertFailure(err -> {
-        should.assertEquals("Invalid gRPC status 13", err.getMessage());
+        should.assertTrue(err instanceof GrpcException);
+        GrpcException grpcException = (GrpcException)err;
+        should.assertEquals(GrpcStatus.INTERNAL, grpcException.status());
         test.complete();
       }));
     test.awaitSuccess();
@@ -289,7 +294,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public void streamingOutputCall(Messages.StreamingOutputCallRequest request, WriteStream<Messages.StreamingOutputCallResponse> response) {
+      public void streamingOutputCall(GrpcServerRequest<Messages.StreamingOutputCallRequest, Messages.StreamingOutputCallResponse> grpcServerRequest, Messages.StreamingOutputCallRequest request, WriteStream<Messages.StreamingOutputCallResponse> response) {
         response.write(Messages.StreamingOutputCallResponse.newBuilder()
           .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
           .build());
@@ -392,7 +397,9 @@ public class ProtocPluginTest extends ProxyTestBase {
       .build();
     client.streamingOutputCall(request)
       .onComplete(should.asyncAssertFailure(err -> {
-        should.assertEquals("Invalid gRPC status 13", err.getMessage());
+        should.assertTrue(err instanceof GrpcException);
+        GrpcException grpcException = (GrpcException)err;
+        should.assertEquals(GrpcStatus.INTERNAL, grpcException.status());
         test.complete();
       }));
     test.awaitSuccess();
@@ -404,7 +411,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public void fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request, WriteStream<Messages.StreamingOutputCallResponse> response) {
+      public void fullDuplexCall(GrpcServerRequest<Messages.StreamingOutputCallRequest, Messages.StreamingOutputCallResponse> grpcServerRequest, ReadStream<Messages.StreamingOutputCallRequest> request, WriteStream<Messages.StreamingOutputCallResponse> response) {
         request.endHandler($ -> {
           response.write(Messages.StreamingOutputCallResponse.newBuilder()
             .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
@@ -525,7 +532,9 @@ public class ProtocPluginTest extends ProxyTestBase {
         req.end();
       })
       .onComplete(should.asyncAssertFailure(err -> {
-        should.assertEquals("Invalid gRPC status 13", err.getMessage());
+        should.assertTrue(err instanceof GrpcException);
+        GrpcException grpcException = (GrpcException)err;
+        should.assertEquals(GrpcStatus.INTERNAL, grpcException.status());
         test.complete();
       }));
     test.awaitSuccess();
