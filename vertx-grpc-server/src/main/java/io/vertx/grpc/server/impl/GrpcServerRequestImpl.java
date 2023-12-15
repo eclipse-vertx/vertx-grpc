@@ -10,18 +10,18 @@
  */
 package io.vertx.grpc.server.impl;
 
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.impl.HttpServerRequestInternal;
+import io.vertx.ext.auth.User;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
@@ -33,6 +33,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   final HttpServerRequest httpRequest;
   final GrpcServerResponse<Req, Resp> response;
   private GrpcMethodCall methodCall;
+  private User user;
 
   public GrpcServerRequestImpl(HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, GrpcMethodCall methodCall) {
     super(((HttpServerRequestInternal) httpRequest).context(), httpRequest, httpRequest.headers().get("grpc-encoding"), messageDecoder);
@@ -91,4 +92,15 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   public HttpConnection connection() {
     return httpRequest.connection();
   }
+
+  @Override
+  public User user() {
+    return user;
+  }
+
+  public GrpcServerRequest<Req, Resp> setUser(User user) {
+    this.user = user;
+    return this;
+  }
+
 }

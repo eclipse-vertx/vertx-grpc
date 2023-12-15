@@ -18,6 +18,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.grpc.server.auth.GrpcAuthenticationHandler;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 
 /**
@@ -43,7 +44,8 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
 
   /**
    * Create a blank gRPC server
-   *
+   * 
+   * @param vertx Vert.x instance
    * @return the created server
    */
   static GrpcServer server(Vertx vertx) {
@@ -67,5 +69,17 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
+
+  /**
+   * Set a service method call handler that handles any call call made to the server for the {@link MethodDescriptor} service method and that uses the provided authentication handler to authenticate the method call.
+   *
+   * @param authHandler Authentication handler used to authenticate the method call
+   * @param methodDesc gRPC service method that will be handled
+   * @param handler the service method call handler
+   * 
+   * @return a reference to this, so the API can be used fluently
+   */
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
+  <Req, Resp> GrpcServer callHandler(GrpcAuthenticationHandler authHandler, MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
 
 }

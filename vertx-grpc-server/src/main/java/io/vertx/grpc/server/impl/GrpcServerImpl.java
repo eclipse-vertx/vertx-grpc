@@ -11,15 +11,20 @@
 package io.vertx.grpc.server.impl;
 
 import io.grpc.MethodDescriptor;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.ext.auth.User;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.server.GrpcException;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.auth.GrpcAuthenticationHandler;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,6 +47,7 @@ public class GrpcServerImpl implements GrpcServer {
     GrpcMethodCall methodCall = new GrpcMethodCall(httpRequest.path());
     String fmn = methodCall.fullMethodName();
     MethodCallHandler<?, ?> method = methodCallHandlers.get(fmn);
+
     if (method != null) {
       handle(method, httpRequest, methodCall);
     } else {
@@ -59,6 +65,27 @@ public class GrpcServerImpl implements GrpcServer {
   private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall) {
     GrpcServerRequestImpl<Req, Resp> grpcRequest = new GrpcServerRequestImpl<>(httpRequest, method.messageDecoder, method.messageEncoder, methodCall);
     grpcRequest.init();
+    GrpcAuthenticationHandler authHandler = method.authHandler;
+    if (authHandler != null) {
+      Future<User> fut = authHandler.authenticate(httpRequest, true);
+
+      // Handle authentication failures
+      if (fut.failed()) {
+        if (fut.cause() instanceof GrpcException) {
+          GrpcException ex = (GrpcException) fut.cause();
+          GrpcServerResponse<?, ?> response = grpcRequest.response();
+          response.status(ex.status()).end();
+        } else {
+          httpRequest.response().setStatusCode(500).end();
+        }
+        return;
+      } else {
+        User user = fut.result();
+        if (user != null) {
+          grpcRequest.setUser(user);
+        }
+      }
+    }
     method.handle(grpcRequest);
   }
 
@@ -68,8 +95,17 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   public <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    return callHandler(methodDesc, handler, null);
+  }
+
+  @Override
+  public <Req, Resp> GrpcServer callHandler(GrpcAuthenticationHandler authHandler,  MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    return callHandler(methodDesc, handler, authHandler);
+  }
+
+  private <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler, GrpcAuthenticationHandler authHandler) {
     if (handler != null) {
-      methodCallHandlers.put(methodDesc.getFullMethodName(), new MethodCallHandler<>(methodDesc, GrpcMessageDecoder.unmarshaller(methodDesc.getRequestMarshaller()), GrpcMessageEncoder.marshaller(methodDesc.getResponseMarshaller()), handler));
+      methodCallHandlers.put(methodDesc.getFullMethodName(), new MethodCallHandler<>(methodDesc, GrpcMessageDecoder.unmarshaller(methodDesc.getRequestMarshaller()), GrpcMessageEncoder.marshaller(methodDesc.getResponseMarshaller()), handler, authHandler));
     } else {
       methodCallHandlers.remove(methodDesc.getFullMethodName());
     }
@@ -82,12 +118,14 @@ public class GrpcServerImpl implements GrpcServer {
     final GrpcMessageDecoder<Req> messageDecoder;
     final GrpcMessageEncoder<Resp> messageEncoder;
     final Handler<GrpcServerRequest<Req, Resp>> handler;
+    final GrpcAuthenticationHandler authHandler;
 
-    MethodCallHandler(MethodDescriptor<Req, Resp> def, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    MethodCallHandler(MethodDescriptor<Req, Resp> def, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, Handler<GrpcServerRequest<Req, Resp>> handler, GrpcAuthenticationHandler authHandler) {
       this.def = def;
       this.messageDecoder = messageDecoder;
       this.messageEncoder = messageEncoder;
       this.handler = handler;
+      this.authHandler = authHandler;
     }
 
     @Override

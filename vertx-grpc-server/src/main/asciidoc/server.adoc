@@ -109,6 +109,36 @@ You can compress response messages by setting the response encoding *prior* befo
 
 Decompression is done transparently by the server when the client send encoded requests.
 
+=== JWT Authentication
+
+Service method handlers can be secured by providing an {@link io.vertx.grpc.server.auth.GrpcAuthenticationHandler} in the {@link  io.vertx.grpc.server.GrpcServer#callHandler} method.
+
+For JWT a handler can be created via {@link io.vertx.grpc.server.auth.GrpcJWTAuthenticationHandler#create}.
+
+Add the required dependency to provide JWT via {@link io.vertx.ext.auth.jwt.JWTAuth}.
+
+[source,java]
+----
+<dependency>
+  <groupId>io.vertx</groupId>
+  <artifactId>vertx-auth-jwt</artifactId>
+</dependency>
+----
+
+Handlers that were registered without the handler will not use authentication.
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#jwtServerAuthExample}
+----
+
+The JWT can be added for the client call via an interceptor in order to provide the token credentials.
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#jwtClientAuthExample}
+----
+
 === Stub API
 
 The Vert.x gRPC Server can bridge a gRPC service to use with a generated server stub in a more traditional fashion
