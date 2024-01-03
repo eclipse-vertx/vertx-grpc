@@ -11,14 +11,13 @@
 package io.vertx.grpc.server;
 
 import io.grpc.ManagedChannel;
-import io.vertx.core.Vertx;
+import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.grpc.common.GrpcTestBase;
 import junit.framework.AssertionFailedError;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.runner.RunWith;
 
 import java.util.concurrent.CompletableFuture;
@@ -48,7 +47,8 @@ public abstract class ServerTestBase extends GrpcTestBase {
 
   protected void startServer(HttpServerOptions options, GrpcServer server) {
     CompletableFuture<Void> res = new CompletableFuture<>();
-    vertx.createHttpServer(options).requestHandler(server).listen()
+    Handler<HttpServerRequest> requestHandler = requestHandler(server);
+    vertx.createHttpServer(options).requestHandler(requestHandler).listen()
       .onComplete(ar -> {
         if (ar.succeeded()) {
           res.complete(null);
@@ -72,5 +72,9 @@ public abstract class ServerTestBase extends GrpcTestBase {
       afe.initCause(e);
       throw afe;
     }
+  }
+
+  protected Handler<HttpServerRequest> requestHandler(GrpcServer server) {
+    return server;
   }
 }

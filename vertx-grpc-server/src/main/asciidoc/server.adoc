@@ -39,7 +39,15 @@ A `{@link io.vertx.grpc.server.GrpcServer}` is a `Handler<HttpServerRequest>` an
 {@link examples.GrpcServerExamples#createServer}
 ----
 
-TIP: a `GrpcServer` can be mounted in a Vert.x Web router
+[TIP]
+====
+A {@link io.vertx.grpc.server.GrpcServer} can be adapted to a Vert.x Web {@link io.vertx.ext.web.Route} with {@link io.vertx.grpc.server.GrpcServerRouteHandler}:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#routeHandler}
+----
+====
 
 ==== Request/response
 

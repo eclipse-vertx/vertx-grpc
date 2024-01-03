@@ -1,6 +1,5 @@
 package examples;
 
-import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -8,13 +7,11 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.docgen.Source;
+import io.vertx.ext.web.Router;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.GrpcServerResponse;
-import io.vertx.grpc.server.GrpcServiceBridge;
+import io.vertx.grpc.server.*;
 
 @Source
 public class GrpcServerExamples {
@@ -27,6 +24,19 @@ public class GrpcServerExamples {
 
     server
       .requestHandler(grpcServer)
+      .listen();
+  }
+
+  public void routeHandler(Vertx vertx, HttpServerOptions options) {
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+
+    HttpServer server = vertx.createHttpServer(options);
+
+    Router router = Router.router(vertx);
+    router.route().handler(GrpcServerRouteHandler.create(grpcServer));
+
+    server
+      .requestHandler(router)
       .listen();
   }
 
