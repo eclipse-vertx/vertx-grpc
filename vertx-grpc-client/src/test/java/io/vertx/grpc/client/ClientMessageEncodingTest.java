@@ -120,7 +120,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
   @Test
   public void testDecodeMessageHandler(TestContext should) throws Exception {
     Async done = should.async();
-    testDecode(should, zip(Buffer.buffer("Hello World")), callResponse -> {
+    testDecode(should, done, zip(Buffer.buffer("Hello World")), callResponse -> {
       callResponse.messageHandler(msg -> {
         should.assertEquals("gzip", msg.encoding());
         should.assertEquals(Buffer.buffer("Hello World"), unzip(msg.payload()));
@@ -132,7 +132,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
   @Test
   public void testDecodeHandler(TestContext should) throws Exception {
     Async done = should.async();
-    testDecode(should, zip(Buffer.buffer("Hello World")), callResponse -> {
+    testDecode(should, done, zip(Buffer.buffer("Hello World")), callResponse -> {
       callResponse.handler(msg -> {
         should.assertEquals(Buffer.buffer("Hello World"), msg);
         done.complete();
@@ -143,7 +143,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
   @Test
   public void testDecodeError(TestContext should) throws Exception {
     Async done = should.async();
-    testDecode(should, Buffer.buffer("Hello World"), callResponse -> {
+    testDecode(should, done, Buffer.buffer("Hello World"), callResponse -> {
       callResponse.handler(msg -> {
         should.fail();
       });
@@ -158,7 +158,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
     });
   }
 
-  private void testDecode(TestContext should, Buffer payload, Consumer<GrpcClientResponse<Buffer, Buffer>> impl, Consumer<HttpServerRequest> checker) throws Exception {
+  private void testDecode(TestContext should, Async async, Buffer payload, Consumer<GrpcClientResponse<Buffer, Buffer>> impl, Consumer<HttpServerRequest> checker) throws Exception {
 
     vertx.createHttpServer().requestHandler(req -> {
         req.endHandler(v -> {
@@ -186,5 +186,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
         }));
         callRequest.end(Buffer.buffer());
       }));
+
+    async.awaitSuccess();
   }
 }
