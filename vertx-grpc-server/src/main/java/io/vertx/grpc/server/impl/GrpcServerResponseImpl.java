@@ -10,12 +10,12 @@
  */
 package io.vertx.grpc.server.impl;
 
-import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.impl.ContextInternal;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcMessage;
@@ -24,7 +24,6 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.Utils;
-import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
 import java.util.Map;
@@ -35,6 +34,7 @@ import java.util.Objects;
  */
 public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req, Resp> {
 
+  private final ContextInternal context;
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
   private final GrpcMessageEncoder<Resp> encoder;
@@ -46,7 +46,8 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   private boolean cancelled;
   private MultiMap headers, trailers;
 
-  public GrpcServerResponseImpl(GrpcServerRequestImpl<Req, Resp> request, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
+  public GrpcServerResponseImpl(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
+    this.context = context;
     this.request = request;
     this.httpResponse = httpResponse;
     this.encoder = encoder;
@@ -136,6 +137,17 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   public GrpcServerResponse<Req, Resp> drainHandler(Handler<Void> handler) {
     httpResponse.drainHandler(handler);
     return this;
+  }
+
+  void handleTimeout() {
+    if (!cancelled) {
+      if (!trailersSent) {
+        status(GrpcStatus.DEADLINE_EXCEEDED);
+        end();
+      } else {
+        cancel();
+      }
+    }
   }
 
   @Override

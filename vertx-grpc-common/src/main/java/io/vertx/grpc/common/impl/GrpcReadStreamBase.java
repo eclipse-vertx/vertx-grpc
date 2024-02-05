@@ -10,6 +10,7 @@
  */
 package io.vertx.grpc.common.impl;
 
+import io.netty.channel.EventLoop;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -26,6 +27,8 @@ import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcReadStream;
 
+import java.util.List;
+import java.util.concurrent.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collector;
 
@@ -50,6 +53,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   };
 
   protected final ContextInternal context;
+  protected final io.grpc.Context grpcContext;
   private final String encoding;
   private final ReadStream<Buffer> stream;
   private final InboundBuffer<GrpcMessage> queue;
@@ -62,8 +66,9 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private final GrpcMessageDecoder<T> messageDecoder;
   private final Promise<Void> end;
 
-  protected GrpcReadStreamBase(Context context, ReadStream<Buffer> stream, String encoding, GrpcMessageDecoder<T> messageDecoder) {
+  protected GrpcReadStreamBase(Context context, io.grpc.Context grpcContext, ReadStream<Buffer> stream, String encoding, GrpcMessageDecoder<T> messageDecoder) {
     this.context = (ContextInternal) context;
+    this.grpcContext = grpcContext;
     this.encoding = encoding;
     this.stream = stream;
     this.queue = new InboundBuffer<>(context);
@@ -188,7 +193,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     end.tryFail(err);
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {
-      handler.handle(err);
+      grpcContext.run(() -> handler.handle(err));
     }
   }
 
@@ -196,7 +201,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     end.tryComplete();
     Handler<Void> handler = endHandler;
     if (handler != null) {
-      handler.handle(null);
+      grpcContext.run(() -> handler.handle(null));
     }
   }
 
@@ -204,7 +209,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     last = msg;
     Handler<GrpcMessage> handler = messageHandler;
     if (handler != null) {
-      handler.handle(msg);
+      grpcContext.run(() -> handler.handle(msg));
     }
   }
 
@@ -216,6 +221,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
 
   @Override
   public Future<Void> end() {
+    // SHOULD BE MAPPED ON GRPC CONTEXT TOO ????
     return end.future();
   }
 

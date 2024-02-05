@@ -10,6 +10,7 @@
  */
 package io.vertx.grpc.client.impl;
 
+import io.grpc.Context;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -18,6 +19,7 @@ import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClientResponse;
 
+import io.vertx.core.impl.ContextInternal;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcMessageDecoder;
@@ -37,8 +39,11 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   private String statusMessage;
   private String encoding;
 
-  public GrpcClientResponseImpl(GrpcClientRequestImpl<Req, Resp> request, HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
-    super(Vertx.currentContext(), httpResponse, httpResponse.headers().get("grpc-encoding"), messageDecoder); // A bit ugly
+  public GrpcClientResponseImpl(ContextInternal context,
+                                io.grpc.Context grpcContext,
+                                GrpcClientRequestImpl<Req, Resp> request,
+                                HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
+    super(context, grpcContext, httpResponse, httpResponse.headers().get("grpc-encoding"), messageDecoder);
     this.request = request;
     this.encoding = httpResponse.headers().get("grpc-encoding");
     this.httpResponse = httpResponse;
@@ -71,6 +76,9 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   }
 
   protected void handleEnd() {
+    if (grpcContext instanceof Context.CancellableContext) {
+      ((Context.CancellableContext)grpcContext).close();
+    }
     String responseStatus = httpResponse.getTrailer("grpc-status");
     if (responseStatus != null) {
       status = GrpcStatus.valueOf(Integer.parseInt(responseStatus));

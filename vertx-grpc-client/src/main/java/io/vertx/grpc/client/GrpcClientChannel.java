@@ -10,11 +10,7 @@
  */
 package io.vertx.grpc.client;
 
-import io.grpc.CallOptions;
-import io.grpc.ClientCall;
-import io.grpc.Compressor;
-import io.grpc.CompressorRegistry;
-import io.grpc.MethodDescriptor;
+import io.grpc.*;
 import io.vertx.core.net.SocketAddress;
 
 import java.util.concurrent.Executor;
@@ -34,20 +30,20 @@ public class GrpcClientChannel extends io.grpc.Channel {
 
   @Override
   public <RequestT, ResponseT> ClientCall<RequestT, ResponseT> newCall(MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions) {
-
     String encoding = callOptions.getCompressor();
-
     Compressor compressor;
     if (encoding != null) {
       compressor = CompressorRegistry.getDefaultInstance().lookupCompressor(encoding);
     } else {
       compressor = null;
     }
-
-
     Executor exec = callOptions.getExecutor();
-
-    return new VertxClientCall<>(client, server, exec, methodDescriptor, encoding, compressor);
+    Deadline deadline = callOptions.getDeadline();
+    if (deadline == null) {
+      Context ctx = Context.current();
+      deadline = ctx.getDeadline();
+    }
+    return new VertxClientCall<>(client, server, exec, methodDescriptor, encoding, compressor, deadline);
   }
 
   @Override

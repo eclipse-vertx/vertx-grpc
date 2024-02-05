@@ -25,6 +25,8 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.ServiceName;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * A request to a gRPC server.
  *
@@ -94,6 +96,9 @@ public interface GrpcClientRequest<Req, Resp> extends GrpcWriteStream<Req> {
 
   @Override
   GrpcClientRequest<Req, Resp> drainHandler(@Nullable Handler<Void> handler);
+
+  @Fluent
+  GrpcClientRequest<Req, Resp> timeout(long timeout, TimeUnit unit);
 
   /**
    * Sets the amount of time after which, if the request does not return any data within the timeout period,
