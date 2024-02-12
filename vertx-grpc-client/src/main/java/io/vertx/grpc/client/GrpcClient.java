@@ -17,9 +17,9 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.net.SocketAddress;
-import io.vertx.core.streams.ReadStream;
+import io.vertx.core.net.Address;
 import io.vertx.grpc.client.impl.GrpcClientImpl;
 
 import java.util.function.Function;
@@ -35,15 +35,15 @@ import java.util.function.Function;
  * The client exposes 2 levels of API
  *
  * <ul>
- *   <li>a Protobuf message {@link #request(SocketAddress) API}: {@link GrpcClientRequest}/{@link GrpcClientResponse} with Protobuf messages to call any gRPC service in a generic way</li>
- *   <li>a gRPC message {@link #request(SocketAddress, MethodDescriptor)}: {@link GrpcClientRequest}/{@link GrpcClientRequest} with gRPC messages to call a given method of a gRPC service</li>
+ *   <li>a Protobuf message {@link #request(Address) API}: {@link GrpcClientRequest}/{@link GrpcClientResponse} with Protobuf messages to call any gRPC service in a generic way</li>
+ *   <li>a gRPC message {@link #request(Address, MethodDescriptor)}: {@link GrpcClientRequest}/{@link GrpcClientRequest} with gRPC messages to call a given method of a gRPC service</li>
  * </ul>
  */
 @VertxGen
 public interface GrpcClient {
 
   /**
-   * Create a new client
+   * Create a client.
    *
    * @param vertx the vertx instance
    * @return the created client
@@ -53,14 +53,25 @@ public interface GrpcClient {
   }
 
   /**
-   * Create a new client
+   * Create a client with the specified {@code options}.
    *
    * @param vertx the vertx instance
-   * @param options the client options
+   * @param options the http client options
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, HttpClientOptions options) {
-    return new GrpcClientImpl(options, vertx);
+    return new GrpcClientImpl(vertx, options);
+  }
+
+  /**
+   * Create a client wrapping an existing {@link HttpClient}.
+   *
+   * @param vertx the vertx instance
+   * @param client the http client instance
+   * @return the created client
+   */
+  static GrpcClient client(Vertx vertx, HttpClient client) {
+    return new GrpcClientImpl(vertx, client);
   }
 
   /**
@@ -69,7 +80,12 @@ public interface GrpcClient {
    * @param server the server hosting the service
    * @return a future request
    */
-  Future<GrpcClientRequest<Buffer, Buffer>> request(SocketAddress server);
+  Future<GrpcClientRequest<Buffer, Buffer>> request(Address server);
+
+  /**
+   * Like {@link #request(Address)} with the default remote server.
+   */
+  Future<GrpcClientRequest<Buffer, Buffer>> request();
 
   /**
    * Connect to the remote {@code server} and create a request for given {@code method} of a hosted gRPC service.
@@ -79,7 +95,13 @@ public interface GrpcClient {
    * @return a future request
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(SocketAddress server, MethodDescriptor<Req, Resp> service);
+  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, MethodDescriptor<Req, Resp> service);
+
+  /**
+   * Like {@link #request(Address, MethodDescriptor)} with the default remote server.
+   */
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
+  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(MethodDescriptor<Req, Resp> service);
 
   /**
    * Call the {@code service} gRPC service hosted by {@code server}.
@@ -103,8 +125,21 @@ public interface GrpcClient {
    * @return a future of the result
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  default <Req, Resp, T> Future<T> call(SocketAddress server, MethodDescriptor<Req, Resp> service, Handler<GrpcClientRequest<Req, Resp>> requestHandler, Function<GrpcClientResponse<Req, Resp>, Future<T>> resultFn) {
+  default <Req, Resp, T> Future<T> call(Address server, MethodDescriptor<Req, Resp> service, Handler<GrpcClientRequest<Req, Resp>> requestHandler, Function<GrpcClientResponse<Req, Resp>, Future<T>> resultFn) {
     return request(server, service).compose(req -> {
+      requestHandler.handle(req);
+      return req
+        .response()
+        .compose(resultFn);
+    });
+  }
+
+  /**
+   * Like {@link #call(Address, MethodDescriptor, Handler, Function)} with the default remote server.
+   */
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
+  default <Req, Resp, T> Future<T> call(MethodDescriptor<Req, Resp> service, Handler<GrpcClientRequest<Req, Resp>> requestHandler, Function<GrpcClientResponse<Req, Resp>, Future<T>> resultFn) {
+    return request(service).compose(req -> {
       requestHandler.handle(req);
       return req
         .response()
