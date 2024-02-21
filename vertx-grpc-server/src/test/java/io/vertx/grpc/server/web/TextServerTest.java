@@ -20,6 +20,8 @@ import java.util.Base64;
 
 import static io.vertx.core.http.HttpHeaders.ACCEPT;
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
+import static io.vertx.grpc.common.GrpcMediaType.GRPC_WEB_TEXT;
+import static io.vertx.grpc.common.GrpcMediaType.GRPC_WEB_TEXT_PROTO;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -27,14 +29,12 @@ import static org.junit.Assert.assertEquals;
  */
 public class TextServerTest extends ServerTestBase {
 
-  private static final CharSequence GRPC_WEB_TEXT = HttpHeaders.createOptimized("application/grpc-web-text");
-  private static final CharSequence GRPC_WEB_TEXT_PROTO = HttpHeaders.createOptimized(GRPC_WEB_TEXT + "+proto");
   private static final Base64.Encoder ENCODER = Base64.getEncoder();
   private static final Base64.Decoder DECODER = Base64.getDecoder();
 
   @Override
   protected MultiMap requestHeaders() {
-    return MultiMap.caseInsensitiveMultiMap()
+    return HttpHeaders.headers()
       .add(ACCEPT, GRPC_WEB_TEXT)
       .add(CONTENT_TYPE, GRPC_WEB_TEXT)
       .add(USER_AGENT, GRPC_WEB_JAVASCRIPT_0_1)

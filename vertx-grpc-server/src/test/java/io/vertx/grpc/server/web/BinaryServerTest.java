@@ -16,17 +16,16 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
+import static io.vertx.grpc.common.GrpcMediaType.GRPC_WEB_PROTO;
 
 /**
  * Tests for gRPC-Web server using the binary protocol.
  */
 public class BinaryServerTest extends ServerTestBase {
 
-  private static final CharSequence GRPC_WEB_PROTO = HttpHeaders.createOptimized("application/grpc-web+proto");
-
   @Override
   protected MultiMap requestHeaders() {
-    return MultiMap.caseInsensitiveMultiMap()
+    return HttpHeaders.headers()
       .add(CONTENT_TYPE, GRPC_WEB_PROTO)
       .add(USER_AGENT, GRPC_WEB_JAVASCRIPT_0_1)
       .add(GRPC_WEB, TRUE);

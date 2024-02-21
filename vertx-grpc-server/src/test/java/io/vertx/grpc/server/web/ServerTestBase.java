@@ -23,12 +23,15 @@ import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcTestBase;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServiceBridge;
 import io.vertx.grpcweb.GrpcWebTesting.*;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
 import static io.vertx.core.http.HttpHeaders.CONTENT_LENGTH;
@@ -53,7 +56,7 @@ public abstract class ServerTestBase extends GrpcTestBase {
   private static final CharSequence TRAILER_BIN_VALUE = HttpHeaders.createOptimized(String.valueOf(0xfedcba));
   private static final CharSequence TRAILER_ERROR_KEY = HttpHeaders.createOptimized("x-error-trailer");
 
-  private static final MultiMap METADATA = MultiMap.caseInsensitiveMultiMap()
+  private static final MultiMap METADATA = HttpHeaders.headers()
     .add(HEADER_TEXT_KEY, HEADER_TEXT_VALUE)
     .add(HEADER_BIN_KEY, HEADER_BIN_VALUE)
     .add(TRAILER_TEXT_KEY, TRAILER_TEXT_VALUE)
@@ -80,13 +83,11 @@ public abstract class ServerTestBase extends GrpcTestBase {
   @Override
   public void setUp(TestContext should) {
     super.setUp(should);
-    HttpClientOptions clientOptions = new HttpClientOptions().setDefaultPort(port);
-    httpClient = vertx.createHttpClient(clientOptions);
-    HttpServerOptions serverOptions = new HttpServerOptions().setPort(port);
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultPort(port));
+    GrpcServer grpcServer = GrpcServer.server(vertx, new GrpcServerOptions().setGrpcWebEnabled(true));
     ServerServiceDefinition serviceDefinition = ServerInterceptors.intercept(new TestServiceImpl(), new Interceptor());
     GrpcServiceBridge.bridge(serviceDefinition).bind(grpcServer);
-    httpServer = vertx.createHttpServer(serverOptions).requestHandler(grpcServer);
+    httpServer = vertx.createHttpServer(new HttpServerOptions().setPort(port)).requestHandler(grpcServer);
     httpServer.listen().onComplete(should.asyncAssertSuccess());
   }
 
@@ -200,13 +201,23 @@ public abstract class ServerTestBase extends GrpcTestBase {
 
   @Test
   public void testLargePayloadWithMetadata(TestContext should) {
+    Random rnd = ThreadLocalRandom.current();
     String payload = IntStream.range(0, 16 * 1024).mapToObj(i -> "foobar").collect(joining());
     httpClient.request(HttpMethod.POST, TEST_SERVICE + "/UnaryCall").compose(req -> {
+      req.setChunked(true);
       req.headers()
         .addAll(METADATA)
         .addAll(requestHeaders());
       EchoRequest echoRequest = EchoRequest.newBuilder().setPayload(payload).build();
-      return req.send(encode(echoRequest)).compose(response -> response.body().map(response));
+      Buffer buffer = encode(echoRequest);
+      // Make sure the server will get blocks of arbitrary size
+      int length = buffer.length();
+      for (int pos = 0, written; pos < length; pos += written) {
+        written = Math.min(length - pos, 128 + rnd.nextInt(129));
+        req.write(buffer.getBuffer(pos, pos + written));
+      }
+      req.end();
+      return req.response().compose(response -> response.body().map(response));
     }).onComplete(should.asyncAssertSuccess(response -> {
       should.verify(v -> {
 
