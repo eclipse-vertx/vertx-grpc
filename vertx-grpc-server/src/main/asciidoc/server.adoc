@@ -49,6 +49,27 @@ router.consumes("application/grpc").handler(rc -> grpcServer.handle(rc.request()
 ----
 ====
 
+==== gRPC-Web protocol
+
+The Vert.x gRPC Server supports the gRPC-Web protocol by default.
+
+To disable the gRPC-Web protocol support, configure options with {@link io.vertx.grpc.server.GrpcServerOptions#disableGrpcWeb GrpcServerOptions#disableGrpcWeb} and then create a server with {@link io.vertx.grpc.server.GrpcServer#server(io.vertx.core.Vertx, io.vertx.grpc.server.GrpcServerOptions) GrpcServer#server(vertx, options)}.
+
+[TIP]
+====
+If your website server and the gRPC server are different, you have to configure the gRPC server for CORS.
+This can be done with a Vert.x Web router and the CORS handler:
+
+[source,java]
+----
+CorsHandler corsHandler = CorsHandler.create()
+  .addRelativeOrigin("https://www.mycompany.com")
+  .allowedHeaders(Set.of("keep-alive","user-agent","cache-control","content-type","content-transfer-encoding","x-custom-key","x-user-agent","x-grpc-web","grpc-timeout"))
+  .exposedHeaders(Set.of("x-custom-key","grpc-status","grpc-message"));
+router.route("/com.mycompany.MyService/*").handler(corsHandler);
+----
+====
+
 ==== Request/response
 
 Each service method is processed by a handler
@@ -86,6 +107,8 @@ A bidi request/response is simply the combination of a streaming request and a s
 {@link examples.GrpcServerExamples#bidi}
 ----
 
+NOTE: The gRPC-Web protocol does not support bidirectional streaming.
+
 === Flow control
 
 Request and response are back pressured Vert.x streams.
@@ -113,9 +136,13 @@ You can compress response messages by setting the response encoding *prior* befo
 {@link examples.GrpcServerExamples#responseCompression}
 ----
 
+NOTE: Compression is not supported over the gRPC-Web protocol.
+
 === Decompression
 
 Decompression is done transparently by the server when the client send encoded requests.
+
+NOTE: Decompression is not supported over the gRPC-Web protocol.
 
 === Stub API
 
