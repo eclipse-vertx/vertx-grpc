@@ -11,8 +11,11 @@
 package io.vertx.grpc.server;
 
 import com.google.rpc.Code;
+import io.grpc.Attributes;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ForwardingServerCallListener;
+import io.grpc.Grpc;
+import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
@@ -413,5 +416,43 @@ public class ServerBridgeTest extends ServerTest {
     startServer(server);
 
     super.testHandleCancel(should);
+  }
+
+  @Test
+  public void testCallAttributes(TestContext should) {
+
+    AtomicInteger testAttributesStep = new AtomicInteger();
+
+    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+      @Override
+      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+        responseObserver.onCompleted();
+      }
+    };
+
+    ServerInterceptor interceptor = new ServerInterceptor() {
+      @Override
+      public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+        Attributes attributes = call.getAttributes();
+        should.assertNotNull(attributes);
+        should.assertNotNull(attributes.get(Grpc.TRANSPORT_ATTR_LOCAL_ADDR));
+        should.assertNotNull(attributes.get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR));
+        testAttributesStep.incrementAndGet();
+        return next.startCall(call, headers);
+      }
+    };
+
+    GrpcServer server = GrpcServer.server(vertx);
+    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(ServerInterceptors.intercept(impl, interceptor));
+    serverStub.bind(server);
+    startServer(server);
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
+    HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
+    HelloReply res = stub.sayHello(request);
+    should.assertEquals(1, testAttributesStep.get());
   }
 }
