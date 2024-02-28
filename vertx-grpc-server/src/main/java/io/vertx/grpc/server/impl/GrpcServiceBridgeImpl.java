@@ -10,10 +10,12 @@
  */
 package io.vertx.grpc.server.impl;
 
+import io.grpc.Attributes;
 import io.grpc.Compressor;
 import io.grpc.CompressorRegistry;
 import io.grpc.Decompressor;
 import io.grpc.DecompressorRegistry;
+import io.grpc.Grpc;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
@@ -21,6 +23,7 @@ import io.grpc.ServerCallHandler;
 import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.Status;
+import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.BridgeMessageEncoder;
@@ -32,6 +35,10 @@ import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServiceBridge;
+
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 
 public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
 
@@ -76,11 +83,11 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
     private boolean halfClosed;
     private boolean closed;
     private int messagesSent;
+    private final Attributes attributes;
 
     public ServerCallImpl(GrpcServerRequest<Req, Resp> req, ServerMethodDefinition<Req, Resp> methodDef) {
 
       String encoding = req.encoding();
-
 
 
       this.decompressor = DecompressorRegistry.getDefaultInstance().lookupDecompressor(encoding);
@@ -103,6 +110,7 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
           listener.onReady();
         }
       };
+      this.attributes = createAttributes();
     }
 
     void init(ServerCall.Listener<Req> listener) {
@@ -114,6 +122,30 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
       });
       readAdapter.init(req, new BridgeMessageDecoder<>(methodDef.getMethodDescriptor().getRequestMarshaller(), decompressor));
       writeAdapter.init(req.response(), new BridgeMessageEncoder<>(methodDef.getMethodDescriptor().getResponseMarshaller(), compressor));
+    }
+
+    private Attributes createAttributes() {
+      Attributes.Builder builder = Attributes.newBuilder();
+      SocketAddress remoteAddr = req.connection().remoteAddress();
+      if (remoteAddr != null && remoteAddr.isInetSocket()) {
+        try {
+          InetAddress address = InetAddress.getByName(remoteAddr.hostAddress());
+          builder.set(Grpc.TRANSPORT_ATTR_REMOTE_ADDR, new InetSocketAddress(address, remoteAddr.port()));
+        } catch (UnknownHostException ignored) {
+        }
+      }
+      SocketAddress localAddr = req.connection().localAddress();
+      if (localAddr != null && localAddr.isInetSocket()) {
+        try {
+          InetAddress address = InetAddress.getByName(localAddr.hostAddress());
+          builder.set(Grpc.TRANSPORT_ATTR_LOCAL_ADDR, new InetSocketAddress(address, localAddr.port()));
+        } catch (UnknownHostException ignored) {
+        }
+      }
+      if (req.connection().isSsl()) {
+        builder.set(Grpc.TRANSPORT_ATTR_SSL_SESSION, req.connection().sslSession());
+      }
+      return builder.build();
     }
 
     @Override
@@ -175,6 +207,11 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
     public void setMessageCompression(boolean enabled) {
       // ????
       super.setMessageCompression(enabled);
+    }
+
+    @Override
+    public Attributes getAttributes() {
+      return this.attributes;
     }
   }
 }
