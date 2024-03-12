@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2022 Contributors to the Eclipse Foundation
+ * Copyright (c) 2011-2024 Contributors to the Eclipse Foundation
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
@@ -10,25 +10,23 @@
  */
 package io.vertx.grpc.server.impl;
 
-import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
-import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.core.http.HttpVersion;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.Utils;
-import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
+import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
+
+import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -38,6 +36,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
   private final GrpcMessageEncoder<Resp> encoder;
+  private final CharSequence contentType;
   private String encoding;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
@@ -50,6 +49,16 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     this.request = request;
     this.httpResponse = httpResponse;
     this.encoder = encoder;
+    if (request.httpRequest.version() != HttpVersion.HTTP_2) {
+      String requestMediaType = request.headers().get(CONTENT_TYPE);
+      if (GrpcMediaType.isGrpcWebText(requestMediaType)) {
+        contentType = GrpcMediaType.GRPC_WEB_TEXT_PROTO;
+      } else {
+        contentType = GrpcMediaType.GRPC_WEB_PROTO;
+      }
+    } else {
+      contentType = GrpcMediaType.GRPC_PROTO;
+    }
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
@@ -195,15 +204,20 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
 
     MultiMap responseHeaders = httpResponse.headers();
     if (!headersSent) {
+      if (isGrpcWeb() && !trailersOnly) {
+        httpResponse.setChunked(true);
+      }
       headersSent = true;
-      if (headers != null && headers.size() > 0) {
+      if (headers != null && !headers.isEmpty()) {
         for (Map.Entry<String, String> header : headers) {
           responseHeaders.add(header.getKey(), header.getValue());
         }
       }
-      responseHeaders.set("content-type", "application/grpc");
-      responseHeaders.set("grpc-encoding", encoding);
-      responseHeaders.set("grpc-accept-encoding", "gzip");
+      responseHeaders.set("content-type", contentType);
+      if (!isGrpcWeb()) {
+        responseHeaders.set("grpc-encoding", encoding);
+        responseHeaders.set("grpc-accept-encoding", "gzip");
+      }
     }
 
     if (end) {
@@ -213,11 +227,13 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
       MultiMap responseTrailers;
       if (trailersOnly) {
         responseTrailers = httpResponse.headers();
-      } else {
+      } else if (!isGrpcWeb()) {
         responseTrailers = httpResponse.trailers();
+      } else {
+        responseTrailers = HttpHeaders.headers();
       }
 
-      if (trailers != null && trailers.size() > 0) {
+      if (trailers != null && !trailers.isEmpty()) {
         for (Map.Entry<String, String> trailer : trailers) {
           responseTrailers.add(trailer.getKey(), trailer.getValue());
         }
@@ -234,12 +250,33 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
         responseTrailers.remove("grpc-message");
       }
       if (message != null) {
-        return httpResponse.end(GrpcMessageImpl.encode(message));
-      } else {
-        return httpResponse.end();
+        httpResponse.write(encodeMessage(message));
       }
+      if (isGrpcWeb() && !trailersOnly) {
+        Buffer buffer = Buffer.buffer();
+        for (Map.Entry<String, String> trailer : responseTrailers) {
+          buffer.appendString(trailer.getKey())
+            .appendString(":")
+            .appendString(trailer.getValue())
+            .appendString("\r\n");
+        }
+        httpResponse.write(encodeMessage(new GrpcMessageImpl("identity", buffer, true)));
+      }
+      return httpResponse.end();
     } else {
-      return httpResponse.write(GrpcMessageImpl.encode(message));
+      return httpResponse.write(encodeMessage(message));
     }
+  }
+
+  private Buffer encodeMessage(GrpcMessage message) {
+    Buffer buffer = GrpcMessageImpl.encode(message);
+    if (contentType == GrpcMediaType.GRPC_WEB_TEXT_PROTO) {
+      return Buffer.buffer(Base64.getEncoder().encode(buffer.getBytes()));
+    }
+    return buffer;
+  }
+
+  private boolean isGrpcWeb() {
+    return contentType != GrpcMediaType.GRPC_PROTO;
   }
 }

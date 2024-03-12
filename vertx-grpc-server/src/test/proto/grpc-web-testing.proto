@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package io.vertx.grpcweb;
+
+service TestService {
+  rpc EmptyCall(Empty) returns (Empty);
+  rpc UnaryCall(EchoRequest) returns (EchoResponse);
+  rpc StreamingCall(StreamingRequest) returns (stream StreamingResponse);
+}
+
+service UnimplementedService {
+  rpc UnimplementedCall(Empty) returns (Empty); // Do not implement
+}
+
+message Empty {}
+
+message EchoRequest {
+  string payload = 1;
+}
+
+message EchoResponse {
+  string payload = 1;
+}
+
+message StreamingRequest {
+  repeated int32 response_size = 1;
+}
+
+message StreamingResponse {
+  string payload = 1;
+}

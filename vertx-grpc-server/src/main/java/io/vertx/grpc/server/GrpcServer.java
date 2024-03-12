@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2022 Contributors to the Eclipse Foundation
+ * Copyright (c) 2011-2024 Contributors to the Eclipse Foundation
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
@@ -26,10 +26,10 @@ import io.vertx.grpc.server.impl.GrpcServerImpl;
  * <p> The server can be used as a {@link io.vertx.core.http.HttpServer} handler or mounted as a Vert.x Web handler.
  *
  * <p> Unlike traditional gRPC servers, this server does not rely on a generated RPC interface to interact with the service.
- *
+ * <p>
  * Instead, you can interact with the service with a request/response interfaces and gRPC messages, very much like
  * a traditional client.
- *
+ * <p>
  * The server exposes 2 levels of handlers
  *
  * <ul>
@@ -42,12 +42,22 @@ import io.vertx.grpc.server.impl.GrpcServerImpl;
 public interface GrpcServer extends Handler<HttpServerRequest> {
 
   /**
-   * Create a blank gRPC server
+   * Create a blank gRPC server with default options.
    *
    * @return the created server
    */
   static GrpcServer server(Vertx vertx) {
-    return new GrpcServerImpl(vertx);
+    return server(vertx, new GrpcServerOptions());
+  }
+
+  /**
+   * Create a blank gRPC server with specified options.
+   *
+   * @param options the gRPC server options
+   * @return the created server
+   */
+  static GrpcServer server(Vertx vertx, GrpcServerOptions options) {
+    return new GrpcServerImpl(vertx, options);
   }
 
   /**
@@ -60,7 +70,7 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler);
 
   /**
-   * Set a service method call handler that handles any call call made to the server for the {@link MethodDescriptor} service method.
+   * Set a service method call handler that handles any call made to the server for the {@link MethodDescriptor} service method.
    *
    * @param handler the service method call handler
    * @return a reference to this, so the API can be used fluently
