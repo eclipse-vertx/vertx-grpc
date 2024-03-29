@@ -10,10 +10,12 @@
  */
 package io.vertx.grpc.server.impl;
 
+import io.netty.handler.codec.base64.Base64;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.buffer.impl.BufferInternal;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.HttpVersion;
@@ -22,11 +24,11 @@ import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcServerResponse;
 
-import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
+import static io.vertx.grpc.common.GrpcMediaType.*;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -51,13 +53,13 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     this.encoder = encoder;
     if (request.httpRequest.version() != HttpVersion.HTTP_2) {
       String requestMediaType = request.headers().get(CONTENT_TYPE);
-      if (GrpcMediaType.isGrpcWebText(requestMediaType)) {
-        contentType = GrpcMediaType.GRPC_WEB_TEXT_PROTO;
+      if (isGrpcWebText(requestMediaType)) {
+        contentType = GRPC_WEB_TEXT_PROTO;
       } else {
-        contentType = GrpcMediaType.GRPC_WEB_PROTO;
+        contentType = GRPC_WEB_PROTO;
       }
     } else {
-      contentType = GrpcMediaType.GRPC_PROTO;
+      contentType = GRPC_PROTO;
     }
   }
 
@@ -250,7 +252,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
         responseTrailers.remove("grpc-message");
       }
       if (message != null) {
-        httpResponse.write(encodeMessage(message));
+        httpResponse.write(encodeMessage(message, false));
       }
       if (isGrpcWeb() && !trailersOnly) {
         Buffer buffer = Buffer.buffer();
@@ -260,23 +262,23 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
             .appendString(trailer.getValue())
             .appendString("\r\n");
         }
-        httpResponse.write(encodeMessage(new GrpcMessageImpl("identity", buffer, true)));
+        httpResponse.write(encodeMessage(new GrpcMessageImpl("identity", buffer), true));
       }
       return httpResponse.end();
     } else {
-      return httpResponse.write(encodeMessage(message));
+      return httpResponse.write(encodeMessage(message, false));
     }
   }
 
-  private Buffer encodeMessage(GrpcMessage message) {
-    Buffer buffer = GrpcMessageImpl.encode(message);
-    if (contentType == GrpcMediaType.GRPC_WEB_TEXT_PROTO) {
-      return Buffer.buffer(Base64.getEncoder().encode(buffer.getBytes()));
+  private Buffer encodeMessage(GrpcMessage message, boolean trailer) {
+    BufferInternal buffer = GrpcMessageImpl.encode(message, trailer);
+    if (GRPC_WEB_TEXT_PROTO.equals(contentType)) {
+      return BufferInternal.buffer(Base64.encode(buffer.getByteBuf(), false));
     }
     return buffer;
   }
 
   private boolean isGrpcWeb() {
-    return contentType != GrpcMediaType.GRPC_PROTO;
+    return !GRPC_PROTO.equals(contentType);
   }
 }

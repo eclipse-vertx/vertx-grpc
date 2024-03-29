@@ -10,7 +10,9 @@
  */
 package io.vertx.grpc.server.impl;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.base64.Base64;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
@@ -25,8 +27,6 @@ import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
-import java.util.Base64;
-
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 
 /**
@@ -34,13 +34,12 @@ import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
  */
 public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcServerRequestImpl<Req, Resp>, Req> implements GrpcServerRequest<Req, Resp> {
 
-  private static final Base64.Decoder DECODER = Base64.getDecoder();
-  private static final Buffer EMPTY_BUFFER = BufferInternal.buffer(Unpooled.EMPTY_BUFFER);
+  private static final BufferInternal EMPTY_BUFFER = BufferInternal.buffer(Unpooled.EMPTY_BUFFER);
 
   final HttpServerRequest httpRequest;
   final GrpcServerResponse<Req, Resp> response;
   private final GrpcMethodCall methodCall;
-  private Buffer grpcWebTextBuffer;
+  private BufferInternal grpcWebTextBuffer;
 
   public GrpcServerRequestImpl(HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, GrpcMethodCall methodCall) {
     super(((HttpServerRequestInternal) httpRequest).context(), httpRequest, httpRequest.headers().get("grpc-encoding"), messageDecoder);
@@ -112,11 +111,12 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
       return;
     }
     if (grpcWebTextBuffer == EMPTY_BUFFER) {
+      ByteBuf bbuf = ((BufferInternal) chunk).getByteBuf();
       if ((chunk.length() & 0b11) == 0) {
         // Content length is divisible by four, so we decode it immediately
-        super.handle(Buffer.buffer(DECODER.decode(chunk.getBytes())));
+        super.handle(BufferInternal.buffer(Base64.decode(bbuf)));
       } else {
-        grpcWebTextBuffer = chunk.copy();
+        grpcWebTextBuffer = BufferInternal.buffer(bbuf.copy());
       }
       return;
     }
@@ -135,12 +135,13 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
     // But then in the worst case we may have to buffer the whole request.
     int maxDecodable = len & ~0b11;
     if (maxDecodable == len) {
-      Buffer decoded = Buffer.buffer(DECODER.decode(grpcWebTextBuffer.getBytes()));
+      BufferInternal decoded = BufferInternal.buffer(Base64.decode(grpcWebTextBuffer.getByteBuf()));
       grpcWebTextBuffer = EMPTY_BUFFER;
       super.handle(decoded);
     } else if (maxDecodable > 0) {
-      Buffer decoded = Buffer.buffer(DECODER.decode(grpcWebTextBuffer.getBytes(0, maxDecodable)));
-      grpcWebTextBuffer = grpcWebTextBuffer.getBuffer(maxDecodable, len);
+      ByteBuf bbuf = grpcWebTextBuffer.getByteBuf();
+      BufferInternal decoded = BufferInternal.buffer(Base64.decode(bbuf, 0, maxDecodable));
+      grpcWebTextBuffer = BufferInternal.buffer(bbuf.copy(maxDecodable, len - maxDecodable));
       super.handle(decoded);
     }
   }

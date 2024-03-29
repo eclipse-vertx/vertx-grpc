@@ -11,12 +11,9 @@
 package io.vertx.grpc.server;
 
 import io.vertx.codegen.annotations.DataObject;
-import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.Unstable;
 import io.vertx.codegen.json.annotations.JsonGen;
 import io.vertx.core.json.JsonObject;
-
-import static io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE;
 
 /**
  * Configuration for a {@link GrpcServer}.
@@ -72,15 +69,6 @@ public class GrpcServerOptions {
     this.grpcWebEnabled = grpcWebEnabled;
     return this;
   }
-
-  /**
-   * Disable the gRPC-Web protocol support.
-   */
-  @GenIgnore(PERMITTED_TYPE)
-  public GrpcServerOptions disableGrpcWeb() {
-    return setGrpcWebEnabled(false);
-  }
-
 
   /**
    * @return a JSON representation of options

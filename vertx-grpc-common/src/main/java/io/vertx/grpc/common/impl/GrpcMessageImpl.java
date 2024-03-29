@@ -21,18 +21,10 @@ public class GrpcMessageImpl implements GrpcMessage {
 
   private final String encoding;
   private final Buffer payload;
-  private final boolean trailer;
 
   public GrpcMessageImpl(String encoding, Buffer payload) {
     this.encoding = encoding;
     this.payload = payload;
-    trailer = false;
-  }
-
-  public GrpcMessageImpl(String encoding, Buffer payload, boolean trailer) {
-    this.encoding = encoding;
-    this.payload = payload;
-    this.trailer = trailer;
   }
 
   @Override
@@ -46,10 +38,13 @@ public class GrpcMessageImpl implements GrpcMessage {
   }
 
   public static Buffer encode(GrpcMessage message) {
+    return encode(message, false);
+  }
+
+  public static BufferInternal encode(GrpcMessage message, boolean trailer) {
     ByteBuf bbuf = ((BufferInternal)message.payload()).getByteBuf();
     int len = bbuf.readableBytes();
     boolean compressed = !message.encoding().equals("identity");
-    boolean trailer = message instanceof GrpcMessageImpl && ((GrpcMessageImpl) message).trailer;
     ByteBuf prefix = Unpooled.buffer(5, 5);
     prefix.writeByte((trailer ? 0x80 : 0x00) | (compressed ? 0x01 : 0x00));
     prefix.writeInt(len);                      // Length

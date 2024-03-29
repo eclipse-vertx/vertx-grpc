@@ -44,12 +44,14 @@ public class GrpcServerImpl implements GrpcServer {
   private Map<String, MethodCallHandler<?, ?>> methodCallHandlers = new HashMap<>();
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
-    this.options = Objects.requireNonNull(options, "options is null");
+    this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
   }
 
   @Override
   public void handle(HttpServerRequest httpRequest) {
-    if (refuseRequest(httpRequest)) {
+    int errorCode = refuseRequest(httpRequest);
+    if (errorCode > 0) {
+      httpRequest.response().setStatusCode(errorCode).end();
       return;
     }
     GrpcMethodCall methodCall = new GrpcMethodCall(httpRequest.path());
@@ -69,24 +71,21 @@ public class GrpcServerImpl implements GrpcServer {
     }
   }
 
-  private boolean refuseRequest(HttpServerRequest request) {
+  private int refuseRequest(HttpServerRequest request) {
     if (request.version() != HttpVersion.HTTP_2) {
       if (!options.isGrpcWebEnabled()) {
         log.trace("gRPC-Web is not enabled, sending error 505");
-        request.response().setStatusCode(505).end();
-        return true;
+        return 505;
       }
       if (!GrpcMediaType.isGrpcWeb(request.headers().get(CONTENT_TYPE))) {
         log.trace("gRPC-Web is the only media type supported on HTTP/1.1, sending error 415");
-        request.response().setStatusCode(415).end();
-        return true;
+        return 415;
       }
     } else if (GrpcMediaType.isGrpcWeb(request.headers().get(CONTENT_TYPE))) {
       log.trace("gRPC-Web is not supported on HTTP/2, sending error 415");
-      request.response().setStatusCode(415).end();
-      return true;
+      return 415;
     }
-    return false;
+    return -1;
   }
 
   private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall) {

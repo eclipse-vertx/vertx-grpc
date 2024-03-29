@@ -53,7 +53,7 @@ router.consumes("application/grpc").handler(rc -> grpcServer.handle(rc.request()
 
 The Vert.x gRPC Server supports the gRPC-Web protocol by default.
 
-To disable the gRPC-Web protocol support, configure options with {@link io.vertx.grpc.server.GrpcServerOptions#disableGrpcWeb GrpcServerOptions#disableGrpcWeb} and then create a server with {@link io.vertx.grpc.server.GrpcServer#server(io.vertx.core.Vertx, io.vertx.grpc.server.GrpcServerOptions) GrpcServer#server(vertx, options)}.
+To disable the gRPC-Web protocol support, configure options with {@link io.vertx.grpc.server.GrpcServerOptions#setGrpcWebEnabled GrpcServerOptions#setGrpcWebEnabled(false)} and then create a server with {@link io.vertx.grpc.server.GrpcServer#server(io.vertx.core.Vertx, io.vertx.grpc.server.GrpcServerOptions) GrpcServer#server(vertx, options)}.
 
 [TIP]
 ====

@@ -19,7 +19,7 @@ import io.vertx.core.http.HttpHeaders;
  * The gRPC media types.
  */
 @Unstable
-public class GrpcMediaType {
+public final class GrpcMediaType {
 
   /**
    * gRPC.
