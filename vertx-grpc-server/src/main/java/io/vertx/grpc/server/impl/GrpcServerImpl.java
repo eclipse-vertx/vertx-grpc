@@ -81,9 +81,6 @@ public class GrpcServerImpl implements GrpcServer {
         log.trace("gRPC-Web is the only media type supported on HTTP/1.1, sending error 415");
         return 415;
       }
-    } else if (GrpcMediaType.isGrpcWeb(request.headers().get(CONTENT_TYPE))) {
-      log.trace("gRPC-Web is not supported on HTTP/2, sending error 415");
-      return 415;
     }
     return -1;
   }
