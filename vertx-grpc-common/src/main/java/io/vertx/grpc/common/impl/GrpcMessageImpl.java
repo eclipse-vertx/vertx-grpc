@@ -41,6 +41,13 @@ public class GrpcMessageImpl implements GrpcMessage {
     return encode(message, false);
   }
 
+  /**
+   * Encode a {@link GrpcMessage}.
+   *
+   * @param message the message
+   * @param trailer whether this message is a gRPC-Web trailer
+   * @return the encoded message
+   */
   public static BufferInternal encode(GrpcMessage message, boolean trailer) {
     ByteBuf bbuf = ((BufferInternal)message.payload()).getByteBuf();
     int len = bbuf.readableBytes();

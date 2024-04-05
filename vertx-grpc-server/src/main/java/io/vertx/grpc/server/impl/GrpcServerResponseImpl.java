@@ -206,9 +206,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
 
     MultiMap responseHeaders = httpResponse.headers();
     if (!headersSent) {
-      if (isGrpcWeb() && !trailersOnly) {
-        httpResponse.setChunked(true);
-      }
+      httpResponse.setChunked(isGrpcWeb() && !trailersOnly);
       headersSent = true;
       if (headers != null && !headers.isEmpty()) {
         for (Map.Entry<String, String> header : headers) {
@@ -258,7 +256,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
         Buffer buffer = Buffer.buffer();
         for (Map.Entry<String, String> trailer : responseTrailers) {
           buffer.appendString(trailer.getKey())
-            .appendString(":")
+            .appendByte((byte) ':')
             .appendString(trailer.getValue())
             .appendString("\r\n");
         }
