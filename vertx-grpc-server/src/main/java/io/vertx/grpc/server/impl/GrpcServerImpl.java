@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2022 Contributors to the Eclipse Foundation
+ * Copyright (c) 2011-2024 Contributors to the Eclipse Foundation
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
@@ -15,30 +15,45 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpVersion;
+import io.vertx.core.impl.logging.Logger;
+import io.vertx.core.impl.logging.LoggerFactory;
+import io.vertx.grpc.common.GrpcMediaType;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+
+import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
 public class GrpcServerImpl implements GrpcServer {
 
-  private final Vertx vertx;
+  private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
+
+  private final GrpcServerOptions options;
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
   private Map<String, MethodCallHandler<?, ?>> methodCallHandlers = new HashMap<>();
 
-  public GrpcServerImpl(Vertx vertx) {
-    this.vertx = vertx;
+  public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
+    this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
   }
 
   @Override
   public void handle(HttpServerRequest httpRequest) {
+    int errorCode = refuseRequest(httpRequest);
+    if (errorCode > 0) {
+      httpRequest.response().setStatusCode(errorCode).end();
+      return;
+    }
     GrpcMethodCall methodCall = new GrpcMethodCall(httpRequest.path());
     String fmn = methodCall.fullMethodName();
     MethodCallHandler<?, ?> method = methodCallHandlers.get(fmn);
@@ -54,6 +69,20 @@ public class GrpcServerImpl implements GrpcServer {
         httpRequest.response().setStatusCode(500).end();
       }
     }
+  }
+
+  private int refuseRequest(HttpServerRequest request) {
+    if (request.version() != HttpVersion.HTTP_2) {
+      if (!options.isGrpcWebEnabled()) {
+        log.trace("gRPC-Web is not enabled, sending error 505");
+        return 505;
+      }
+      if (!GrpcMediaType.isGrpcWeb(request.headers().get(CONTENT_TYPE))) {
+        log.trace("gRPC-Web is the only media type supported on HTTP/1.1, sending error 415");
+        return 415;
+      }
+    }
+    return -1;
   }
 
   private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall) {

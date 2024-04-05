@@ -38,11 +38,22 @@ public class GrpcMessageImpl implements GrpcMessage {
   }
 
   public static Buffer encode(GrpcMessage message) {
+    return encode(message, false);
+  }
+
+  /**
+   * Encode a {@link GrpcMessage}.
+   *
+   * @param message the message
+   * @param trailer whether this message is a gRPC-Web trailer
+   * @return the encoded message
+   */
+  public static BufferInternal encode(GrpcMessage message, boolean trailer) {
     ByteBuf bbuf = ((BufferInternal)message.payload()).getByteBuf();
     int len = bbuf.readableBytes();
     boolean compressed = !message.encoding().equals("identity");
     ByteBuf prefix = Unpooled.buffer(5, 5);
-    prefix.writeByte(compressed ? 1 : 0);      // Compression flag
+    prefix.writeByte((trailer ? 0x80 : 0x00) | (compressed ? 0x01 : 0x00));
     prefix.writeInt(len);                      // Length
     CompositeByteBuf composite = Unpooled.compositeBuffer();
     composite.addComponent(true, prefix);
