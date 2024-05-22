@@ -17,7 +17,6 @@ import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.impl.ContextInternal;
-import io.vertx.core.impl.future.PromiseInternal;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.impl.InboundBuffer;
 import io.vertx.grpc.common.CodecException;
@@ -25,9 +24,6 @@ import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcReadStream;
-
-import java.util.function.BiConsumer;
-import java.util.stream.Collector;
 
 import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
@@ -217,19 +213,5 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   @Override
   public Future<Void> end() {
     return end.future();
-  }
-
-  @Override
-  public <R, C> Future<R> collecting(Collector<T, C, R> collector) {
-    PromiseInternal<R> promise = context.promise();
-    C cumulation = collector.supplier().get();
-    BiConsumer<C, T> accumulator = collector.accumulator();
-    handler(elt -> accumulator.accept(cumulation, elt));
-    endHandler(v -> {
-      R result = collector.finisher().apply(cumulation);
-      promise.tryComplete(result);
-    });
-    exceptionHandler(promise::tryFail);
-    return promise.future();
   }
 }

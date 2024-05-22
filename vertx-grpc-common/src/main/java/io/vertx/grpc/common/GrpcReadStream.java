@@ -69,10 +69,4 @@ public interface GrpcReadStream<T> extends ReadStream<T> {
    */
   Future<Void> end();
 
-  /**
-   * @return the result of applying a collector on the stream
-   */
-  @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  <R, A> Future<R> collecting(java.util.stream.Collector<T , A , R> collector);
-
 }
