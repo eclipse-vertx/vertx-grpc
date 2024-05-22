@@ -9,6 +9,8 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.streams.ReadStream;
 
+import java.util.stream.Collector;
+
 @VertxGen
 public interface GrpcReadStream<T> extends ReadStream<T> {
 
@@ -71,8 +73,12 @@ public interface GrpcReadStream<T> extends ReadStream<T> {
 
   /**
    * @return the result of applying a collector on the stream
+   * @deprecated instead use {@link #collect(Collector)}
    */
+  @Deprecated
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  <R, A> Future<R> collecting(java.util.stream.Collector<T , A , R> collector);
+  default <R, A> Future<R> collecting(java.util.stream.Collector<T , A , R> collector) {
+    return collect(collector);
+  }
 
 }
