@@ -379,6 +379,8 @@ public abstract class ClientTest extends ClientTestBase {
     HttpServer server = vertx.createHttpServer();
     server
       .requestHandler(request -> {
+        String timeout = request.getHeader("grpc-timeout");
+        should.assertNotNull(timeout);
         request.response().exceptionHandler(err -> {
           should.assertEquals(StreamResetException.class, err.getClass());
           StreamResetException reset = (StreamResetException) err;

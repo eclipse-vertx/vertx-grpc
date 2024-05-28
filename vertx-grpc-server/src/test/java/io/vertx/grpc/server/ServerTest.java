@@ -30,14 +30,23 @@ import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpVersion;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -336,6 +345,28 @@ public abstract class ServerTest extends ServerTestBase {
       should.assertEquals(Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
       should.assertEquals("grpc-status-message-value +*~", e.getStatus().getDescription());
     }
+  }
+
+  @Test
+  public void testTimeoutOnServerBeforeSendingResponse(TestContext should) throws Exception {
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setHttp2ClearTextUpgrade(false)
+      .setProtocolVersion(HttpVersion.HTTP_2));
+    Async async = should.async();
+    client.request(HttpMethod.POST, port, "localhost", "/helloworld.Greeter/SayHello")
+      .onComplete(should.asyncAssertSuccess(req -> {
+        req.putHeader("grpc-timeout", TimeUnit.SECONDS.toMillis(1) + "m");
+        req.response().onComplete(should.asyncAssertSuccess(resp -> {
+          String status = resp.getHeader("grpc-status");
+          should.assertEquals(String.valueOf(GrpcStatus.DEADLINE_EXCEEDED.code), status);
+          async.complete();
+        }));
+        GrpcMessageEncoder<HelloRequest> encoder = GrpcMessageEncoder.marshaller(GreeterGrpc.getSayHelloMethod().getRequestMarshaller());
+        GrpcMessage msg = encoder.encode(HelloRequest.newBuilder().setName("test").build());
+        req.end(GrpcMessageImpl.encode(msg));
+      }));
+
+    async.awaitSuccess();
   }
 
   protected static void assertEquals(TestContext should, byte[] expected, byte[] actual) {

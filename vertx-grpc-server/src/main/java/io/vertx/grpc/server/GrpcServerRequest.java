@@ -15,6 +15,7 @@ import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Handler;
+import io.vertx.core.Timer;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcMessage;
@@ -85,8 +86,8 @@ public interface GrpcServerRequest<Req, Resp> extends GrpcReadStream<Req> {
   long timeout();
 
   /**
-   * @return the clock value when the timeout expires or {@code 0L} if none.
+   * Schedule a deadline based on the current request timeout.
    */
-  long timeoutExpiration();
+  Timer scheduleDeadline();
 
 }

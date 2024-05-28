@@ -236,6 +236,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     }
 
     if (end) {
+      request.cancelTimeout();
       if (!trailersSent) {
         trailersSent = true;
       }

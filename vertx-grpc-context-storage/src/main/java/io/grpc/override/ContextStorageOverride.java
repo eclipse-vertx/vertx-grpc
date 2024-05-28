@@ -3,10 +3,11 @@ package io.grpc.override;
 import io.grpc.Context;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.ContextInternal;
-import io.vertx.core.impl.logging.Logger;
-import io.vertx.core.impl.logging.LoggerFactory;
+import io.vertx.core.spi.context.storage.AccessMode;
+import io.vertx.grpc.contextstorage.GrpcStorage;
+import io.vertx.grpc.contextstorage.ContextStorageService;
 
-import java.util.concurrent.ConcurrentMap;
+import java.util.function.Supplier;
 
 /**
  * A {@link io.grpc.Context.Storage} implementation that uses Vert.x local context data maps when running on a duplicated context.
@@ -14,13 +15,18 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class ContextStorageOverride extends Context.Storage {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ContextStorageOverride.class);
-
-  private static final Object CONTEXT_KEY = new Object();
   private static final ThreadLocal<Context> fallback = new ThreadLocal<>();
 
   public ContextStorageOverride() {
     // Do not remove, empty constructor required by gRPC
+  }
+
+  private static ContextInternal duplicate(ContextInternal context) {
+    ContextInternal dup = context.duplicate();
+    if (context.isDuplicate()) {
+      dup.localContextData().putAll(context.localContextData()); // For now hand rolled  but should be handled by context duplication
+    }
+    return dup;
   }
 
   @Override
@@ -28,33 +34,29 @@ public class ContextStorageOverride extends Context.Storage {
     ContextInternal vertxContext = vertxContext();
     Context toRestoreLater;
     if (vertxContext != null) {
-      toRestoreLater = (Context) vertxContext.localContextData().put(CONTEXT_KEY, toAttach);
+      ContextInternal next = duplicate(vertxContext);
+      ContextInternal prev = next.beginDispatch();
+      next.putLocal(ContextStorageService.CONTEXT_LOCAL, SAME_THREAD, new GrpcStorage(toAttach, prev));
+      GrpcStorage local = next.getLocal(ContextStorageService.CONTEXT_LOCAL, SAME_THREAD);
+      toRestoreLater = local != null ? local.currentGrpcContext : null;
     } else {
       toRestoreLater = fallback.get();
       fallback.set(toAttach);
     }
-    return rootIfNull(toRestoreLater);
+    return toRestoreLater;
   }
 
   @Override
   public void detach(Context toDetach, Context toRestore) {
     ContextInternal vertxContext = vertxContext();
-    Context current;
     if (vertxContext != null) {
-      ConcurrentMap<Object, Object> dataMap = vertxContext.localContextData();
-      if (toRestore == Context.ROOT) {
-        current = (Context) dataMap.remove(CONTEXT_KEY);
-      } else {
-        current = (Context) dataMap.put(CONTEXT_KEY, toRestore);
-      }
+      GrpcStorage local = vertxContext.getLocal(ContextStorageService.CONTEXT_LOCAL, SAME_THREAD);
+      vertxContext.endDispatch(local.prevVertxContext);
     } else {
-      current = fallback.get();
-      fallback.remove();
-      fallback.set(toRestore == Context.ROOT ? null : toRestore);
-    }
-    if (rootIfNull(current) != toDetach) {
-      if (LOG.isWarnEnabled()) {
-        LOG.warn("Context was not attached when detaching", new Exception("Stack trace"));
+      if (toRestore == Context.ROOT) {
+        fallback.remove();
+      } else {
+        fallback.set(toRestore);
       }
     }
   }
@@ -62,15 +64,37 @@ public class ContextStorageOverride extends Context.Storage {
   @Override
   public Context current() {
     ContextInternal vertxContext = vertxContext();
-    return rootIfNull(vertxContext != null ? vertxContext.getLocal(CONTEXT_KEY) : fallback.get());
+    if (vertxContext != null) {
+      GrpcStorage local = vertxContext.getLocal(ContextStorageService.CONTEXT_LOCAL);
+      return local != null ? local.currentGrpcContext : null;
+    } else {
+      return fallback.get();
+    }
   }
 
   private static ContextInternal vertxContext() {
-    ContextInternal ctx = (ContextInternal) Vertx.currentContext();
-    return ctx != null && ctx.isDuplicate() ? ctx : null;
+    return (ContextInternal) Vertx.currentContext();
   }
 
-  private static Context rootIfNull(Context context) {
-    return context == null ? Context.ROOT : context;
-  }
+  //
+  private static final AccessMode SAME_THREAD = new AccessMode() {
+    @Override
+    public Object get(Object[] locals, int idx) {
+      return locals[idx];
+    }
+    @Override
+    public void put(Object[] locals, int idx, Object value) {
+      locals[idx] = value;
+    }
+
+    @Override
+    public Object getOrCreate(Object[] locals, int idx, Supplier<Object> initialValueSupplier) {
+      Object value = locals[idx];
+      if (value == null) {
+        value = initialValueSupplier.get();
+        locals[idx] = value;
+      }
+      return value;
+    }
+  };
 }

@@ -40,10 +40,9 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   private String encoding;
 
   public GrpcClientResponseImpl(ContextInternal context,
-                                io.grpc.Context grpcContext,
                                 GrpcClientRequestImpl<Req, Resp> request,
                                 HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
-    super(context, grpcContext, httpResponse, httpResponse.headers().get("grpc-encoding"), messageDecoder);
+    super(context, httpResponse, httpResponse.headers().get("grpc-encoding"), messageDecoder);
     this.request = request;
     this.encoding = httpResponse.headers().get("grpc-encoding");
     this.httpResponse = httpResponse;
@@ -76,9 +75,10 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   }
 
   protected void handleEnd() {
-    if (grpcContext instanceof Context.CancellableContext) {
-      ((Context.CancellableContext)grpcContext).close();
-    }
+//    if (grpcContext instanceof Context.CancellableContext) {
+//      ((Context.CancellableContext)grpcContext).close();
+//    }
+    request.cancelTimeout();
     String responseStatus = httpResponse.getTrailer("grpc-status");
     if (responseStatus != null) {
       status = GrpcStatus.valueOf(Integer.parseInt(responseStatus));

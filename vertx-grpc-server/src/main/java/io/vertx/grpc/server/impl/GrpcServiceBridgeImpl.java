@@ -11,6 +11,7 @@
 package io.vertx.grpc.server.impl;
 
 import io.grpc.Attributes;
+import io.grpc.Context;
 import io.grpc.Compressor;
 import io.grpc.CompressorRegistry;
 import io.grpc.Decompressor;
@@ -23,14 +24,11 @@ import io.grpc.ServerCallHandler;
 import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.Status;
+import io.vertx.core.Vertx;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.impl.BridgeMessageEncoder;
-import io.vertx.grpc.common.impl.BridgeMessageDecoder;
-import io.vertx.grpc.common.impl.ReadStreamAdapter;
-import io.vertx.grpc.common.impl.Utils;
-import io.vertx.grpc.common.impl.WriteStreamAdapter;
+import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -39,6 +37,8 @@ import io.vertx.grpc.server.GrpcServiceBridge;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
 
@@ -65,20 +65,30 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
   private <Req, Resp> void bind(GrpcServer server, ServerMethodDefinition<Req, Resp> methodDef) {
     server.callHandler(methodDef.getMethodDescriptor(), req -> {
       ServerCallHandler<Req, Resp> callHandler = methodDef.getServerCallHandler();
-
-//      if (req.timeout() > 0L) {
-//        Context ctx = Context.current();
-//        ctx.withDeadlineAfter(req.timeout(), req.timeoutExpiration())
-//      }
-
-      ServerCallImpl<Req, Resp> call = new ServerCallImpl<>(req, methodDef);
-      ServerCall.Listener<Req> listener = callHandler.startCall(call, Utils.readMetadata(req.headers()));
-      call.init(listener);
+      Context context = Context.current();
+      if (req.timeout() > 0L) {
+        Context.CancellableContext cancellable = context.withDeadlineAfter(req.timeout(), TimeUnit.MILLISECONDS, new VertxScheduledExecutorService(Vertx.currentContext()));
+        context = cancellable;
+        context.addListener(context1 -> ((GrpcServerResponseImpl)req.response()).handleTimeout(), new Executor() {
+          @Override
+          public void execute(Runnable command) {
+            command.run();
+          }
+        });
+      }
+      Context theContext = context;
+      Runnable task = theContext.wrap(() -> {
+        ServerCallImpl<Req, Resp> call = new ServerCallImpl<>(theContext, req, methodDef);
+        ServerCall.Listener<Req> listener = callHandler.startCall(call, Utils.readMetadata(req.headers()));
+        call.init(listener);
+      });
+      task.run();
     });
   }
 
   private static class ServerCallImpl<Req, Resp> extends ServerCall<Req, Resp> {
 
+    private final Context context;
     private final GrpcServerRequest<Req, Resp> req;
     private final ServerMethodDefinition<Req, Resp> methodDef;
     private final ReadStreamAdapter<Req> readAdapter;
@@ -91,11 +101,12 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
     private int messagesSent;
     private final Attributes attributes;
 
-    public ServerCallImpl(GrpcServerRequest<Req, Resp> req, ServerMethodDefinition<Req, Resp> methodDef) {
+    public ServerCallImpl(Context context, GrpcServerRequest<Req, Resp> req, ServerMethodDefinition<Req, Resp> methodDef) {
 
       String encoding = req.encoding();
 
 
+      this.context = context;
       this.decompressor = DecompressorRegistry.getDefaultInstance().lookupDecompressor(encoding);
       this.req = req;
       this.methodDef = methodDef;
@@ -103,17 +114,32 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
         @Override
         protected void handleClose() {
           halfClosed = true;
-          listener.onHalfClose();
+          Context previous = context.attach();
+          try {
+            listener.onHalfClose();
+          } finally {
+            context.detach(previous);
+          }
         }
         @Override
         protected void handleMessage(Req msg) {
-          listener.onMessage(msg);
+          Context previous = context.attach();
+          try {
+            listener.onMessage(msg);
+          } finally {
+            context.detach(previous);
+          }
         }
       };
       this.writeAdapter = new WriteStreamAdapter<Resp>() {
         @Override
         protected void handleReady() {
-          listener.onReady();
+          Context previous = context.attach();
+          try {
+            listener.onReady();
+          } finally {
+            context.detach(previous);
+          }
         }
       };
       this.attributes = createAttributes();
