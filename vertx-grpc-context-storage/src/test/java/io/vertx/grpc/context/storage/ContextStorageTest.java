@@ -60,9 +60,6 @@ public class ContextStorageTest {
     if (channel != null) {
       channel.shutdown();
     }
-    if (httpServer != null) {
-      httpServer.close().onComplete(should.asyncAssertSuccess());
-    }
     if (vertx != null) {
       vertx.close().onComplete(should.asyncAssertSuccess());
     }
@@ -113,7 +110,7 @@ public class ContextStorageTest {
         this.httpServer = httpServer;
         servertStart.complete();
       }));
-    servertStart.await();
+    servertStart.awaitSuccess();
 
     channel = ManagedChannelBuilder.forAddress("localhost", httpServer.actualPort())
       .usePlaintext()

@@ -35,6 +35,8 @@ import java.util.function.Consumer;
  */
 public class ClientMessageEncodingTest extends ClientTestBase {
 
+  private GrpcClient client;
+
   @Test
   public void testZipRequestCompress(TestContext should) throws Exception {
     testEncode(should, "gzip", GrpcMessage.message("identity", Buffer.buffer("Hello World")), true);
@@ -77,7 +79,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
       .get(20, TimeUnit.SECONDS);
 
     Async test = should.async();
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"))
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.fullMethodName(GreeterGrpc.getSayHelloMethod().getFullMethodName());
@@ -100,7 +102,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
       .toCompletableFuture()
       .get(20, TimeUnit.SECONDS);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"))
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.fullMethodName(GreeterGrpc.getSayHelloMethod().getFullMethodName());
@@ -176,7 +178,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
       .toCompletableFuture()
       .get(20, TimeUnit.SECONDS);
 
-    GrpcClient client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"))
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.fullMethodName(GreeterGrpc.getSayHelloMethod().getFullMethodName());
@@ -186,7 +188,5 @@ public class ClientMessageEncodingTest extends ClientTestBase {
         }));
         callRequest.end(Buffer.buffer());
       }));
-
-    async.awaitSuccess();
   }
 }
