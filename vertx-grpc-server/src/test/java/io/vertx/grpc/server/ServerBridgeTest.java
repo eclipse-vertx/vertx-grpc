@@ -11,19 +11,7 @@
 package io.vertx.grpc.server;
 
 import com.google.rpc.Code;
-import io.grpc.Attributes;
-import io.grpc.ForwardingServerCall;
-import io.grpc.ForwardingServerCallListener;
-import io.grpc.Grpc;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Metadata;
-import io.grpc.ServerCall;
-import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
-import io.grpc.ServerInterceptors;
-import io.grpc.ServerServiceDefinition;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
@@ -423,6 +411,26 @@ public class ServerBridgeTest extends ServerTest {
     startServer(server);
 
     super.testHandleCancel(should);
+  }
+
+  @Test
+  public void testTimeoutOnServerBeforeSendingResponse(TestContext should) throws Exception {
+    Async async = should.async();
+    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+      @Override
+      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+        Context current = Context.current();
+        should.assertNotNull(current.getDeadline());
+        async.complete();
+      }
+    };
+
+    GrpcServer server = GrpcServer.server(vertx);
+    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    serverStub.bind(server);
+    startServer(server);
+
+    super.testTimeoutOnServerBeforeSendingResponse(should);
   }
 
   @Ignore

@@ -38,10 +38,11 @@ public class GrpcClientChannel extends io.grpc.Channel {
       compressor = null;
     }
     Executor exec = callOptions.getExecutor();
+    Context ctx = Context.current();
     Deadline deadline = callOptions.getDeadline();
-    if (deadline == null) {
-      Context ctx = Context.current();
-      deadline = ctx.getDeadline();
+    Deadline contextDeadline = ctx.getDeadline();
+    if (contextDeadline != null && (deadline == null || contextDeadline.isBefore(deadline))) {
+      deadline = contextDeadline;
     }
     return new VertxClientCall<>(client, server, exec, methodDescriptor, encoding, compressor, deadline);
   }
@@ -50,5 +51,4 @@ public class GrpcClientChannel extends io.grpc.Channel {
   public String authority() {
     return null;
   }
-
 }

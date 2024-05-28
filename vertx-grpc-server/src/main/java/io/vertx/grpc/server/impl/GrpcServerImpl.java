@@ -115,22 +115,9 @@ public class GrpcServerImpl implements GrpcServer {
                                   GrpcMessageEncoder<Resp> messageEncoder,
                                   Handler<GrpcServerRequest<Req, Resp>> handler) {
     io.vertx.core.impl.ContextInternal context = (ContextInternal) ((HttpServerRequestInternal) httpRequest).context();
-    String timeoutHeader = httpRequest.getHeader("grpc-timeout");
-    long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
-    Context grpcContext = Context.current();
-    if (timeout > 0L) {
-      grpcContext = grpcContext.withDeadlineAfter(timeout, TimeUnit.MILLISECONDS, new VertxScheduledExecutorService(context));
-    }
-    GrpcServerRequestImpl<Req, Resp> grpcRequest = new GrpcServerRequestImpl<>(grpcContext, context, httpRequest, messageDecoder, messageEncoder, methodCall);
+    GrpcServerRequestImpl<Req, Resp> grpcRequest = new GrpcServerRequestImpl<>(context, httpRequest, messageDecoder, messageEncoder, methodCall);
     grpcRequest.init();
-    if (timeout > 0L) {
-      Context.CancellableContext tmp = (Context.CancellableContext) grpcContext;
-      tmp.addListener(ctx -> {
-        grpcRequest.response.handleTimeout();
-      }, Runnable::run);
-
-    }
-    grpcRequest.grpcContext.run(() -> handler.handle(grpcRequest));
+    context.dispatch(grpcRequest, handler);
   }
 
   private static long parseTimeout(String timeout) {

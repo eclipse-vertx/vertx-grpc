@@ -536,7 +536,9 @@ public class ClientRequestTest extends ClientTest {
     client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSinkMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
-        callRequest.timeout(1, TimeUnit.SECONDS);
+        callRequest
+          .timeout(1, TimeUnit.SECONDS)
+          .scheduleDeadline();
         callRequest.write(Item.getDefaultInstance());
         callRequest.response().onComplete(should.asyncAssertFailure(err -> {
           should.assertTrue(err instanceof StreamResetException);
@@ -554,7 +556,9 @@ public class ClientRequestTest extends ClientTest {
     client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), GreeterGrpc.getSayHelloMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
-        callRequest.timeout(10, TimeUnit.SECONDS);
+        callRequest
+          .timeout(10, TimeUnit.SECONDS)
+          .scheduleDeadline();
         callRequest.end(HelloRequest.newBuilder().setName("Julien").build());
         callRequest.response().onComplete(should.asyncAssertSuccess(e -> {
           long timeRemaining = cf.getNow(-1L);

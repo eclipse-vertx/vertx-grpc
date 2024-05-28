@@ -23,6 +23,7 @@ import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.impl.ContextInternal;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Repeat;
@@ -33,7 +34,9 @@ import io.vertx.grpc.server.GrpcServiceBridge;
 import org.junit.*;
 import org.junit.runner.RunWith;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 
 import static io.grpc.Metadata.*;
 
@@ -46,6 +49,10 @@ public class ContextStorageTest {
   private Vertx vertx;
   private volatile HttpServer httpServer;
   private volatile ManagedChannel channel;
+
+  private final Context.Key<String> key = Context.key("test-key");
+  private final Context.Key<String> key1 = Context.key("test-key-1");
+  private final Context.Key<String> key2 = Context.key("test-key-2");
 
   @Before
   public void setUp() {
@@ -62,7 +69,143 @@ public class ContextStorageTest {
     }
   }
 
-  @Ignore
+  @Test
+  public void testPropagationAcrossVertxCalls(TestContext should) {
+    testPropagationAcrossVertxCalls(should, vertx.getOrCreateContext());
+  }
+
+  @Test
+  public void testDuplicatePropagationAcrossVertxCalls(TestContext should) {
+    testPropagationAcrossVertxCalls(should, ((ContextInternal)vertx.getOrCreateContext()).duplicate());
+  }
+
+  private void testPropagationAcrossVertxCalls(TestContext should, io.vertx.core.Context context) {
+    Async async = should.async();
+    context.runOnContext(v1 -> {
+      Context ctx1 = Context.ROOT.withValue(key1, "value-1");
+      ctx1.run(() -> {
+        should.assertEquals(Context.current(), ctx1);
+        vertx.runOnContext(v2 -> {
+          should.assertEquals(Context.current(), ctx1);
+          should.assertEquals("value-1", key1.get());
+          async.complete();
+        });
+      });
+    });
+    async.awaitSuccess();
+  }
+
+  @Test
+  public void testNestedAttach(TestContext should) {
+    testNestedAttach(should, vertx.getOrCreateContext());
+  }
+
+  @Test
+  public void testDuplicateNestedAttach(TestContext should) {
+    testNestedAttach(should, ((ContextInternal)vertx.getOrCreateContext()).duplicate());
+  }
+
+  private void testNestedAttach(TestContext should, io.vertx.core.Context context) {
+    Async async = should.async(2);
+    context.runOnContext(v1 -> {
+      Context ctx1 = Context.ROOT.withValue(key1, "value-1");
+      ctx1.run(() -> {
+        Context ctx2 = Context.current().withValue(key2, "value-2");
+        ctx2.run(() -> {
+          should.assertEquals(Context.current(), ctx2);
+          vertx.runOnContext(v2 -> {
+            should.assertEquals(Context.current(), ctx2);
+            should.assertEquals("value-1", key1.get());
+            should.assertEquals("value-2", key2.get());
+            async.countDown();
+          });
+        });
+        vertx.runOnContext(v2 -> {
+          should.assertEquals(Context.current(), ctx1);
+          should.assertEquals("value-1", key1.get());
+          should.assertEquals(null, key2.get());
+          async.countDown();
+        });
+      });
+    });
+    async.awaitSuccess();
+  }
+
+  @Test
+  public void testNonVertxThread(TestContext should) {
+    Context ctx1 = Context.ROOT.withValue(key1, "value-1");
+    Context ctx2 = ctx1.withValue(key2, "value-2");
+    ctx1.run(() -> {
+      should.assertEquals(Context.current(), ctx1);
+      should.assertEquals("value-1", key1.get());
+      should.assertNull(key2.get());
+      ctx2.run(() -> {
+        should.assertEquals(Context.current(), ctx2);
+        should.assertEquals("value-1", key1.get());
+        should.assertEquals("value-2", key2.get());
+      });
+      should.assertEquals(Context.current(), ctx1);
+      should.assertEquals("value-1", key1.get());
+      should.assertNull(key2.get());
+    });
+    should.assertEquals(Context.ROOT, Context.current());
+    should.assertNull(key1.get());
+    should.assertNull(key2.get());
+  }
+
+  @Test
+  public void testNestedDuplicate(TestContext should) {
+    Async async = should.async();
+    io.vertx.core.Context context = ((ContextInternal)vertx.getOrCreateContext()).duplicate();
+    context.putLocal("local", "local-value-1");
+    context.runOnContext(v1 -> {
+      should.assertEquals("local-value-1", context.getLocal("local"));
+      Context ctx1 = Context.ROOT.withValue(key1, "value-1");
+      ctx1.run(() -> {
+        io.vertx.core.Context current = vertx.getOrCreateContext();
+        should.assertNotEquals(context, current);
+        should.assertEquals("local-value-1", current.getLocal("local"));
+        current.putLocal("local", "local-value-2");
+      });
+      should.assertEquals("local-value-1", context.getLocal("local"));
+      async.complete();
+    });
+    async.awaitSuccess();
+  }
+
+  @Test
+  public void testPropagateInVertxThread(TestContext should) {
+    io.vertx.core.Context context = ((ContextInternal)vertx.getOrCreateContext()).duplicate();
+    testPropagateInVertxThread(should, command -> context.runOnContext(v -> command.run()));
+  }
+
+  @Test
+  public void testPropagateInNonVertxThread(TestContext should) {
+    testPropagateInVertxThread(should, Runnable::run);
+  }
+
+  private void testPropagateInVertxThread(TestContext should, Executor exec) {
+    Async async = should.async();
+    Context ctx1 = Context.ROOT.withValue(key, "value-1");
+    Context ctx2 = Context.ROOT.withValue(key, "value-2");
+    Context ctx3 = Context.ROOT.withValue(key, "value-3");
+    exec.execute(() -> {
+      ctx1.run(() -> {
+        should.assertEquals("value-1", key.get());
+        ctx2.run(() -> {
+          should.assertEquals("value-2", key.get());
+          ctx3.run(() -> {
+            should.assertEquals("value-3", key.get());
+          });
+          should.assertEquals("value-2", key.get());
+        });
+        should.assertEquals("value-1", key.get());
+      });
+      async.complete();
+    });
+    async.awaitSuccess();
+  }
+
   @Test
   @Repeat(10)
   public void testGrpcContextPropagatedAcrossVertxAsyncCalls(TestContext should) {
@@ -73,7 +216,10 @@ public class ContextStorageTest {
     GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
       @Override
       public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        vertx.executeBlocking(() -> "Hello " + request.getName() + ", trace: " + traceContextKey.get()).onSuccess(greeting -> {
+        vertx.executeBlocking(() -> {
+          Thread.sleep(200);
+          return "Hello " + request.getName() + ", trace: " + traceContextKey.get();
+        }).onSuccess(greeting -> {
           responseObserver.onNext(HelloReply.newBuilder().setMessage(greeting).build());
           responseObserver.onCompleted();
         }).onFailure(should::fail);
@@ -86,12 +232,33 @@ public class ContextStorageTest {
         String traceId = headers.get(traceMetadataKey);
         should.assertNotNull(traceId);
         Context context = Context.current().withValue(traceContextKey, traceId);
-        Context previous = context.attach();
-        return new ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>(next.startCall(call, headers)) {
+        ServerCall.Listener<ReqT> ret;
+        try {
+          ret = context.call(() -> next.startCall(call, headers));
+        } catch (Exception e) {
+          // ????
+          throw new UndeclaredThrowableException(e);
+        }
+        return new ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>(ret) {
+          @Override
+          public void onHalfClose() {
+            context.run(super::onHalfClose);
+          }
+          @Override
+          public void onCancel() {
+            context.run(super::onCancel);
+          }
+          @Override
+          public void onReady() {
+            context.run(super::onReady);
+          }
+          @Override
+          public void onMessage(ReqT message) {
+            context.run(() -> super.onMessage(message));
+          }
           @Override
           public void onComplete() {
-            context.detach(previous);
-            super.onComplete();
+            context.run(super::onComplete);
           }
         };
       }

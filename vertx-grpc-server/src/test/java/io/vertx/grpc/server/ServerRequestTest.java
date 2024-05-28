@@ -328,20 +328,20 @@ public class ServerRequestTest extends ServerTest {
       long timeout = call.timeout();
       long limit = TimeUnit.SECONDS.toMillis(7);
       should.assertTrue(limit <= timeout);
-      Context grpcContext = Context.current();
-      should.assertNotNull(grpcContext.getDeadline());
-      should.assertTrue(limit <= grpcContext.getDeadline().timeRemaining(TimeUnit.MILLISECONDS));
+//      Context grpcContext = Context.current();
+//      should.assertNotNull(grpcContext.getDeadline());
+//      should.assertTrue(limit <= grpcContext.getDeadline().timeRemaining(TimeUnit.MILLISECONDS));
       call.messageHandler(hello -> {
-        Context handlerContext = Context.current();
-        should.assertNotNull(handlerContext);
-        should.assertNotNull(handlerContext.getDeadline());
-        should.assertTrue(limit <= handlerContext.getDeadline().timeRemaining(TimeUnit.MILLISECONDS));
+//        Context handlerContext = Context.current();
+//        should.assertNotNull(handlerContext);
+//        should.assertNotNull(handlerContext.getDeadline());
+//        should.assertTrue(limit <= handlerContext.getDeadline().timeRemaining(TimeUnit.MILLISECONDS));
       });
       call.endHandler(v -> {
-        Context handlerContext = Context.current();
-        should.assertNotNull(handlerContext);
-        should.assertNotNull(handlerContext.getDeadline());
-        should.assertTrue(limit <= handlerContext.getDeadline().timeRemaining(TimeUnit.MILLISECONDS));
+//        Context handlerContext = Context.current();
+//        should.assertNotNull(handlerContext);
+//        should.assertNotNull(handlerContext.getDeadline());
+//        should.assertTrue(limit <= handlerContext.getDeadline().timeRemaining(TimeUnit.MILLISECONDS));
         response.end(HelloReply.newBuilder().build());
       });
     }));
@@ -358,32 +358,22 @@ public class ServerRequestTest extends ServerTest {
 
   @Test
   public void testTimeoutOnServerBeforeSendingResponse(TestContext should) throws Exception {
+    Async async = should.async();
     startServer(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
+      should.assertTrue(call.timeout() > 0L);
+      call.scheduleDeadline();
       GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+      async.complete();
     }));
 
-    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
-      .setHttp2ClearTextUpgrade(false)
-      .setProtocolVersion(HttpVersion.HTTP_2));
-    Async async = should.async();
-    client.request(HttpMethod.POST, port, "localhost", "/helloworld.Greeter/SayHello")
-      .onComplete(should.asyncAssertSuccess(req -> {
-        req.putHeader("grpc-timeout", TimeUnit.SECONDS.toMillis(1) + "m");
-        req.response().onComplete(should.asyncAssertSuccess(resp -> {
-          String status = resp.getHeader("grpc-status");
-          should.assertEquals(String.valueOf(GrpcStatus.DEADLINE_EXCEEDED.code), status);
-          async.complete();
-        }));
-        req.sendHead();
-      }));
-
-    async.awaitSuccess();
+    super.testTimeoutOnServerBeforeSendingResponse(should);
   }
 
   @Test
   public void testTimeoutOnServerAfterSendingResponse(TestContext should) throws Exception {
     startServer(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
       GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+      call.scheduleDeadline();
       response.end();
     }));
 
@@ -398,9 +388,7 @@ public class ServerRequestTest extends ServerTest {
           resp.endHandler(v -> {
             String status = resp.getTrailer("grpc-status");
             should.assertEquals(String.valueOf(GrpcStatus.OK.code), status);
-            req.exceptionHandler(err -> {
-              async.complete();
-            });
+            async.complete();
           });
         }));
         req.sendHead();

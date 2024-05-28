@@ -16,11 +16,8 @@ import io.vertx.codegen.annotations.Nullable;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.Timer;
 import io.vertx.core.http.HttpConnection;
-import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.ServiceName;
@@ -99,6 +96,11 @@ public interface GrpcClientRequest<Req, Resp> extends GrpcWriteStream<Req> {
 
   @Fluent
   GrpcClientRequest<Req, Resp> timeout(long timeout, TimeUnit unit);
+
+  /**
+   * Schedule a deadline when sending this request
+   */
+  Timer scheduleDeadline();
 
   /**
    * Sets the amount of time after which, if the request does not return any data within the timeout period,

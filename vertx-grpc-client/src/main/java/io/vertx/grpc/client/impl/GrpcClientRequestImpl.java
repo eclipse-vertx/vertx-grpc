@@ -10,10 +10,10 @@
  */
 package io.vertx.grpc.client.impl;
 
-import io.grpc.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Timer;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
 
@@ -33,7 +33,6 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
-import io.vertx.grpc.common.impl.VertxScheduledExecutorService;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -53,7 +52,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
   private MultiMap headers;
   private long timeout;
   private TimeUnit timeoutUnit;
-  private io.grpc.Context grpcContext;
+  private Timer timeoutTimer;
 
   public GrpcClientRequestImpl(HttpClientRequest httpRequest, GrpcMessageEncoder<Req> messageEncoder, GrpcMessageDecoder<Resp> messageDecoder) {
     this.context = ((PromiseInternal<?>)httpRequest.response()).context();
@@ -62,10 +61,14 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
     this.response = httpRequest
       .response()
       .map(httpResponse -> {
-        GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(context, grpcContext, this, httpResponse, messageDecoder);
+        GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(context, this, httpResponse, messageDecoder);
         grpcResponse.init();
         return grpcResponse;
       });
+  }
+
+  public ContextInternal context() {
+    return context;
   }
 
   @Override
@@ -145,6 +148,19 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
     this.timeoutUnit = Objects.requireNonNull(unit);
     this.timeout = timeout;
     return this;
+  }
+
+  @Override
+  public Timer scheduleDeadline() {
+    if (timeout > 0L && timeoutTimer ==null) {
+      Timer timer = context.timer(timeout, TimeUnit.MILLISECONDS);
+      timeoutTimer = timer;
+      timer.onSuccess(v -> {
+        cancel();
+      });
+      return timer;
+    }
+    throw new IllegalStateException();
   }
 
   @Override
@@ -233,20 +249,18 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
       httpRequest.setURI(uri);
       headersSent = true;
     }
-    if (timeout > 0L) {
-      Context.CancellableContext deadlineContext = Context.current().withDeadlineAfter(timeout, timeoutUnit, new VertxScheduledExecutorService(context));
-      deadlineContext.addListener(ctx_ -> {
-        cancel();
-      }, Runnable::run);
-      grpcContext = deadlineContext;
-    } else {
-      grpcContext = Context.current();
-    }
     if (end) {
       trailersSent = true;
       return httpRequest.end(GrpcMessageImpl.encode(message));
     } else {
       return httpRequest.write(GrpcMessageImpl.encode(message));
+    }
+  }
+
+  void cancelTimeout() {
+    Timer timer = timeoutTimer;
+    if (timer != null && timer.cancel()) {
+      timeoutTimer = null;
     }
   }
 

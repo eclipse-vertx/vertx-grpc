@@ -4,15 +4,14 @@ import io.grpc.*;
 import io.vertx.core.Future;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
+import io.vertx.grpc.client.impl.GrpcClientResponseImpl;
 import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.impl.BridgeMessageDecoder;
-import io.vertx.grpc.common.impl.BridgeMessageEncoder;
-import io.vertx.grpc.common.impl.ReadStreamAdapter;
-import io.vertx.grpc.common.impl.Utils;
-import io.vertx.grpc.common.impl.WriteStreamAdapter;
+import io.vertx.grpc.common.impl.*;
 
 import javax.annotation.Nullable;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, ResponseT> {
@@ -76,9 +75,18 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
       if (ar1.succeeded()) {
         request = ar1.result();
         Utils.writeMetadata(headers, request.headers());
+        ScheduledFuture<?> sf;
         if (deadline != null) {
           long timeout = deadline.timeRemaining(TimeUnit.MILLISECONDS);
           request.timeout(timeout, TimeUnit.MILLISECONDS);
+          sf = deadline.runOnExpiration(new Runnable() {
+            @Override
+            public void run() {
+              request.cancel();
+            }
+          }, new VertxScheduledExecutorService(((GrpcClientRequestImpl)request).context()));
+        } else {
+          sf = null;
         }
         if (encoding != null) {
           request.encoding(encoding);
@@ -88,6 +96,12 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
           if (ar2.succeeded()) {
 
             grpcResponse = ar2.result();
+
+            if (sf != null) {
+              grpcResponse.end().onComplete(ar -> {
+                sf.cancel(false);
+              });
+            }
 
             String respEncoding = grpcResponse.encoding();
             Decompressor decompressor = DecompressorRegistry.getDefaultInstance().lookupDecompressor(respEncoding);
