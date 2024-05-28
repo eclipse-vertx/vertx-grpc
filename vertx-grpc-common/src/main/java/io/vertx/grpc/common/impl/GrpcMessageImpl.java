@@ -10,9 +10,6 @@
  */
 package io.vertx.grpc.common.impl;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.CompositeByteBuf;
-import io.netty.buffer.Unpooled;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.buffer.impl.BufferInternal;
 import io.vertx.grpc.common.GrpcMessage;
@@ -49,15 +46,13 @@ public class GrpcMessageImpl implements GrpcMessage {
    * @return the encoded message
    */
   public static BufferInternal encode(GrpcMessage message, boolean trailer) {
-    ByteBuf bbuf = ((BufferInternal)message.payload()).getByteBuf();
-    int len = bbuf.readableBytes();
+    Buffer payload = message.payload();
+    int len = payload.length();
+    BufferInternal encoded = BufferInternal.buffer(5 + len);
     boolean compressed = !message.encoding().equals("identity");
-    ByteBuf prefix = Unpooled.buffer(5, 5);
-    prefix.writeByte((trailer ? 0x80 : 0x00) | (compressed ? 0x01 : 0x00));
-    prefix.writeInt(len);                      // Length
-    CompositeByteBuf composite = Unpooled.compositeBuffer();
-    composite.addComponent(true, prefix);
-    composite.addComponent(true, bbuf);
-    return BufferInternal.buffer(composite);
+    encoded.appendByte((byte) ((trailer ? 0x80 : 0x00) | (compressed ? 0x01 : 0x00)));
+    encoded.appendInt(len);
+    encoded.appendBuffer(payload);
+    return encoded;
   }
 }
