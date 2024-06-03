@@ -75,9 +75,6 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   }
 
   protected void handleEnd() {
-//    if (grpcContext instanceof Context.CancellableContext) {
-//      ((Context.CancellableContext)grpcContext).close();
-//    }
     request.cancelTimeout();
     String responseStatus = httpResponse.getTrailer("grpc-status");
     if (responseStatus != null) {

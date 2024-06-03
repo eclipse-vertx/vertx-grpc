@@ -7,12 +7,11 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.docgen.Source;
-import io.vertx.grpc.client.GrpcClient;
-import io.vertx.grpc.client.GrpcClientChannel;
-import io.vertx.grpc.client.GrpcClientRequest;
-import io.vertx.grpc.client.GrpcClientResponse;
+import io.vertx.grpc.client.*;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.ServiceName;
+
+import java.util.concurrent.TimeUnit;
 
 @Source
 public class GrpcClientExamples {
@@ -122,26 +121,61 @@ public class GrpcClientExamples {
     request.write(Item.newBuilder().setValue("item-3").build());
   }
 
-  public void stubExample(GrpcClient client) {
+  public void stub(GrpcClient client) {
 
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(443, "example.com"));
 
     GreeterGrpc.GreeterStub greeter = GreeterGrpc.newStub(channel);
 
-    greeter.sayHello(HelloRequest.newBuilder().setName("Bob").build(), new StreamObserver<HelloReply>() {
+    StreamObserver<HelloReply> observer = new StreamObserver<HelloReply>() {
       @Override
       public void onNext(HelloReply value) {
         // Process response
       }
+
       @Override
       public void onCompleted() {
         // Done
       }
+
       @Override
       public void onError(Throwable t) {
         // Something went bad
       }
+    };
+
+    greeter.sayHello(HelloRequest.newBuilder().setName("Bob").build(), observer);
+  }
+
+  public void stubWithDeadline(GrpcClientChannel channel, StreamObserver<HelloReply> observer) {
+
+    GreeterGrpc.GreeterStub greeter = GreeterGrpc.newStub(channel).withDeadlineAfter(10, TimeUnit.SECONDS);
+
+    greeter.sayHello(HelloRequest.newBuilder().setName("Bob").build(), observer);
+  }
+
+  public void requestWithDeadline(Vertx vertx) {
+
+    // Set a 10 seconds timeout that will be sent to the gRPC service
+    // Let the client schedule a deadline
+    GrpcClient client = GrpcClient.client(vertx, new GrpcClientOptions()
+      .setTimeout(10)
+      .setTimeoutUnit(TimeUnit.SECONDS)
+      .setScheduleDeadlineAutomatically(true));
+  }
+
+  public void requestWithDeadline2(GrpcClient client, SocketAddress server, MethodDescriptor<HelloRequest, HelloReply> sayHelloMethod) {
+
+    Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, sayHelloMethod);
+    fut.onSuccess(request -> {
+
+      request
+        // Given this request, set a 10 seconds timeout that will be sent to the gRPC service
+        .timeout(10, TimeUnit.SECONDS);
+
+      request.end(HelloRequest.newBuilder().setName("Bob").build());
     });
+
   }
 
   public void protobufLevelAPI(GrpcClient client, Buffer protoHello, SocketAddress server) {

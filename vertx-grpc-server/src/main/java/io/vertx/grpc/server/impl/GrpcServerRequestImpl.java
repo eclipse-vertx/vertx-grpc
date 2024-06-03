@@ -10,11 +10,9 @@
  */
 package io.vertx.grpc.server.impl;
 
-import io.grpc.Context;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.base64.Base64;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
@@ -23,14 +21,13 @@ import io.vertx.core.buffer.impl.BufferInternal;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
-import io.vertx.core.http.impl.HttpServerRequestInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
-import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -77,12 +74,15 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   final HttpServerRequest httpRequest;
   final GrpcServerResponseImpl<Req, Resp> response;
   final long timeout;
+  final boolean scheduleDeadline;
   private final GrpcMethodCall methodCall;
   private BufferInternal grpcWebTextBuffer;
-  private Timer timeoutTimer;
-  private boolean useTimeout;
+  private Timer deadline;
 
-  public GrpcServerRequestImpl(io.vertx.core.impl.ContextInternal context, HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, GrpcMethodCall methodCall) {
+  public GrpcServerRequestImpl(io.vertx.core.impl.ContextInternal context,
+                               boolean scheduleDeadline,
+                               HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder,
+                               GrpcMessageEncoder<Resp> messageEncoder, GrpcMethodCall methodCall) {
     super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), messageDecoder);
     String timeoutHeader = httpRequest.getHeader("grpc-timeout");
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
@@ -104,6 +104,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
     this.httpRequest = httpRequest;
     this.response = response;
     this.methodCall = methodCall;
+    this.scheduleDeadline = scheduleDeadline;
     if (httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE))) {
       grpcWebTextBuffer = EMPTY_BUFFER;
     } else {
@@ -111,10 +112,24 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
     }
   }
 
+  @Override
+  public void init() {
+    super.init();
+    if (timeout > 0L) {
+      if (scheduleDeadline) {
+        Timer timer = context.timer(timeout, TimeUnit.MILLISECONDS);
+        deadline = timer;
+        timer.onSuccess(v -> {
+          response.handleTimeout();
+        });
+      }
+    }
+  }
+
   void cancelTimeout() {
-    Timer timer = timeoutTimer;
+    Timer timer = deadline;
     if (timer != null) {
-      timeoutTimer = null;
+      deadline = null;
       timer.cancel();
     }
   }
@@ -176,16 +191,8 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   }
 
   @Override
-  public Timer scheduleDeadline() {
-    if (timeout > 0L && timeoutTimer ==null) {
-      Timer timer = context.timer(timeout, TimeUnit.MILLISECONDS);
-      timeoutTimer = timer;
-      timer.onSuccess(v -> {
-        response.handleTimeout();
-      });
-      return timer;
-    }
-    throw new IllegalStateException();
+  public Timer deadline() {
+    return deadline;
   }
 
   @Override

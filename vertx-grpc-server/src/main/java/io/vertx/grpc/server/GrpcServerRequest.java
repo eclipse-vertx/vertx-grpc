@@ -22,6 +22,8 @@ import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.ServiceName;
 
+import java.time.Instant;
+
 @VertxGen
 public interface GrpcServerRequest<Req, Resp> extends GrpcReadStream<Req> {
 
@@ -86,8 +88,8 @@ public interface GrpcServerRequest<Req, Resp> extends GrpcReadStream<Req> {
   long timeout();
 
   /**
-   * Schedule a deadline based on the current request timeout.
+   * @return the request deadline or {@code null} when no deadline has been scheduled
    */
-  Timer scheduleDeadline();
+  Timer deadline();
 
 }

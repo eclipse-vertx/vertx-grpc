@@ -127,6 +127,34 @@ You can check the writability of a response and set a drain handler
 {@link examples.GrpcServerExamples#responseFlowControl}
 ----
 
+=== Timeout and deadlines
+
+The gRPC server handles timeout and deadlines.
+
+Whenever the service receives a request indicating a timeout, the timeout can be retrieved.
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#checkTimeout}
+----
+
+By default, the server
+
+- does not schedule automatically a deadline for a given request
+- does not automatically propagate the deadline to a vertx client
+
+The server can schedule deadlines: when a request carries a timeout, the server schedules
+locally a timer to cancel the request when the response has not been sent in time.
+
+The server can propagate deadlines: when a request carries a timeout, the server calculate the deadline
+and associate the current server request with this deadline. Vert.x gRPC client can use this deadline to compute
+a timeout to be sent and cascade the timeout to another gRPC server.
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#deadlineConfiguration}
+----
+
 === Compression
 
 You can compress response messages by setting the response encoding *prior* before sending any message
@@ -152,6 +180,8 @@ The Vert.x gRPC Server can bridge a gRPC service to use with a generated server 
 ----
 {@link examples.GrpcServerExamples#stubExample}
 ----
+
+The bridge supports deadline automatic cancellation: when a gRPC request carrying a timeout is received, a deadline is associated with the `io.grpc.Context` an can be obtained from the current context. This deadline automatically cancels the request in progress when its associated timeout fires.
 
 === Message level API
 

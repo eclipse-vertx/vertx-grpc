@@ -11,10 +11,7 @@ import io.vertx.docgen.Source;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.GrpcServerResponse;
-import io.vertx.grpc.server.GrpcServiceBridge;
+import io.vertx.grpc.server.*;
 
 @Source
 public class GrpcServerExamples {
@@ -114,6 +111,22 @@ public class GrpcServerExamples {
     } else {
       response.write(item);
     }
+  }
+
+  public void checkTimeout(GrpcServerRequest<Empty, Item> request) {
+
+    long timeout = request.timeout();
+
+    if (timeout > 0L) {
+      // A timeout has been received
+    }
+  }
+
+  public void deadlineConfiguration(Vertx vertx) {
+    GrpcServer server = GrpcServer.server(vertx, new GrpcServerOptions()
+      .setScheduleDeadlineAutomatically(true)
+      .setDeadlinePropagation(true)
+    );
   }
 
   public void responseCompression(GrpcServerResponse<Empty, Item> response) {

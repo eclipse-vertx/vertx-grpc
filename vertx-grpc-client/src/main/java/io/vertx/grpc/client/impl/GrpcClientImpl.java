@@ -19,13 +19,17 @@ import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.RequestOptions;
+import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.impl.VertxInternal;
 import io.vertx.core.net.Address;
-import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.impl.GrpcRequestLocal;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -35,29 +39,38 @@ public class GrpcClientImpl implements GrpcClient {
   private final Vertx vertx;
   private HttpClient client;
   private boolean closeClient;
+  private final boolean scheduleDeadlineAutomatically;
+  private final int timeout;
+  private final TimeUnit timeoutUnit;
 
-  public GrpcClientImpl(Vertx vertx, HttpClientOptions options) {
-    this(vertx, vertx.createHttpClient(new HttpClientOptions(options)
-      .setProtocolVersion(HttpVersion.HTTP_2)), true);
+  public GrpcClientImpl(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
+    this(vertx, grpcOptions, vertx.createHttpClient(new HttpClientOptions(httpOptions).setProtocolVersion(HttpVersion.HTTP_2)), true);
   }
 
   public GrpcClientImpl(Vertx vertx) {
-    this(vertx, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
+    this(vertx, new GrpcClientOptions(), new HttpClientOptions().setHttp2ClearTextUpgrade(false));
   }
 
   public GrpcClientImpl(Vertx vertx, HttpClient client) {
-    this(vertx, client, false);
+    this(vertx, new GrpcClientOptions(), client, false);
   }
 
-  private GrpcClientImpl(Vertx vertx, HttpClient client, boolean close) {
+  private GrpcClientImpl(Vertx vertx, GrpcClientOptions grpcOptions, HttpClient client, boolean close) {
     this.vertx = vertx;
     this.client = client;
+    this.scheduleDeadlineAutomatically = grpcOptions.getScheduleDeadlineAutomatically();
+    this.timeout = grpcOptions.getTimeout();
+    this.timeoutUnit = grpcOptions.getTimeoutUnit();
     this.closeClient = close;
   }
 
   private Future<GrpcClientRequest<Buffer, Buffer>> request(RequestOptions options) {
     return client.request(options)
-      .map(request -> new GrpcClientRequestImpl<>(request, GrpcMessageEncoder.IDENTITY, GrpcMessageDecoder.IDENTITY));
+      .map(httpRequest -> {
+        GrpcClientRequestImpl<Buffer, Buffer> grpcRequest = new GrpcClientRequestImpl<>(httpRequest, scheduleDeadlineAutomatically, GrpcMessageEncoder.IDENTITY, GrpcMessageDecoder.IDENTITY);
+        configureTimeout(grpcRequest);
+        return grpcRequest;
+      });
   }
 
   @Override
@@ -70,13 +83,29 @@ public class GrpcClientImpl implements GrpcClient {
     return request(new RequestOptions().setMethod(HttpMethod.POST).setServer(server));
   }
 
+  private void configureTimeout(GrpcClientRequest<?, ?> request) {
+    ContextInternal current = (ContextInternal) vertx.getOrCreateContext();
+    GrpcRequestLocal local = current.getLocal(GrpcRequestLocal.CONTEXT_LOCAL_KEY);
+    long timeout = this.timeout;
+    TimeUnit timeoutUnit = this.timeoutUnit;
+    if (local != null) {
+      timeout = local.deadline - System.currentTimeMillis();
+      timeoutUnit = TimeUnit.MILLISECONDS;
+      if (timeout < 0L) {
+        throw new UnsupportedOperationException("Handle this case");
+      }
+    }
+    request.timeout(timeout, timeoutUnit);
+  }
+
   private <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(RequestOptions options, MethodDescriptor<Req, Resp> service) {
     GrpcMessageDecoder<Resp> messageDecoder = GrpcMessageDecoder.unmarshaller(service.getResponseMarshaller());
     GrpcMessageEncoder<Req> messageEncoder = GrpcMessageEncoder.marshaller(service.getRequestMarshaller());
     return client.request(options)
       .map(request -> {
-        GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(request, messageEncoder, messageDecoder);
+        GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(request, scheduleDeadlineAutomatically, messageEncoder, messageDecoder);
         call.fullMethodName(service.getFullMethodName());
+        configureTimeout(call);
         return call;
       });
   }

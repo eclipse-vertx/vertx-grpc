@@ -10,7 +10,6 @@
  */
 package io.vertx.grpc.server;
 
-import com.google.protobuf.Descriptors;
 import io.grpc.*;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloReply;
@@ -21,14 +20,15 @@ import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.MultiMap;
-import io.vertx.core.buffer.Buffer;
+import io.vertx.core.Timer;
 import io.vertx.core.http.*;
+import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.net.SelfSignedCertificate;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.impl.GrpcRequestLocal;
 import org.junit.Test;
 
 import java.io.File;
@@ -328,20 +328,9 @@ public class ServerRequestTest extends ServerTest {
       long timeout = call.timeout();
       long limit = TimeUnit.SECONDS.toMillis(7);
       should.assertTrue(limit <= timeout);
-//      Context grpcContext = Context.current();
-//      should.assertNotNull(grpcContext.getDeadline());
-//      should.assertTrue(limit <= grpcContext.getDeadline().timeRemaining(TimeUnit.MILLISECONDS));
       call.messageHandler(hello -> {
-//        Context handlerContext = Context.current();
-//        should.assertNotNull(handlerContext);
-//        should.assertNotNull(handlerContext.getDeadline());
-//        should.assertTrue(limit <= handlerContext.getDeadline().timeRemaining(TimeUnit.MILLISECONDS));
       });
       call.endHandler(v -> {
-//        Context handlerContext = Context.current();
-//        should.assertNotNull(handlerContext);
-//        should.assertNotNull(handlerContext.getDeadline());
-//        should.assertTrue(limit <= handlerContext.getDeadline().timeRemaining(TimeUnit.MILLISECONDS));
         response.end(HelloReply.newBuilder().build());
       });
     }));
@@ -359,9 +348,11 @@ public class ServerRequestTest extends ServerTest {
   @Test
   public void testTimeoutOnServerBeforeSendingResponse(TestContext should) throws Exception {
     Async async = should.async();
-    startServer(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
+    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setScheduleDeadlineAutomatically(true)).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
       should.assertTrue(call.timeout() > 0L);
-      call.scheduleDeadline();
+      Timer deadline = call.deadline();
+      should.assertNotNull(deadline);
+      should.assertTrue(deadline.getDelay(TimeUnit.MILLISECONDS) > 0L);
       GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
       async.complete();
     }));
@@ -371,9 +362,8 @@ public class ServerRequestTest extends ServerTest {
 
   @Test
   public void testTimeoutOnServerAfterSendingResponse(TestContext should) throws Exception {
-    startServer(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
+    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setScheduleDeadlineAutomatically(true)).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
       GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
-      call.scheduleDeadline();
       response.end();
     }));
 
@@ -388,6 +378,34 @@ public class ServerRequestTest extends ServerTest {
           resp.endHandler(v -> {
             String status = resp.getTrailer("grpc-status");
             should.assertEquals(String.valueOf(GrpcStatus.OK.code), status);
+            async.complete();
+          });
+        }));
+        req.sendHead();
+      }));
+
+    async.awaitSuccess();
+  }
+
+  @Test
+  public void testTimeoutPropagationOnServer(TestContext should) throws Exception {
+    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setDeadlinePropagation(true)).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
+      GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+      GrpcRequestLocal local = ((ContextInternal)vertx.getOrCreateContext()).getLocal(GrpcRequestLocal.CONTEXT_LOCAL_KEY);
+      should.assertNotNull(local);
+      should.assertTrue(local.deadline - System.currentTimeMillis() > 8000);
+      response.end();
+    }));
+
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setHttp2ClearTextUpgrade(false)
+      .setProtocolVersion(HttpVersion.HTTP_2));
+    Async async = should.async();
+    client.request(HttpMethod.POST, port, "localhost", "/helloworld.Greeter/SayHello")
+      .onComplete(should.asyncAssertSuccess(req -> {
+        req.putHeader("grpc-timeout", "10S");
+        req.response().onComplete(should.asyncAssertSuccess(resp -> {
+          resp.endHandler(v -> {
             async.complete();
           });
         }));
