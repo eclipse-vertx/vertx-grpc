@@ -79,12 +79,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
         if (deadline != null) {
           long timeout = deadline.timeRemaining(TimeUnit.MILLISECONDS);
           request.timeout(timeout, TimeUnit.MILLISECONDS);
-          sf = deadline.runOnExpiration(new Runnable() {
-            @Override
-            public void run() {
-              request.cancel();
-            }
-          }, new VertxScheduledExecutorService(((GrpcClientRequestImpl)request).context()));
+          sf = deadline.runOnExpiration(() -> request.cancel(), new VertxScheduledExecutorService(((GrpcClientRequestImpl)request).context()));
         } else {
           sf = null;
         }

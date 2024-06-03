@@ -94,13 +94,24 @@ public interface GrpcClientRequest<Req, Resp> extends GrpcWriteStream<Req> {
   @Override
   GrpcClientRequest<Req, Resp> drainHandler(@Nullable Handler<Void> handler);
 
+  /**
+   * <p>Set a {@code grpc-timeout} header to be sent to the server to indicate the client expects a response with
+   * a timeout.</p>
+   *
+   * <p>When the request handle deadline a timer will be set when sending the request to cancel the request when the response
+   * has not been received in time.</p>
+   *
+   * @param timeout
+   * @param unit
+   * @return
+   */
   @Fluent
   GrpcClientRequest<Req, Resp> timeout(long timeout, TimeUnit unit);
 
   /**
-   * Schedule a deadline when sending this request
+   * @return the request deadline or {@code null} when no deadline has been scheduled
    */
-  Timer scheduleDeadline();
+  Timer deadline();
 
   /**
    * Sets the amount of time after which, if the request does not return any data within the timeout period,

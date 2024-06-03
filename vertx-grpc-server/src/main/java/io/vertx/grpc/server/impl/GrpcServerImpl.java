@@ -10,7 +10,6 @@
  */
 package io.vertx.grpc.server.impl;
 
-import io.grpc.Context;
 import io.grpc.MethodDescriptor;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -21,20 +20,18 @@ import io.vertx.core.http.impl.HttpServerRequestInternal;
 import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.impl.logging.Logger;
 import io.vertx.core.impl.logging.LoggerFactory;
+import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.GrpcMediaType;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.impl.GrpcRequestLocal;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
-import io.vertx.grpc.common.impl.VertxScheduledExecutorService;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.Objects;
 
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
@@ -43,21 +40,6 @@ import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
 public class GrpcServerImpl implements GrpcServer {
-
-  private static final Pattern TIMEOUT_PATTERN = Pattern.compile("([0-9]{1,8})([HMSmun])");
-
-  private static final Map<String, TimeUnit> TIMEOUT_MAPPING;
-
-  static {
-    Map<String, TimeUnit> timeoutMapping = new HashMap<>();
-    timeoutMapping.put("H", TimeUnit.HOURS);
-    timeoutMapping.put("M", TimeUnit.MINUTES);
-    timeoutMapping.put("S", TimeUnit.SECONDS);
-    timeoutMapping.put("m", TimeUnit.MILLISECONDS);
-    timeoutMapping.put("u", TimeUnit.MICROSECONDS);
-    timeoutMapping.put("n", TimeUnit.NANOSECONDS);
-    TIMEOUT_MAPPING = timeoutMapping;
-  }
 
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
@@ -115,20 +97,14 @@ public class GrpcServerImpl implements GrpcServer {
                                   GrpcMessageEncoder<Resp> messageEncoder,
                                   Handler<GrpcServerRequest<Req, Resp>> handler) {
     io.vertx.core.impl.ContextInternal context = (ContextInternal) ((HttpServerRequestInternal) httpRequest).context();
-    GrpcServerRequestImpl<Req, Resp> grpcRequest = new GrpcServerRequestImpl<>(context, httpRequest, messageDecoder, messageEncoder, methodCall);
+    GrpcServerRequestImpl<Req, Resp> grpcRequest = new GrpcServerRequestImpl<>(context, options.getScheduleDeadlineAutomatically(),
+      httpRequest, messageDecoder, messageEncoder, methodCall);
+    if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
+      long deadline = System.currentTimeMillis() + grpcRequest.timeout;
+      context.putLocal(GrpcRequestLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcRequestLocal(deadline));
+    }
     grpcRequest.init();
     context.dispatch(grpcRequest, handler);
-  }
-
-  private static long parseTimeout(String timeout) {
-    Matcher matcher = TIMEOUT_PATTERN.matcher(timeout);
-    if (matcher.matches()) {
-      long value = Long.parseLong(matcher.group(1));
-      TimeUnit unit = TIMEOUT_MAPPING.get(matcher.group(2));
-      return unit.toMillis(value);
-    } else {
-      return 0L;
-    }
   }
 
   public GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {

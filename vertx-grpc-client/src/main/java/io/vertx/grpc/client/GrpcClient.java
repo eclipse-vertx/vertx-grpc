@@ -53,6 +53,28 @@ public interface GrpcClient {
   }
 
   /**
+   * Create a client.
+   *
+   * @param vertx the vertx instance
+   * @return the created client
+   */
+  static GrpcClient client(Vertx vertx, GrpcClientOptions options) {
+    return new GrpcClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
+  }
+
+  /**
+   * Create a client with the specified {@code options}.
+   *
+   * @param vertx the vertx instance
+   * @param grpcOptions the http client options
+   * @param httpOptions the http client options
+   * @return the created client
+   */
+  static GrpcClient client(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
+    return new GrpcClientImpl(vertx, grpcOptions, httpOptions);
+  }
+
+  /**
    * Create a client with the specified {@code options}.
    *
    * @param vertx the vertx instance
@@ -60,7 +82,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, HttpClientOptions options) {
-    return new GrpcClientImpl(vertx, options);
+    return new GrpcClientImpl(vertx, new GrpcClientOptions(), options);
   }
 
   /**

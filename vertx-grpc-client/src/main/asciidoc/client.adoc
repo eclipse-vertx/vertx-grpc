@@ -1,8 +1,8 @@
 == Vert.x gRPC Client
 
-Vert.x gRPC Client is a new gRPC client powered by Vert.x HTTP client superseding the integrated Netty based gRPC client.
+Vert.x gRPC Client is a gRPC client powered by Vert.x HTTP client.
 
-This client provides a gRPC request/response oriented API as well as a the generated stub approach with a gRPC Channel
+This client provides a gRPC request/response oriented API as well as a generated stub approach with a gRPC Channel
 
 === Using Vert.x gRPC Client
 
@@ -41,7 +41,7 @@ You can easily create the gRPC client
 
 ==== Request/response
 
-Any interaction with a gRPC server involves creating a request to the remote gRPC service
+Interacting with a gRPC server involves creating a request to the remote gRPC service
 
 [source,java]
 ----
@@ -65,7 +65,7 @@ Future composition can combine all the previous steps together in a compact fash
 
 ==== Streaming request
 
-A streaming request involves calling `{@link io.vertx.grpc.client.GrpcClientRequest#write}` for each element of the stream
+Streaming requests involve calling `{@link io.vertx.grpc.client.GrpcClientRequest#write}` for each element of the stream
 and using `{@link io.vertx.grpc.client.GrpcClientRequest#end()}` to end the stream
 
 [source,java]
@@ -75,7 +75,7 @@ and using `{@link io.vertx.grpc.client.GrpcClientRequest#end()}` to end the stre
 
 ==== Streaming response
 
-You can set handlers to process response events
+You can set handlers to process response events of a streaming response
 
 [source,java]
 ----
@@ -104,6 +104,26 @@ You can pause/resume/fetch a response
 {@link examples.GrpcClientExamples#responseFlowControl}
 ----
 
+=== Timeout and deadlines
+
+The gRPC client handles timeout and deadlines, setting a timeout on a gRPC request instructs the client to send the timeout
+information to make the server aware that the client desires a response within a defined time.
+
+In addition, the client shall be configured to schedule a deadline: when a timeout is set on a request, the client schedules
+locally a timer to cancel the request when the response has not been received in time.
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#requestWithDeadline}
+----
+
+The timeout can also be set on a per-request basis.
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#requestWithDeadline2}
+----
+
 === Cancellation
 
 You can call `{@link io.vertx.grpc.client.GrpcClientRequest#cancel}` to cancel a request
@@ -126,7 +146,7 @@ You can compress request messages by setting the request encoding *prior* before
 
 === Decompression
 
-Decompression is done transparently by the client when the server send encoded responses.
+Decompression is achieved transparently by the client when the server sends encoded responses.
 
 === Stub API
 
@@ -134,8 +154,19 @@ The Vert.x gRPC Client provides a gRPC channel to use with a generated client st
 
 [source,java]
 ----
-{@link examples.GrpcClientExamples#stubExample}
+{@link examples.GrpcClientExamples#stub}
 ----
+
+Timeout and deadlines are supported through the usual gRPC API.
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#stubWithDeadline}
+----
+
+Deadline are cascaded, e.g. when the current `io.grpc.Context` carries a deadline and the stub has no explicit deadline
+set, the client automatically inherits the implicit deadline. Such deadline can be set when using a stub within a gRPC server
+call.
 
 === Message level API
 

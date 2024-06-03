@@ -21,12 +21,15 @@ import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.StreamResetException;
+import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.net.SelfSignedCertificate;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.impl.GrpcRequestLocal;
 import org.junit.Test;
 
 import java.io.File;
@@ -533,12 +536,11 @@ public class ClientRequestTest extends ClientTest {
   @Test
   public void testTimeoutOnClient(TestContext should) throws Exception {
     super.testTimeoutOnClient(should);
-    client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx, new GrpcClientOptions().setScheduleDeadlineAutomatically(true));
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSinkMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest
-          .timeout(1, TimeUnit.SECONDS)
-          .scheduleDeadline();
+          .timeout(1, TimeUnit.SECONDS);
         callRequest.write(Item.getDefaultInstance());
         callRequest.response().onComplete(should.asyncAssertFailure(err -> {
           should.assertTrue(err instanceof StreamResetException);
@@ -549,16 +551,34 @@ public class ClientRequestTest extends ClientTest {
   }
 
   @Test
+  public void testTimeoutOnClientPropagation(TestContext should) throws Exception {
+    super.testTimeoutOnClient(should);
+    client = GrpcClient.client(vertx, new GrpcClientOptions().setScheduleDeadlineAutomatically(true));
+    ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
+    context.runOnContext(v -> {
+      context.putLocal(GrpcRequestLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcRequestLocal(System.currentTimeMillis() + 1000));
+      client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSinkMethod())
+        .onComplete(should.asyncAssertSuccess(callRequest -> {
+          callRequest.write(Item.getDefaultInstance());
+          callRequest.response().onComplete(should.asyncAssertFailure(err -> {
+            should.assertTrue(err instanceof StreamResetException);
+            StreamResetException sre = (StreamResetException) err;
+            should.assertEquals(8L, sre.getCode());
+          }));
+        }));
+    });
+  }
+
+  @Test
   public void testTimeoutPropagationToServer(TestContext should) throws Exception {
     CompletableFuture<Long> cf = new CompletableFuture<>();
     super.testTimeoutPropagationToServer(cf);
     Async done = should.async();
-    client = GrpcClient.client(vertx);
+    client = GrpcClient.client(vertx, new GrpcClientOptions().setScheduleDeadlineAutomatically(true));
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), GreeterGrpc.getSayHelloMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest
-          .timeout(10, TimeUnit.SECONDS)
-          .scheduleDeadline();
+          .timeout(10, TimeUnit.SECONDS);
         callRequest.end(HelloRequest.newBuilder().setName("Julien").build());
         callRequest.response().onComplete(should.asyncAssertSuccess(e -> {
           long timeRemaining = cf.getNow(-1L);

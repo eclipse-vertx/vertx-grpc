@@ -213,7 +213,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
 
   @Override
   public Future<Void> end() {
-    // SHOULD BE MAPPED ON GRPC CONTEXT TOO ????
     return end.future();
   }
 }

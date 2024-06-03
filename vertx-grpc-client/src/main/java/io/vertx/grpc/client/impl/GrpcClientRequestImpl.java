@@ -17,6 +17,7 @@ import io.vertx.core.Timer;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
 
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +43,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
   private final ContextInternal context;
   private final HttpClientRequest httpRequest;
   private final GrpcMessageEncoder<Req> messageEncoder;
+  private final boolean scheduleDeadline;
   private ServiceName serviceName;
   private String methodName;
   private String encoding = null;
@@ -52,12 +54,19 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
   private MultiMap headers;
   private long timeout;
   private TimeUnit timeoutUnit;
-  private Timer timeoutTimer;
+  private String timeoutHeader;
+  private Timer deadline;
 
-  public GrpcClientRequestImpl(HttpClientRequest httpRequest, GrpcMessageEncoder<Req> messageEncoder, GrpcMessageDecoder<Resp> messageDecoder) {
+  public GrpcClientRequestImpl(HttpClientRequest httpRequest,
+                               boolean scheduleDeadline,
+                               GrpcMessageEncoder<Req> messageEncoder, GrpcMessageDecoder<Resp> messageDecoder) {
     this.context = ((PromiseInternal<?>)httpRequest.response()).context();
     this.httpRequest = httpRequest;
     this.messageEncoder = messageEncoder;
+    this.scheduleDeadline = scheduleDeadline;
+    this.timeout = 0L;
+    this.timeoutUnit = null;
+    this.timeoutHeader = null;
     this.response = httpRequest
       .response()
       .map(httpResponse -> {
@@ -145,22 +154,19 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
     if (headersSent) {
       throw new IllegalStateException("Timeout must be set before sending request headers");
     }
-    this.timeoutUnit = Objects.requireNonNull(unit);
+    String headerValue = toTimeoutHeader(timeout, unit);
+    if (headerValue == null) {
+      throw new IllegalArgumentException("Not a valid gRPC timeout value (" + timeout + ',' + unit + ')');
+    }
     this.timeout = timeout;
+    this.timeoutUnit = unit;
+    this.timeoutHeader = headerValue;
     return this;
   }
 
   @Override
-  public Timer scheduleDeadline() {
-    if (timeout > 0L && timeoutTimer ==null) {
-      Timer timer = context.timer(timeout, TimeUnit.MILLISECONDS);
-      timeoutTimer = timer;
-      timer.onSuccess(v -> {
-        cancel();
-      });
-      return timer;
-    }
-    throw new IllegalStateException();
+  public Timer deadline() {
+    return deadline;
   }
 
   @Override
@@ -236,7 +242,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
         }
       }
       if (timeout > 0L) {
-        httpRequest.putHeader("grpc-timeout", timeoutUnit.toMicros(timeout) + "u");
+        httpRequest.putHeader("grpc-timeout", timeoutHeader);
       }
       String uri = serviceName.pathOf(methodName);
       httpRequest.putHeader("content-type", "application/grpc");
@@ -247,6 +253,13 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
       httpRequest.putHeader("te", "trailers");
       httpRequest.setChunked(true);
       httpRequest.setURI(uri);
+      if (scheduleDeadline && timeout > 0L) {
+        Timer timer = context.timer(timeout, timeoutUnit);
+        deadline = timer;
+        timer.onSuccess(v -> {
+          cancel();
+        });
+      }
       headersSent = true;
     }
     if (end) {
@@ -258,9 +271,9 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
   }
 
   void cancelTimeout() {
-    Timer timer = timeoutTimer;
+    Timer timer = deadline;
     if (timer != null && timer.cancel()) {
-      timeoutTimer = null;
+      deadline = null;
     }
   }
 
@@ -307,5 +320,50 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
   @Override
   public HttpConnection connection() {
     return httpRequest.connection();
+  }
+
+  private static final EnumMap<TimeUnit, Character> GRPC_TIMEOUT_UNIT_SUFFIXES = new EnumMap<>(TimeUnit.class);
+
+  static {
+    GRPC_TIMEOUT_UNIT_SUFFIXES.put(TimeUnit.NANOSECONDS, 'n');
+    GRPC_TIMEOUT_UNIT_SUFFIXES.put(TimeUnit.MICROSECONDS, 'u');
+    GRPC_TIMEOUT_UNIT_SUFFIXES.put(TimeUnit.MILLISECONDS, 'm');
+    GRPC_TIMEOUT_UNIT_SUFFIXES.put(TimeUnit.SECONDS, 'S');
+    GRPC_TIMEOUT_UNIT_SUFFIXES.put(TimeUnit.MINUTES, 'M');
+    GRPC_TIMEOUT_UNIT_SUFFIXES.put(TimeUnit.HOURS, 'H');
+  }
+
+  private static final TimeUnit[] GRPC_TIMEOUT_UNITS = {
+    TimeUnit.NANOSECONDS,
+    TimeUnit.MICROSECONDS,
+    TimeUnit.MILLISECONDS,
+    TimeUnit.SECONDS,
+    TimeUnit.MINUTES,
+    TimeUnit.HOURS,
+  };
+
+  /**
+   * Compute timeout header, returns {@code null} when the timeout value is not valid.
+   *
+   * @param timeout the timeout
+   * @param timeoutUnit the timeout unit
+   * @return the grpc-timeout header value, e.g. 1M (1 minute)
+   */
+  static String toTimeoutHeader(long timeout, TimeUnit timeoutUnit) {
+    for (TimeUnit grpcTimeoutUnit : GRPC_TIMEOUT_UNITS) {
+      String res = toTimeoutHeader(timeout, timeoutUnit, grpcTimeoutUnit);
+      if (res != null) {
+        return res;
+      }
+    }
+    return null;
+  }
+
+  private static String toTimeoutHeader(long timeout, TimeUnit srcUnit, TimeUnit grpcTimeoutUnit) {
+    long v = grpcTimeoutUnit.convert(timeout, srcUnit);
+    if (v < 1_000_000_00) {
+      return Long.toString(v) + GRPC_TIMEOUT_UNIT_SUFFIXES.get(grpcTimeoutUnit);
+    }
+    return null;
   }
 }
