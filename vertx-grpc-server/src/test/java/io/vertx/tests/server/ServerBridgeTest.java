@@ -17,13 +17,20 @@ import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.examples.streaming.Empty;
 import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
+import io.grpc.protobuf.StatusProto;
+import io.grpc.examples.streaming.StreamingGrpc.StreamingImplBase;
+import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.Promise;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServiceBridge;
 import org.junit.Ignore;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -474,5 +481,79 @@ public class ServerBridgeTest extends ServerTest {
     HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
     HelloReply res = stub.sayHello(request);
     should.assertEquals(1, testAttributesStep.get());
+  }
+
+  @Test
+  public void testCallNetworkInterrupted(TestContext should) throws InterruptedException, IOException {
+    AtomicInteger requestCount = new AtomicInteger();
+    Promise<Void> completed = Promise.promise();
+    Async async = should.async();
+
+    StreamingGrpc.StreamingImplBase impl = new StreamingImplBase() {
+      @Override
+      public StreamObserver<Item> pipe(StreamObserver<Item> responseObserver) {
+        return new StreamObserver<Item>() {
+          @Override
+          public void onNext(Item item) {
+            requestCount.incrementAndGet();
+          }
+
+          @Override
+          public void onError(Throwable throwable) {
+            completed.fail(throwable);
+            async.complete();
+          }
+
+          @Override
+          public void onCompleted() {
+            completed.complete();
+            async.complete();
+          }
+        };
+      }
+    };
+
+    GrpcServer server = GrpcServer.server(vertx);
+    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    serverStub.bind(server);
+    startServer(server);
+
+    Process client = ProcessHelper.exec(ServerBridgeTest.class, Collections.singletonList(String.valueOf(port)));
+    // waiting for doing request
+    Thread.sleep(1_000);
+    client.destroy();
+    client.waitFor();
+
+    async.await(20_000);
+
+    should.assertEquals(requestCount.get(), 3);
+    should.assertTrue(completed.future().failed());
+  }
+
+  public static void main(String... args) throws InterruptedException {
+    StreamObserver<Item> noop = new StreamObserver<Item>() {
+      @Override public void onNext(Item item) {
+
+      }
+
+      @Override public void onError(Throwable throwable) {
+
+      }
+
+      @Override public void onCompleted() {
+
+      }
+    };
+
+    Channel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(args[0])).usePlaintext().build();
+    StreamingGrpc.StreamingStub stub = StreamingGrpc.newStub(channel);
+    StreamObserver<Item> requestObserver = stub.pipe(noop);
+    Item request = Item.newBuilder().setValue("item").build();
+    requestObserver.onNext(request);
+    requestObserver.onNext(request);
+    requestObserver.onNext(request);
+
+    // waiting to be killed
+    Thread.currentThread().join();
   }
 }
