@@ -10,7 +10,7 @@
  */
 package io.vertx.grpc.common.impl;
 
-import io.vertx.core.impl.VertxBuilder;
+import io.vertx.core.internal.VertxBootstrap;
 import io.vertx.core.spi.VertxServiceProvider;
 import io.vertx.core.spi.context.storage.ContextLocal;
 
@@ -22,6 +22,6 @@ public class GrpcRequestLocalRegistration implements VertxServiceProvider {
   static final ContextLocal<GrpcRequestLocal> CONTEXT_LOCAL = ContextLocal.registerLocal(GrpcRequestLocal.class);
 
   @Override
-  public void init(VertxBuilder builder) {
+  public void init(VertxBootstrap builder) {
   }
 }

@@ -11,7 +11,7 @@
 package io.vertx.grpc.common.impl;
 
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.buffer.impl.BufferInternal;
+import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcMessage;
 
 public class GrpcMessageImpl implements GrpcMessage {

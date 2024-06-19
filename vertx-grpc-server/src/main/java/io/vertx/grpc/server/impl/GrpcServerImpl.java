@@ -17,9 +17,9 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.impl.HttpServerRequestInternal;
-import io.vertx.core.impl.ContextInternal;
-import io.vertx.core.impl.logging.Logger;
-import io.vertx.core.impl.logging.LoggerFactory;
+import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.logging.Logger;
+import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.GrpcMediaType;
 import io.vertx.grpc.common.GrpcMessageDecoder;
@@ -96,7 +96,7 @@ public class GrpcServerImpl implements GrpcServer {
                                   GrpcMessageDecoder<Req> messageDecoder,
                                   GrpcMessageEncoder<Resp> messageEncoder,
                                   Handler<GrpcServerRequest<Req, Resp>> handler) {
-    io.vertx.core.impl.ContextInternal context = (ContextInternal) ((HttpServerRequestInternal) httpRequest).context();
+    io.vertx.core.internal.ContextInternal context = (ContextInternal) ((HttpServerRequestInternal) httpRequest).context();
     GrpcServerRequestImpl<Req, Resp> grpcRequest = new GrpcServerRequestImpl<>(context, options.getScheduleDeadlineAutomatically(),
       httpRequest, messageDecoder, messageEncoder, methodCall);
     if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {

@@ -22,7 +22,7 @@ import io.grpc.stub.StreamObserver;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
 import io.vertx.core.http.*;
-import io.vertx.core.impl.ContextInternal;
+import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.net.SelfSignedCertificate;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;

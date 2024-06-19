@@ -2,7 +2,7 @@ package io.grpc.override;
 
 import io.grpc.Context;
 import io.vertx.core.Vertx;
-import io.vertx.core.impl.ContextInternal;
+import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.contextstorage.GrpcStorage;
 import io.vertx.grpc.contextstorage.ContextStorageService;

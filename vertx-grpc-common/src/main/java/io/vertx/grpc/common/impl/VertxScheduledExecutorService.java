@@ -11,7 +11,7 @@
 package io.vertx.grpc.common.impl;
 
 import io.netty.channel.EventLoop;
-import io.vertx.core.impl.ContextInternal;
+import io.vertx.core.internal.ContextInternal;
 
 import java.util.List;
 import java.util.concurrent.*;
@@ -21,7 +21,7 @@ import java.util.concurrent.*;
  */
 public class VertxScheduledExecutorService extends AbstractExecutorService implements ScheduledExecutorService {
 
-  private final io.vertx.core.impl.ContextInternal vertxContext;
+  private final ContextInternal vertxContext;
 
   public VertxScheduledExecutorService(io.vertx.core.Context vertxContext) {
     this.vertxContext = (ContextInternal) vertxContext;

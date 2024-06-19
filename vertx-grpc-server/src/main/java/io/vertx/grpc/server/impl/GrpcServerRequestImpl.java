@@ -17,7 +17,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.buffer.impl.BufferInternal;
+import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
@@ -27,7 +27,6 @@ import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -79,7 +78,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   private BufferInternal grpcWebTextBuffer;
   private Timer deadline;
 
-  public GrpcServerRequestImpl(io.vertx.core.impl.ContextInternal context,
+  public GrpcServerRequestImpl(io.vertx.core.internal.ContextInternal context,
                                boolean scheduleDeadline,
                                HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMessageEncoder<Resp> messageEncoder, GrpcMethodCall methodCall) {

@@ -10,16 +10,13 @@
  */
 package io.vertx.grpc.client.impl;
 
-import io.grpc.Context;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClientResponse;
 
-import io.vertx.core.impl.ContextInternal;
+import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcMessageDecoder;
