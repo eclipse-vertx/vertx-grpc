@@ -11,7 +11,7 @@
 package io.vertx.grpc.it;
 
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.grpc.common.GrpcTestBase;
+import io.vertx.tests.common.GrpcTestBase;
 import org.junit.runner.RunWith;
 
 /**

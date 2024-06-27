@@ -1,15 +1,20 @@
 package io.vertx.grpc.client;
 
-import io.grpc.*;
+import io.grpc.ClientCall;
+import io.grpc.MethodDescriptor;
+import io.grpc.Compressor;
+import io.grpc.Decompressor;
+import io.grpc.DecompressorRegistry;
+import io.grpc.Deadline;
+import io.grpc.Metadata;
+import io.grpc.Status;
 import io.vertx.core.Future;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
-import io.vertx.grpc.client.impl.GrpcClientResponseImpl;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.impl.*;
 
-import javax.annotation.Nullable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -166,7 +171,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
   }
 
   @Override
-  public void cancel(@Nullable String message, @Nullable Throwable cause) {
+  public void cancel(String message, Throwable cause) {
     fut.onSuccess(req -> {
       req.cancel();
     });

@@ -17,8 +17,8 @@ import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.concurrent.InboundMessageQueue;
 import io.vertx.core.streams.ReadStream;
-import io.vertx.core.streams.impl.InboundBuffer;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcMessage;
@@ -48,7 +48,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   protected final ContextInternal context;
   private final String encoding;
   private final ReadStream<Buffer> stream;
-  private final InboundBuffer<GrpcMessage> queue;
+  private final InboundMessageQueue<GrpcMessage> queue;
   private Buffer buffer;
   private Handler<GrpcError> errorHandler;
   private Handler<Throwable> exceptionHandler;
@@ -59,12 +59,30 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private final Promise<Void> end;
 
   protected GrpcReadStreamBase(Context context, ReadStream<Buffer> stream, String encoding, GrpcMessageDecoder<T> messageDecoder) {
-    this.context = (ContextInternal) context;
+    ContextInternal ctx = (ContextInternal) context;
+    this.context = ctx;
     this.encoding = encoding;
     this.stream = stream;
-    this.queue = new InboundBuffer<>(context);
+    this.queue = new InboundMessageQueue<>(ctx.nettyEventLoop(), ctx, 8, 16) {
+      @Override
+      protected void handleResume() {
+        stream.resume();
+      }
+      @Override
+      protected void handlePause() {
+        stream.pause();
+      }
+      @Override
+      protected void handleMessage(GrpcMessage msg) {
+        if (msg == END_SENTINEL) {
+          handleEnd();
+        } else {
+          GrpcReadStreamBase.this.handleMessage(msg);
+        }
+      }
+    };
     this.messageDecoder = messageDecoder;
-    this.end = ((ContextInternal) context).promise();
+    this.end = ctx.promise();
   }
 
   public void init() {
@@ -75,14 +93,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
         handleReset(((StreamResetException)err).getCode());
       } else {
         handleException(err);
-      }
-    });
-    queue.drainHandler(v -> stream.resume());
-    queue.handler(msg -> {
-      if (msg == END_SENTINEL) {
-        handleEnd();
-      } else {
-        handleMessage(msg);
       }
     });
   }
@@ -109,7 +119,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
       buffer.appendBuffer(chunk);
     }
     int idx = 0;
-    boolean pause = false;
     int len;
     while (idx + 5 <= buffer.length() && (idx + 5 + (len = buffer.getInt(idx + 1)))<= buffer.length()) {
       boolean compressed = buffer.getByte(idx) == 1;
@@ -118,11 +127,8 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
       }
       Buffer payload = buffer.slice(idx + 5, idx + 5 + len);
       GrpcMessage message = GrpcMessage.message(compressed ? encoding : "identity", payload);
-      pause |= !queue.write(message);
+      queue.write(message);
       idx += 5 + len;
-    }
-    if (pause) {
-      stream.pause();
     }
     if (idx < buffer.length()) {
       buffer = buffer.getBuffer(idx, buffer.length());
@@ -137,8 +143,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   }
 
   public S resume() {
-    queue.resume();
-    return (S) this;
+    return fetch(Long.MAX_VALUE);
   }
 
   public S fetch(long amount) {
