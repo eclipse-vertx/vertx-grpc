@@ -349,7 +349,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
    * @param timeoutUnit the timeout unit
    * @return the grpc-timeout header value, e.g. 1M (1 minute)
    */
-  static String toTimeoutHeader(long timeout, TimeUnit timeoutUnit) {
+  public static String toTimeoutHeader(long timeout, TimeUnit timeoutUnit) {
     for (TimeUnit grpcTimeoutUnit : GRPC_TIMEOUT_UNITS) {
       String res = toTimeoutHeader(timeout, timeoutUnit, grpcTimeoutUnit);
       if (res != null) {

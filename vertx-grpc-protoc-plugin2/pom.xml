@@ -32,7 +32,6 @@
   <properties>
     <canteen.version>1.1.0</canteen.version>
     <protoc.version>3.21.12</protoc.version>
-    <jprotoc.version>1.2.1</jprotoc.version>
   </properties>
 
   <dependencies>
