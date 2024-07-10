@@ -13,8 +13,13 @@
   <artifactId>vertx-grpc-aggregator</artifactId>
   <version>5.0.0-SNAPSHOT</version>
 
+  <scm>
+    <connection>scm:git:git@github.com:eclipse-vertx/vertx-grpc.git</connection>
+    <developerConnection>scm:git:git@github.com:eclipse-vertx/vertx-grpc.git</developerConnection>
+    <url>git@github.com:eclipse-vertx/vertx-grpc.git</url>
+  </scm>
+
   <properties>
-    <stack.version>5.0.0-SNAPSHOT</stack.version>
     <grpc.version>1.65.0</grpc.version>
     <jprotoc.version>1.2.2</jprotoc.version>
     <protoc.version>4.27.2</protoc.version>
@@ -26,7 +31,7 @@
       <dependency>
         <groupId>io.vertx</groupId>
         <artifactId>vertx-dependencies</artifactId>
-        <version>${stack.version}</version>
+        <version>${project.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
