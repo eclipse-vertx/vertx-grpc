@@ -152,7 +152,6 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>33.2.1-jre</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.j2objc</groupId>
