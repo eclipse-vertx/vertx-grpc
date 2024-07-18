@@ -33,6 +33,7 @@ import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServiceBridge;
+import io.vertx.iogrpc.server.IoGrpcServiceBridge;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -40,7 +41,7 @@ import java.net.UnknownHostException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
+public class GrpcServiceBridgeImpl implements IoGrpcServiceBridge {
 
   private final ServerServiceDefinition serviceDef;
 

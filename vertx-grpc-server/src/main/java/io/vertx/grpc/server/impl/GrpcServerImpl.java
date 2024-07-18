@@ -29,6 +29,7 @@ import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.iogrpc.server.IoGrpcServer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +40,7 @@ import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class GrpcServerImpl implements GrpcServer {
+public class GrpcServerImpl implements IoGrpcServer {
 
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
@@ -107,12 +108,12 @@ public class GrpcServerImpl implements GrpcServer {
     context.dispatch(grpcRequest, handler);
   }
 
-  public GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {
+  public GrpcServerImpl callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {
     this.requestHandler = handler;
     return this;
   }
 
-  public <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler) {
+  public <Req, Resp> GrpcServerImpl callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler) {
     if (handler != null) {
       methodCallHandlers.put(methodDesc.getFullMethodName(), new MethodCallHandler<>(methodDesc, GrpcMessageDecoder.unmarshaller(methodDesc.getRequestMarshaller()), GrpcMessageEncoder.marshaller(methodDesc.getResponseMarshaller()), handler));
     } else {

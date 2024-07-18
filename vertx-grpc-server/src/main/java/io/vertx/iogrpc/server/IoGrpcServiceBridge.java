@@ -8,17 +8,18 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.grpc.server;
+package io.vertx.iogrpc.server;
 
 import io.grpc.BindableService;
 import io.grpc.ServerServiceDefinition;
+import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServiceBridge;
 import io.vertx.grpc.server.impl.GrpcServiceBridgeImpl;
 
 /**
  * Bridge a gRPC service with a {@link GrpcServer}.
  */
-@Deprecated
-public interface GrpcServiceBridge {
+public interface IoGrpcServiceBridge extends GrpcServiceBridge {
 
   /**
    * Create a stub for a given {@code service}.
@@ -26,7 +27,7 @@ public interface GrpcServiceBridge {
    * @param service the service
    * @return the stub
    */
-  static GrpcServiceBridge bridge(ServerServiceDefinition service) {
+  static IoGrpcServiceBridge bridge(ServerServiceDefinition service) {
     return new GrpcServiceBridgeImpl(service);
   }
 
@@ -36,22 +37,8 @@ public interface GrpcServiceBridge {
    * @param service the service
    * @return the stub
    */
-  static GrpcServiceBridge bridge(BindableService service) {
+  static IoGrpcServiceBridge bridge(BindableService service) {
     return bridge(service.bindService());
   }
-
-  /**
-   * Bind all service methods to the @{code server}.
-   *
-   * @param server the server to bind to
-   */
-  void bind(GrpcServer server);
-
-  /**
-   * Unbind all service methods from the @{code server}.
-   *
-   * @param server the server to unbind from
-   */
-  void unbind(GrpcServer server);
 
 }

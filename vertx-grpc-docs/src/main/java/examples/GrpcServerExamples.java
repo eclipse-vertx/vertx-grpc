@@ -12,6 +12,8 @@ import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.*;
+import io.vertx.iogrpc.server.IoGrpcServer;
+import io.vertx.iogrpc.server.IoGrpcServiceBridge;
 
 @Source
 public class GrpcServerExamples {
@@ -27,7 +29,7 @@ public class GrpcServerExamples {
       .listen();
   }
 
-  public void requestResponse(GrpcServer server) {
+  public void requestResponse(IoGrpcServer server) {
 
     server.callHandler(GreeterGrpc.getSayHelloMethod(), request -> {
 
@@ -42,7 +44,7 @@ public class GrpcServerExamples {
     });
   }
 
-  public void streamingRequest(GrpcServer server) {
+  public void streamingRequest(IoGrpcServer server) {
 
     server.callHandler(StreamingGrpc.getSinkMethod(), request -> {
       request.handler(item -> {
@@ -59,7 +61,7 @@ public class GrpcServerExamples {
     });
   }
 
-  public void streamingResponse(GrpcServer server) {
+  public void streamingResponse(IoGrpcServer server) {
 
     server.callHandler(StreamingGrpc.getSourceMethod(), request -> {
       GrpcServerResponse<Empty, Item> response = request.response();
@@ -72,7 +74,7 @@ public class GrpcServerExamples {
     });
   }
 
-  public void bidi(GrpcServer server) {
+  public void bidi(IoGrpcServer server) {
 
     server.callHandler(StreamingGrpc.getPipeMethod(), request -> {
 
@@ -140,7 +142,7 @@ public class GrpcServerExamples {
 
   public void stubExample(Vertx vertx, HttpServerOptions options) {
 
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
 
     GreeterGrpc.GreeterImplBase service = new GreeterGrpc.GreeterImplBase() {
       @Override
@@ -151,7 +153,7 @@ public class GrpcServerExamples {
     };
 
     // Bind the service bridge in the gRPC server
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(service);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(service);
     serverStub.bind(grpcServer);
 
     // Start the HTTP/2 server

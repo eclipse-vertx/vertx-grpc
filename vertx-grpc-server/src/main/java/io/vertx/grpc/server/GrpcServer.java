@@ -75,6 +75,7 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    * @param handler the service method call handler
    * @return a reference to this, so the API can be used fluently
    */
+  @Deprecated
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
 

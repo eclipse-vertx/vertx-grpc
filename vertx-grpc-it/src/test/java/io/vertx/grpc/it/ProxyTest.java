@@ -19,9 +19,10 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.client.GrpcClient;
+import io.vertx.iogrpc.client.IoGrpcClient;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.iogrpc.server.IoGrpcServer;
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -34,9 +35,9 @@ public class ProxyTest extends ProxyTestBase {
   @Test
   public void testUnary(TestContext should) {
 
-    GrpcClient client = GrpcClient.client(vertx);
+    IoGrpcClient client = IoGrpcClient.client(vertx);
 
-    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
+    Future<HttpServer> server = vertx.createHttpServer().requestHandler(IoGrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
       call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         call.response().end(helloReply);

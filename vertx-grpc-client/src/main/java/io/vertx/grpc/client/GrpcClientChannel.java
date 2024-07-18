@@ -12,19 +12,21 @@ package io.vertx.grpc.client;
 
 import io.grpc.*;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.iogrpc.client.IoGrpcClient;
 
 import java.util.concurrent.Executor;
 
 /**
  * Bridge a gRPC service with a {@link io.vertx.grpc.client.GrpcClient}.
  */
+@Deprecated
 public class GrpcClientChannel extends io.grpc.Channel {
 
-  private GrpcClient client;
+  private IoGrpcClient client;
   private SocketAddress server;
 
   public GrpcClientChannel(GrpcClient client, SocketAddress server) {
-    this.client = client;
+    this.client = (IoGrpcClient) client;
     this.server = server;
   }
 

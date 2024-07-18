@@ -31,6 +31,8 @@ import io.vertx.ext.unit.junit.RepeatRule;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServiceBridge;
+import io.vertx.iogrpc.server.IoGrpcServer;
+import io.vertx.iogrpc.server.IoGrpcServiceBridge;
 import org.junit.*;
 import org.junit.runner.RunWith;
 
@@ -264,8 +266,8 @@ public class ContextStorageTest {
       }
     });
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(def);
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(def);
     serverStub.bind(server);
 
     Async servertStart = should.async();

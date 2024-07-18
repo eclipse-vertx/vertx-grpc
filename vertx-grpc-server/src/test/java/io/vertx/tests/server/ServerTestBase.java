@@ -15,6 +15,7 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.iogrpc.server.IoGrpcServer;
 import io.vertx.tests.common.GrpcTestBase;
 import junit.framework.AssertionFailedError;
 import org.junit.runner.RunWith;
@@ -40,11 +41,11 @@ public abstract class ServerTestBase extends GrpcTestBase {
     super.tearDown(should);
   }
 
-  protected void startServer(GrpcServer server) {
+  protected void startServer(IoGrpcServer server) {
     startServer(new HttpServerOptions().setPort(8080).setHost("localhost"), server);
   }
 
-  protected void startServer(HttpServerOptions options, GrpcServer server) {
+  protected void startServer(HttpServerOptions options, IoGrpcServer server) {
     CompletableFuture<Void> res = new CompletableFuture<>();
     vertx.createHttpServer(options).requestHandler(server).listen()
       .onComplete(ar -> {

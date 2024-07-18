@@ -29,6 +29,8 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.iogrpc.client.IoGrpcClient;
+import io.vertx.iogrpc.server.IoGrpcServer;
 import io.vertx.test.fakestream.FakeStream;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -43,7 +45,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testHelloWorld(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxGreeterGrpcServer.GreeterApi() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
@@ -57,7 +59,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -74,7 +76,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testUnary_PromiseArg(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public void unaryCall(Messages.SimpleRequest request, Promise<Messages.SimpleResponse> response) {
@@ -88,7 +90,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -105,7 +107,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testUnary_FutureReturn(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public Future<Messages.SimpleResponse> unaryCall(Messages.SimpleRequest request) {
@@ -119,7 +121,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -136,7 +138,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testUnary_FutureReturn_ErrorHandling(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public Future<Messages.SimpleResponse> unaryCall(Messages.SimpleRequest request) {
@@ -148,7 +150,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -165,7 +167,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testManyUnary_PromiseArg(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public void streamingInputCall(ReadStream<Messages.StreamingInputCallRequest> request, Promise<Messages.StreamingInputCallResponse> response) {
@@ -184,7 +186,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -207,7 +209,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testManyUnary_FutureReturn(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public Future<Messages.StreamingInputCallResponse> streamingInputCall(ReadStream<Messages.StreamingInputCallRequest> request) {
@@ -228,7 +230,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -251,7 +253,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testManyUnary_FutureReturn_ErrorHandling(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public Future<Messages.StreamingInputCallResponse> streamingInputCall(ReadStream<Messages.StreamingInputCallRequest> request) {
@@ -263,7 +265,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -286,7 +288,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testUnaryMany_WriteStreamArg(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public void streamingOutputCall(Messages.StreamingOutputCallRequest request, WriteStream<Messages.StreamingOutputCallResponse> response) {
@@ -304,7 +306,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -327,7 +329,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testUnaryMany_ReadStreamReturn(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public ReadStream<Messages.StreamingOutputCallResponse> streamingOutputCall(Messages.StreamingOutputCallRequest request) {
@@ -348,7 +350,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -371,7 +373,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testUnaryMany_ReadStreamReturn_ErrorHandling(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public ReadStream<Messages.StreamingOutputCallResponse> streamingOutputCall(Messages.StreamingOutputCallRequest request) {
@@ -383,7 +385,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -401,7 +403,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testmanyMany_WriteStreamArg(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public void fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request, WriteStream<Messages.StreamingOutputCallResponse> response) {
@@ -421,7 +423,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -449,7 +451,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testmanyMany_ReadStreamReturn(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public ReadStream<Messages.StreamingOutputCallResponse> fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request) {
@@ -471,7 +473,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -499,7 +501,7 @@ public class ProtocPluginTest extends ProxyTestBase {
   @Test
   public void testmanyMany_ReadStreamReturn_ErrorHandling(TestContext should) throws Exception {
     // Create gRPC Server
-    GrpcServer grpcServer = GrpcServer.server(vertx);
+    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
       public ReadStream<Messages.StreamingOutputCallResponse> fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request) {
@@ -511,7 +513,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
 
     // Create gRPC Client
-    GrpcClient grpcClient = GrpcClient.client(vertx);
+    IoGrpcClient grpcClient = IoGrpcClient.client(vertx);
     VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();

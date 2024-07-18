@@ -38,6 +38,7 @@ import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.iogrpc.server.IoGrpcServer;
 import io.vertx.tests.common.GrpcTestBase;
 import org.junit.Test;
 
@@ -76,7 +77,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
 
     Buffer expected = Buffer.buffer("Hello World");
 
-    startServer(GrpcServer.server(vertx).callHandler(call -> {
+    startServer(IoGrpcServer.server(vertx).callHandler(call -> {
       call.handler(request -> {
         GrpcServerResponse<Buffer, Buffer> response = call.response();
         response
@@ -118,7 +119,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
   @Test
   public void testEncodeError(TestContext should) {
 
-    startServer(GrpcServer.server(vertx).callHandler(call -> {
+    startServer(IoGrpcServer.server(vertx).callHandler(call -> {
       call.handler(request -> {
         GrpcServerResponse<Buffer, Buffer> response = call.response();
         List<GrpcMessage> messages = Arrays.asList(
@@ -194,7 +195,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
 
   private void testDecode(TestContext should, Buffer payload, Consumer<GrpcServerRequest<Buffer, Buffer>> impl, Consumer<HttpClientRequest> checker) {
 
-    startServer(GrpcServer.server(vertx).callHandler(call -> {
+    startServer(IoGrpcServer.server(vertx).callHandler(call -> {
       should.assertEquals("gzip", call.encoding());
       impl.accept(call);
     }));

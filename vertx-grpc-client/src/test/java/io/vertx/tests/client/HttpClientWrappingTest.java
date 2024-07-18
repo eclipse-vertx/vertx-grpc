@@ -12,7 +12,7 @@ import io.vertx.core.http.HttpConnectOptions;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.client.GrpcClient;
+import io.vertx.iogrpc.client.IoGrpcClient;
 import io.vertx.grpc.common.GrpcReadStream;
 import org.junit.Test;
 
@@ -42,7 +42,7 @@ public class HttpClientWrappingTest extends ClientTestBase {
       .setPort(port)
       .setHost("localhost")
     ).compose(conn -> {
-      GrpcClient client = GrpcClient.client(vertx, conn);
+      IoGrpcClient client = IoGrpcClient.client(vertx, conn);
       return client.request(GreeterGrpc.getSayHelloMethod())
         .compose(req -> {
           req.end(HelloRequest.newBuilder().setName("Julien").build());

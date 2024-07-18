@@ -9,8 +9,8 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.iogrpc.server.IoGrpcServer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,7 +61,7 @@ public class {{className}}  {
 {{/manyManyMethods}}
 
 {{#unaryMethods}}
-    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+    default {{serviceName}}Api bind_{{methodName}}(IoGrpcServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
         Promise<{{outputType}}> promise = Promise.promise();
         request.handler(req -> {
@@ -79,7 +79,7 @@ public class {{className}}  {
     }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
-    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+    default {{serviceName}}Api bind_{{methodName}}(IoGrpcServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
         request.handler(req -> {
           try {
@@ -93,7 +93,7 @@ public class {{className}}  {
     }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
-    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+    default {{serviceName}}Api bind_{{methodName}}(IoGrpcServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
         Promise<{{outputType}}> promise = Promise.promise();
         promise.future()
@@ -109,7 +109,7 @@ public class {{className}}  {
     }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
-    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+    default {{serviceName}}Api bind_{{methodName}}(IoGrpcServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
         try {
           {{methodName}}(request, request.response());
@@ -121,7 +121,7 @@ public class {{className}}  {
     }
 {{/manyManyMethods}}
 
-    default {{serviceName}}Api bindAll(GrpcServer server) {
+    default {{serviceName}}Api bindAll(IoGrpcServer server) {
 {{#methods}}
       bind_{{methodName}}(server);
 {{/methods}}

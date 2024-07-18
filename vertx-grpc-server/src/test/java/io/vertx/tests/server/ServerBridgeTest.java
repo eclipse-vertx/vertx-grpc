@@ -23,6 +23,8 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServiceBridge;
+import io.vertx.iogrpc.server.IoGrpcServer;
+import io.vertx.iogrpc.server.IoGrpcServiceBridge;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -49,8 +51,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
     serverStub.bind(server);
     startServer(server);
 
@@ -117,8 +119,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     });
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(def);
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(def);
     serverStub.bind(server);
     startServer(server);
 
@@ -135,8 +137,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
     serverStub.bind(server);
     startServer(server);
 
@@ -157,8 +159,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
     serverStub.bind(server);
     startServer(server);
 
@@ -191,8 +193,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
     serverStub.bind(server);
     startServer(server);
 
@@ -222,8 +224,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
     serverStub.bind(server);
     startServer(server);
 
@@ -254,8 +256,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
     serverStub.bind(server);
     startServer(server);
 
@@ -285,8 +287,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
     serverStub.bind(server);
     startServer(server);
 
@@ -337,8 +339,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(ServerInterceptors.intercept(impl, interceptor));
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(ServerInterceptors.intercept(impl, interceptor));
     serverStub.bind(server);
     startServer(server);
 
@@ -377,7 +379,7 @@ public class ServerBridgeTest extends ServerTest {
     };
 
     GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
     serverStub.bind(server);
     startServer(server);
 
@@ -410,8 +412,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
     serverStub.bind(server);
     startServer(server);
 
@@ -430,8 +432,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
     serverStub.bind(server);
     startServer(server);
 
@@ -463,8 +465,8 @@ public class ServerBridgeTest extends ServerTest {
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(ServerInterceptors.intercept(impl, interceptor));
+    IoGrpcServer server = IoGrpcServer.server(vertx);
+    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(ServerInterceptors.intercept(impl, interceptor));
     serverStub.bind(server);
     startServer(server);
     channel = ManagedChannelBuilder.forAddress("localhost", port)
