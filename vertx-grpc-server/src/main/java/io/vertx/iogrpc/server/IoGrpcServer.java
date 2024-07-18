@@ -9,8 +9,21 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.impl.GrpcServerImpl;
+import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.iogrpc.server.impl.IoGrpcServerImpl;
 
+/**
+ * A gRPC server based on Vert.x HTTP server.
+ *
+ * This server extends the {@link GrpcServer} to encode/decode messages in protobuf format using {@link io.grpc.MethodDescriptor}.
+ *
+ * This server exposes 2 levels of handlers
+ *
+ * <ul>
+ *   <li>a Protobuf message {@link #callHandler(Handler) handler}: {@link GrpcServerRequest}/{@link GrpcServerResponse} with Protobuf message that handles any method call in a generic way</li>
+ *   <li>a gRPC message {@link #callHandler(MethodDescriptor, Handler) handler}: {@link GrpcServerRequest}/{@link GrpcServerRequest} with gRPC messages that handles specific service method calls</li>
+ * </ul>
+ */
 @VertxGen
 public interface IoGrpcServer extends GrpcServer {
 
@@ -30,7 +43,7 @@ public interface IoGrpcServer extends GrpcServer {
    * @return the created server
    */
   static IoGrpcServer server(Vertx vertx, GrpcServerOptions options) {
-    return new GrpcServerImpl(vertx, options);
+    return new IoGrpcServerImpl(vertx, options);
   }
 
   @Override

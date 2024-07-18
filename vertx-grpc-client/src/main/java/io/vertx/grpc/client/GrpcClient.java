@@ -19,25 +19,24 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.RequestOptions;
 import io.vertx.core.net.Address;
-import io.vertx.grpc.client.impl.GrpcClientImpl;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.iogrpc.client.impl.IoGrpcClientImpl;
 
 import java.util.function.Function;
 
 /**
- * A gRPC client for Vert.x
+ * <p>A gRPC client for Vert.x</p>
  *
- * Unlike traditional gRPC clients, this client does not rely on a generated RPC interface to interact with the service.
+ * <p>Unlike traditional gRPC clients, this client does not rely on a generated RPC interface to interact with the service.</p>
  *
- * Instead, you can interact with the service with a request/response interfaces and gRPC messages, very much like
- * a traditional client.
+ * <p>Instead, you can interact with the service with a request/response interfaces and gRPC messages, very much like
+ * a traditional client.</p>
  *
- * The client exposes 2 levels of API
- *
- * <ul>
- *   <li>a Protobuf message {@link #request(Address) API}: {@link GrpcClientRequest}/{@link GrpcClientResponse} with Protobuf messages to call any gRPC service in a generic way</li>
- *   <li>a gRPC message {@link #request(Address, MethodDescriptor)}: {@link GrpcClientRequest}/{@link GrpcClientRequest} with gRPC messages to call a given method of a gRPC service</li>
- * </ul>
+ * <p>The client handles only the gRPC protocol and does not encode/decode protobuf messages.</p>
  */
 @VertxGen
 public interface GrpcClient {
@@ -49,7 +48,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx) {
-    return new GrpcClientImpl(vertx);
+    return new IoGrpcClientImpl(vertx);
   }
 
   /**
@@ -59,7 +58,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, GrpcClientOptions options) {
-    return new GrpcClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
+    return new IoGrpcClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
   }
 
   /**
@@ -71,7 +70,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
-    return new GrpcClientImpl(vertx, grpcOptions, httpOptions);
+    return new IoGrpcClientImpl(vertx, grpcOptions, httpOptions);
   }
 
   /**
@@ -82,7 +81,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, HttpClientOptions options) {
-    return new GrpcClientImpl(vertx, new GrpcClientOptions(), options);
+    return new IoGrpcClientImpl(vertx, new GrpcClientOptions(), options);
   }
 
   /**
@@ -93,7 +92,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, HttpClient client) {
-    return new GrpcClientImpl(vertx, client);
+    return new IoGrpcClientImpl(vertx, client);
   }
 
   /**
@@ -108,6 +107,21 @@ public interface GrpcClient {
    * Like {@link #request(Address)} with the default remote server.
    */
   Future<GrpcClientRequest<Buffer, Buffer>> request();
+
+  /**
+   * Connect to the remote {@code server} and create a request for any hosted gRPC service.
+   *
+   * @param server the server hosting the service
+   * @param decoder the message decoder
+   * @param encoder the message encoder
+   * @return a future request
+   */
+  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, GrpcMessageDecoder<Resp> decoder, GrpcMessageEncoder<Req> encoder);
+
+  /**
+   * Like {@link #request(Address, GrpcMessageDecoder, GrpcMessageEncoder)} with the default remote server.
+   */
+  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(GrpcMessageDecoder<Resp> decoder, GrpcMessageEncoder<Req> encoder);
 
   /**
    * Connect to the remote {@code server} and create a request for given {@code method} of a hosted gRPC service.

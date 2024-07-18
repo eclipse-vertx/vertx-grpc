@@ -13,10 +13,22 @@ import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
-import io.vertx.grpc.client.impl.GrpcClientImpl;
+import io.vertx.iogrpc.client.impl.IoGrpcClientImpl;
 
 import java.util.function.Function;
 
+/**
+ * A gRPC client for Vert.x
+ *
+ * This server extends the {@link GrpcClient} to encode/decode messages in protobuf format using {@link io.grpc.MethodDescriptor}.
+ *
+ * This client exposes 2 levels of API
+ *
+ * <ul>
+ *   <li>a Protobuf message {@link #request(Address) API}: {@link GrpcClientRequest}/{@link GrpcClientResponse} with Protobuf messages to call any gRPC service in a generic way</li>
+ *   <li>a gRPC message {@link #request(Address, MethodDescriptor)}: {@link GrpcClientRequest}/{@link GrpcClientRequest} with gRPC messages to call a given method of a gRPC service</li>
+ * </ul>
+ */
 @VertxGen
 public interface IoGrpcClient extends GrpcClient {
 
@@ -27,7 +39,7 @@ public interface IoGrpcClient extends GrpcClient {
    * @return the created client
    */
   static IoGrpcClient client(Vertx vertx) {
-    return new GrpcClientImpl(vertx);
+    return new IoGrpcClientImpl(vertx);
   }
 
   /**
@@ -37,7 +49,7 @@ public interface IoGrpcClient extends GrpcClient {
    * @return the created client
    */
   static IoGrpcClient client(Vertx vertx, GrpcClientOptions options) {
-    return new GrpcClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
+    return new IoGrpcClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
   }
 
   /**
@@ -49,7 +61,7 @@ public interface IoGrpcClient extends GrpcClient {
    * @return the created client
    */
   static IoGrpcClient client(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
-    return new GrpcClientImpl(vertx, grpcOptions, httpOptions);
+    return new IoGrpcClientImpl(vertx, grpcOptions, httpOptions);
   }
 
   /**
@@ -60,7 +72,7 @@ public interface IoGrpcClient extends GrpcClient {
    * @return the created client
    */
   static IoGrpcClient client(Vertx vertx, HttpClientOptions options) {
-    return new GrpcClientImpl(vertx, new GrpcClientOptions(), options);
+    return new IoGrpcClientImpl(vertx, new GrpcClientOptions(), options);
   }
 
   /**
@@ -71,7 +83,7 @@ public interface IoGrpcClient extends GrpcClient {
    * @return the created client
    */
   static IoGrpcClient client(Vertx vertx, HttpClient client) {
-    return new GrpcClientImpl(vertx, client);
+    return new IoGrpcClientImpl(vertx, client);
   }
 
   /**

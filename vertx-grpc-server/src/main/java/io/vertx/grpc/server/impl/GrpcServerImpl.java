@@ -10,7 +10,6 @@
  */
 package io.vertx.grpc.server.impl;
 
-import io.grpc.MethodDescriptor;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -29,7 +28,6 @@ import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.iogrpc.server.IoGrpcServer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -40,7 +38,7 @@ import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class GrpcServerImpl implements IoGrpcServer {
+public abstract class GrpcServerImpl implements GrpcServer {
 
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
@@ -108,29 +106,27 @@ public class GrpcServerImpl implements IoGrpcServer {
     context.dispatch(grpcRequest, handler);
   }
 
-  public GrpcServerImpl callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {
+  public GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {
     this.requestHandler = handler;
     return this;
   }
 
-  public <Req, Resp> GrpcServerImpl callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler) {
+  public <Req, Resp> GrpcServerImpl callHandler(String fullMethodName, GrpcMessageDecoder<Req> decoder, GrpcMessageEncoder<Resp> encoder, Handler<GrpcServerRequest<Req, Resp>> handler) {
     if (handler != null) {
-      methodCallHandlers.put(methodDesc.getFullMethodName(), new MethodCallHandler<>(methodDesc, GrpcMessageDecoder.unmarshaller(methodDesc.getRequestMarshaller()), GrpcMessageEncoder.marshaller(methodDesc.getResponseMarshaller()), handler));
+      methodCallHandlers.put(fullMethodName, new MethodCallHandler<>(decoder, encoder, handler));
     } else {
-      methodCallHandlers.remove(methodDesc.getFullMethodName());
+      methodCallHandlers.remove(fullMethodName);
     }
     return this;
   }
 
   private static class MethodCallHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
 
-    final MethodDescriptor<Req, Resp> def;
     final GrpcMessageDecoder<Req> messageDecoder;
     final GrpcMessageEncoder<Resp> messageEncoder;
     final Handler<GrpcServerRequest<Req, Resp>> handler;
 
-    MethodCallHandler(MethodDescriptor<Req, Resp> def, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, Handler<GrpcServerRequest<Req, Resp>> handler) {
-      this.def = def;
+    MethodCallHandler(GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, Handler<GrpcServerRequest<Req, Resp>> handler) {
       this.messageDecoder = messageDecoder;
       this.messageEncoder = messageEncoder;
       this.handler = handler;
