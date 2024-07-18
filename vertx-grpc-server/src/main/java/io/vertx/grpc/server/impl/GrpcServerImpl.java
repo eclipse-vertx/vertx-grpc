@@ -23,6 +23,7 @@ import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.GrpcMediaType;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.impl.GrpcRequestLocal;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcServer;
@@ -95,7 +96,7 @@ public abstract class GrpcServerImpl implements GrpcServer {
                                   GrpcMessageDecoder<Req> messageDecoder,
                                   GrpcMessageEncoder<Resp> messageEncoder,
                                   Handler<GrpcServerRequest<Req, Resp>> handler) {
-    io.vertx.core.internal.ContextInternal context = (ContextInternal) ((HttpServerRequestInternal) httpRequest).context();
+    io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
     GrpcServerRequestImpl<Req, Resp> grpcRequest = new GrpcServerRequestImpl<>(context, options.getScheduleDeadlineAutomatically(),
       httpRequest, messageDecoder, messageEncoder, methodCall);
     if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
@@ -111,11 +112,12 @@ public abstract class GrpcServerImpl implements GrpcServer {
     return this;
   }
 
-  public <Req, Resp> GrpcServerImpl callHandler(String fullMethodName, GrpcMessageDecoder<Req> decoder, GrpcMessageEncoder<Resp> encoder, Handler<GrpcServerRequest<Req, Resp>> handler) {
+  @Override
+  public <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
     if (handler != null) {
-      methodCallHandlers.put(fullMethodName, new MethodCallHandler<>(decoder, encoder, handler));
+      methodCallHandlers.put(serviceMethod.fullMethodName(), new MethodCallHandler<>(serviceMethod.decoder(), serviceMethod.encoder(), handler));
     } else {
-      methodCallHandlers.remove(fullMethodName);
+      methodCallHandlers.remove(serviceMethod.fullMethodName());
     }
     return this;
   }

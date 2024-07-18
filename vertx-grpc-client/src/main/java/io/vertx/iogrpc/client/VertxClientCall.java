@@ -1,4 +1,4 @@
-package io.vertx.grpc.client;
+package io.vertx.iogrpc.client;
 
 import io.grpc.ClientCall;
 import io.grpc.MethodDescriptor;
@@ -11,10 +11,11 @@ import io.grpc.Status;
 import io.vertx.core.Future;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.impl.*;
-import io.vertx.iogrpc.client.IoGrpcClient;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;

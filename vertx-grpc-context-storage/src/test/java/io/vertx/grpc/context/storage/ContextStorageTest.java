@@ -29,8 +29,6 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Repeat;
 import io.vertx.ext.unit.junit.RepeatRule;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServiceBridge;
 import io.vertx.iogrpc.server.IoGrpcServer;
 import io.vertx.iogrpc.server.IoGrpcServiceBridge;
 import org.junit.*;

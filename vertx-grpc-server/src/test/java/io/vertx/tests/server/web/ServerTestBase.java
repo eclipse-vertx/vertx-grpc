@@ -24,9 +24,7 @@ import io.vertx.iogrpc.server.IoGrpcServer;
 import io.vertx.iogrpc.server.IoGrpcServiceBridge;
 import io.vertx.tests.common.GrpcTestBase;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
-import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
-import io.vertx.grpc.server.GrpcServiceBridge;
 import io.vertx.grpcweb.GrpcWebTesting.*;
 import org.junit.Test;
 

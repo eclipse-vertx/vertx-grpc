@@ -13,13 +13,12 @@ package io.vertx.iogrpc.server;
 import io.grpc.BindableService;
 import io.grpc.ServerServiceDefinition;
 import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServiceBridge;
-import io.vertx.grpc.server.impl.GrpcServiceBridgeImpl;
+import io.vertx.iogrpc.server.impl.IoGrpcServiceBridgeImpl;
 
 /**
  * Bridge a gRPC service with a {@link GrpcServer}.
  */
-public interface IoGrpcServiceBridge extends GrpcServiceBridge {
+public interface IoGrpcServiceBridge {
 
   /**
    * Create a stub for a given {@code service}.
@@ -28,7 +27,7 @@ public interface IoGrpcServiceBridge extends GrpcServiceBridge {
    * @return the stub
    */
   static IoGrpcServiceBridge bridge(ServerServiceDefinition service) {
-    return new GrpcServiceBridgeImpl(service);
+    return new IoGrpcServiceBridgeImpl(service);
   }
 
   /**
@@ -40,5 +39,19 @@ public interface IoGrpcServiceBridge extends GrpcServiceBridge {
   static IoGrpcServiceBridge bridge(BindableService service) {
     return bridge(service.bindService());
   }
+
+  /**
+   * Bind all service methods to the @{code server}.
+   *
+   * @param server the server to bind to
+   */
+  void bind(IoGrpcServer server);
+
+  /**
+   * Unbind all service methods from the @{code server}.
+   *
+   * @param server the server to unbind from
+   */
+  void unbind(IoGrpcServer server);
 
 }

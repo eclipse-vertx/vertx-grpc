@@ -24,7 +24,6 @@ import io.vertx.core.net.Address;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.client.GrpcClientRequest;
-import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.impl.GrpcRequestLocal;
@@ -98,25 +97,21 @@ public abstract class GrpcClientImpl implements GrpcClient {
     request.timeout(timeout, timeoutUnit);
   }
 
-  @Override
-  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
+  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(GrpcMessageDecoder<Resp> decoder, GrpcMessageEncoder<Req> encoder) {
     return request(new RequestOptions()
-      .setMethod(HttpMethod.POST), method);
+      .setMethod(HttpMethod.POST), decoder, encoder);
   }
 
-  @Override
-  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, ServiceMethod<Resp, Req> method) {
+  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, GrpcMessageDecoder<Resp> decoder, GrpcMessageEncoder<Req> encoder) {
     return request(new RequestOptions()
       .setMethod(HttpMethod.POST)
-      .setServer(server), method);
+      .setServer(server), decoder, encoder);
   }
 
-  private <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(RequestOptions options, ServiceMethod<Resp, Req> method) {
+  private <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(RequestOptions options, GrpcMessageDecoder<Resp> messageDecoder, GrpcMessageEncoder<Req> messageEncoder) {
     return client.request(options)
       .map(request -> {
-        GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(request, scheduleDeadlineAutomatically, method.encoder(), method.decoder());
-        call.serviceName(method.serviceName());
-        call.methodName(method.methodName());
+        GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(request, scheduleDeadlineAutomatically, messageEncoder, messageDecoder);
         configureTimeout(call);
         return call;
       });

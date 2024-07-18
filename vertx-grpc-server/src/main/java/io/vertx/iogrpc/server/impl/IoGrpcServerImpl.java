@@ -18,6 +18,8 @@ import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
@@ -41,6 +43,12 @@ public class IoGrpcServerImpl extends GrpcServerImpl implements IoGrpcServer {
   }
 
   public <Req, Resp> IoGrpcServerImpl callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler) {
-    return (IoGrpcServerImpl) callHandler(methodDesc.getFullMethodName(), GrpcMessageDecoder.unmarshaller(methodDesc.getRequestMarshaller()), GrpcMessageEncoder.marshaller(methodDesc.getResponseMarshaller()), handler);
+    ServiceMethod<Req, Resp> serviceMethod = ServiceMethod.server(ServiceName.create(
+      methodDesc.getServiceName()),
+      methodDesc.getBareMethodName(),
+      GrpcMessageEncoder.marshaller(methodDesc.getResponseMarshaller()),
+      GrpcMessageDecoder.unmarshaller(methodDesc.getRequestMarshaller())
+    );
+    return (IoGrpcServerImpl) callHandler(serviceMethod, handler);
   }
 }

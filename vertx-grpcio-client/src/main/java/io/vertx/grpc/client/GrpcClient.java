@@ -17,8 +17,9 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.Address;
-import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.iogrpc.client.impl.IoGrpcClientImpl;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
 /**
  * <p>A gRPC client for Vert.x</p>
@@ -40,7 +41,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx) {
-    return new IoGrpcClientImpl(vertx);
+    return new GrpcIoClientImpl(vertx);
   }
 
   /**
@@ -50,7 +51,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, GrpcClientOptions options) {
-    return new IoGrpcClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
+    return new GrpcIoClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
   }
 
   /**
@@ -62,7 +63,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
-    return new IoGrpcClientImpl(vertx, grpcOptions, httpOptions);
+    return new GrpcIoClientImpl(vertx, grpcOptions, httpOptions);
   }
 
   /**
@@ -73,7 +74,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, HttpClientOptions options) {
-    return new IoGrpcClientImpl(vertx, new GrpcClientOptions(), options);
+    return new GrpcIoClientImpl(vertx, new GrpcClientOptions(), options);
   }
 
   /**
@@ -84,7 +85,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, HttpClient client) {
-    return new IoGrpcClientImpl(vertx, client);
+    return new GrpcIoClientImpl(vertx, client);
   }
 
   /**
@@ -104,15 +105,16 @@ public interface GrpcClient {
    * Connect to the remote {@code server} and create a request for any hosted gRPC service.
    *
    * @param server the server hosting the service
-   * @param method the grpc method
+   * @param decoder the message decoder
+   * @param encoder the message encoder
    * @return a future request
    */
-  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, ServiceMethod<Resp, Req> method);
+  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, GrpcMessageDecoder<Resp> decoder, GrpcMessageEncoder<Req> encoder);
 
   /**
-   * Like {@link #request(Address, ServiceMethod)} with the default remote server.
+   * Like {@link #request(Address, GrpcMessageDecoder, GrpcMessageEncoder)} with the default remote server.
    */
-  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method);
+  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(GrpcMessageDecoder<Resp> decoder, GrpcMessageEncoder<Req> encoder);
 
   /**
    * Close this client.

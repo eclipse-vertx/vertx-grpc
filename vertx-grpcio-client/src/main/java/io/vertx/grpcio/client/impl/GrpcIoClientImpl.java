@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.iogrpc.client.impl;
+package io.vertx.grpcio.client.impl;
 
 import io.grpc.MethodDescriptor;
 import io.vertx.core.Future;
@@ -17,27 +17,25 @@ import io.vertx.core.http.*;
 import io.vertx.core.net.Address;
 import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.client.GrpcClientRequest;
-import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.client.impl.GrpcClientImpl;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.ServiceName;
-import io.vertx.iogrpc.client.IoGrpcClient;
+import io.vertx.grpcio.client.GrpcIoClient;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class IoGrpcClientImpl extends GrpcClientImpl implements IoGrpcClient {
+public class GrpcIoClientImpl extends GrpcClientImpl implements GrpcIoClient {
 
-  public IoGrpcClientImpl(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
+  public GrpcIoClientImpl(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
     super(vertx, grpcOptions, httpOptions);
   }
 
-  public IoGrpcClientImpl(Vertx vertx) {
+  public GrpcIoClientImpl(Vertx vertx) {
     super(vertx);
   }
 
-  public IoGrpcClientImpl(Vertx vertx, HttpClient client) {
+  public GrpcIoClientImpl(Vertx vertx, HttpClient client) {
     super(vertx, client);
   }
 
@@ -45,14 +43,12 @@ public class IoGrpcClientImpl extends GrpcClientImpl implements IoGrpcClient {
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(MethodDescriptor<Req, Resp> service) {
     GrpcMessageDecoder<Resp> messageDecoder = GrpcMessageDecoder.unmarshaller(service.getResponseMarshaller());
     GrpcMessageEncoder<Req> messageEncoder = GrpcMessageEncoder.marshaller(service.getRequestMarshaller());
-    ServiceMethod<Resp, Req> method = ServiceMethod.client(ServiceName.create(service.getServiceName()), service.getBareMethodName(), messageEncoder, messageDecoder);
-    return request(method);
+    return request(messageDecoder, messageEncoder).map(req -> req.fullMethodName(service.getFullMethodName()));
   }
 
   @Override public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, MethodDescriptor<Req, Resp> service) {
     GrpcMessageDecoder<Resp> messageDecoder = GrpcMessageDecoder.unmarshaller(service.getResponseMarshaller());
     GrpcMessageEncoder<Req> messageEncoder = GrpcMessageEncoder.marshaller(service.getRequestMarshaller());
-    ServiceMethod<Resp, Req> method = ServiceMethod.client(ServiceName.create(service.getServiceName()), service.getBareMethodName(), messageEncoder, messageDecoder);
-    return request(server, method);
+    return request(server, messageDecoder, messageEncoder).map(req -> req.fullMethodName(service.getFullMethodName()));
   }
 }

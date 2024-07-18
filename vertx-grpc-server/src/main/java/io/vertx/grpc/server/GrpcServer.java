@@ -20,6 +20,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.iogrpc.server.impl.IoGrpcServerImpl;
 
 /**
@@ -69,12 +70,11 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    * Set a service method call handler that handles any call made to the server for the {@code fullMethodName } service method.
    *
    * @param handler the service method call handler
-   * @param decoder the message decoder
-   * @param encoder the message encoder
+   * @param serviceMethod the service method
    * @return a reference to this, so the API can be used fluently
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  <Req, Resp> GrpcServer callHandler(String fullMethodName, GrpcMessageDecoder<Req> decoder, GrpcMessageEncoder<Resp> encoder, Handler<GrpcServerRequest<Req, Resp>> handler);
+  <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
 
   /**
    * Set a service method call handler that handles any call made to the server for the {@link MethodDescriptor} service method.

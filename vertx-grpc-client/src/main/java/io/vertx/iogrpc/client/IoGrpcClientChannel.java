@@ -13,20 +13,39 @@ package io.vertx.iogrpc.client;
 import io.grpc.*;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
-import io.vertx.grpc.client.GrpcClientChannel;
+
+import java.util.concurrent.Executor;
 
 /**
- * Bridge a gRPC service with a {@link GrpcClient}.
+ * Bridge a gRPC service with a {@link io.vertx.grpc.client.GrpcClient}.
  */
-public class IoGrpcClientChannel extends GrpcClientChannel {
+public class IoGrpcClientChannel extends io.grpc.Channel {
 
-  public IoGrpcClientChannel(IoGrpcClient client, SocketAddress server) {
-    super(client, server);
+  private IoGrpcClient client;
+  private SocketAddress server;
+
+  public IoGrpcClientChannel(GrpcClient client, SocketAddress server) {
+    this.client = (IoGrpcClient) client;
+    this.server = server;
   }
 
   @Override
   public <RequestT, ResponseT> ClientCall<RequestT, ResponseT> newCall(MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions) {
-    return super.newCall(methodDescriptor, callOptions);
+    String encoding = callOptions.getCompressor();
+    Compressor compressor;
+    if (encoding != null) {
+      compressor = CompressorRegistry.getDefaultInstance().lookupCompressor(encoding);
+    } else {
+      compressor = null;
+    }
+    Executor exec = callOptions.getExecutor();
+    Context ctx = Context.current();
+    Deadline deadline = callOptions.getDeadline();
+    Deadline contextDeadline = ctx.getDeadline();
+    if (contextDeadline != null && (deadline == null || contextDeadline.isBefore(deadline))) {
+      deadline = contextDeadline;
+    }
+    return new VertxClientCall<>(client, server, exec, methodDescriptor, encoding, compressor, deadline);
   }
 
   @Override
