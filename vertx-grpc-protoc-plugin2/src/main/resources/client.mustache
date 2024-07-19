@@ -5,16 +5,16 @@ package {{packageName}};
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.iogrpc.client.IoGrpcClient;
+import io.vertx.grpcio.client.GrpcIoClient;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 
 public class {{className}} {
-  private final IoGrpcClient client;
+  private final GrpcIoClient client;
   private final SocketAddress socketAddress;
 
-  public {{className}}(IoGrpcClient client, SocketAddress socketAddress) {
+  public {{className}}(GrpcIoClient client, SocketAddress socketAddress) {
     this.client = client;
     this.socketAddress = socketAddress;
   }

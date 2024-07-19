@@ -20,8 +20,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.iogrpc.server.IoGrpcServer;
-import io.vertx.iogrpc.server.IoGrpcServiceBridge;
+import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpcio.server.GrpcIoServiceBridge;
 import io.vertx.tests.common.GrpcTestBase;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.server.GrpcServerOptions;
@@ -84,9 +84,9 @@ public abstract class ServerTestBase extends GrpcTestBase {
   public void setUp(TestContext should) {
     super.setUp(should);
     httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultPort(port));
-    IoGrpcServer grpcServer = IoGrpcServer.server(vertx, new GrpcServerOptions().setGrpcWebEnabled(true));
+    GrpcIoServer grpcServer = GrpcIoServer.server(vertx, new GrpcServerOptions().setGrpcWebEnabled(true));
     ServerServiceDefinition serviceDefinition = ServerInterceptors.intercept(new TestServiceImpl(), new Interceptor());
-    IoGrpcServiceBridge.bridge(serviceDefinition).bind(grpcServer);
+    GrpcIoServiceBridge.bridge(serviceDefinition).bind(grpcServer);
     httpServer = vertx.createHttpServer(new HttpServerOptions().setPort(port)).requestHandler(grpcServer);
     httpServer.listen().onComplete(should.asyncAssertSuccess());
   }

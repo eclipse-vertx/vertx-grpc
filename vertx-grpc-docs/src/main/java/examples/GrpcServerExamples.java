@@ -1,6 +1,5 @@
 package examples;
 
-import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -12,8 +11,8 @@ import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.*;
-import io.vertx.iogrpc.server.IoGrpcServer;
-import io.vertx.iogrpc.server.IoGrpcServiceBridge;
+import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpcio.server.GrpcIoServiceBridge;
 
 @Source
 public class GrpcServerExamples {
@@ -29,7 +28,7 @@ public class GrpcServerExamples {
       .listen();
   }
 
-  public void requestResponse(IoGrpcServer server) {
+  public void requestResponse(GrpcIoServer server) {
 
     server.callHandler(GreeterGrpc.getSayHelloMethod(), request -> {
 
@@ -44,7 +43,7 @@ public class GrpcServerExamples {
     });
   }
 
-  public void streamingRequest(IoGrpcServer server) {
+  public void streamingRequest(GrpcIoServer server) {
 
     server.callHandler(StreamingGrpc.getSinkMethod(), request -> {
       request.handler(item -> {
@@ -61,7 +60,7 @@ public class GrpcServerExamples {
     });
   }
 
-  public void streamingResponse(IoGrpcServer server) {
+  public void streamingResponse(GrpcIoServer server) {
 
     server.callHandler(StreamingGrpc.getSourceMethod(), request -> {
       GrpcServerResponse<Empty, Item> response = request.response();
@@ -74,7 +73,7 @@ public class GrpcServerExamples {
     });
   }
 
-  public void bidi(IoGrpcServer server) {
+  public void bidi(GrpcIoServer server) {
 
     server.callHandler(StreamingGrpc.getPipeMethod(), request -> {
 
@@ -142,7 +141,7 @@ public class GrpcServerExamples {
 
   public void stubExample(Vertx vertx, HttpServerOptions options) {
 
-    IoGrpcServer grpcServer = IoGrpcServer.server(vertx);
+    GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
 
     GreeterGrpc.GreeterImplBase service = new GreeterGrpc.GreeterImplBase() {
       @Override
@@ -153,7 +152,7 @@ public class GrpcServerExamples {
     };
 
     // Bind the service bridge in the gRPC server
-    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(service);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(service);
     serverStub.bind(grpcServer);
 
     // Start the HTTP/2 server

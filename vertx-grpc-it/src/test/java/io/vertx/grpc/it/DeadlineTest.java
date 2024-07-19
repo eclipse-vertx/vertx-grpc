@@ -23,12 +23,11 @@ import io.vertx.core.http.StreamResetException;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.iogrpc.client.IoGrpcClient;
-import io.vertx.iogrpc.client.IoGrpcClientChannel;
+import io.vertx.grpcio.client.GrpcIoClient;
+import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.iogrpc.server.IoGrpcServer;
-import io.vertx.iogrpc.server.IoGrpcServiceBridge;
+import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpcio.server.GrpcIoServiceBridge;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
@@ -41,8 +40,8 @@ public class DeadlineTest extends ProxyTestBase {
   @Test
   public void testAutomaticPropagation(TestContext should) {
     Async latch = should.async(3);
-    IoGrpcClient client = IoGrpcClient.client(vertx);
-    Future<HttpServer> server = vertx.createHttpServer().requestHandler(IoGrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
+    GrpcIoClient client = GrpcIoClient.client(vertx);
+    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcIoServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
       should.assertTrue(call.timeout() > 0L);
       call.response().exceptionHandler(err -> {
         should.assertTrue(err instanceof StreamResetException);
@@ -51,7 +50,7 @@ public class DeadlineTest extends ProxyTestBase {
         latch.countDown();
       });
     })).listen(8080, "localhost");
-    IoGrpcClientChannel proxyChannel = new IoGrpcClientChannel(client, SocketAddress.inetSocketAddress(8080, "localhost"));
+    GrpcIoClientChannel proxyChannel = new GrpcIoClientChannel(client, SocketAddress.inetSocketAddress(8080, "localhost"));
     GreeterGrpc.GreeterStub stub = GreeterGrpc.newStub(proxyChannel);
     GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
       @Override
@@ -76,8 +75,8 @@ public class DeadlineTest extends ProxyTestBase {
         });
       }
     };
-    IoGrpcServer proxy = IoGrpcServer.server(vertx);
-    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
+    GrpcIoServer proxy = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(impl);
     serverStub.bind(proxy);
     HttpServer proxyServer = vertx.createHttpServer().requestHandler(proxy);
     server.flatMap(v -> proxyServer.listen(8081, "localhost")).onComplete(should.asyncAssertSuccess(v -> {

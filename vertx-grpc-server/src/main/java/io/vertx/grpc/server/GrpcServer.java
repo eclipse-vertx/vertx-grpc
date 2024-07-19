@@ -18,10 +18,8 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.iogrpc.server.impl.IoGrpcServerImpl;
+import io.vertx.grpcio.server.impl.GrpcIoServerImpl;
 
 /**
  * <p>A gRPC server based on Vert.x HTTP server.</p>
@@ -54,7 +52,7 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    * @return the created server
    */
   static GrpcServer server(Vertx vertx, GrpcServerOptions options) {
-    return new IoGrpcServerImpl(vertx, options);
+    return new GrpcIoServerImpl(vertx, options);
   }
 
   /**

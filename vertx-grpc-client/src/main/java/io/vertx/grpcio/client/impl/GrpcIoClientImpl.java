@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.iogrpc.client.impl;
+package io.vertx.grpcio.client.impl;
 
 import io.grpc.MethodDescriptor;
 import io.vertx.core.Future;
@@ -22,22 +22,22 @@ import io.vertx.grpc.client.impl.GrpcClientImpl;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.iogrpc.client.IoGrpcClient;
+import io.vertx.grpcio.client.GrpcIoClient;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class IoGrpcClientImpl extends GrpcClientImpl implements IoGrpcClient {
+public class GrpcIoClientImpl extends GrpcClientImpl implements GrpcIoClient {
 
-  public IoGrpcClientImpl(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
+  public GrpcIoClientImpl(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
     super(vertx, grpcOptions, httpOptions);
   }
 
-  public IoGrpcClientImpl(Vertx vertx) {
+  public GrpcIoClientImpl(Vertx vertx) {
     super(vertx);
   }
 
-  public IoGrpcClientImpl(Vertx vertx, HttpClient client) {
+  public GrpcIoClientImpl(Vertx vertx, HttpClient client) {
     super(vertx, client);
   }
 

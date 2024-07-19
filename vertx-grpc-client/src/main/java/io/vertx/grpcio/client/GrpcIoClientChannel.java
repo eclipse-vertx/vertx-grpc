@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.iogrpc.client;
+package io.vertx.grpcio.client;
 
 import io.grpc.*;
 import io.vertx.core.net.SocketAddress;
@@ -19,13 +19,13 @@ import java.util.concurrent.Executor;
 /**
  * Bridge a gRPC service with a {@link io.vertx.grpc.client.GrpcClient}.
  */
-public class IoGrpcClientChannel extends io.grpc.Channel {
+public class GrpcIoClientChannel extends io.grpc.Channel {
 
-  private IoGrpcClient client;
+  private GrpcIoClient client;
   private SocketAddress server;
 
-  public IoGrpcClientChannel(GrpcClient client, SocketAddress server) {
-    this.client = (IoGrpcClient) client;
+  public GrpcIoClientChannel(GrpcClient client, SocketAddress server) {
+    this.client = (GrpcIoClient) client;
     this.server = server;
   }
 

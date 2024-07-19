@@ -12,5 +12,5 @@ module io.vertx.grpc.server {
   requires com.google.protobuf;
   requires com.google.common;
   exports io.vertx.grpc.server;
-  exports io.vertx.iogrpc.server;
+  exports io.vertx.grpcio.server;
 }

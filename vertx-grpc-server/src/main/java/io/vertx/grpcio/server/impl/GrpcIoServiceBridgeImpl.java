@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.iogrpc.server.impl;
+package io.vertx.grpcio.server.impl;
 
 import io.grpc.Attributes;
 import io.grpc.Context;
@@ -32,8 +32,8 @@ import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
-import io.vertx.iogrpc.server.IoGrpcServer;
-import io.vertx.iogrpc.server.IoGrpcServiceBridge;
+import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpcio.server.GrpcIoServiceBridge;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -41,29 +41,29 @@ import java.net.UnknownHostException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-public class IoGrpcServiceBridgeImpl implements IoGrpcServiceBridge {
+public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
 
   private final ServerServiceDefinition serviceDef;
 
-  public IoGrpcServiceBridgeImpl(ServerServiceDefinition serviceDef) {
+  public GrpcIoServiceBridgeImpl(ServerServiceDefinition serviceDef) {
     this.serviceDef = serviceDef;
   }
 
   @Override
-  public void unbind(IoGrpcServer server) {
+  public void unbind(GrpcIoServer server) {
     serviceDef.getMethods().forEach(m -> unbind(server, m));
   }
 
-  private <Req, Resp> void unbind(IoGrpcServer server, ServerMethodDefinition<Req, Resp> methodDef) {
+  private <Req, Resp> void unbind(GrpcIoServer server, ServerMethodDefinition<Req, Resp> methodDef) {
     server.callHandler(methodDef.getMethodDescriptor(), null);
   }
 
   @Override
-  public void bind(IoGrpcServer server) {
+  public void bind(GrpcIoServer server) {
     serviceDef.getMethods().forEach(m -> bind(server, m));
   }
 
-  private <Req, Resp> void bind(IoGrpcServer server, ServerMethodDefinition<Req, Resp> methodDef) {
+  private <Req, Resp> void bind(GrpcIoServer server, ServerMethodDefinition<Req, Resp> methodDef) {
     server.callHandler(methodDef.getMethodDescriptor(), req -> {
       ServerCallHandler<Req, Resp> callHandler = methodDef.getServerCallHandler();
       Context context = Context.current();

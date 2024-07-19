@@ -13,6 +13,6 @@ module io.vertx.grpc.client{
   requires com.google.protobuf;
   requires com.google.common;
   exports io.vertx.grpc.client;
-  exports io.vertx.iogrpc.client;
+  exports io.vertx.grpcio.client;
   exports io.vertx.grpc.client.impl to io.vertx.tests.client;
 }

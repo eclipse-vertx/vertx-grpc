@@ -1,4 +1,4 @@
-package io.vertx.iogrpc.client;
+package io.vertx.grpcio.client;
 
 import io.grpc.ClientCall;
 import io.grpc.MethodDescriptor;
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, ResponseT> {
 
-  private final IoGrpcClient client;
+  private final GrpcIoClient client;
   private final SocketAddress server;
   private final Executor exec;
   private final MethodDescriptor<RequestT, ResponseT> methodDescriptor;
@@ -37,7 +37,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
   private GrpcClientRequest<RequestT, ResponseT> request;
   private GrpcClientResponse<RequestT, ResponseT> grpcResponse;
 
-  VertxClientCall(IoGrpcClient client,
+  VertxClientCall(GrpcIoClient client,
                   SocketAddress server,
                   Executor exec,
                   MethodDescriptor<RequestT, ResponseT> methodDescriptor,

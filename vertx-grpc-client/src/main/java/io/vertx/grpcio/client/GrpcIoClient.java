@@ -1,4 +1,4 @@
-package io.vertx.iogrpc.client;
+package io.vertx.grpcio.client;
 
 import io.grpc.MethodDescriptor;
 import io.vertx.codegen.annotations.GenIgnore;
@@ -13,7 +13,7 @@ import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
-import io.vertx.iogrpc.client.impl.IoGrpcClientImpl;
+import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
 import java.util.function.Function;
 
@@ -30,7 +30,7 @@ import java.util.function.Function;
  * </ul>
  */
 @VertxGen
-public interface IoGrpcClient extends GrpcClient {
+public interface GrpcIoClient extends GrpcClient {
 
   /**
    * Create a client.
@@ -38,8 +38,8 @@ public interface IoGrpcClient extends GrpcClient {
    * @param vertx the vertx instance
    * @return the created client
    */
-  static IoGrpcClient client(Vertx vertx) {
-    return new IoGrpcClientImpl(vertx);
+  static GrpcIoClient client(Vertx vertx) {
+    return new GrpcIoClientImpl(vertx);
   }
 
   /**
@@ -48,8 +48,8 @@ public interface IoGrpcClient extends GrpcClient {
    * @param vertx the vertx instance
    * @return the created client
    */
-  static IoGrpcClient client(Vertx vertx, GrpcClientOptions options) {
-    return new IoGrpcClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
+  static GrpcIoClient client(Vertx vertx, GrpcClientOptions options) {
+    return new GrpcIoClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
   }
 
   /**
@@ -60,8 +60,8 @@ public interface IoGrpcClient extends GrpcClient {
    * @param httpOptions the http client options
    * @return the created client
    */
-  static IoGrpcClient client(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
-    return new IoGrpcClientImpl(vertx, grpcOptions, httpOptions);
+  static GrpcIoClient client(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
+    return new GrpcIoClientImpl(vertx, grpcOptions, httpOptions);
   }
 
   /**
@@ -71,8 +71,8 @@ public interface IoGrpcClient extends GrpcClient {
    * @param options the http client options
    * @return the created client
    */
-  static IoGrpcClient client(Vertx vertx, HttpClientOptions options) {
-    return new IoGrpcClientImpl(vertx, new GrpcClientOptions(), options);
+  static GrpcIoClient client(Vertx vertx, HttpClientOptions options) {
+    return new GrpcIoClientImpl(vertx, new GrpcClientOptions(), options);
   }
 
   /**
@@ -82,8 +82,8 @@ public interface IoGrpcClient extends GrpcClient {
    * @param client the http client instance
    * @return the created client
    */
-  static IoGrpcClient client(Vertx vertx, HttpClient client) {
-    return new IoGrpcClientImpl(vertx, client);
+  static GrpcIoClient client(Vertx vertx, HttpClient client) {
+    return new GrpcIoClientImpl(vertx, client);
   }
 
   /**

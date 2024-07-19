@@ -17,8 +17,8 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.grpc.server.GrpcServerOptions;
-import io.vertx.iogrpc.server.IoGrpcServer;
-import io.vertx.iogrpc.server.IoGrpcServiceBridge;
+import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpcio.server.GrpcIoServiceBridge;
 
 /**
  * A gRPC-Web server for grpc-web interop tests.
@@ -34,10 +34,10 @@ public class InteropServer extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) {
-    IoGrpcServer grpcServer = IoGrpcServer.server(vertx, new GrpcServerOptions().setGrpcWebEnabled(true));
+    GrpcIoServer grpcServer = GrpcIoServer.server(vertx, new GrpcServerOptions().setGrpcWebEnabled(true));
 
     ServerServiceDefinition serviceDefinition = ServerInterceptors.intercept(new TestServiceImpl(vertx), new Interceptor());
-    IoGrpcServiceBridge.bridge(serviceDefinition).bind(grpcServer);
+    GrpcIoServiceBridge.bridge(serviceDefinition).bind(grpcServer);
 
     vertx.createHttpServer()
       .requestHandler(grpcServer)

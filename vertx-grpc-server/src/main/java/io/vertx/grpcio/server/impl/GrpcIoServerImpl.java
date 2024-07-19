@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.iogrpc.server.impl;
+package io.vertx.grpcio.server.impl;
 
 import io.grpc.MethodDescriptor;
 import io.vertx.core.Handler;
@@ -24,31 +24,31 @@ import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
-import io.vertx.iogrpc.server.IoGrpcServer;
+import io.vertx.grpcio.server.GrpcIoServer;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class IoGrpcServerImpl extends GrpcServerImpl implements IoGrpcServer {
+public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
 
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
-  public IoGrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
+  public GrpcIoServerImpl(Vertx vertx, GrpcServerOptions options) {
     super(vertx, options);
   }
 
   @Override
-  public IoGrpcServerImpl callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {
-    return (IoGrpcServerImpl) super.callHandler(handler);
+  public GrpcIoServerImpl callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {
+    return (GrpcIoServerImpl) super.callHandler(handler);
   }
 
-  public <Req, Resp> IoGrpcServerImpl callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler) {
+  public <Req, Resp> GrpcIoServerImpl callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler) {
     ServiceMethod<Req, Resp> serviceMethod = ServiceMethod.server(ServiceName.create(
       methodDesc.getServiceName()),
       methodDesc.getBareMethodName(),
       GrpcMessageEncoder.marshaller(methodDesc.getResponseMarshaller()),
       GrpcMessageDecoder.unmarshaller(methodDesc.getRequestMarshaller())
     );
-    return (IoGrpcServerImpl) callHandler(serviceMethod, handler);
+    return (GrpcIoServerImpl) callHandler(serviceMethod, handler);
   }
 }

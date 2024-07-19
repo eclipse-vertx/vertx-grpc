@@ -1,4 +1,4 @@
-package io.vertx.iogrpc.server;
+package io.vertx.grpcio.server;
 
 import io.grpc.MethodDescriptor;
 import io.vertx.codegen.annotations.GenIgnore;
@@ -10,7 +10,7 @@ import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
-import io.vertx.iogrpc.server.impl.IoGrpcServerImpl;
+import io.vertx.grpcio.server.impl.GrpcIoServerImpl;
 
 /**
  * A gRPC server based on Vert.x HTTP server.
@@ -25,14 +25,14 @@ import io.vertx.iogrpc.server.impl.IoGrpcServerImpl;
  * </ul>
  */
 @VertxGen
-public interface IoGrpcServer extends GrpcServer {
+public interface GrpcIoServer extends GrpcServer {
 
   /**
    * Create a blank gRPC server with default options.
    *
    * @return the created server
    */
-  static IoGrpcServer server(Vertx vertx) {
+  static GrpcIoServer server(Vertx vertx) {
     return server(vertx, new GrpcServerOptions());
   }
 
@@ -42,12 +42,12 @@ public interface IoGrpcServer extends GrpcServer {
    * @param options the gRPC server options
    * @return the created server
    */
-  static IoGrpcServer server(Vertx vertx, GrpcServerOptions options) {
-    return new IoGrpcServerImpl(vertx, options);
+  static GrpcIoServer server(Vertx vertx, GrpcServerOptions options) {
+    return new GrpcIoServerImpl(vertx, options);
   }
 
   @Override
-  IoGrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler);
+  GrpcIoServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler);
 
   /**
    * Set a service method call handler that handles any call made to the server for the {@link MethodDescriptor} service method.
@@ -56,6 +56,6 @@ public interface IoGrpcServer extends GrpcServer {
    * @return a reference to this, so the API can be used fluently
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  <Req, Resp> IoGrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
+  <Req, Resp> GrpcIoServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
 
 }
