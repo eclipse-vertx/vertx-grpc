@@ -25,6 +25,7 @@ import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.Status;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClosedException;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
@@ -149,6 +150,11 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
       this.listener = listener;
       req.errorHandler(error -> {
         if (error == GrpcError.CANCELLED && !closed) {
+          listener.onCancel();
+        }
+      });
+      req.exceptionHandler(throwable -> {
+        if (throwable instanceof HttpClosedException && !closed) {
           listener.onCancel();
         }
       });
