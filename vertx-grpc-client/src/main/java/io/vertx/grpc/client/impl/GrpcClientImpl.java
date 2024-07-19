@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public abstract class GrpcClientImpl implements GrpcClient {
+public class GrpcClientImpl implements GrpcClient {
 
   private final Vertx vertx;
   private HttpClient client;

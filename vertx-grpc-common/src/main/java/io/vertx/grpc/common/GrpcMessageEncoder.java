@@ -1,6 +1,7 @@
 package io.vertx.grpc.common;
 
-import io.grpc.MethodDescriptor;
+import com.google.protobuf.MessageLite;
+import com.google.protobuf.Parser;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
@@ -12,17 +13,26 @@ import io.netty.handler.codec.compression.ZlibEncoder;
 import io.netty.handler.codec.compression.ZlibWrapper;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.VertxGen;
-import io.vertx.core.VertxException;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.internal.buffer.VertxByteBufAllocator;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Queue;
 
 @VertxGen
 public interface GrpcMessageEncoder<T> {
+
+  /**
+   * Create an encoder for arbitrary message extending {@link MessageLite}.
+   * @return the message encoder
+   */
+  @GenIgnore
+  static <T extends MessageLite> GrpcMessageEncoder<T> encoder() {
+    return msg -> {
+      byte[] bytes = msg.toByteArray();
+      return GrpcMessage.message("identity", Buffer.buffer(bytes));
+    };
+  }
 
   GrpcMessageEncoder<Buffer> IDENTITY = new GrpcMessageEncoder<Buffer>() {
     @Override
@@ -50,27 +60,6 @@ public interface GrpcMessageEncoder<T> {
       return GrpcMessage.message("gzip", BufferInternal.buffer(composite));
     }
   };
-
-  @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  static <T> GrpcMessageEncoder<T> marshaller(MethodDescriptor.Marshaller<T> desc) {
-    return new GrpcMessageEncoder<T>() {
-      @Override
-      public GrpcMessage encode(T msg) {
-        Buffer encoded = Buffer.buffer();
-        InputStream stream = desc.stream(msg);
-        byte[] tmp = new byte[256];
-        int i;
-        try {
-          while ((i = stream.read(tmp)) != -1) {
-            encoded.appendBytes(tmp, 0, i);
-          }
-        } catch (IOException e) {
-          throw new VertxException(e);
-        }
-        return GrpcMessage.message("identity", encoded);
-      }
-    };
-  }
 
   GrpcMessage encode(T msg);
 

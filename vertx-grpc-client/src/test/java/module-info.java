@@ -8,4 +8,5 @@ open module io.vertx.tests.client {
   requires io.vertx.testing.unit;
   requires io.vertx.tests.common;
   requires junit;
+    requires com.google.protobuf;
 }

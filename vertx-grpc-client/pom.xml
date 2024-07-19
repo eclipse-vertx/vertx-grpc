@@ -38,20 +38,22 @@
       <groupId>io.vertx</groupId>
       <artifactId>vertx-grpc-common</artifactId>
     </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-stub</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-api</artifactId>
-    </dependency>
 
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-grpc-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-stub</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

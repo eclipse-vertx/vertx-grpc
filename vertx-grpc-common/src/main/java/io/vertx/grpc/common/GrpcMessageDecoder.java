@@ -10,7 +10,8 @@
  */
 package io.vertx.grpc.common;
 
-import io.grpc.MethodDescriptor;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Parser;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -22,11 +23,24 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.internal.buffer.VertxByteBufAllocator;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-
 @VertxGen
 public interface GrpcMessageDecoder<T> {
+
+  /**
+   * Create a decoder for a given protobuf {@link Parser}.
+   * @param parser the parser that returns decoded messages of type {@code <T>}
+   * @return the message decoder
+   */
+  @GenIgnore
+  static <T> GrpcMessageDecoder<T> decoder(Parser<T> parser) {
+    return msg -> {
+      try {
+        return parser.parseFrom(msg.payload().getBytes());
+      } catch (InvalidProtocolBufferException e) {
+        return null;
+      }
+    };
+  }
 
   GrpcMessageDecoder<Buffer> IDENTITY = new GrpcMessageDecoder<Buffer>() {
     @Override
@@ -68,24 +82,6 @@ public interface GrpcMessageDecoder<T> {
       }
     }
   };
-
-  @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  static <T> GrpcMessageDecoder<T> unmarshaller(MethodDescriptor.Marshaller<T> desc) {
-    return new GrpcMessageDecoder<T>() {
-      @Override
-      public T decode(GrpcMessage msg) {
-        ByteArrayInputStream in = new ByteArrayInputStream(msg.payload().getBytes());
-        try {
-          return desc.parse(in);
-        } finally {
-          try {
-            in.close();
-          } catch (IOException ignore) {
-          }
-        }
-      }
-    };
-  }
 
   T decode(GrpcMessage msg) throws CodecException;
 

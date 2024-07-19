@@ -23,7 +23,7 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpcio.client.GrpcIoClient;
+import io.vertx.grpc.client.GrpcClient;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -47,7 +47,7 @@ public abstract class ClientTest extends ClientTestBase {
   static final int NUM_ITEMS = 128;
   static final int NUM_BATCHES = 5;
 
-  protected GrpcIoClient client;
+  protected GrpcClient client;
 
 
   @Test

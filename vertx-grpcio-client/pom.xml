@@ -25,9 +25,9 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>vertx-grpc-client</artifactId>
+  <artifactId>vertx-grpcio-client</artifactId>
 
-  <name>Vert.x gRPC Client</name>
+  <name>Vert.x gRPC/IO Client</name>
 
   <properties>
     <jar.manifest>${project.basedir}/src/main/resources/META-INF/MANIFEST.MF</jar.manifest>
@@ -36,7 +36,12 @@
   <dependencies>
     <dependency>
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpc-common</artifactId>
+      <artifactId>vertx-grpc-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-grpcio-common</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
@@ -50,6 +55,13 @@
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-grpc-common</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-grpc-client</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

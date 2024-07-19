@@ -16,6 +16,9 @@ import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.impl.*;
+import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
+import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
+import io.vertx.grpcio.common.impl.ReadStreamAdapter;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -81,7 +84,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
     fut.onComplete(ar1 -> {
       if (ar1.succeeded()) {
         request = ar1.result();
-        Utils.writeMetadata(headers, request.headers());
+        io.vertx.grpcio.common.impl.Utils.writeMetadata(headers, request.headers());
         ScheduledFuture<?> sf;
         if (deadline != null) {
           long timeout = deadline.timeRemaining(TimeUnit.MILLISECONDS);
@@ -110,7 +113,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
 
             BridgeMessageDecoder<ResponseT> decoder = new BridgeMessageDecoder<>(methodDescriptor.getResponseMarshaller(), decompressor);
 
-            Metadata responseHeaders = Utils.readMetadata(grpcResponse.headers());
+            Metadata responseHeaders = io.vertx.grpcio.common.impl.Utils.readMetadata(grpcResponse.headers());
             if (exec == null) {
               responseListener.onHeaders(responseHeaders);
             } else {
@@ -127,7 +130,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
                 if (grpcResponse.statusMessage() != null) {
                   status = status.withDescription(grpcResponse.statusMessage());
                 }
-                trailers = Utils.readMetadata(grpcResponse.trailers());
+                trailers = io.vertx.grpcio.common.impl.Utils.readMetadata(grpcResponse.trailers());
               } else {
                 status = Status.fromThrowable(ar.cause());
                 trailers = new Metadata();

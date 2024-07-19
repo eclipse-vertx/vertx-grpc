@@ -17,8 +17,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.Address;
+import io.vertx.grpc.client.impl.GrpcClientImpl;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
 /**
  * <p>A gRPC client for Vert.x</p>
@@ -40,7 +40,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx) {
-    return new GrpcIoClientImpl(vertx);
+    return new GrpcClientImpl(vertx);
   }
 
   /**
@@ -50,7 +50,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, GrpcClientOptions options) {
-    return new GrpcIoClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
+    return new GrpcClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
   }
 
   /**
@@ -62,7 +62,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
-    return new GrpcIoClientImpl(vertx, grpcOptions, httpOptions);
+    return new GrpcClientImpl(vertx, grpcOptions, httpOptions);
   }
 
   /**
@@ -73,7 +73,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, HttpClientOptions options) {
-    return new GrpcIoClientImpl(vertx, new GrpcClientOptions(), options);
+    return new GrpcClientImpl(vertx, new GrpcClientOptions(), options);
   }
 
   /**
@@ -84,7 +84,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, HttpClient client) {
-    return new GrpcIoClientImpl(vertx, client);
+    return new GrpcClientImpl(vertx, client);
   }
 
   /**

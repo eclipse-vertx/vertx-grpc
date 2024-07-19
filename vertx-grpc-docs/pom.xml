@@ -36,11 +36,13 @@
   <dependencies>
     <dependency>
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpc-server</artifactId>
+      <artifactId>vertx-grpcio-server</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpc-client</artifactId>
+      <artifactId>vertx-grpcio-client</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>

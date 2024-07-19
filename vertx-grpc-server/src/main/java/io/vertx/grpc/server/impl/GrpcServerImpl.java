@@ -39,7 +39,7 @@ import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public abstract class GrpcServerImpl implements GrpcServer {
+public class GrpcServerImpl implements GrpcServer {
 
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 

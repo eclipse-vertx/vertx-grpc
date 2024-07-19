@@ -10,7 +10,6 @@
  */
 package io.vertx.grpc.server;
 
-import io.grpc.MethodDescriptor;
 import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.VertxGen;
@@ -19,7 +18,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpcio.server.impl.GrpcIoServerImpl;
+import io.vertx.grpc.server.impl.GrpcServerImpl;
 
 /**
  * <p>A gRPC server based on Vert.x HTTP server.</p>
@@ -52,7 +51,7 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    * @return the created server
    */
   static GrpcServer server(Vertx vertx, GrpcServerOptions options) {
-    return new GrpcIoServerImpl(vertx, options);
+    return new GrpcServerImpl(vertx, options);
   }
 
   /**
@@ -73,15 +72,5 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
-
-  /**
-   * Set a service method call handler that handles any call made to the server for the {@link MethodDescriptor} service method.
-   *
-   * @param handler the service method call handler
-   * @return a reference to this, so the API can be used fluently
-   */
-  @Deprecated
-  @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
 
 }
