@@ -9,5 +9,5 @@ open module io.vertx.tests.server {
   requires io.vertx.testing.unit;
   requires io.vertx.tests.common;
   requires junit;
-//  requires testcontainers;
+  requires testcontainers;
 }
