@@ -43,7 +43,7 @@ public class HttpClientWrappingTest extends ClientTestBase {
       .setHost("localhost")
     ).compose(conn -> {
       GrpcClient client = GrpcClient.client(vertx, conn);
-      return client.request(GreeterGrpc.getSayHelloMethod())
+      return client.request(GREETER_SAY_HELLO)
         .compose(req -> {
           req.end(HelloRequest.newBuilder().setName("Julien").build());
           return req.response().compose(GrpcReadStream::last);

@@ -1,0 +1,180 @@
+== Vert.x gRPC Protoc Plugin
+
+The easiest way to start using Vert.x gRPC is to utilize its built-in code generator plugin. To do so,
+one must define the protocol in the `protobuffer` format as required by gRPC.
+
+[source,proto]
+----
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "examples";
+option java_outer_classname = "HelloWorldProto";
+package helloworld;
+
+// The greeting service definition.
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+}
+----
+
+This is a very simple example showing the single request, single response mode.
+
+=== Compile the RPC definition
+
+Using the definition above we need to compile it.
+
+You can compile the proto file using the `protoc` compiler if you https://github.com/google/protobuf/tree/master/java#installation---without-maven[like], or you can integrate it in your build.
+
+If you’re using Apache Maven you need to add the plugin:
+
+[source,xml]
+----
+<plugin>
+  <groupId>org.xolstice.maven.plugins</groupId>
+  <artifactId>protobuf-maven-plugin</artifactId>
+  <version>0.6.1</version>
+  <configuration>
+    <protocArtifact>com.google.protobuf:protoc:${protoc.version}:exe:${os.detected.classifier}</protocArtifact>
+    <pluginId>grpc-java</pluginId>
+    <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+    <protocPlugins>
+      <protocPlugin>
+        <id>vertx-grpc-protoc-plugin2</id>
+        <groupId>io.vertx</groupId>
+        <artifactId>vertx-grpc-protoc-plugin2</artifactId>
+        <version>${stack.version}</version>
+        <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
+      </protocPlugin>
+    </protocPlugins>
+  </configuration>
+  <executions>
+    <execution>
+      <id>compile</id>
+      <configuration>
+        <outputDirectory>${project.basedir}/src/main/java</outputDirectory>
+        <clearOutputDirectory>false</clearOutputDirectory>
+      </configuration>
+      <goals>
+        <goal>compile</goal>
+        <goal>compile-custom</goal>
+      </goals>
+    </execution>
+  </executions>
+</plugin>
+----
+
+The `${os.detected.classifier}` property is used to make the build OS independant, on OSX it is replaced
+by _osx-x86_64_ and so on. To use it you need to add the os-maven-plugin[https://github.com/trustin/os-maven-plugin]
+in the `build` section of your `pom.xml`:
+
+[source,xml]
+----
+<build>
+  ...
+  <extensions>
+    <extension>
+      <groupId>kr.motd.maven</groupId>
+      <artifactId>os-maven-plugin</artifactId>
+      <version>1.4.1.Final</version>
+    </extension>
+  </extensions>
+  ...
+</build>
+----
+
+This plugin will compile your proto files under `src/main/proto` and make them available to your project.
+
+If you're using Gradle you need to add the plugin:
+
+[source,groovy]
+----
+...
+apply plugin: 'com.google.protobuf'
+...
+buildscript {
+  ...
+  dependencies {
+    // ASSUMES GRADLE 2.12 OR HIGHER. Use plugin version 0.7.5 with earlier gradle versions
+    classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.0'
+  }
+}
+...
+protobuf {
+  protoc {
+    artifact = 'com.google.protobuf:protoc:3.2.0'
+  }
+  plugins {
+    grpc {
+      artifact = "io.grpc:protoc-gen-grpc-java:1.25.0"
+    }
+    vertx {
+      artifact = "io.vertx:vertx-grpc-protoc-plugin2:${vertx.grpc.version}"
+    }
+  }
+  generateProtoTasks {
+    all()*.plugins {
+      grpc
+      vertx
+    }
+  }
+}
+----
+
+This plugin will compile your proto files under `build/generated/source/proto/main` and make them available to your project.
+
+=== Generated RPC files
+
+For each service definition, the plugin creates two Java RPC files.
+
+For the `Greeter` service:
+
+- `examples/GreeterGrpcClient.java`
+- `examples/GreeterGrpcService.java`
+
+Besides the usual client/server generated code, these files contains service method constants:
+
+[source,java]
+----
+public class GreeterGrpcClient {
+  public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
+    ServiceName.create("helloworld", "Greeter"),
+    "SayHello",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.HelloReply.parser())
+  );
+  // ...
+}
+
+public class GreeterGrpcServer {
+  public static final ServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = ServiceMethod.server(
+    ServiceName.create("helloworld", "Greeter"),
+    "SayHello",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.HelloRequest.parser())
+  );
+  // ...
+}
+----
+
+[[ServiceMethodConstants]]
+For each service method, a public static final `ServiceMethod` is generated, these constants provide everything
+Vert.x gRPC needs to know to interact with gRPC.
+
+- the service name: `/helloworld.Greeter`
+- the service method name: `SayHello`
+- the message decoder
+- the message encoder
+
+They can be used to bind services or interact with a remote server.

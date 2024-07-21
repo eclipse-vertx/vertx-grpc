@@ -1,7 +1,5 @@
 package examples;
 
-import io.grpc.stub.ServerCallStreamObserver;
-import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -10,6 +8,7 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.*;
 
@@ -29,7 +28,9 @@ public class GrpcServerExamples {
 
   public void requestResponse(GrpcServer server) {
 
-    server.callHandler(GreeterGrpc.getSayHelloMethod(), request -> {
+    ServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterGrpcServer.SayHello;
+
+    server.callHandler(serviceMethod, request -> {
 
       request.handler(hello -> {
 
@@ -44,7 +45,7 @@ public class GrpcServerExamples {
 
   public void streamingRequest(GrpcServer server) {
 
-    server.callHandler(StreamingGrpc.getSinkMethod(), request -> {
+    server.callHandler(StreamingGrpcServer.Sink, request -> {
       request.handler(item -> {
         // Process item
       });
@@ -61,7 +62,7 @@ public class GrpcServerExamples {
 
   public void streamingResponse(GrpcServer server) {
 
-    server.callHandler(StreamingGrpc.getSourceMethod(), request -> {
+    server.callHandler(StreamingGrpcServer.Source, request -> {
       GrpcServerResponse<Empty, Item> response = request.response();
       request.handler(empty -> {
         for (int i = 0;i < 10;i++) {
@@ -74,7 +75,7 @@ public class GrpcServerExamples {
 
   public void bidi(GrpcServer server) {
 
-    server.callHandler(StreamingGrpc.getPipeMethod(), request -> {
+    server.callHandler(StreamingGrpcServer.Pipe, request -> {
 
       request.handler(item -> request.response().write(item));
       request.endHandler(v -> request.response().end());
@@ -136,28 +137,6 @@ public class GrpcServerExamples {
     response.write(Item.newBuilder().setValue("item-1").build());
     response.write(Item.newBuilder().setValue("item-2").build());
     response.write(Item.newBuilder().setValue("item-3").build());
-  }
-
-  public void stubExample(Vertx vertx, HttpServerOptions options) {
-
-    GrpcServer grpcServer = GrpcServer.server(vertx);
-
-    GreeterGrpc.GreeterImplBase service = new GreeterGrpc.GreeterImplBase() {
-      @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
-        responseObserver.onCompleted();
-      }
-    };
-
-    // Bind the service bridge in the gRPC server
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(service);
-    serverStub.bind(grpcServer);
-
-    // Start the HTTP/2 server
-    vertx.createHttpServer(options)
-      .requestHandler(grpcServer)
-      .listen();
   }
 
   public void protobufLevelAPI(GrpcServer server) {

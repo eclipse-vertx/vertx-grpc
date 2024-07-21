@@ -10,7 +10,6 @@
  */
 package io.vertx.grpc.client.impl;
 
-import io.grpc.MethodDescriptor;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -25,6 +24,7 @@ import io.vertx.core.net.Address;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.impl.GrpcRequestLocal;
@@ -64,7 +64,7 @@ public class GrpcClientImpl implements GrpcClient {
     this.closeClient = close;
   }
 
-  private Future<GrpcClientRequest<Buffer, Buffer>> request(RequestOptions options) {
+  public Future<GrpcClientRequest<Buffer, Buffer>> request(RequestOptions options) {
     return client.request(options)
       .map(httpRequest -> {
         GrpcClientRequestImpl<Buffer, Buffer> grpcRequest = new GrpcClientRequestImpl<>(httpRequest, scheduleDeadlineAutomatically, GrpcMessageEncoder.IDENTITY, GrpcMessageDecoder.IDENTITY);
@@ -98,27 +98,28 @@ public class GrpcClientImpl implements GrpcClient {
     request.timeout(timeout, timeoutUnit);
   }
 
-  private <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(RequestOptions options, MethodDescriptor<Req, Resp> service) {
-    GrpcMessageDecoder<Resp> messageDecoder = GrpcMessageDecoder.unmarshaller(service.getResponseMarshaller());
-    GrpcMessageEncoder<Req> messageEncoder = GrpcMessageEncoder.marshaller(service.getRequestMarshaller());
-    return client.request(options)
-      .map(request -> {
-        GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(request, scheduleDeadlineAutomatically, messageEncoder, messageDecoder);
-        call.fullMethodName(service.getFullMethodName());
-        configureTimeout(call);
-        return call;
-      });
+  @Override
+  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
+    return request(new RequestOptions()
+      .setMethod(HttpMethod.POST), method);
   }
 
   @Override
-  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(MethodDescriptor<Req, Resp> service) {
-    return request(new RequestOptions().setMethod(HttpMethod.POST), service);
-  }
-
-  @Override public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, MethodDescriptor<Req, Resp> service) {
+  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, ServiceMethod<Resp, Req> method) {
     return request(new RequestOptions()
       .setMethod(HttpMethod.POST)
-      .setServer(server), service);
+      .setServer(server), method);
+  }
+
+  private <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(RequestOptions options, ServiceMethod<Resp, Req> method) {
+    return client.request(options)
+      .map(request -> {
+        GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(request, scheduleDeadlineAutomatically, method.encoder(), method.decoder());
+        call.serviceName(method.serviceName());
+        call.methodName(method.methodName());
+        configureTimeout(call);
+        return call;
+      });
   }
 
   @Override

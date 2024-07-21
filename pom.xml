@@ -186,7 +186,10 @@
     <module>vertx-grpc-common</module>
     <module>vertx-grpc-server</module>
     <module>vertx-grpc-client</module>
-    <module>vertx-grpc-context-storage</module>
+    <module>vertx-grpcio-common</module>
+    <module>vertx-grpcio-server</module>
+    <module>vertx-grpcio-client</module>
+    <module>vertx-grpcio-context-storage</module>
     <module>vertx-grpc-protoc-plugin2</module>
     <module>vertx-grpc-it</module>
     <module>vertx-grpc-docs</module>

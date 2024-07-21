@@ -1,7 +1,7 @@
 import io.vertx.core.spi.VertxServiceProvider;
 
 module io.vertx.grpc.common {
-  requires io.grpc;
+  requires com.google.protobuf;
   requires io.netty.buffer;
   requires io.netty.codec;
   requires io.netty.common;

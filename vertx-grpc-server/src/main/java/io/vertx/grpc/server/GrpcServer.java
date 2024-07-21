@@ -10,7 +10,6 @@
  */
 package io.vertx.grpc.server;
 
-import io.grpc.MethodDescriptor;
 import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.VertxGen;
@@ -18,25 +17,20 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 
 /**
- * A gRPC server based on Vert.x HTTP server.
+ * <p>A gRPC server based on Vert.x HTTP server.</p>
  *
- * <p> The server can be used as a {@link io.vertx.core.http.HttpServer} handler or mounted as a Vert.x Web handler.
+ * <p>The server can be used as a {@link io.vertx.core.http.HttpServer} handler or mounted as a Vert.x Web handler.</p>
  *
- * <p> Unlike traditional gRPC servers, this server does not rely on a generated RPC interface to interact with the service.
- * <p>
- * Instead, you can interact with the service with a request/response interfaces and gRPC messages, very much like
- * a traditional client.
- * <p>
- * The server exposes 2 levels of handlers
+ * <p>Unlike traditional gRPC servers, this server does not rely on a generated RPC interface to interact with the service.</p>
  *
- * <ul>
- *   <li>a Protobuf message {@link #callHandler(Handler) handler}: {@link GrpcServerRequest}/{@link GrpcServerResponse} with Protobuf message that handles any method call in a generic way</li>
- *   <li>a gRPC message {@link #callHandler(MethodDescriptor, Handler) handler}: {@link GrpcServerRequest}/{@link GrpcServerRequest} with gRPC messages that handles specific service method calls</li>
- * </ul>
+ * <p>Instead, you can interact with the service with a request/response interfaces and gRPC messages, very much like
+ * a traditional client.</p>
  *
+ * <p>The server handles only the gRPC protocol and does not encode/decode protobuf messages.</p>
  */
 @VertxGen
 public interface GrpcServer extends Handler<HttpServerRequest> {
@@ -70,12 +64,13 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler);
 
   /**
-   * Set a service method call handler that handles any call made to the server for the {@link MethodDescriptor} service method.
+   * Set a service method call handler that handles any call made to the server for the {@code fullMethodName } service method.
    *
    * @param handler the service method call handler
+   * @param serviceMethod the service method
    * @return a reference to this, so the API can be used fluently
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
+  <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
 
 }

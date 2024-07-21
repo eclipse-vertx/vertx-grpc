@@ -11,9 +11,14 @@
 package io.vertx.tests.server;
 
 import io.grpc.ManagedChannel;
+import io.grpc.examples.helloworld.HelloReply;
+import io.grpc.examples.helloworld.HelloRequest;
+import io.grpc.examples.streaming.Empty;
+import io.grpc.examples.streaming.Item;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.tests.common.GrpcTestBase;
 import junit.framework.AssertionFailedError;
@@ -24,11 +29,31 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static io.vertx.grpc.common.GrpcMessageDecoder.decoder;
+import static io.vertx.grpc.common.GrpcMessageEncoder.encoder;
+
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
 @RunWith(VertxUnitRunner.class)
 public abstract class ServerTestBase extends GrpcTestBase {
+
+  public static final ServiceName GREETER = ServiceName.create("helloworld.Greeter");
+  public static final ServiceName STREAMING = ServiceName.create("streaming.Streaming");
+
+  public static final GrpcMessageEncoder<Empty> EMPTY_ENC = encoder();
+  public static final GrpcMessageDecoder<Empty> EMPTY_DEC = decoder(Empty.parser());
+  public static final GrpcMessageEncoder<Item> ITEM_ENC = encoder();
+  public static final GrpcMessageDecoder<Item> ITEM_DEC = decoder(Item.parser());
+  public static final GrpcMessageEncoder<HelloRequest> HELLO_REQUEST_ENC = encoder();
+  public static final GrpcMessageDecoder<HelloRequest> HELLO_REQUEST_DEC = decoder(HelloRequest.parser());
+  public static final GrpcMessageEncoder<HelloReply> HELLO_REPLY_ENC = encoder();
+  public static final GrpcMessageDecoder<HelloReply> HELLO_REPLY_DEC = decoder(HelloReply.parser());
+
+  public static final ServiceMethod<HelloRequest, HelloReply> GREETER_SAY_HELLO = ServiceMethod.server(GREETER, "SayHello", HELLO_REPLY_ENC, HELLO_REQUEST_DEC);
+  public static final ServiceMethod<Empty, Item> STREAMING_SOURCE = ServiceMethod.server(STREAMING, "Source", ITEM_ENC, EMPTY_DEC);
+  public static final ServiceMethod<Item, Empty> STREAMING_SINK = ServiceMethod.server(STREAMING, "Sink", EMPTY_ENC, ITEM_DEC);
+  public static final ServiceMethod<Item, Item> STREAMING_PIPE = ServiceMethod.server(STREAMING, "Pipe", ITEM_ENC, ITEM_DEC);
 
   protected volatile ManagedChannel channel;
 

@@ -1,0 +1,49 @@
+== Vert.x gRPC/IO Client
+
+Vert.x gRPC/IO Client extends the Vert.x gRPC client with _grpc-java_ integration.
+
+This client provides a generated stub approach with a gRPC Channel
+
+=== Using Vert.x gRPC/IO Client
+
+To use Vert.x gRPC/IO Client, add the following dependency to the _dependencies_ section of your build descriptor:
+
+* Maven (in your `pom.xml`):
+
+[source,xml,subs="+attributes"]
+----
+<dependency>
+  <groupId>io.vertx</groupId>
+  <artifactId>vertx-grpcio-client</artifactId>
+  <version>${maven.version}</version>
+</dependency>
+----
+
+* Gradle (in your `build.gradle` file):
+
+[source,groovy,subs="+attributes"]
+----
+dependencies {
+  compile 'io.vertx:vertx-grpcio-client:${maven.version}'
+}
+----
+
+=== gRPC channel
+
+The Vert.x gRPC/IO Client provides a gRPC channel to use with _grpc-java_ generated client classes.
+
+[source,java]
+----
+{@link examples.GrpcIoClientExamples#stub}
+----
+
+Timeout and deadlines are supported through the usual gRPC API.
+
+[source,java]
+----
+{@link examples.GrpcIoClientExamples#stubWithDeadline}
+----
+
+Deadline are cascaded, e.g. when the current `io.grpc.Context` carries a deadline and the stub has no explicit deadline
+set, the client automatically inherits the implicit deadline. Such deadline can be set when using a stub within a gRPC server
+call.

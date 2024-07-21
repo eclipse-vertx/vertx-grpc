@@ -18,22 +18,19 @@ import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.client.GrpcClient;
-import io.vertx.grpc.client.GrpcClientChannel;
+import io.vertx.grpcio.client.GrpcIoClient;
+import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerResponse;
-import io.vertx.grpc.server.GrpcServiceBridge;
+import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpcio.server.GrpcIoServiceBridge;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -43,8 +40,8 @@ public class DeadlineTest extends ProxyTestBase {
   @Test
   public void testAutomaticPropagation(TestContext should) {
     Async latch = should.async(3);
-    GrpcClient client = GrpcClient.client(vertx);
-    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
+    GrpcIoClient client = GrpcIoClient.client(vertx);
+    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcIoServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
       should.assertTrue(call.timeout() > 0L);
       call.response().exceptionHandler(err -> {
         should.assertTrue(err instanceof StreamResetException);
@@ -53,7 +50,7 @@ public class DeadlineTest extends ProxyTestBase {
         latch.countDown();
       });
     })).listen(8080, "localhost");
-    GrpcClientChannel proxyChannel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(8080, "localhost"));
+    GrpcIoClientChannel proxyChannel = new GrpcIoClientChannel(client, SocketAddress.inetSocketAddress(8080, "localhost"));
     GreeterGrpc.GreeterStub stub = GreeterGrpc.newStub(proxyChannel);
     GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
       @Override
@@ -78,8 +75,8 @@ public class DeadlineTest extends ProxyTestBase {
         });
       }
     };
-    GrpcServer proxy = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    GrpcIoServer proxy = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(impl);
     serverStub.bind(proxy);
     HttpServer proxyServer = vertx.createHttpServer().requestHandler(proxy);
     server.flatMap(v -> proxyServer.listen(8081, "localhost")).onComplete(should.asyncAssertSuccess(v -> {

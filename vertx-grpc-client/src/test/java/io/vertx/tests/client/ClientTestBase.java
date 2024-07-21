@@ -10,23 +10,46 @@
  */
 package io.vertx.tests.client;
 
-import io.grpc.BindableService;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.ServerServiceDefinition;
+import io.grpc.*;
+import io.grpc.examples.helloworld.HelloReply;
+import io.grpc.examples.helloworld.HelloRequest;
+import io.grpc.examples.streaming.Empty;
+import io.grpc.examples.streaming.Item;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.*;
 import io.vertx.tests.common.GrpcTestBase;
 import org.junit.After;
 import org.junit.runner.RunWith;
 
 import java.io.IOException;
 
+import static io.vertx.grpc.common.GrpcMessageDecoder.decoder;
+import static io.vertx.grpc.common.GrpcMessageEncoder.encoder;
+
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
 @RunWith(VertxUnitRunner.class)
 public abstract class ClientTestBase extends GrpcTestBase {
+
+  public static final ServiceName GREETER = ServiceName.create("helloworld.Greeter");
+  public static final ServiceName STREAMING = ServiceName.create("streaming.Streaming");
+
+  public static final GrpcMessageEncoder<Empty> EMPTY_ENC = encoder();
+  public static final GrpcMessageDecoder<Empty> EMPTY_DEC = decoder(Empty.parser());
+  public static final GrpcMessageEncoder<Item> ITEM_ENC = encoder();
+  public static final GrpcMessageDecoder<Item> ITEM_DEC = decoder(Item.parser());
+  public static final GrpcMessageEncoder<HelloRequest> HELLO_REQUEST_ENC = encoder();
+  public static final GrpcMessageDecoder<HelloRequest> HELLO_REQUEST_DEC = decoder(HelloRequest.parser());
+  public static final GrpcMessageEncoder<HelloReply> HELLO_REPLY_ENC = encoder();
+  public static final GrpcMessageDecoder<HelloReply> HELLO_REPLY_DEC = decoder(HelloReply.parser());
+
+  public static final ServiceMethod<HelloReply, HelloRequest> GREETER_SAY_HELLO = ServiceMethod.client(GREETER, "SayHello", HELLO_REQUEST_ENC, HELLO_REPLY_DEC);
+  public static final ServiceMethod<Item, Empty> STREAMING_SOURCE = ServiceMethod.client(STREAMING, "Source", EMPTY_ENC, ITEM_DEC);
+  public static final ServiceMethod<Empty, Item> STREAMING_SINK = ServiceMethod.client(STREAMING, "Sink", ITEM_ENC, EMPTY_DEC);
+  public static final ServiceMethod<Item, Item> STREAMING_PIPE = ServiceMethod.client(STREAMING, "Pipe", ITEM_ENC, ITEM_DEC);
 
   /* The port on which the server should run */
   protected Server server;
@@ -45,7 +68,11 @@ public abstract class ClientTestBase extends GrpcTestBase {
     Server s = server;
     if (s != null) {
       server = null;
-      s.shutdownNow();
+      if (now) {
+        s.shutdownNow();
+      } else {
+        s.shutdown();
+      }
     }
   }
 

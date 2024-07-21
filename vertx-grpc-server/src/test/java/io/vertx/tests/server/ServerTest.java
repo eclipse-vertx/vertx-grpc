@@ -37,7 +37,6 @@ import io.vertx.core.http.HttpVersion;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import org.junit.Test;
@@ -361,8 +360,7 @@ public abstract class ServerTest extends ServerTestBase {
           should.assertEquals(String.valueOf(GrpcStatus.DEADLINE_EXCEEDED.code), status);
           async.complete();
         }));
-        GrpcMessageEncoder<HelloRequest> encoder = GrpcMessageEncoder.marshaller(GreeterGrpc.getSayHelloMethod().getRequestMarshaller());
-        GrpcMessage msg = encoder.encode(HelloRequest.newBuilder().setName("test").build());
+        GrpcMessage msg = HELLO_REQUEST_ENC.encode(HelloRequest.newBuilder().setName("test").build());
         req.end(GrpcMessageImpl.encode(msg));
       }));
 

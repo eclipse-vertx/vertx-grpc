@@ -151,7 +151,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     return this;
   }
 
-  void handleTimeout() {
+  public void handleTimeout() {
     if (!cancelled) {
       if (!trailersSent) {
         status(GrpcStatus.DEADLINE_EXCEEDED);
