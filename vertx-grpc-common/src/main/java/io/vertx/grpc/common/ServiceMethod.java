@@ -13,7 +13,7 @@ package io.vertx.grpc.common;
 import io.vertx.codegen.annotations.VertxGen;
 
 /**
- * Bundle all the bits required to call a grpc service method.
+ * Bundle all the bits required to call or bind a grpc service method.
  */
 @VertxGen
 public interface ServiceMethod<I, O> {
