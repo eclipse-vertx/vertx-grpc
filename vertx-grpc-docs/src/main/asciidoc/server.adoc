@@ -1,8 +1,8 @@
 == Vert.x gRPC Server
 
-Vert.x gRPC Server is a new gRPC server powered by Vert.x HTTP server superseding the integrated Netty based gRPC client.
+Vert.x gRPC Server is a gRPC server powered by Vert.x HTTP server superseding the integrated Netty based gRPC client.
 
-This server provides a gRPC request/response oriented API as well as a the generated stub approach with a service bridge.
+This server provides a gRPC request/response oriented API as well as a generated stub approach with the Vert.x gRPC Generator.
 
 === Using Vert.x gRPC Server
 
@@ -28,9 +28,7 @@ dependencies {
 }
 ----
 
-=== gRPC request/response server API
-
-The gRPC request/response server API provides an alternative way to interact with a client without the need of a generated stub.
+=== Creating a gRPC server
 
 A `{@link io.vertx.grpc.server.GrpcServer}` is a `Handler<HttpServerRequest>` and can be used as an HTTP server request handler.
 
@@ -70,14 +68,21 @@ router.route("/com.mycompany.MyService/*").handler(corsHandler);
 ----
 ====
 
+=== Server request/response API
+
+The gRPC request/response server API provides an alternative way to interact with a client without the need of extending
+a Java class.
+
 ==== Request/response
 
-Each service method is processed by a handler
+Each service method is processed by a handler, the handler is bound using a `{@link io.vertx.grpc.common.ServiceMethod}`.
 
 [source,java]
 ----
 {@link examples.GrpcServerExamples#requestResponse}
 ----
+
+`{@link io.vertx.grpc.common.ServiceMethod}` constants are <<ServiceMethodConstants,generated>> by the Vert.x gRPC protoc plugin.
 
 ==== Streaming request
 
@@ -172,17 +177,6 @@ Decompression is done transparently by the server when the client send encoded r
 
 NOTE: Decompression is not supported over the gRPC-Web protocol.
 
-=== Stub API
-
-The Vert.x gRPC Server can bridge a gRPC service to use with a generated server stub in a more traditional fashion
-
-[source,java]
-----
-{@link examples.GrpcIoServerExamples#stubExample}
-----
-
-The bridge supports deadline automatic cancellation: when a gRPC request carrying a timeout is received, a deadline is associated with the `io.grpc.Context` an can be obtained from the current context. This deadline automatically cancels the request in progress when its associated timeout fires.
-
 === Message level API
 
 The server provides a message level API to interact directly with protobuf encoded gRPC messages.
@@ -211,3 +205,89 @@ handle the message encoding:
 
 - when the message uses the response encoding, the message is sent as is
 - when the message uses a different encoding, it will be encoded, e.g. compressed or uncompressed
+
+=== Server stub API
+
+In addition to the request/response API, the Vert.x gRPC protoc plugin idiomatic service stubs.
+
+Each service comes in two flavors, you can override the method you like depending on the style.
+
+==== Unary services
+
+Unary services can return a Vert.x `Future`:
+
+[source,java]
+----
+GreeterGrpcServer stub = new GreeterGrpcServer() {
+  @Override
+  public Future<HelloReply> sayHello(HelloRequest request) {
+    return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+  }
+};
+----
+
+or process a Vert.x `Promise`
+
+[source,java]
+----
+GreeterGrpcServer stub = new GreeterGrpcServer() {
+  @Override
+  public void sayHello(HelloRequest request, Promise<HelloReply> response) {
+    response.complete(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+  }
+};
+----
+
+In both case you need to bind the stub to an existing `GrpcServer`:
+
+[source,java]
+----
+server.bindAll(stub);
+----
+
+==== Streaming requests
+
+Streaming requests are implemented with a `ReadStream`:
+
+[source,java]
+----
+StreamingGrpcServer stub = new StreamingGrpcServer() {
+  @Override
+  public void sink(ReadStream<Item> stream, Promise<Empty> response) {
+    stream.handler(item -> {
+      System.out.println("Process item " + item.getValue());
+    });
+    // Send response
+    stream.endHandler(v -> response.complete(Empty.getDefaultInstance()));
+  }
+};
+----
+
+==== Streaming responses
+
+Streaming responses are implemented with Vert.x streams and comes in two flavors.
+
+You can return a Vert.x `ReadStream` and let the service send it for you:
+
+[source,java]
+----
+StreamingGrpcServer stub = new StreamingGrpcServer() {
+  @Override
+  public ReadStream<Item> source(Empty request) {
+    return streamOfItem();
+  }
+};
+----
+
+or you can process a `WriteStream`:
+
+[source,java]
+----
+StreamingGrpcServer stub = new StreamingGrpcServer() {
+  @Override
+  public void source(Empty request, WriteStream<Item> response) {
+    response.write(Item.newBuilder().setValue("value-1").build());
+    response.end(Item.newBuilder().setValue("value-2").build());
+  }
+};
+----

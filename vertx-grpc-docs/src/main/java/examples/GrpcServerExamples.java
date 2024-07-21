@@ -8,6 +8,7 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.*;
 
@@ -27,7 +28,9 @@ public class GrpcServerExamples {
 
   public void requestResponse(GrpcServer server) {
 
-    server.callHandler(GreeterGrpcServer.SayHello, request -> {
+    ServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterGrpcServer.SayHello;
+
+    server.callHandler(serviceMethod, request -> {
 
       request.handler(hello -> {
 

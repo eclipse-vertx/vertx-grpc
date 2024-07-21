@@ -28,9 +28,7 @@ dependencies {
 }
 ----
 
-=== gRPC request/response client API
-
-The gRPC request/response client API provides an alternative way to interact with a server without the need of a generated stub.
+=== Creating a gRPC client
 
 You can easily create the gRPC client
 
@@ -38,6 +36,10 @@ You can easily create the gRPC client
 ----
 {@link examples.GrpcClientExamples#createClient}
 ----
+
+=== Client request/response API
+
+The gRPC request/response client API provides an alternative way to interact with a server without the need of a generated stub.
 
 ==== Request/response
 
@@ -47,6 +49,8 @@ Interacting with a gRPC server involves creating a request to the remote gRPC se
 ----
 {@link examples.GrpcClientExamples#sendRequest}
 ----
+
+`{@link io.vertx.grpc.common.ServiceMethod}` constants are <<ServiceMethodConstants,generated>> by the Vert.x gRPC protoc plugin.
 
 The `{@link io.vertx.grpc.client.GrpcClientRequest#response}` holds the response and the
 `{@link io.vertx.grpc.client.GrpcClientResponse#last}` holds the result
@@ -148,26 +152,6 @@ You can compress request messages by setting the request encoding *prior* before
 
 Decompression is achieved transparently by the client when the server sends encoded responses.
 
-=== Stub API
-
-The Vert.x gRPC Client provides a gRPC channel to use with a generated client stub in a more traditional fashion
-
-[source,java]
-----
-{@link examples.GrpcIoClientExamples#stub}
-----
-
-Timeout and deadlines are supported through the usual gRPC API.
-
-[source,java]
-----
-{@link examples.GrpcIoClientExamples#stubWithDeadline}
-----
-
-Deadline are cascaded, e.g. when the current `io.grpc.Context` carries a deadline and the stub has no explicit deadline
-set, the client automatically inherits the implicit deadline. Such deadline can be set when using a stub within a gRPC server
-call.
-
 === Message level API
 
 The client provides a message level API to interact directly with protobuf encoded gRPC messages.
@@ -194,3 +178,57 @@ handle the message encoding:
 
 - when the message uses the response encoding, the message is sent as is
 - when the message uses a different encoding, it will be encoded, e.g. compressed or uncompressed
+
+=== Client stub API
+
+In addition to the request/response API, the Vert.x gRPC protoc plugin idiomatic service clients.
+
+A client wraps a `GrpcClient` and provides Vert.x idiomatic API to interact with the service:
+
+[source,java]
+----
+GreeterGrpcClient client = new GreeterGrpcClient(grpcClient, server);
+----
+
+==== Unary services
+
+Unary services returns a Vert.x `Future`
+
+[source,java]
+----
+Future<HelloReply> response = client.sayHello(HelloRequest.newBuilder().setName("John").build());
+
+response.onSuccess(result -> System.out.println("Service responded: " + ar.result().getMessage()));
+
+response.onFailure(err -> System.out.println("Service failure: " + ar.cause().getMessage()));
+----
+
+==== Streaming requests
+
+Streaming requests use a lambda passed a Vert.x `WriteStream` of messages sent to the service
+
+[source,java]
+----
+Future<Empty> response = client.sink(stream -> {
+  stream.write(Item.newBuilder().setValue("Value 1").build());
+  stream.write(Item.newBuilder().setValue("Value 2").build());
+  stream.end(Item.newBuilder().setValue("Value 3").build());
+});
+----
+
+==== Streaming responses
+
+Streaming responses get a Vert.x `ReadStream` of messages sent by the service
+
+[source,java]
+----
+Future<ReadStream<Item>> response = client.source(Empty.getDefaultInstance());
+
+response.onSuccess(stream -> stream
+  .handler(item -> System.out.println("Item " + item.getValue()))
+  .exceptionHandler(err -> System.out.println("Stream failed " + err.getMessage()));
+  .endHandler(v -> System.out.println("Stream ended")));
+
+response.onFailure(err -> System.out.println("Service failure: " + ar.cause().getMessage()));
+----
+
