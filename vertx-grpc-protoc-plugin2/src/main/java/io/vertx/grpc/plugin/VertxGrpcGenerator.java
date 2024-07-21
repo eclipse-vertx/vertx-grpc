@@ -77,7 +77,8 @@ public class VertxGrpcGenerator extends Generator {
           serviceNumber
         );
         serviceContext.protoName = fileProto.getName();
-        serviceContext.packageName = extractPackageName(fileProto);
+        serviceContext.packageName = fileProto.getPackage();
+        serviceContext.vertxPackageName = extractPackageName(fileProto);
         contexts.add(serviceContext);
       }
     });
@@ -134,7 +135,8 @@ public class VertxGrpcGenerator extends Generator {
 
   private MethodContext buildMethodContext(DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int methodNumber) {
     MethodContext methodContext = new MethodContext();
-    methodContext.methodName = mixedLower(methodProto.getName());
+    methodContext.methodName = methodProto.getName();
+    methodContext.vertxMethodName = mixedLower(methodProto.getName());
     methodContext.inputType = typeMap.toJavaTypeName(methodProto.getInputType());
     methodContext.outputType = typeMap.toJavaTypeName(methodProto.getOutputType());
     methodContext.deprecated = methodProto.getOptions() != null && methodProto.getOptions().getDeprecated();
@@ -299,7 +301,7 @@ public class VertxGrpcGenerator extends Generator {
   }
 
   private String absoluteFileName(ServiceContext ctx) {
-    String dir = ctx.packageName.replace('.', '/');
+    String dir = ctx.vertxPackageName.replace('.', '/');
     if (Strings.isNullOrEmpty(dir)) {
       return ctx.fileName;
     } else {
@@ -334,11 +336,16 @@ public class VertxGrpcGenerator extends Generator {
     public String fileName;
     public String protoName;
     public String packageName;
+    public String vertxPackageName;
     public String className;
     public String serviceName;
     public boolean deprecated;
     public String javaDoc;
     public final List<MethodContext> methods = new ArrayList<>();
+
+    public List<MethodContext> allMethods() {
+      return methods;
+    }
 
     public List<MethodContext> streamMethods() {
       return methods.stream().filter(m -> m.isManyInput || m.isManyOutput).collect(Collectors.toList());
@@ -367,6 +374,7 @@ public class VertxGrpcGenerator extends Generator {
   private static class MethodContext {
     // CHECKSTYLE DISABLE VisibilityModifier FOR 10 LINES
     public String methodName;
+    public String vertxMethodName;
     public String inputType;
     public String outputType;
     public boolean deprecated;
