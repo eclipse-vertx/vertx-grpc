@@ -26,37 +26,34 @@ public class GreeterGrpcServer  {
     GrpcMessageDecoder.decoder(examples.HelloRequest.parser())
   );
 
-  public interface GreeterApi {
+  public Future<examples.HelloReply> sayHello(examples.HelloRequest request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+  public void sayHello(examples.HelloRequest request, Promise<examples.HelloReply> response) {
+    sayHello(request)
+      .onSuccess(msg -> response.complete(msg))
+      .onFailure(error -> response.fail(error));
+  }
 
-    default Future<examples.HelloReply> sayHello(examples.HelloRequest request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    default void sayHello(examples.HelloRequest request, Promise<examples.HelloReply> response) {
-      sayHello(request)
-        .onSuccess(msg -> response.complete(msg))
-        .onFailure(error -> response.fail(error));
-    }
-
-    default GreeterApi bind_sayHello(GrpcServer server) {
-      server.callHandler(SayHello, request -> {
-        Promise<examples.HelloReply> promise = Promise.promise();
-        request.handler(req -> {
-          try {
-            sayHello(req, promise);
-          } catch (RuntimeException err) {
-            promise.tryFail(err);
-          }
-        });
-        promise.future()
-          .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-          .onSuccess(resp -> request.response().end(resp));
+  public GreeterGrpcServer bind_sayHello(GrpcServer server) {
+    server.callHandler(SayHello, request -> {
+      Promise<examples.HelloReply> promise = Promise.promise();
+      request.handler(req -> {
+        try {
+          sayHello(req, promise);
+        } catch (RuntimeException err) {
+          promise.tryFail(err);
+        }
       });
-      return this;
-    }
+      promise.future()
+        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+        .onSuccess(resp -> request.response().end(resp));
+    });
+    return this;
+  }
 
-    default GreeterApi bindAll(GrpcServer server) {
-      bind_sayHello(server);
-      return this;
-    }
+  public GreeterGrpcServer bindAll(GrpcServer server) {
+    bind_sayHello(server);
+    return this;
   }
 }

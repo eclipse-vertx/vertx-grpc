@@ -30,117 +30,114 @@ public class {{className}}  {
   );
 {{/allMethods}}
 
-  public interface {{serviceName}}Api {
-
 {{#unaryMethods}}
-    default Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    default void {{vertxMethodName}}({{inputType}} request, Promise<{{outputType}}> response) {
-      {{vertxMethodName}}(request)
-        .onSuccess(msg -> response.complete(msg))
-        .onFailure(error -> response.fail(error));
-    }
+  public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+  public void {{vertxMethodName}}({{inputType}} request, Promise<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .onSuccess(msg -> response.complete(msg))
+      .onFailure(error -> response.fail(error));
+  }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
-    default ReadStream<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    default void {{vertxMethodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
-      {{vertxMethodName}}(request)
-        .handler(msg -> response.write(msg))
-        .endHandler(msg -> response.end())
-        .resume();
-    }
+  public ReadStream<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+  public void {{vertxMethodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .handler(msg -> response.write(msg))
+      .endHandler(msg -> response.end())
+      .resume();
+  }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
-    default Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    default void {{vertxMethodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
-      {{vertxMethodName}}(request)
-        .onSuccess(msg -> response.complete(msg))
-        .onFailure(error -> response.fail(error));
-    }
+  public Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+  public void {{vertxMethodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .onSuccess(msg -> response.complete(msg))
+      .onFailure(error -> response.fail(error));
+  }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
-    default ReadStream<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    default void {{vertxMethodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
-      {{vertxMethodName}}(request)
-        .handler(msg -> response.write(msg))
-        .endHandler(msg -> response.end())
-        .resume();
-    }
+  public ReadStream<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+  public void {{vertxMethodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .handler(msg -> response.write(msg))
+      .endHandler(msg -> response.end())
+      .resume();
+  }
 {{/manyManyMethods}}
 
 {{#unaryMethods}}
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      server.callHandler({{methodName}}, request -> {
-        Promise<{{outputType}}> promise = Promise.promise();
-        request.handler(req -> {
-          try {
-            {{vertxMethodName}}(req, promise);
-          } catch (RuntimeException err) {
-            promise.tryFail(err);
-          }
-        });
-        promise.future()
-          .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-          .onSuccess(resp -> request.response().end(resp));
-      });
-      return this;
-    }
-{{/unaryMethods}}
-{{#unaryManyMethods}}
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      server.callHandler({{methodName}}, request -> {
-        request.handler(req -> {
-          try {
-            {{vertxMethodName}}(req, request.response());
-          } catch (RuntimeException err) {
-            request.response().status(GrpcStatus.INTERNAL).end();
-          }
-        });
-      });
-      return this;
-    }
-{{/unaryManyMethods}}
-{{#manyUnaryMethods}}
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      server.callHandler({{methodName}}, request -> {
-        Promise<{{outputType}}> promise = Promise.promise();
-        promise.future()
-          .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-          .onSuccess(resp -> request.response().end(resp));
+  public {{serviceName}}GrpcServer bind_{{vertxMethodName}}(GrpcServer server) {
+    server.callHandler({{methodName}}, request -> {
+      Promise<{{outputType}}> promise = Promise.promise();
+      request.handler(req -> {
         try {
-          {{vertxMethodName}}(request, promise);
+          {{vertxMethodName}}(req, promise);
         } catch (RuntimeException err) {
           promise.tryFail(err);
         }
       });
-      return this;
-    }
-{{/manyUnaryMethods}}
-{{#manyManyMethods}}
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      server.callHandler({{methodName}}, request -> {
+      promise.future()
+        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+        .onSuccess(resp -> request.response().end(resp));
+    });
+    return this;
+  }
+{{/unaryMethods}}
+{{#unaryManyMethods}}
+  public {{serviceName}}GrpcServer bind_{{vertxMethodName}}(GrpcServer server) {
+    server.callHandler({{methodName}}, request -> {
+      request.handler(req -> {
         try {
-          {{vertxMethodName}}(request, request.response());
+          {{vertxMethodName}}(req, request.response());
         } catch (RuntimeException err) {
           request.response().status(GrpcStatus.INTERNAL).end();
         }
       });
-      return this;
-    }
+    });
+    return this;
+  }
+{{/unaryManyMethods}}
+{{#manyUnaryMethods}}
+  public {{serviceName}}GrpcServer bind_{{vertxMethodName}}(GrpcServer server) {
+    server.callHandler({{methodName}}, request -> {
+      Promise<{{outputType}}> promise = Promise.promise();
+      promise.future()
+        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+        .onSuccess(resp -> request.response().end(resp));
+      try {
+        {{vertxMethodName}}(request, promise);
+      } catch (RuntimeException err) {
+        promise.tryFail(err);
+      }
+    });
+    return this;
+  }
+{{/manyUnaryMethods}}
+{{#manyManyMethods}}
+  public {{serviceName}}GrpcServer bind_{{vertxMethodName}}(GrpcServer server) {
+    server.callHandler({{methodName}}, request -> {
+      try {
+        {{vertxMethodName}}(request, request.response());
+      } catch (RuntimeException err) {
+        request.response().status(GrpcStatus.INTERNAL).end();
+      }
+    });
+    return this;
+  }
 {{/manyManyMethods}}
 
-    default {{serviceName}}Api bindAll(GrpcServer server) {
+  public {{serviceName}}GrpcServer bindAll(GrpcServer server) {
 {{#methods}}
-      bind_{{vertxMethodName}}(server);
+    bind_{{vertxMethodName}}(server);
 {{/methods}}
-      return this;
-    }
+    return this;
   }
 }
