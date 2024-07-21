@@ -1,7 +1,6 @@
 package examples;
 
 import io.grpc.MethodDescriptor;
-import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -9,8 +8,6 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.client.*;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpcio.client.GrpcIoClient;
-import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.ServiceName;
 
@@ -122,39 +119,6 @@ public class GrpcClientExamples {
     request.write(Item.newBuilder().setValue("item-1").build());
     request.write(Item.newBuilder().setValue("item-2").build());
     request.write(Item.newBuilder().setValue("item-3").build());
-  }
-
-  public void stub(GrpcIoClient client) {
-
-    GrpcIoClientChannel channel = new GrpcIoClientChannel(client, SocketAddress.inetSocketAddress(443, "example.com"));
-
-    GreeterGrpc.GreeterStub greeter = GreeterGrpc.newStub(channel);
-
-    StreamObserver<HelloReply> observer = new StreamObserver<HelloReply>() {
-      @Override
-      public void onNext(HelloReply value) {
-        // Process response
-      }
-
-      @Override
-      public void onCompleted() {
-        // Done
-      }
-
-      @Override
-      public void onError(Throwable t) {
-        // Something went bad
-      }
-    };
-
-    greeter.sayHello(HelloRequest.newBuilder().setName("Bob").build(), observer);
-  }
-
-  public void stubWithDeadline(GrpcIoClientChannel channel, StreamObserver<HelloReply> observer) {
-
-    GreeterGrpc.GreeterStub greeter = GreeterGrpc.newStub(channel).withDeadlineAfter(10, TimeUnit.SECONDS);
-
-    greeter.sayHello(HelloRequest.newBuilder().setName("Bob").build(), observer);
   }
 
   public void requestWithDeadline(Vertx vertx) {

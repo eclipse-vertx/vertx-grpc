@@ -154,14 +154,14 @@ The Vert.x gRPC Client provides a gRPC channel to use with a generated client st
 
 [source,java]
 ----
-{@link examples.GrpcClientExamples#stub}
+{@link examples.GrpcIoClientExamples#stub}
 ----
 
 Timeout and deadlines are supported through the usual gRPC API.
 
 [source,java]
 ----
-{@link examples.GrpcClientExamples#stubWithDeadline}
+{@link examples.GrpcIoClientExamples#stubWithDeadline}
 ----
 
 Deadline are cascaded, e.g. when the current `io.grpc.Context` carries a deadline and the stub has no explicit deadline

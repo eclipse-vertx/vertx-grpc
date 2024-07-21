@@ -1,6 +1,5 @@
 package examples;
 
-import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -11,8 +10,6 @@ import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.*;
-import io.vertx.grpcio.server.GrpcIoServer;
-import io.vertx.grpcio.server.GrpcIoServiceBridge;
 
 @Source
 public class GrpcServerExamples {
@@ -137,28 +134,6 @@ public class GrpcServerExamples {
     response.write(Item.newBuilder().setValue("item-1").build());
     response.write(Item.newBuilder().setValue("item-2").build());
     response.write(Item.newBuilder().setValue("item-3").build());
-  }
-
-  public void stubExample(Vertx vertx, HttpServerOptions options) {
-
-    GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
-
-    GreeterGrpc.GreeterImplBase service = new GreeterGrpc.GreeterImplBase() {
-      @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
-        responseObserver.onCompleted();
-      }
-    };
-
-    // Bind the service bridge in the gRPC server
-    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(service);
-    serverStub.bind(grpcServer);
-
-    // Start the HTTP/2 server
-    vertx.createHttpServer(options)
-      .requestHandler(grpcServer)
-      .listen();
   }
 
   public void protobufLevelAPI(GrpcServer server) {

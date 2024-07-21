@@ -178,7 +178,7 @@ The Vert.x gRPC Server can bridge a gRPC service to use with a generated server 
 
 [source,java]
 ----
-{@link examples.GrpcServerExamples#stubExample}
+{@link examples.GrpcIoServerExamples#stubExample}
 ----
 
 The bridge supports deadline automatic cancellation: when a gRPC request carrying a timeout is received, a deadline is associated with the `io.grpc.Context` an can be obtained from the current context. This deadline automatically cancels the request in progress when its associated timeout fires.
