@@ -8,6 +8,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.client.*;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpcio.client.GrpcIoClient;
 import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpc.common.GrpcMessage;
@@ -19,13 +20,13 @@ import java.util.concurrent.TimeUnit;
 public class GrpcClientExamples {
 
   public void createClient(Vertx vertx) {
-    GrpcIoClient client = GrpcIoClient.client(vertx);
+    GrpcClient client = GrpcClient.client(vertx);
   }
 
-  public void sendRequest(GrpcIoClient client) {
+  public void sendRequest(GrpcClient client) {
 
     SocketAddress server = SocketAddress.inetSocketAddress(443, "example.com");
-    MethodDescriptor<HelloRequest, HelloReply> sayHelloMethod = GreeterGrpc.getSayHelloMethod();
+    ServiceMethod<HelloReply, HelloRequest> sayHelloMethod = VertxGreeterGrpcClient.SayHello;
     Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, sayHelloMethod);
     fut.onSuccess(request -> {
       // The end method calls the service
@@ -42,9 +43,9 @@ public class GrpcClientExamples {
     });
   }
 
-  public void requestResponse(GrpcIoClient client, SocketAddress server) {
+  public void requestResponse(GrpcClient client, SocketAddress server) {
     client
-      .request(server, GreeterGrpc.getSayHelloMethod()).compose(request -> {
+      .request(server, VertxGreeterGrpcClient.SayHello).compose(request -> {
         request.end(HelloRequest
           .newBuilder()
           .setName("Bob")
@@ -55,9 +56,9 @@ public class GrpcClientExamples {
       });
   }
 
-  public void streamingRequest(GrpcIoClient client, SocketAddress server) {
+  public void streamingRequest(GrpcClient client, SocketAddress server) {
     client
-      .request(server, StreamingGrpc.getSinkMethod())
+      .request(server, VertxStreamingGrpcClient.Sink)
       .onSuccess(request -> {
       for (int i = 0;i < 10;i++) {
         request.write(Item.newBuilder().setValue("1").build());
@@ -66,9 +67,9 @@ public class GrpcClientExamples {
     });
   }
 
-  public void streamingResponse(GrpcIoClient client, SocketAddress server) {
+  public void streamingResponse(GrpcClient client, SocketAddress server) {
     client
-      .request(server, StreamingGrpc.getSourceMethod())
+      .request(server, VertxStreamingGrpcClient.Source)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
         return request.response();
@@ -166,9 +167,9 @@ public class GrpcClientExamples {
       .setScheduleDeadlineAutomatically(true));
   }
 
-  public void requestWithDeadline2(GrpcIoClient client, SocketAddress server, MethodDescriptor<HelloRequest, HelloReply> sayHelloMethod) {
+  public void requestWithDeadline2(GrpcClient client, SocketAddress server, MethodDescriptor<HelloRequest, HelloReply> sayHelloMethod) {
 
-    Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, sayHelloMethod);
+    Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, VertxGreeterGrpcClient.SayHello);
     fut.onSuccess(request -> {
 
       request

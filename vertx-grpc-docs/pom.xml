@@ -83,6 +83,15 @@
               <goal>compile-custom</goal>
             </goals>
             <configuration>
+              <protocPlugins>
+                <protocPlugin>
+                  <id>vertx-grpc-protoc-plugin</id>
+                  <groupId>io.vertx</groupId>
+                  <artifactId>vertx-grpc-protoc-plugin2</artifactId>
+                  <version>${project.version}</version>
+                  <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
+                </protocPlugin>
+              </protocPlugins>
               <outputDirectory>${project.basedir}/src/main/java</outputDirectory>
               <clearOutputDirectory>false</clearOutputDirectory>
             </configuration>
