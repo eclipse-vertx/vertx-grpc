@@ -30,7 +30,6 @@ public class VertxGrpcGenerator extends Generator {
 
   private static final int SERVICE_NUMBER_OF_PATHS = 2;
   private static final int METHOD_NUMBER_OF_PATHS = 4;
-  private static final String CLASS_PREFIX = "Vertx";
 
   private String getServiceJavaDocPrefix() {
     return "    ";
@@ -281,14 +280,14 @@ public class VertxGrpcGenerator extends Generator {
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildClientFile(ServiceContext context) {
-    context.fileName = CLASS_PREFIX + context.serviceName + "GrpcClient.java";
-    context.className = CLASS_PREFIX + context.serviceName + "GrpcClient";
+    context.fileName = context.serviceName + "GrpcClient.java";
+    context.className = context.serviceName + "GrpcClient";
     return buildFile(context, applyTemplate("client.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildServerFile(ServiceContext context) {
-    context.fileName = CLASS_PREFIX + context.serviceName + "GrpcServer.java";
-    context.className = CLASS_PREFIX + context.serviceName + "GrpcServer";
+    context.fileName = context.serviceName + "GrpcServer.java";
+    context.className = context.serviceName + "GrpcServer";
     return buildFile(context, applyTemplate("server.mustache", context));
   }
 

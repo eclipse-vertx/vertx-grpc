@@ -12,7 +12,7 @@ import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
-public class VertxGreeterGrpcClient {
+public class GreeterGrpcClient {
 
   public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
   ServiceName.create("helloworld", "Greeter"),
@@ -23,7 +23,7 @@ public class VertxGreeterGrpcClient {
   private final GrpcClient client;
   private final SocketAddress socketAddress;
 
-  public VertxGreeterGrpcClient(GrpcClient client, SocketAddress socketAddress) {
+  public GreeterGrpcClient(GrpcClient client, SocketAddress socketAddress) {
     this.client = client;
     this.socketAddress = socketAddress;
   }

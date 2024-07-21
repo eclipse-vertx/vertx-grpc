@@ -17,7 +17,7 @@ import io.vertx.grpc.server.GrpcServer;
 import java.util.ArrayList;
 import java.util.List;
 
-public class VertxStreamingGrpcServer  {
+public class StreamingGrpcServer  {
 
   public static final ServiceMethod<examples.Empty, examples.Item> Source = ServiceMethod.server(
   ServiceName.create("streaming", "Streaming"),

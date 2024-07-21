@@ -17,7 +17,7 @@ import io.vertx.grpc.server.GrpcServer;
 import java.util.ArrayList;
 import java.util.List;
 
-public class VertxGreeterGrpcServer  {
+public class GreeterGrpcServer  {
 
   public static final ServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = ServiceMethod.server(
   ServiceName.create("helloworld", "Greeter"),

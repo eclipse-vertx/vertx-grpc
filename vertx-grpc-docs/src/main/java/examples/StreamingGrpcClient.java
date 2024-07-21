@@ -12,7 +12,7 @@ import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
-public class VertxStreamingGrpcClient {
+public class StreamingGrpcClient {
 
   public static final ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
   ServiceName.create("streaming", "Streaming"),
@@ -33,7 +33,7 @@ public class VertxStreamingGrpcClient {
   private final GrpcClient client;
   private final SocketAddress socketAddress;
 
-  public VertxStreamingGrpcClient(GrpcClient client, SocketAddress socketAddress) {
+  public StreamingGrpcClient(GrpcClient client, SocketAddress socketAddress) {
     this.client = client;
     this.socketAddress = socketAddress;
   }

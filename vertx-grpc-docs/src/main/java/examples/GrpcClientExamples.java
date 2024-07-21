@@ -26,7 +26,7 @@ public class GrpcClientExamples {
   public void sendRequest(GrpcClient client) {
 
     SocketAddress server = SocketAddress.inetSocketAddress(443, "example.com");
-    ServiceMethod<HelloReply, HelloRequest> sayHelloMethod = VertxGreeterGrpcClient.SayHello;
+    ServiceMethod<HelloReply, HelloRequest> sayHelloMethod = GreeterGrpcClient.SayHello;
     Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, sayHelloMethod);
     fut.onSuccess(request -> {
       // The end method calls the service
@@ -45,7 +45,7 @@ public class GrpcClientExamples {
 
   public void requestResponse(GrpcClient client, SocketAddress server) {
     client
-      .request(server, VertxGreeterGrpcClient.SayHello).compose(request -> {
+      .request(server, GreeterGrpcClient.SayHello).compose(request -> {
         request.end(HelloRequest
           .newBuilder()
           .setName("Bob")
@@ -58,7 +58,7 @@ public class GrpcClientExamples {
 
   public void streamingRequest(GrpcClient client, SocketAddress server) {
     client
-      .request(server, VertxStreamingGrpcClient.Sink)
+      .request(server, StreamingGrpcClient.Sink)
       .onSuccess(request -> {
       for (int i = 0;i < 10;i++) {
         request.write(Item.newBuilder().setValue("1").build());
@@ -69,7 +69,7 @@ public class GrpcClientExamples {
 
   public void streamingResponse(GrpcClient client, SocketAddress server) {
     client
-      .request(server, VertxStreamingGrpcClient.Source)
+      .request(server, StreamingGrpcClient.Source)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
         return request.response();
@@ -169,7 +169,7 @@ public class GrpcClientExamples {
 
   public void requestWithDeadline2(GrpcClient client, SocketAddress server, MethodDescriptor<HelloRequest, HelloReply> sayHelloMethod) {
 
-    Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, VertxGreeterGrpcClient.SayHello);
+    Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, GreeterGrpcClient.SayHello);
     fut.onSuccess(request -> {
 
       request
