@@ -442,11 +442,11 @@ public class ClientBridgeTest extends ClientTest {
   private void testGrpcNetworkError(TestContext should, int numberOfMessages) throws Exception {
 
     Async listenLatch = should.async();
-    NetServer proxy = vertx.createNetServer();
-    proxy.connectHandler(inbound -> {
+    NetServer proxyServer = vertx.createNetServer();
+    NetClient proxyClient = vertx.createNetClient();
+    proxyServer.connectHandler(inbound -> {
       inbound.pause();
-      NetClient client = vertx.createNetClient();
-      client.connect(port, "localhost")
+      proxyClient.connect(port, "localhost")
         .onComplete(ar -> {
           inbound.resume();
           if (ar.succeeded()) {
@@ -484,7 +484,7 @@ public class ClientBridgeTest extends ClientTest {
       for (int i = 0;i < numberOfMessages;i++) {
         it.next();
       }
-      proxy.close();
+      proxyServer.close();
       it.next();
       fail();
     } catch (StatusRuntimeException e) {

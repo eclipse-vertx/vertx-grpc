@@ -68,7 +68,11 @@ public abstract class ClientTestBase extends GrpcTestBase {
     Server s = server;
     if (s != null) {
       server = null;
-      s.shutdownNow();
+      if (now) {
+        s.shutdownNow();
+      } else {
+        s.shutdown();
+      }
     }
   }
 
