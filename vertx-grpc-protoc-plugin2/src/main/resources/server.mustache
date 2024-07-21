@@ -23,10 +23,11 @@ public class {{className}}  {
 
 {{#allMethods}}
   public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = ServiceMethod.server(
-  ServiceName.create("{{packageName}}", "{{serviceName}}"),
-  "{{methodName}}",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder({{inputType}}.parser()));
+    ServiceName.create("{{packageName}}", "{{serviceName}}"),
+    "{{methodName}}",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder({{inputType}}.parser())
+  );
 {{/allMethods}}
 
   public interface {{serviceName}}Api {

@@ -20,10 +20,11 @@ import java.util.List;
 public class GreeterGrpcServer  {
 
   public static final ServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = ServiceMethod.server(
-  ServiceName.create("helloworld", "Greeter"),
-  "SayHello",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder(examples.HelloRequest.parser()));
+    ServiceName.create("helloworld", "Greeter"),
+    "SayHello",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.HelloRequest.parser())
+  );
 
   public interface GreeterApi {
 

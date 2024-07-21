@@ -20,20 +20,23 @@ import java.util.List;
 public class StreamingGrpcServer  {
 
   public static final ServiceMethod<examples.Empty, examples.Item> Source = ServiceMethod.server(
-  ServiceName.create("streaming", "Streaming"),
-  "Source",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder(examples.Empty.parser()));
+    ServiceName.create("streaming", "Streaming"),
+    "Source",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.Empty.parser())
+  );
   public static final ServiceMethod<examples.Item, examples.Empty> Sink = ServiceMethod.server(
-  ServiceName.create("streaming", "Streaming"),
-  "Sink",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder(examples.Item.parser()));
+    ServiceName.create("streaming", "Streaming"),
+    "Sink",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.Item.parser())
+  );
   public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.server(
-  ServiceName.create("streaming", "Streaming"),
-  "Pipe",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder(examples.Item.parser()));
+    ServiceName.create("streaming", "Streaming"),
+    "Pipe",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.Item.parser())
+  );
 
   public interface StreamingApi {
 

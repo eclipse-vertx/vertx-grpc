@@ -15,10 +15,11 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 public class GreeterGrpcClient {
 
   public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
-  ServiceName.create("helloworld", "Greeter"),
-  "SayHello",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder(examples.HelloReply.parser()));
+    ServiceName.create("helloworld", "Greeter"),
+    "SayHello",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.HelloReply.parser())
+  );
 
   private final GrpcClient client;
   private final SocketAddress socketAddress;

@@ -15,20 +15,23 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 public class StreamingGrpcClient {
 
   public static final ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
-  ServiceName.create("streaming", "Streaming"),
-  "Source",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder(examples.Item.parser()));
+    ServiceName.create("streaming", "Streaming"),
+    "Source",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.Item.parser())
+  );
   public static final ServiceMethod<examples.Empty, examples.Item> Sink = ServiceMethod.client(
-  ServiceName.create("streaming", "Streaming"),
-  "Sink",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder(examples.Empty.parser()));
+    ServiceName.create("streaming", "Streaming"),
+    "Sink",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.Empty.parser())
+  );
   public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.client(
-  ServiceName.create("streaming", "Streaming"),
-  "Pipe",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder(examples.Item.parser()));
+    ServiceName.create("streaming", "Streaming"),
+    "Pipe",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.Item.parser())
+  );
 
   private final GrpcClient client;
   private final SocketAddress socketAddress;
