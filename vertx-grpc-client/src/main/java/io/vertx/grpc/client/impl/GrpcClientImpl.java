@@ -24,11 +24,12 @@ import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpcio.client.GrpcIoClient;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class GrpcClientImpl implements GrpcClient {
+public class GrpcClientImpl implements GrpcIoClient {
 
   private final Vertx vertx;
   private HttpClient client;

@@ -60,11 +60,9 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler);
 
   /**
-   * Set a service method call handler that handles any call call made to the server for the {@link MethodDescriptor} service method.
-   *
-   * @param handler the service method call handler
-   * @return a reference to this, so the API can be used fluently
+   * @deprecated use {@link io.vertx.grpcio.server.GrpcIoServer#callHandler(MethodDescriptor, Handler)}
    */
+  @Deprecated
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
 
