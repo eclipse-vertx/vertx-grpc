@@ -6,17 +6,22 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpcio.client.GrpcIoClient;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 
 public class {{className}} {
-  private final GrpcClient client;
+  private final GrpcIoClient client;
   private final SocketAddress socketAddress;
 
   public {{className}}(GrpcClient client, SocketAddress socketAddress) {
-    this.client = client;
-    this.socketAddress = socketAddress;
+    this((GrpcIoClient)client, socketAddress);
+  }
+
+  public {{className}}(GrpcIoClient client, SocketAddress socketAddress) {
+  this.client = client;
+  this.socketAddress = socketAddress;
   }
 
 {{#unaryMethods}}

@@ -10,6 +10,7 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpcio.server.GrpcIoServer;
 import io.vertx.grpc.server.GrpcServerResponse;
 
 import java.util.ArrayList;
@@ -62,6 +63,9 @@ public class {{className}}  {
 
 {{#unaryMethods}}
     default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+      return this.bind_{{methodName}}((GrpcIoServer)server);
+    }
+    default {{serviceName}}Api bind_{{methodName}}(GrpcIoServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
         Promise<{{outputType}}> promise = Promise.promise();
         request.handler(req -> {
@@ -80,6 +84,9 @@ public class {{className}}  {
 {{/unaryMethods}}
 {{#unaryManyMethods}}
     default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+    return this.bind_{{methodName}}((GrpcIoServer)server);
+    }
+    default {{serviceName}}Api bind_{{methodName}}(GrpcIoServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
         request.handler(req -> {
           try {
@@ -94,6 +101,9 @@ public class {{className}}  {
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
     default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+    return this.bind_{{methodName}}((GrpcIoServer)server);
+    }
+    default {{serviceName}}Api bind_{{methodName}}(GrpcIoServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
         Promise<{{outputType}}> promise = Promise.promise();
         promise.future()
@@ -110,6 +120,9 @@ public class {{className}}  {
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
     default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
+    return this.bind_{{methodName}}((GrpcIoServer)server);
+    }
+    default {{serviceName}}Api bind_{{methodName}}(GrpcIoServer server) {
       server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
         try {
           {{methodName}}(request, request.response());
@@ -122,6 +135,9 @@ public class {{className}}  {
 {{/manyManyMethods}}
 
     default {{serviceName}}Api bindAll(GrpcServer server) {
+      return bindAll((GrpcIoServer)server);
+    }
+    default {{serviceName}}Api bindAll(GrpcIoServer server) {
 {{#methods}}
       bind_{{methodName}}(server);
 {{/methods}}
