@@ -35,12 +35,14 @@ import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServiceBridge;
+import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpcio.server.GrpcIoServiceBridge;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
-public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
+public class GrpcServiceBridgeImpl implements GrpcServiceBridge, GrpcIoServiceBridge {
 
   private final ServerServiceDefinition serviceDef;
 
@@ -53,12 +55,22 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge {
     serviceDef.getMethods().forEach(m -> unbind(server, m));
   }
 
+  @Override
+  public void unbind(GrpcIoServer server) {
+    serviceDef.getMethods().forEach(m -> unbind(server, m));
+  }
+
   private <Req, Resp> void unbind(GrpcServer server, ServerMethodDefinition<Req, Resp> methodDef) {
     server.callHandler(methodDef.getMethodDescriptor(), null);
   }
 
   @Override
   public void bind(GrpcServer server) {
+    serviceDef.getMethods().forEach(m -> bind(server, m));
+  }
+
+  @Override
+  public void bind(GrpcIoServer server) {
     serviceDef.getMethods().forEach(m -> bind(server, m));
   }
 

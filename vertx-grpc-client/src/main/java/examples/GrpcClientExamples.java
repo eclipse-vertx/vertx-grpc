@@ -1,16 +1,13 @@
 package examples;
 
-import io.grpc.MethodDescriptor;
-import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.core.streams.ReadStream;
 import io.vertx.docgen.Source;
-import io.vertx.grpc.client.GrpcClient;
-import io.vertx.grpc.client.GrpcClientChannel;
-import io.vertx.grpc.client.GrpcClientRequest;
-import io.vertx.grpc.client.GrpcClientResponse;
+import io.vertx.grpc.client.*;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.ServiceName;
 
@@ -24,7 +21,7 @@ public class GrpcClientExamples {
   public void sendRequest(GrpcClient client) {
 
     SocketAddress server = SocketAddress.inetSocketAddress(443, "example.com");
-    MethodDescriptor<HelloRequest, HelloReply> sayHelloMethod = GreeterGrpc.getSayHelloMethod();
+    ServiceMethod<HelloReply, HelloRequest> sayHelloMethod = VertxGreeterGrpcClient.SayHello;
     Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, sayHelloMethod);
     fut.onSuccess(request -> {
       // The end method calls the service
@@ -43,7 +40,7 @@ public class GrpcClientExamples {
 
   public void requestResponse(GrpcClient client, SocketAddress server) {
     client
-      .request(server, GreeterGrpc.getSayHelloMethod()).compose(request -> {
+      .request(server, VertxGreeterGrpcClient.SayHello).compose(request -> {
         request.end(HelloRequest
           .newBuilder()
           .setName("Bob")
@@ -56,18 +53,18 @@ public class GrpcClientExamples {
 
   public void streamingRequest(GrpcClient client, SocketAddress server) {
     client
-      .request(server, StreamingGrpc.getSinkMethod())
+      .request(server, VertxStreamingGrpcClient.Sink)
       .onSuccess(request -> {
-      for (int i = 0;i < 10;i++) {
-        request.write(Item.newBuilder().setValue("1").build());
-      }
-      request.end();
-    });
+        for (int i = 0;i < 10;i++) {
+          request.write(Item.newBuilder().setValue("1").build());
+        }
+        request.end();
+      });
   }
 
   public void streamingResponse(GrpcClient client, SocketAddress server) {
     client
-      .request(server, StreamingGrpc.getSourceMethod())
+      .request(server, VertxStreamingGrpcClient.Source)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
         return request.response();
@@ -122,28 +119,6 @@ public class GrpcClientExamples {
     request.write(Item.newBuilder().setValue("item-3").build());
   }
 
-  public void stubExample(GrpcClient client) {
-
-    GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(443, "example.com"));
-
-    GreeterGrpc.GreeterStub greeter = GreeterGrpc.newStub(channel);
-
-    greeter.sayHello(HelloRequest.newBuilder().setName("Bob").build(), new StreamObserver<HelloReply>() {
-      @Override
-      public void onNext(HelloReply value) {
-        // Process response
-      }
-      @Override
-      public void onCompleted() {
-        // Done
-      }
-      @Override
-      public void onError(Throwable t) {
-        // Something went bad
-      }
-    });
-  }
-
   public void protobufLevelAPI(GrpcClient client, Buffer protoHello, SocketAddress server) {
 
     Future<GrpcClientRequest<Buffer, Buffer>> requestFut = client.request(server);
@@ -188,5 +163,36 @@ public class GrpcClientExamples {
         });
       });
     });
+  }
+
+  public void createClientStub(GrpcClient grpcClient, String host, int port) {
+    VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, host));
+  }
+
+  public void unaryStub(VertxGreeterGrpcClient client) {
+    Future<HelloReply> response = client.sayHello(HelloRequest.newBuilder().setName("John").build());
+
+    response.onSuccess(result -> System.out.println("Service responded: " + response.result().getMessage()));
+
+    response.onFailure(err -> System.out.println("Service failure: " + response.cause().getMessage()));
+  }
+
+  public void streamingRequestStub(VertxStreamingGrpcClient client) {
+    Future<Empty> response = client.sink(stream -> {
+      stream.write(Item.newBuilder().setValue("Value 1").build());
+      stream.write(Item.newBuilder().setValue("Value 2").build());
+      stream.end(Item.newBuilder().setValue("Value 3").build());
+    });
+  }
+
+  public void streamingResponseStub(VertxStreamingGrpcClient client) {
+    Future<ReadStream<Item>> response = client.source(Empty.getDefaultInstance());
+
+    response.onSuccess(stream -> stream
+      .handler(item -> System.out.println("Item " + item.getValue()))
+      .exceptionHandler(err -> System.out.println("Stream failed " + err.getMessage()))
+      .endHandler(v -> System.out.println("Stream ended")));
+
+    response.onFailure(err -> System.out.println("Service failure: " + err.getMessage()));
   }
 }

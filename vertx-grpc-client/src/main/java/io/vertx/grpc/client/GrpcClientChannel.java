@@ -21,7 +21,10 @@ import java.util.concurrent.Executor;
 
 /**
  * Bridge a gRPC service with a {@link io.vertx.grpc.client.GrpcClient}.
+ *
+ * @deprecated instead use {@link io.vertx.grpcio.client.GrpcIoClientChannel}
  */
+@Deprecated
 public class GrpcClientChannel extends io.grpc.Channel {
 
   private GrpcClient client;

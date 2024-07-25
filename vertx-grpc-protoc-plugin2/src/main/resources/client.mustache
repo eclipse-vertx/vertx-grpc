@@ -1,32 +1,40 @@
-{{#packageName}}
-package {{packageName}};
-{{/packageName}}
+{{#vertxPackageName}}
+package {{vertxPackageName}};
+{{/vertxPackageName}}
 
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
-import io.vertx.grpcio.client.GrpcIoClient;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
 
 public class {{className}} {
-  private final GrpcIoClient client;
+
+{{#allMethods}}
+  public static final ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}} = ServiceMethod.client(
+    ServiceName.create("{{packageName}}", "{{serviceName}}"),
+    "{{methodName}}",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder({{outputType}}.parser()));
+{{/allMethods}}
+
+  private final GrpcClient client;
   private final SocketAddress socketAddress;
 
   public {{className}}(GrpcClient client, SocketAddress socketAddress) {
-    this((GrpcIoClient)client, socketAddress);
-  }
-
-  public {{className}}(GrpcIoClient client, SocketAddress socketAddress) {
-  this.client = client;
-  this.socketAddress = socketAddress;
+    this.client = client;
+    this.socketAddress = socketAddress;
   }
 
 {{#unaryMethods}}
-  public Future<{{outputType}}> {{methodName}}({{inputType}} request) {
-    return client.request(socketAddress, {{serviceName}}Grpc.{{methodNameGetter}}()).compose(req -> {
+  public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+    return client.request(socketAddress, {{methodName}}).compose(req -> {
       req.end(request);
       return req.response().compose(resp -> resp.last());
     });
@@ -34,8 +42,8 @@ public class {{className}} {
 
 {{/unaryMethods}}
 {{#unaryManyMethods}}
-  public Future<ReadStream<{{outputType}}>> {{methodName}}({{inputType}} request) {
-    return client.request(socketAddress, {{serviceName}}Grpc.{{methodNameGetter}}()).compose(req -> {
+  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
+    return client.request(socketAddress, {{methodName}}).compose(req -> {
       req.end(request);
       return req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
@@ -49,8 +57,8 @@ public class {{className}} {
 
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
-  public Future<{{outputType}}> {{methodName}}(Handler<WriteStream<{{inputType}}>> request) {
-    return client.request(socketAddress, {{serviceName}}Grpc.{{methodNameGetter}}()).compose(req -> {
+  public Future<{{outputType}}> {{vertxMethodName}}(Handler<WriteStream<{{inputType}}>> request) {
+    return client.request(socketAddress, {{methodName}}).compose(req -> {
       request.handle(req);
       return req.response().compose(resp -> resp.last());
     });
@@ -58,8 +66,8 @@ public class {{className}} {
 
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
-  public Future<ReadStream<{{outputType}}>> {{methodName}}(Handler<WriteStream<{{inputType}}>> request) {
-    return client.request(socketAddress, {{serviceName}}Grpc.{{methodNameGetter}}()).compose(req -> {
+  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(Handler<WriteStream<{{inputType}}>> request) {
+    return client.request(socketAddress, {{methodName}}).compose(req -> {
       request.handle(req);
       return req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {

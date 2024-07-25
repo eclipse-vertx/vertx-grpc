@@ -10,7 +10,7 @@ bidirectional streaming and flow control, blocking or nonblocking bindings, and 
 generates cross-platform client and server bindings for many languages.
 ____
 
-Vert.x gRPC is a module that will align the programming style of Google gRPC with Vert.x style. As a user of this
+Vert.x gRPC is a module that will align the programming style of gRPC with Vert.x style. As a user of this
 module you will be more familiar with the code style using Vert.x Streams and Futures while benefiting from all the
 benefits of gRPC.
 
@@ -20,16 +20,22 @@ WARNING: Since Vert.x 4.3, this module is the new support for gRPC in the Vert.x
 on gRPC Netty is still available and has been renamed Vert.x gRPC Netty, it can be found at https://vertx.io/docs/vertx-grpc-netty/java/ .
 This module has _Tech Preview_ status, this means the API can change between versions.
 
-Vert.x gRPC is split into three parts:
+Vert.x gRPC is split into several parts:
 
 - Vert.x gRPC Server
 - Vert.x gRPC Client
-- Vert.x gRPC Context Storage
+- Vert.x gRPC/IO Server
+- Vert.x gRPC/IO Client
+- Vert.x gRPC/IO Context Storage
+
+include::plugin.adoc[]
 
 include::server.adoc[]
 
 include::client.adoc[]
 
-include::plugin.adoc[]
+include::ioserver.adoc[]
+
+include::ioclient.adoc[]
 
 include::storage.adoc[]

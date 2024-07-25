@@ -23,6 +23,18 @@ import java.util.Queue;
 @VertxGen
 public interface GrpcMessageEncoder<T> {
 
+  /**
+   * Create an encoder for arbitrary message extending {@link com.google.protobuf.MessageLite}.
+   * @return the message encoder
+   */
+  @GenIgnore
+  static <T extends com.google.protobuf.MessageLite> GrpcMessageEncoder<T> encoder() {
+    return msg -> {
+      byte[] bytes = msg.toByteArray();
+      return GrpcMessage.message("identity", Buffer.buffer(bytes));
+    };
+  }
+
   GrpcMessageEncoder<Buffer> IDENTITY = new GrpcMessageEncoder<Buffer>() {
     @Override
     public GrpcMessage encode(Buffer payload) {

@@ -20,10 +20,11 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpcio.client.GrpcIoClient;
 
 /**
@@ -53,15 +54,25 @@ public class GrpcClientImpl implements GrpcIoClient {
   }
 
   @Override public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(SocketAddress server, MethodDescriptor<Req, Resp> service) {
-    RequestOptions options = new RequestOptions()
-      .setMethod(HttpMethod.POST)
-      .setServer(server);
     GrpcMessageDecoder<Resp> messageDecoder = GrpcMessageDecoder.unmarshaller(service.getResponseMarshaller());
     GrpcMessageEncoder<Req> messageEncoder = GrpcMessageEncoder.marshaller(service.getRequestMarshaller());
+    return request(server, ServiceMethod.client(ServiceName.create(service.getServiceName()), service.getBareMethodName(), messageEncoder, messageDecoder));
+  }
+
+  @Override
+  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(SocketAddress server, ServiceMethod<Resp, Req> method) {
+    return request(new RequestOptions()
+      .setMethod(HttpMethod.POST)
+      .setServer(server), method);
+  }
+
+  private <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(RequestOptions options, ServiceMethod<Resp, Req> method) {
+    GrpcMessageDecoder<Resp> messageDecoder = method.decoder();
+    GrpcMessageEncoder<Req> messageEncoder = method.encoder();
     return client.request(options)
       .map(request -> {
         GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(request, messageEncoder, messageDecoder);
-        call.fullMethodName(service.getFullMethodName());
+        call.fullMethodName(method.fullMethodName());
         return call;
       });
   }

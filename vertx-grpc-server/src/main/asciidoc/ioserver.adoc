@@ -1,0 +1,40 @@
+== Vert.x gRPC/IO Server
+
+Vert.x gRPC/IO Server extends the Vert.x gRPC server with _grpc-java_ integration.
+
+This server provides compatibility with the _grpc-java_ generated stub approach with a service bridge.
+
+=== Using Vert.x gRPC/IO Server
+
+To use Vert.x gRPC/IO Server, add the following dependency to the _dependencies_ section of your build descriptor:
+
+* Maven (in your `pom.xml`):
+
+[source,xml,subs="+attributes"]
+----
+<dependency>
+  <groupId>io.vertx</groupId>
+  <artifactId>vertx-grpcio-server</artifactId>
+  <version>${maven.version}</version>
+</dependency>
+----
+
+* Gradle (in your `build.gradle` file):
+
+[source,groovy,subs="+attributes"]
+----
+dependencies {
+  compile 'io.vertx:vertx-grpcio-server:${maven.version}'
+}
+----
+
+=== Service bridge
+
+The Vert.x gRPC Server can bridge a gRPC service to use with _grpc-java_ generated server classes.
+
+[source,java]
+----
+{@link examples.GrpcIoServerExamples#stubExample}
+----
+
+The bridge supports deadline automatic cancellation: when a gRPC request carrying a timeout is received, a deadline is associated with the `io.grpc.Context` an can be obtained from the current context. This deadline automatically cancels the request in progress when its associated timeout fires.

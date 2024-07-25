@@ -1,8 +1,8 @@
 == Vert.x gRPC Server
 
-Vert.x gRPC Server is a new gRPC server powered by Vert.x HTTP server superseding the integrated Netty based gRPC client.
+Vert.x gRPC Server is a gRPC server powered by Vert.x HTTP server superseding the integrated Netty based gRPC client.
 
-This server provides a gRPC request/response oriented API as well as a the generated stub approach with a service bridge.
+This server provides a gRPC request/response oriented API as well as a generated stub approach with the Vert.x gRPC Generator.
 
 === Using Vert.x gRPC Server
 
@@ -28,9 +28,7 @@ dependencies {
 }
 ----
 
-=== gRPC request/response server API
-
-The gRPC request/response server API provides an alternative way to interact with a client without the need of a generated stub.
+=== Creating a gRPC server
 
 A `{@link io.vertx.grpc.server.GrpcServer}` is a `Handler<HttpServerRequest>` and can be used as an HTTP server request handler.
 
@@ -49,14 +47,21 @@ router.consumes("application/grpc").handler(rc -> grpcServer.handle(rc.request()
 ----
 ====
 
+=== Server request/response API
+
+The gRPC request/response server API provides an alternative way to interact with a client without the need of extending
+a Java class.
+
 ==== Request/response
 
-Each service method is processed by a handler
+Each service method is processed by a handler, the handler is bound using a `{@link io.vertx.grpc.common.ServiceMethod}`.
 
 [source,java]
 ----
 {@link examples.GrpcServerExamples#requestResponse}
 ----
+
+`{@link io.vertx.grpc.common.ServiceMethod}` constants are <<ServiceMethodConstants,generated>> by the Vert.x gRPC protoc plugin.
 
 ==== Streaming request
 
@@ -86,6 +91,8 @@ A bidi request/response is simply the combination of a streaming request and a s
 {@link examples.GrpcServerExamples#bidi}
 ----
 
+NOTE: The gRPC-Web protocol does not support bidirectional streaming.
+
 === Flow control
 
 Request and response are back pressured Vert.x streams.
@@ -113,18 +120,13 @@ You can compress response messages by setting the response encoding *prior* befo
 {@link examples.GrpcServerExamples#responseCompression}
 ----
 
+NOTE: Compression is not supported over the gRPC-Web protocol.
+
 === Decompression
 
 Decompression is done transparently by the server when the client send encoded requests.
 
-=== Stub API
-
-The Vert.x gRPC Server can bridge a gRPC service to use with a generated server stub in a more traditional fashion
-
-[source,java]
-----
-{@link examples.GrpcServerExamples#stubExample}
-----
+NOTE: Decompression is not supported over the gRPC-Web protocol.
 
 === Message level API
 
@@ -154,3 +156,59 @@ handle the message encoding:
 
 - when the message uses the response encoding, the message is sent as is
 - when the message uses a different encoding, it will be encoded, e.g. compressed or uncompressed
+
+=== Server stub API
+
+In addition to the request/response API, the Vert.x gRPC protoc plugin idiomatic service stubs.
+
+Each service comes in two flavors, you can override the method you like depending on the style.
+
+==== Unary services
+
+Unary services can return a Vert.x `Future`:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#unaryStub1}
+----
+
+or process a Vert.x `Promise`
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#unaryStub2}
+----
+
+In both case you need to bind the stub to an existing `GrpcServer`:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#unaryStub3}
+----
+
+==== Streaming requests
+
+Streaming requests are implemented with a `ReadStream`:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#streamingRequestStub}
+----
+
+==== Streaming responses
+
+Streaming responses are implemented with Vert.x streams and comes in two flavors.
+
+You can return a Vert.x `ReadStream` and let the service send it for you:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#streamingResponseStub1}
+----
+
+or you can process a `WriteStream`:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#streamingResponseStub2}
+----

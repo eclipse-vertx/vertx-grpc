@@ -10,6 +10,8 @@
  */
 package io.vertx.grpc.common;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Parser;
 import io.grpc.MethodDescriptor;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
@@ -26,6 +28,22 @@ import java.io.IOException;
 
 @VertxGen
 public interface GrpcMessageDecoder<T> {
+
+  /**
+   * Create a decoder for a given protobuf {@link Parser}.
+   * @param parser the parser that returns decoded messages of type {@code <T>}
+   * @return the message decoder
+   */
+  @GenIgnore
+  static <T> GrpcMessageDecoder<T> decoder(Parser<T> parser) {
+    return msg -> {
+      try {
+        return parser.parseFrom(msg.payload().getBytes());
+      } catch (InvalidProtocolBufferException e) {
+        return null;
+      }
+    };
+  }
 
   GrpcMessageDecoder<Buffer> IDENTITY = new GrpcMessageDecoder<Buffer>() {
     @Override

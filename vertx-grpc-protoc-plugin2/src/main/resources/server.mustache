@@ -1,6 +1,6 @@
-{{#packageName}}
-package {{packageName}};
-{{/packageName}}
+{{#vertxPackageName}}
+package {{vertxPackageName}};
+{{/vertxPackageName}}
 
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -9,52 +9,65 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.GrpcServer;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class {{className}}  {
+
+{{#allMethods}}
+  public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = ServiceMethod.server(
+    ServiceName.create("{{packageName}}", "{{serviceName}}"),
+    "{{methodName}}",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder({{inputType}}.parser()));
+{{/allMethods}}
+
   public interface {{serviceName}}Api {
+
 {{#unaryMethods}}
-    default Future<{{outputType}}> {{methodName}}({{inputType}} request) {
+    default Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{methodName}}({{inputType}} request, Promise<{{outputType}}> response) {
-      {{methodName}}(request)
+    default void {{vertxMethodName}}({{inputType}} request, Promise<{{outputType}}> response) {
+      {{vertxMethodName}}(request)
         .onSuccess(msg -> response.complete(msg))
         .onFailure(error -> response.fail(error));
     }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
-    default ReadStream<{{outputType}}> {{methodName}}({{inputType}} request) {
+    default ReadStream<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{methodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
-      {{methodName}}(request)
+    default void {{vertxMethodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
+      {{vertxMethodName}}(request)
         .handler(msg -> response.write(msg))
         .endHandler(msg -> response.end())
         .resume();
     }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
-    default Future<{{outputType}}> {{methodName}}(ReadStream<{{inputType}}> request) {
+    default Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{methodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
-      {{methodName}}(request)
+    default void {{vertxMethodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
+      {{vertxMethodName}}(request)
         .onSuccess(msg -> response.complete(msg))
         .onFailure(error -> response.fail(error));
     }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
-    default ReadStream<{{outputType}}> {{methodName}}(ReadStream<{{inputType}}> request) {
+    default ReadStream<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{methodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
-      {{methodName}}(request)
+    default void {{vertxMethodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
+      {{vertxMethodName}}(request)
         .handler(msg -> response.write(msg))
         .endHandler(msg -> response.end())
         .resume();
@@ -62,15 +75,12 @@ public class {{className}}  {
 {{/manyManyMethods}}
 
 {{#unaryMethods}}
-    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
-      return this.bind_{{methodName}}((GrpcIoServer)server);
-    }
-    default {{serviceName}}Api bind_{{methodName}}(GrpcIoServer server) {
-      server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
+    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
+      server.callHandler({{methodName}}, request -> {
         Promise<{{outputType}}> promise = Promise.promise();
         request.handler(req -> {
           try {
-            {{methodName}}(req, promise);
+            {{vertxMethodName}}(req, promise);
           } catch (RuntimeException err) {
             promise.tryFail(err);
           }
@@ -83,14 +93,11 @@ public class {{className}}  {
     }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
-    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
-    return this.bind_{{methodName}}((GrpcIoServer)server);
-    }
-    default {{serviceName}}Api bind_{{methodName}}(GrpcIoServer server) {
-      server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
+    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
+      server.callHandler({{methodName}}, request -> {
         request.handler(req -> {
           try {
-            {{methodName}}(req, request.response());
+            {{vertxMethodName}}(req, request.response());
           } catch (RuntimeException err) {
             request.response().status(GrpcStatus.INTERNAL).end();
           }
@@ -100,17 +107,14 @@ public class {{className}}  {
     }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
-    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
-    return this.bind_{{methodName}}((GrpcIoServer)server);
-    }
-    default {{serviceName}}Api bind_{{methodName}}(GrpcIoServer server) {
-      server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
+    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
+      server.callHandler({{methodName}}, request -> {
         Promise<{{outputType}}> promise = Promise.promise();
         promise.future()
           .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
           .onSuccess(resp -> request.response().end(resp));
         try {
-          {{methodName}}(request, promise);
+          {{vertxMethodName}}(request, promise);
         } catch (RuntimeException err) {
           promise.tryFail(err);
         }
@@ -119,13 +123,10 @@ public class {{className}}  {
     }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
-    default {{serviceName}}Api bind_{{methodName}}(GrpcServer server) {
-    return this.bind_{{methodName}}((GrpcIoServer)server);
-    }
-    default {{serviceName}}Api bind_{{methodName}}(GrpcIoServer server) {
-      server.callHandler({{serviceName}}Grpc.{{methodNameGetter}}(), request -> {
+    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
+      server.callHandler({{methodName}}, request -> {
         try {
-          {{methodName}}(request, request.response());
+          {{vertxMethodName}}(request, request.response());
         } catch (RuntimeException err) {
           request.response().status(GrpcStatus.INTERNAL).end();
         }
@@ -135,11 +136,8 @@ public class {{className}}  {
 {{/manyManyMethods}}
 
     default {{serviceName}}Api bindAll(GrpcServer server) {
-      return bindAll((GrpcIoServer)server);
-    }
-    default {{serviceName}}Api bindAll(GrpcIoServer server) {
 {{#methods}}
-      bind_{{methodName}}(server);
+      bind_{{vertxMethodName}}(server);
 {{/methods}}
       return this;
     }

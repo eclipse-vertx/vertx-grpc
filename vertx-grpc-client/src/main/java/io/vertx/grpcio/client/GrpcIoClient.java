@@ -79,11 +79,6 @@ public interface GrpcIoClient extends GrpcClient {
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   @SuppressWarnings("deprecation")
   default <Req, Resp, T> Future<T> call(SocketAddress server, MethodDescriptor<Req, Resp> service, Handler<GrpcClientRequest<Req, Resp>> requestHandler, Function<GrpcClientResponse<Req, Resp>, Future<T>> resultFn) {
-    return request(server, service).compose(req -> {
-      requestHandler.handle(req);
-      return req
-        .response()
-        .compose(resultFn);
-    });
+    return GrpcClient.super.call(server, service, requestHandler, resultFn);
   }
 }

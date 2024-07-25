@@ -2,10 +2,10 @@ package io.vertx.grpc.plugin;
 
 import com.salesforce.jprotoc.ProtocPlugin;
 
-public class VertxGrpcGenerator {
+public class VertxGrpcServerGenerator {
 
   public static void main(String[] args) {
-    VertxGrpcGeneratorImpl generator = new VertxGrpcGeneratorImpl(true, true);
+    VertxGrpcGeneratorImpl generator = new VertxGrpcGeneratorImpl(false, true);
     if (args.length == 0) {
       ProtocPlugin.generate(generator);
     } else {

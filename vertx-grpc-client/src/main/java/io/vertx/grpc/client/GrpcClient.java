@@ -21,6 +21,7 @@ import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.client.impl.GrpcClientImpl;
+import io.vertx.grpc.common.ServiceMethod;
 
 import java.util.function.Function;
 
@@ -91,6 +92,15 @@ public interface GrpcClient {
         .compose(resultFn);
     });
   }
+
+  /**
+   * Connect to the remote {@code server} and create a request for any hosted gRPC service.
+   *
+   * @param server the server hosting the service
+   * @param method the grpc method
+   * @return a future request
+   */
+  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(SocketAddress server, ServiceMethod<Resp, Req> method);
 
   /**
    * Close this client.
