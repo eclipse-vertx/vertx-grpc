@@ -28,7 +28,7 @@ public class GrpcServerExamples {
 
   public void requestResponse(GrpcServer server) {
 
-    ServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterGrpcServer.SayHello;
+    ServiceMethod<HelloRequest, HelloReply> serviceMethod = VertxGreeterGrpcServer.SayHello;
 
     server.callHandler(serviceMethod, request -> {
 
@@ -45,7 +45,7 @@ public class GrpcServerExamples {
 
   public void streamingRequest(GrpcServer server) {
 
-    server.callHandler(StreamingGrpcServer.Sink, request -> {
+    server.callHandler(VertxStreamingGrpcServer.Sink, request -> {
       request.handler(item -> {
         // Process item
       });
@@ -62,7 +62,7 @@ public class GrpcServerExamples {
 
   public void streamingResponse(GrpcServer server) {
 
-    server.callHandler(StreamingGrpcServer.Source, request -> {
+    server.callHandler(VertxStreamingGrpcServer.Source, request -> {
       GrpcServerResponse<Empty, Item> response = request.response();
       request.handler(empty -> {
         for (int i = 0;i < 10;i++) {
@@ -75,7 +75,7 @@ public class GrpcServerExamples {
 
   public void bidi(GrpcServer server) {
 
-    server.callHandler(StreamingGrpcServer.Pipe, request -> {
+    server.callHandler(VertxStreamingGrpcServer.Pipe, request -> {
 
       request.handler(item -> request.response().write(item));
       request.endHandler(v -> request.response().end());

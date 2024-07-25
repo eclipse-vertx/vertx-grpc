@@ -18,11 +18,10 @@ public class {{className}} {
 
 {{#allMethods}}
   public static final ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}} = ServiceMethod.client(
-    ServiceName.create("{{packageName}}", "{{serviceName}}"),
-    "{{methodName}}",
-    GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder({{outputType}}.parser())
-  );
+  ServiceName.create("{{packageName}}", "{{serviceName}}"),
+  "{{methodName}}",
+  GrpcMessageEncoder.encoder(),
+  GrpcMessageDecoder.decoder({{outputType}}.parser()));
 {{/allMethods}}
 
   private final GrpcClient client;
