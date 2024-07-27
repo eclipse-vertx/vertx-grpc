@@ -1,4 +1,4 @@
-== Vert.x gRPC Protoc Plugin
+== Vert.x gRPC Protoc Plugin 2
 
 The easiest way to start using Vert.x gRPC is to utilize its built-in code generator plugin. To do so,
 one must define the protocol in the `protobuffer` format as required by gRPC.

@@ -10,7 +10,7 @@ bidirectional streaming and flow control, blocking or nonblocking bindings, and 
 generates cross-platform client and server bindings for many languages.
 ____
 
-Vert.x gRPC is a module that will align the programming style of Google gRPC with Vert.x style. As a user of this
+Vert.x gRPC is a module that will align the programming style of gRPC with Vert.x style. As a user of this
 module you will be more familiar with the code style using Vert.x Streams and Futures while benefiting from all the
 benefits of gRPC.
 

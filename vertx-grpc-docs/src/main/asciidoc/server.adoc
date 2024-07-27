@@ -218,31 +218,21 @@ Unary services can return a Vert.x `Future`:
 
 [source,java]
 ----
-GreeterGrpcServer stub = new GreeterGrpcServer() {
-  @Override
-  public Future<HelloReply> sayHello(HelloRequest request) {
-    return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
-  }
-};
+{@link examples.GrpcServerExamples#unaryStub1}
 ----
 
 or process a Vert.x `Promise`
 
 [source,java]
 ----
-GreeterGrpcServer stub = new GreeterGrpcServer() {
-  @Override
-  public void sayHello(HelloRequest request, Promise<HelloReply> response) {
-    response.complete(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
-  }
-};
+{@link examples.GrpcServerExamples#unaryStub2}
 ----
 
 In both case you need to bind the stub to an existing `GrpcServer`:
 
 [source,java]
 ----
-server.bindAll(stub);
+{@link examples.GrpcServerExamples#unaryStub3}
 ----
 
 ==== Streaming requests
@@ -251,16 +241,7 @@ Streaming requests are implemented with a `ReadStream`:
 
 [source,java]
 ----
-StreamingGrpcServer stub = new StreamingGrpcServer() {
-  @Override
-  public void sink(ReadStream<Item> stream, Promise<Empty> response) {
-    stream.handler(item -> {
-      System.out.println("Process item " + item.getValue());
-    });
-    // Send response
-    stream.endHandler(v -> response.complete(Empty.getDefaultInstance()));
-  }
-};
+{@link examples.GrpcServerExamples#streamingRequestStub}
 ----
 
 ==== Streaming responses
@@ -271,23 +252,12 @@ You can return a Vert.x `ReadStream` and let the service send it for you:
 
 [source,java]
 ----
-StreamingGrpcServer stub = new StreamingGrpcServer() {
-  @Override
-  public ReadStream<Item> source(Empty request) {
-    return streamOfItem();
-  }
-};
+{@link examples.GrpcServerExamples#streamingResponseStub1}
 ----
 
 or you can process a `WriteStream`:
 
 [source,java]
 ----
-StreamingGrpcServer stub = new StreamingGrpcServer() {
-  @Override
-  public void source(Empty request, WriteStream<Item> response) {
-    response.write(Item.newBuilder().setValue("value-1").build());
-    response.end(Item.newBuilder().setValue("value-2").build());
-  }
-};
+{@link examples.GrpcServerExamples#streamingResponseStub2}
 ----

@@ -5,6 +5,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.core.streams.ReadStream;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.client.*;
 import io.vertx.grpc.common.ServiceMethod;
@@ -189,5 +190,36 @@ public class GrpcClientExamples {
         });
       });
     });
+  }
+
+  public void createClientStub(GrpcClient grpcClient, String host, int port) {
+    VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, host));
+  }
+
+  public void unaryStub(VertxGreeterGrpcClient client) {
+    Future<HelloReply> response = client.sayHello(HelloRequest.newBuilder().setName("John").build());
+
+    response.onSuccess(result -> System.out.println("Service responded: " + response.result().getMessage()));
+
+    response.onFailure(err -> System.out.println("Service failure: " + response.cause().getMessage()));
+  }
+
+  public void streamingRequestStub(VertxStreamingGrpcClient client) {
+    Future<Empty> response = client.sink(stream -> {
+      stream.write(Item.newBuilder().setValue("Value 1").build());
+      stream.write(Item.newBuilder().setValue("Value 2").build());
+      stream.end(Item.newBuilder().setValue("Value 3").build());
+    });
+  }
+
+  public void streamingResponseStub(VertxStreamingGrpcClient client) {
+    Future<ReadStream<Item>> response = client.source(Empty.getDefaultInstance());
+
+    response.onSuccess(stream -> stream
+      .handler(item -> System.out.println("Item " + item.getValue()))
+      .exceptionHandler(err -> System.out.println("Stream failed " + err.getMessage()))
+      .endHandler(v -> System.out.println("Stream ended")));
+
+    response.onFailure(err -> System.out.println("Service failure: " + err.getMessage()));
   }
 }

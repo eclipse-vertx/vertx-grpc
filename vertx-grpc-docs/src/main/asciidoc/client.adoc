@@ -187,7 +187,7 @@ A client wraps a `GrpcClient` and provides Vert.x idiomatic API to interact with
 
 [source,java]
 ----
-GreeterGrpcClient client = new GreeterGrpcClient(grpcClient, server);
+{@link examples.GrpcClientExamples#createClientStub}
 ----
 
 ==== Unary services
@@ -196,11 +196,7 @@ Unary services returns a Vert.x `Future`
 
 [source,java]
 ----
-Future<HelloReply> response = client.sayHello(HelloRequest.newBuilder().setName("John").build());
-
-response.onSuccess(result -> System.out.println("Service responded: " + ar.result().getMessage()));
-
-response.onFailure(err -> System.out.println("Service failure: " + ar.cause().getMessage()));
+{@link examples.GrpcClientExamples#unaryStub}
 ----
 
 ==== Streaming requests
@@ -209,11 +205,7 @@ Streaming requests use a lambda passed a Vert.x `WriteStream` of messages sent t
 
 [source,java]
 ----
-Future<Empty> response = client.sink(stream -> {
-  stream.write(Item.newBuilder().setValue("Value 1").build());
-  stream.write(Item.newBuilder().setValue("Value 2").build());
-  stream.end(Item.newBuilder().setValue("Value 3").build());
-});
+{@link examples.GrpcClientExamples#streamingRequestStub}
 ----
 
 ==== Streaming responses
@@ -222,13 +214,5 @@ Streaming responses get a Vert.x `ReadStream` of messages sent by the service
 
 [source,java]
 ----
-Future<ReadStream<Item>> response = client.source(Empty.getDefaultInstance());
-
-response.onSuccess(stream -> stream
-  .handler(item -> System.out.println("Item " + item.getValue()))
-  .exceptionHandler(err -> System.out.println("Stream failed " + err.getMessage()));
-  .endHandler(v -> System.out.println("Stream ended")));
-
-response.onFailure(err -> System.out.println("Service failure: " + ar.cause().getMessage()));
+{@link examples.GrpcClientExamples#streamingResponseStub}
 ----
-
