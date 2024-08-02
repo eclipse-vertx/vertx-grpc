@@ -10,6 +10,7 @@
  */
 package io.vertx.grpc.common.impl;
 
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -50,13 +51,13 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private final ReadStream<Buffer> stream;
   private final InboundMessageQueue<GrpcMessage> queue;
   private Buffer buffer;
-  private Handler<GrpcError> errorHandler;
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcMessage> messageHandler;
   private Handler<Void> endHandler;
   private GrpcMessage last;
   private final GrpcMessageDecoder<T> messageDecoder;
   private final Promise<Void> end;
+  private GrpcWriteStreamBase<?, ?> ws;
 
   protected GrpcReadStreamBase(Context context, ReadStream<Buffer> stream, String encoding, GrpcMessageDecoder<T> messageDecoder) {
     ContextInternal ctx = (ContextInternal) context;
@@ -85,19 +86,22 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     this.end = ctx.promise();
   }
 
-  public void init() {
+  public void init(GrpcWriteStreamBase<?, ?> ws) {
+    this.ws = ws;
     stream.handler(this);
     stream.endHandler(v -> queue.write(END_SENTINEL));
     stream.exceptionHandler(err -> {
       if (err instanceof StreamResetException) {
-        handleReset(((StreamResetException)err).getCode());
+        StreamResetException reset = (StreamResetException) err;
+        GrpcError error = mapHttp2ErrorCode(reset.getCode());
+        ws.handleError(error);
       } else {
         handleException(err);
       }
     });
   }
 
-  protected T decodeMessage(GrpcMessage msg) throws CodecException {
+  protected final T decodeMessage(GrpcMessage msg) throws CodecException {
     switch (msg.encoding()) {
       case "identity":
         // Nothing to do
@@ -110,6 +114,44 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
         throw new UnsupportedOperationException();
     }
     return messageDecoder.decode(msg);
+  }
+
+  public final S pause() {
+    queue.pause();
+    return (S) this;
+  }
+
+  public final S resume() {
+    return fetch(Long.MAX_VALUE);
+  }
+
+  public final S fetch(long amount) {
+    queue.fetch(amount);
+    return (S) this;
+  }
+
+  @Override
+  public final S exceptionHandler(Handler<Throwable> handler) {
+    exceptionHandler = handler;
+    return (S) this;
+  }
+
+  @Override
+  public final S errorHandler(@Nullable Handler<GrpcError> handler) {
+    ws.errorHandler(handler);
+    return (S) this;
+  }
+
+  @Override
+  public final S messageHandler(Handler<GrpcMessage> handler) {
+    messageHandler = handler;
+    return (S) this;
+  }
+
+  @Override
+  public final S endHandler(Handler<Void> endHandler) {
+    this.endHandler = endHandler;
+    return (S) this;
   }
 
   public void handle(Buffer chunk) {
@@ -137,55 +179,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     }
   }
 
-  public S pause() {
-    queue.pause();
-    return (S) this;
-  }
-
-  public S resume() {
-    return fetch(Long.MAX_VALUE);
-  }
-
-  public S fetch(long amount) {
-    queue.fetch(amount);
-    return (S) this;
-  }
-
-  @Override
-  public S errorHandler(Handler<GrpcError> handler) {
-    errorHandler = handler;
-    return (S) this;
-  }
-
-  @Override
-  public S exceptionHandler(Handler<Throwable> handler) {
-    exceptionHandler = handler;
-    return (S) this;
-  }
-
-  @Override
-  public S messageHandler(Handler<GrpcMessage> handler) {
-    messageHandler = handler;
-    return (S) this;
-  }
-
-  @Override
-  public S endHandler(Handler<Void> endHandler) {
-    this.endHandler = endHandler;
-    return (S) this;
-  }
-
-  public void handleReset(long code) {
-    Handler<GrpcError> handler = errorHandler;
-    if (handler != null) {
-      GrpcError error = mapHttp2ErrorCode(code);
-      if (error != null) {
-        handler.handle(error);
-      }
-    }
-  }
-
-  protected void handleException(Throwable err) {
+  protected final void handleException(Throwable err) {
     end.tryFail(err);
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {
@@ -210,7 +204,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   }
 
   @Override
-  public Future<T> last() {
+  public final Future<T> last() {
     return end()
       .map(v -> decodeMessage(last));
   }

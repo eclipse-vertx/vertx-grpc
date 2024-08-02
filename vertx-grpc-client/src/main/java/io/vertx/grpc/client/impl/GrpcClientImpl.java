@@ -68,6 +68,7 @@ public class GrpcClientImpl implements GrpcClient {
     return client.request(options)
       .map(httpRequest -> {
         GrpcClientRequestImpl<Buffer, Buffer> grpcRequest = new GrpcClientRequestImpl<>(httpRequest, scheduleDeadlineAutomatically, GrpcMessageEncoder.IDENTITY, GrpcMessageDecoder.IDENTITY);
+        grpcRequest.init();
         configureTimeout(grpcRequest);
         return grpcRequest;
       });
@@ -115,6 +116,7 @@ public class GrpcClientImpl implements GrpcClient {
     return client.request(options)
       .map(request -> {
         GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(request, scheduleDeadlineAutomatically, method.encoder(), method.decoder());
+        call.init();
         call.serviceName(method.serviceName());
         call.methodName(method.methodName());
         configureTimeout(call);

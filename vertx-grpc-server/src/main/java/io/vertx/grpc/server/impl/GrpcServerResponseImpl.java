@@ -22,61 +22,39 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcServerResponse;
 
 import java.util.Map;
 import java.util.Objects;
 
-import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
+import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 import static io.vertx.grpc.common.GrpcMediaType.*;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req, Resp> {
+public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcServerResponseImpl<Req, Resp>, Resp> implements GrpcServerResponse<Req, Resp> {
 
-  private final ContextInternal context;
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
-  private final GrpcMessageEncoder<Resp> encoder;
   private final CharSequence contentType;
-  private String encoding;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
-  private boolean headersSent;
-  private boolean trailersSent;
+  private MultiMap httpResponseTrailers;
+  private boolean trailersOnly;
   private boolean cancelled;
-  private MultiMap headers, trailers;
-  private Handler<Throwable> exceptionHandler;
 
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
                                 CharSequence contentType,
                                 HttpServerResponse httpResponse,
                                 GrpcMessageEncoder<Resp> encoder) {
-    this.context = context;
+    super(context, httpResponse, encoder);
     this.request = request;
     this.httpResponse = httpResponse;
-    this.encoder = encoder;
     this.contentType = contentType;
-  }
-
-  void init() {
-    httpResponse.exceptionHandler(this::handleException);
-  }
-
-  private void handleException(Throwable err) {
-    if (err instanceof StreamResetException) {
-      if (request.end().isComplete()) {
-        request.handleReset(((StreamResetException)err).getCode());
-      }
-      return;
-    }
-    Handler<Throwable> handler = exceptionHandler;
-    if (handler != null) {
-      handler.handle(err);
-    }
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
@@ -96,78 +74,9 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     return this;
   }
 
-  @Override
-  public MultiMap headers() {
-    if (headersSent) {
-      throw new IllegalStateException("Headers already sent");
-    }
-    if (headers == null) {
-      headers = MultiMap.caseInsensitiveMultiMap();
-    }
-    return headers;
-  }
-
-  @Override
-  public MultiMap trailers() {
-    if (trailersSent) {
-      throw new IllegalStateException("Trailers already sent");
-    }
-    if (trailers == null) {
-      trailers = MultiMap.caseInsensitiveMultiMap();
-    }
-    return trailers;
-  }
-
-  @Override
-  public GrpcServerResponseImpl<Req, Resp> exceptionHandler(Handler<Throwable> handler) {
-    exceptionHandler = handler;
-    return this;
-  }
-
-  @Override
-  public Future<Void> write(Resp message) {
-    return writeMessage(encoder.encode(message));
-  }
-
-  @Override
-  public Future<Void> end(Resp message) {
-    return endMessage(encoder.encode(message));
-  }
-
-  @Override
-  public Future<Void> writeMessage(GrpcMessage data) {
-    return writeMessage(data, false);
-  }
-
-  @Override
-  public Future<Void> endMessage(GrpcMessage message) {
-    return writeMessage(message, true);
-  }
-
-  public Future<Void> end() {
-    return writeMessage(null, true);
-  }
-
-  @Override
-  public GrpcServerResponse<Req, Resp> setWriteQueueMaxSize(int maxSize) {
-    httpResponse.setWriteQueueMaxSize(maxSize);
-    return this;
-  }
-
-  @Override
-  public boolean writeQueueFull() {
-    return httpResponse.writeQueueFull();
-  }
-
-  @Override
-  public GrpcServerResponse<Req, Resp> drainHandler(Handler<Void> handler) {
-    httpResponse.drainHandler(handler);
-    return this;
-  }
-
   public void handleTimeout() {
-    if (!cancelled) {
-      if (!trailersSent) {
+    if (!isCancelled()) {
+      if (!isTrailersSent()) {
         status(GrpcStatus.DEADLINE_EXCEEDED);
         end();
       } else {
@@ -189,111 +98,74 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     } else {
       requestEnded = fut.succeeded();
     }
-    if (!requestEnded || !trailersSent) {
-      httpResponse.reset(GrpcError.CANCELLED.http2ResetCode);
+    if (!requestEnded || !isTrailersSent()) {
+      if (httpResponse.reset(GrpcError.CANCELLED.http2ResetCode)) {
+        handleError(GrpcError.CANCELLED);
+      }
     }
   }
 
-  private Future<Void> writeMessage(GrpcMessage message, boolean end) {
-
-    if (cancelled) {
-      throw new IllegalStateException("The stream has been cancelled");
-    }
-    if (trailersSent) {
-      throw new IllegalStateException("The stream has been closed");
-    }
-
-    if (message == null && !end) {
-      throw new IllegalStateException();
-    }
-
-    if (encoding != null && message != null && !encoding.equals(message.encoding())) {
-      switch (encoding) {
-        case "gzip":
-          message = GrpcMessageEncoder.GZIP.encode(message.payload());
-          break;
-        case "identity":
-          if (!message.encoding().equals("identity")) {
-            if (!message.encoding().equals("gzip")) {
-              return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
-            }
-            Buffer decoded;
-            try {
-              decoded = GrpcMessageDecoder.GZIP.decode(message);
-            } catch (CodecException e) {
-              return Future.failedFuture(e);
-            }
-            message = GrpcMessage.message("identity", decoded);
-          }
-          break;
+  protected void sendHeaders(MultiMap headers, boolean end) {
+    MultiMap responseHeaders = httpResponse.headers();
+    trailersOnly = status != GrpcStatus.OK && end;
+    httpResponse.setChunked(isGrpcWeb() && !trailersOnly);
+    if (headers != null && !headers.isEmpty()) {
+      for (Map.Entry<String, String> header : headers) {
+        responseHeaders.add(header.getKey(), header.getValue());
       }
     }
+    responseHeaders.set("content-type", contentType);
+    if (!isGrpcWeb()) {
+      responseHeaders.set("grpc-encoding", encoding);
+      responseHeaders.set("grpc-accept-encoding", "gzip");
+    }
+  }
 
-    boolean trailersOnly = status != GrpcStatus.OK && !headersSent && end;
+  protected void sendTrailers(MultiMap trailers) {
+    if (trailersOnly) {
+      httpResponseTrailers = httpResponse.headers();
+    } else if (!isGrpcWeb()) {
+      httpResponseTrailers = httpResponse.trailers();
+    } else {
+      httpResponseTrailers = HttpHeaders.headers();
+    }
 
     MultiMap responseHeaders = httpResponse.headers();
-    if (!headersSent) {
-      httpResponse.setChunked(isGrpcWeb() && !trailersOnly);
-      headersSent = true;
-      if (headers != null && !headers.isEmpty()) {
-        for (Map.Entry<String, String> header : headers) {
-          responseHeaders.add(header.getKey(), header.getValue());
-        }
-      }
-      responseHeaders.set("content-type", contentType);
-      if (!isGrpcWeb()) {
-        responseHeaders.set("grpc-encoding", encoding);
-        responseHeaders.set("grpc-accept-encoding", "gzip");
+    if (trailers != null && !trailers.isEmpty()) {
+      for (Map.Entry<String, String> trailer : trailers) {
+        httpResponseTrailers.add(trailer.getKey(), trailer.getValue());
       }
     }
-
-    if (end) {
-      request.cancelTimeout();
-      if (!trailersSent) {
-        trailersSent = true;
+    if (!responseHeaders.contains("grpc-status")) {
+      httpResponseTrailers.set("grpc-status", status.toString());
+    }
+    if (status != GrpcStatus.OK) {
+      String msg = statusMessage;
+      if (msg != null && !responseHeaders.contains("grpc-status-message")) {
+        httpResponseTrailers.set("grpc-message", Utils.utf8PercentEncode(msg));
       }
-      MultiMap responseTrailers;
-      if (trailersOnly) {
-        responseTrailers = httpResponse.headers();
-      } else if (!isGrpcWeb()) {
-        responseTrailers = httpResponse.trailers();
-      } else {
-        responseTrailers = HttpHeaders.headers();
-      }
-
-      if (trailers != null && !trailers.isEmpty()) {
-        for (Map.Entry<String, String> trailer : trailers) {
-          responseTrailers.add(trailer.getKey(), trailer.getValue());
-        }
-      }
-      if (!responseHeaders.contains("grpc-status")) {
-        responseTrailers.set("grpc-status", status.toString());
-      }
-      if (status != GrpcStatus.OK) {
-        String msg = statusMessage;
-        if (msg != null && !responseHeaders.contains("grpc-status-message")) {
-          responseTrailers.set("grpc-message", Utils.utf8PercentEncode(msg));
-        }
-      } else {
-        responseTrailers.remove("grpc-message");
-      }
-      if (message != null) {
-        httpResponse.write(encodeMessage(message, false));
-      }
-      if (isGrpcWeb() && !trailersOnly) {
-        Buffer buffer = Buffer.buffer();
-        for (Map.Entry<String, String> trailer : responseTrailers) {
-          buffer.appendString(trailer.getKey())
-            .appendByte((byte) ':')
-            .appendString(trailer.getValue())
-            .appendString("\r\n");
-        }
-        httpResponse.write(encodeMessage(new GrpcMessageImpl("identity", buffer), true));
-      }
-      return httpResponse.end();
     } else {
-      return httpResponse.write(encodeMessage(message, false));
+      httpResponseTrailers.remove("grpc-message");
     }
+    if (isGrpcWeb() && !trailersOnly) {
+      Buffer buffer = Buffer.buffer();
+      for (Map.Entry<String, String> trailer : httpResponseTrailers) {
+        buffer.appendString(trailer.getKey())
+          .appendByte((byte) ':')
+          .appendString(trailer.getValue())
+          .appendString("\r\n");
+      }
+      httpResponse.write(encodeMessage(new GrpcMessageImpl("identity", buffer), true));
+    }
+  }
+
+  protected Future<Void> sendMessage(GrpcMessage message) {
+    return httpResponse.write(encodeMessage(message, false));
+  }
+
+  protected Future<Void> sendEnd() {
+    request.cancelTimeout();
+    return httpResponse.end();
   }
 
   private Buffer encodeMessage(GrpcMessage message, boolean trailer) {

@@ -13,6 +13,7 @@ package io.vertx.grpc.server.impl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.base64.Base64;
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
@@ -24,6 +25,7 @@ import io.vertx.core.http.HttpVersion;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
@@ -113,8 +115,8 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   }
 
   @Override
-  public void init() {
-    super.init();
+  public void init(GrpcWriteStreamBase ws) {
+    super.init(ws);
     if (timeout > 0L) {
       if (scheduleDeadline) {
         Timer timer = context.timer(timeout, TimeUnit.MILLISECONDS);

@@ -28,6 +28,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
+import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.GrpcLocal;
@@ -587,6 +588,43 @@ public class ClientRequestTest extends ClientTest {
         callRequest.response().onComplete(should.asyncAssertSuccess(e -> {
           long timeRemaining = cf.getNow(-1L);
           should.assertTrue(timeRemaining > 7500);
+          done.complete();
+        }));
+      }));
+  }
+
+  @Test
+  public void testServerCancellation(TestContext should) throws Exception {
+
+    Async done = should.async();
+    startServer(new StreamingGrpc.StreamingImplBase() {
+      @Override
+      public StreamObserver<Item> pipe(StreamObserver<Item> responseObserver) {
+        return new StreamObserver<>() {
+          @Override
+          public void onNext(Item item) {
+          }
+          @Override
+          public void onError(Throwable t) {
+          }
+          @Override
+          public void onCompleted() {
+          }
+        };
+      }
+    });
+
+    client = GrpcClient.client(vertx);
+    client.request(SocketAddress.inetSocketAddress(port, "localhost"), STREAMING_PIPE)
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+
+        // Force the server to send cancel with a reset frame
+        callRequest.timeout(10, TimeUnit.MILLISECONDS);
+        callRequest.write(Item.newBuilder().setValue("item").build());
+        callRequest.response().onComplete(should.asyncAssertFailure(err -> {
+          should.assertEquals(GrpcErrorException.class, err.getClass());
+          GrpcErrorException gee = (GrpcErrorException) err;
+          should.assertEquals(GrpcError.CANCELLED, gee.error());
           done.complete();
         }));
       }));
