@@ -22,6 +22,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.common.GrpcErrorException;
+import io.vertx.grpc.common.GrpcLocal;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
@@ -52,8 +53,9 @@ public class DeadlineTest extends ProxyTestBase {
     VertxGreeterGrpcServer.GreeterApi impl = new VertxGreeterGrpcServer.GreeterApi() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
-        // todo : need to find a way to make this available ????
-//        should.assertNotNull(Context.current().getDeadline());
+        GrpcLocal local = GrpcLocal.current();
+        should.assertNotNull(local);
+        should.assertNotNull(local.deadline());
         return stub
           .sayHello(HelloRequest.newBuilder().setName("Julien").build())
           .andThen(ar -> {

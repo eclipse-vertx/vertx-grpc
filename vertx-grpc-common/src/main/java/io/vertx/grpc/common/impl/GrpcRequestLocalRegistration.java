@@ -13,13 +13,14 @@ package io.vertx.grpc.common.impl;
 import io.vertx.core.internal.VertxBootstrap;
 import io.vertx.core.spi.VertxServiceProvider;
 import io.vertx.core.spi.context.storage.ContextLocal;
+import io.vertx.grpc.common.GrpcLocal;
 
 /**
- * Registration of context local for {@link GrpcRequestLocal}.
+ * Registration of context local for {@link GrpcLocal}.
  */
 public class GrpcRequestLocalRegistration implements VertxServiceProvider {
 
-  static final ContextLocal<GrpcRequestLocal> CONTEXT_LOCAL = ContextLocal.registerLocal(GrpcRequestLocal.class);
+  public static final ContextLocal<GrpcLocal> CONTEXT_LOCAL = ContextLocal.registerLocal(GrpcLocal.class);
 
   @Override
   public void init(VertxBootstrap builder) {

@@ -30,7 +30,7 @@ import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.impl.GrpcRequestLocal;
+import io.vertx.grpc.common.GrpcLocal;
 import org.junit.Test;
 
 import java.io.File;
@@ -560,7 +560,7 @@ public class ClientRequestTest extends ClientTest {
     client = GrpcClient.client(vertx, new GrpcClientOptions().setScheduleDeadlineAutomatically(true));
     ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
     context.runOnContext(v -> {
-      context.putLocal(GrpcRequestLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcRequestLocal(System.currentTimeMillis() + 1000));
+      context.putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(System.currentTimeMillis() + 1000));
       client.request(SocketAddress.inetSocketAddress(port, "localhost"), STREAMING_SINK)
         .onComplete(should.asyncAssertSuccess(callRequest -> {
           callRequest.write(Item.getDefaultInstance());
