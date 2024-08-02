@@ -9,12 +9,11 @@ import io.grpc.Deadline;
 import io.grpc.Metadata;
 import io.grpc.Status;
 import io.vertx.core.Future;
-import io.vertx.core.http.StreamResetException;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
+import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
-import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
 import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
@@ -139,14 +138,9 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
             });
           } else {
             Throwable err = ar2.cause();
-            if (err instanceof StreamResetException) {
-              StreamResetException reset = (StreamResetException) err;
-              GrpcError grpcError = GrpcError.mapHttp2ErrorCode(reset.getCode());
-              if (grpcError != null) {
-                doClose(Status.fromCodeValue(grpcError.status.code), new Metadata());
-              } else {
-                doClose(Status.UNKNOWN, new Metadata());
-              }
+            if (err instanceof GrpcErrorException) {
+              GrpcErrorException reset = (GrpcErrorException) err;
+              doClose(Status.fromCodeValue(reset.status().code), new Metadata());
             } else {
               doClose(Status.fromThrowable(err), new Metadata());
             }

@@ -15,16 +15,12 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -52,6 +48,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   private boolean trailersSent;
   private boolean cancelled;
   private MultiMap headers, trailers;
+  private Handler<Throwable> exceptionHandler;
 
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
@@ -63,6 +60,23 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     this.httpResponse = httpResponse;
     this.encoder = encoder;
     this.contentType = contentType;
+  }
+
+  void init() {
+    httpResponse.exceptionHandler(this::handleException);
+  }
+
+  private void handleException(Throwable err) {
+    if (err instanceof StreamResetException) {
+      if (request.end().isComplete()) {
+        request.handleReset(((StreamResetException)err).getCode());
+      }
+      return;
+    }
+    Handler<Throwable> handler = exceptionHandler;
+    if (handler != null) {
+      handler.handle(err);
+    }
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
@@ -106,7 +120,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
 
   @Override
   public GrpcServerResponseImpl<Req, Resp> exceptionHandler(Handler<Throwable> handler) {
-    httpResponse.exceptionHandler(handler);
+    exceptionHandler = handler;
     return this;
   }
 

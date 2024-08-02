@@ -10,25 +10,20 @@
  */
 package io.vertx.grpc.it;
 
-//import io.grpc.Context;
-//import io.grpc.Status;
-//import io.grpc.StatusRuntimeException;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.examples.helloworld.VertxGreeterGrpcClient;
 import io.grpc.examples.helloworld.VertxGreeterGrpcServer;
-import io.vertx.core.Context;
 import io.vertx.core.Future;
-import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.StreamResetException;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
-import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import org.junit.Test;
 
@@ -48,13 +43,9 @@ public class DeadlineTest extends ProxyTestBase {
     Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx, serverOptions)
       .callHandler(VertxGreeterGrpcServer.SayHello, call -> {
       should.assertTrue(call.timeout() > 0L);
-      call.response().exceptionHandler(err -> {
-        if (err instanceof StreamResetException) {
-          should.assertTrue(err instanceof StreamResetException);
-          StreamResetException sre = (StreamResetException) err;
-          should.assertEquals(8L, sre.getCode());
-          latch.countDown();
-        }
+      call.errorHandler(err -> {
+        should.assertEquals(GrpcStatus.CANCELLED, err.status);
+        latch.countDown();
       });
     })).listen(8080, "localhost");
     VertxGreeterGrpcClient stub = new VertxGreeterGrpcClient(client, SocketAddress.inetSocketAddress(8080, "localhost"));
@@ -68,9 +59,9 @@ public class DeadlineTest extends ProxyTestBase {
           .andThen(ar -> {
             if (ar.failed()) {
               Throwable err = ar.cause();
-              should.assertTrue(err instanceof StreamResetException);
-              StreamResetException sre = (StreamResetException) err;
-              should.assertEquals(8L, sre.getCode());
+              should.assertTrue(err instanceof GrpcErrorException);
+              GrpcErrorException sre = (GrpcErrorException) err;
+              should.assertEquals(GrpcStatus.CANCELLED, sre.status());
               latch.countDown();
             } else {
               should.fail();
@@ -85,10 +76,9 @@ public class DeadlineTest extends ProxyTestBase {
       client.request(SocketAddress.inetSocketAddress(8081, "localhost"), VertxGreeterGrpcClient.SayHello)
         .onComplete(should.asyncAssertSuccess(callRequest -> {
           callRequest.response().onComplete(should.asyncAssertFailure(err -> {
-            // TODO : this should be mapped to a grpc response status properly instead of being an error
-            should.assertTrue(err instanceof StreamResetException);
-            StreamResetException sre = (StreamResetException) err;
-            should.assertEquals(8L, sre.getCode());
+            should.assertTrue(err instanceof GrpcErrorException);
+            GrpcErrorException sre = (GrpcErrorException) err;
+            should.assertEquals(GrpcStatus.CANCELLED, sre.status());
             latch.countDown();
           }));
           callRequest.timeout(2, TimeUnit.SECONDS).end(HelloRequest.newBuilder().setName("Julien").build());

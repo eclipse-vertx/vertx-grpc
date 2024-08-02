@@ -219,7 +219,7 @@ public abstract class ClientTest extends ClientTestBase {
     startServer(new StreamingGrpc.StreamingImplBase() {
       @Override
       public StreamObserver<Item> sink(StreamObserver<Empty> responseObserver) {
-        return new StreamObserver<Item>() {
+        return new StreamObserver<>() {
           @Override
           public void onNext(Item item) {
             responseObserver.onCompleted();
