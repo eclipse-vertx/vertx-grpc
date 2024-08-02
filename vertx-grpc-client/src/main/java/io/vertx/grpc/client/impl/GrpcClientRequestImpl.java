@@ -11,10 +11,8 @@
 package io.vertx.grpc.client.impl;
 
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
 
 import java.util.EnumMap;
@@ -24,42 +22,35 @@ import java.util.concurrent.TimeUnit;
 
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.StreamResetException;
-import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, Resp> {
+public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcClientRequestImpl<Req, Resp>, Req> implements GrpcClientRequest<Req, Resp> {
 
-  private final ContextInternal context;
   private final HttpClientRequest httpRequest;
-  private final GrpcMessageEncoder<Req> messageEncoder;
   private final boolean scheduleDeadline;
   private ServiceName serviceName;
   private String methodName;
-  private String encoding = null;
-  private boolean headersSent;
-  private boolean cancelled;
-  boolean trailersSent;
   private Future<GrpcClientResponse<Req, Resp>> response;
-  private MultiMap headers;
   private long timeout;
   private TimeUnit timeoutUnit;
   private String timeoutHeader;
   private Timer deadline;
+  private boolean cancelled;
 
   public GrpcClientRequestImpl(HttpClientRequest httpRequest,
                                boolean scheduleDeadline,
                                GrpcMessageEncoder<Req> messageEncoder, GrpcMessageDecoder<Resp> messageDecoder) {
-    this.context = ((PromiseInternal<?>)httpRequest.response()).context();
+    super( ((PromiseInternal<?>)httpRequest.response()).context(), httpRequest, messageEncoder);
     this.httpRequest = httpRequest;
-    this.messageEncoder = messageEncoder;
     this.scheduleDeadline = scheduleDeadline;
     this.timeout = 0L;
     this.timeoutUnit = null;
@@ -68,7 +59,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
       .response()
       .compose(httpResponse -> {
         GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(context, this, httpResponse, messageDecoder);
-        grpcResponse.init();
+        grpcResponse.init(this);
         return Future.succeededFuture(grpcResponse);
       }, err -> {
         if (err instanceof StreamResetException) {
@@ -76,21 +67,6 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
         }
         return Future.failedFuture(err);
       });
-  }
-
-  public ContextInternal context() {
-    return context;
-  }
-
-  @Override
-  public MultiMap headers() {
-    if (headersSent) {
-      throw new IllegalStateException("Headers already sent");
-    }
-    if (headers == null) {
-      headers = MultiMap.caseInsensitiveMultiMap();
-    }
-    return headers;
   }
 
   @Override
@@ -101,7 +77,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
 
   @Override
   public GrpcClientRequest<Req, Resp> fullMethodName(String fullMethodName) {
-    if (headersSent) {
+    if (isHeadersSent()) {
       throw new IllegalStateException("Request already sent");
     }
     int idx = fullMethodName.lastIndexOf('/');
@@ -126,34 +102,11 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
   }
 
   @Override
-  public GrpcClientRequest<Req, Resp> exceptionHandler(Handler<Throwable> handler) {
-    httpRequest.exceptionHandler(handler);
-    return this;
-  }
-
-  @Override
-  public GrpcClientRequest<Req, Resp> setWriteQueueMaxSize(int maxSize) {
-    httpRequest.setWriteQueueMaxSize(maxSize);
-    return this;
-  }
-
-  @Override
-  public boolean writeQueueFull() {
-    return httpRequest.writeQueueFull();
-  }
-
-  @Override
-  public GrpcClientRequest<Req, Resp> drainHandler(Handler<Void> handler) {
-    httpRequest.drainHandler(handler);
-    return this;
-  }
-
-  @Override
   public GrpcClientRequest<Req, Resp> timeout(long timeout, TimeUnit unit) {
     if (timeout < 0L) {
       throw new IllegalArgumentException("Timeout must be positive");
     }
-    if (headersSent) {
+    if (isHeadersSent()) {
       throw new IllegalStateException("Timeout must be set before sending request headers");
     }
     String headerValue = toTimeoutHeader(timeout, unit);
@@ -177,99 +130,55 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
     return this;
   }
 
-  @Override public Future<Void> writeMessage(GrpcMessage message) {
-    return writeMessage(message, false);
+  @Override
+  protected void sendHeaders(MultiMap headers, boolean end) {
+    ServiceName serviceName = this.serviceName;
+    String methodName = this.methodName;
+    if (serviceName == null) {
+      throw new IllegalStateException();
+    }
+    if (methodName == null) {
+      throw new IllegalStateException();
+    }
+    if (headers != null) {
+      MultiMap requestHeaders = httpRequest.headers();
+      for (Map.Entry<String, String> header : headers) {
+        requestHeaders.add(header.getKey(), header.getValue());
+      }
+    }
+    if (timeout > 0L) {
+      httpRequest.putHeader("grpc-timeout", timeoutHeader);
+    }
+    String uri = serviceName.pathOf(methodName);
+    httpRequest.putHeader("content-type", "application/grpc");
+    if (encoding != null) {
+      httpRequest.putHeader("grpc-encoding", encoding);
+    }
+    httpRequest.putHeader("grpc-accept-encoding", "gzip");
+    httpRequest.putHeader("te", "trailers");
+    httpRequest.setChunked(true);
+    httpRequest.setURI(uri);
+    if (scheduleDeadline && timeout > 0L) {
+      Timer timer = context.timer(timeout, timeoutUnit);
+      deadline = timer;
+      timer.onSuccess(v -> {
+        cancel();
+      });
+    }
   }
 
-  @Override public Future<Void> endMessage(GrpcMessage message) {
-    return writeMessage(message, true);
+  @Override
+  protected void sendTrailers(MultiMap trailers) {
   }
 
-  @Override public Future<Void> end() {
-    if (cancelled) {
-      throw new IllegalStateException("The stream has been cancelled");
-    }
-    if (!headersSent) {
-      throw new IllegalStateException("You must send a message before terminating the stream");
-    }
-    if (trailersSent) {
-      throw new IllegalStateException("The stream has been closed");
-    }
-    trailersSent = true;
+  @Override
+  protected Future<Void> sendMessage(GrpcMessage message) {
+    return httpRequest.write(GrpcMessageImpl.encode(message));
+  }
+
+  @Override
+  protected Future<Void> sendEnd() {
     return httpRequest.end();
-  }
-
-  private Future<Void> writeMessage(GrpcMessage message, boolean end) {
-    if (cancelled) {
-      throw new IllegalStateException("The stream has been cancelled");
-    }
-    if (trailersSent) {
-      throw new IllegalStateException("The stream has been closed");
-    }
-    if (encoding != null && !encoding.equals(message.encoding())) {
-      switch (encoding) {
-        case "gzip":
-          message = GrpcMessageEncoder.GZIP.encode(message.payload());
-          break;
-        case "identity":
-          if (!message.encoding().equals("identity")) {
-            if (!message.encoding().equals("gzip")) {
-              return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
-            }
-            Buffer decoded;
-            try {
-              decoded = GrpcMessageDecoder.GZIP.decode(message);
-            } catch (CodecException e) {
-              return Future.failedFuture(e);
-            }
-            message = GrpcMessage.message("identity", decoded);
-          }
-          break;
-      }
-    }
-
-    if (!headersSent) {
-      ServiceName serviceName = this.serviceName;
-      String methodName = this.methodName;
-      if (serviceName == null) {
-        throw new IllegalStateException();
-      }
-      if (methodName == null) {
-        throw new IllegalStateException();
-      }
-      if (headers != null) {
-        MultiMap requestHeaders = httpRequest.headers();
-        for (Map.Entry<String, String> header : headers) {
-          requestHeaders.add(header.getKey(), header.getValue());
-        }
-      }
-      if (timeout > 0L) {
-        httpRequest.putHeader("grpc-timeout", timeoutHeader);
-      }
-      String uri = serviceName.pathOf(methodName);
-      httpRequest.putHeader("content-type", "application/grpc");
-      if (encoding != null) {
-        httpRequest.putHeader("grpc-encoding", encoding);
-      }
-      httpRequest.putHeader("grpc-accept-encoding", "gzip");
-      httpRequest.putHeader("te", "trailers");
-      httpRequest.setChunked(true);
-      httpRequest.setURI(uri);
-      if (scheduleDeadline && timeout > 0L) {
-        Timer timer = context.timer(timeout, timeoutUnit);
-        deadline = timer;
-        timer.onSuccess(v -> {
-          cancel();
-        });
-      }
-      headersSent = true;
-    }
-    if (end) {
-      trailersSent = true;
-      return httpRequest.end(GrpcMessageImpl.encode(message));
-    } else {
-      return httpRequest.write(GrpcMessageImpl.encode(message));
-    }
   }
 
   void cancelTimeout() {
@@ -277,16 +186,6 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
     if (timer != null && timer.cancel()) {
       deadline = null;
     }
-  }
-
-  @Override
-  public Future<Void> write(Req message) {
-    return writeMessage(messageEncoder.encode(message));
-  }
-
-  @Override
-  public Future<Void> end(Req message) {
-    return endMessage(messageEncoder.encode(message));
   }
 
   @Override public Future<GrpcClientResponse<Req, Resp>> response() {
@@ -313,8 +212,10 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
       } else {
         responseEnded = false;
       }
-      if (!trailersSent || !responseEnded) {
-        httpRequest.reset(GrpcError.CANCELLED.http2ResetCode);
+      if (!isTrailersSent() || !responseEnded) {
+        if (httpRequest.reset(GrpcError.CANCELLED.http2ResetCode)) {
+          handleError(GrpcError.CANCELLED);
+        }
       }
     });
   }

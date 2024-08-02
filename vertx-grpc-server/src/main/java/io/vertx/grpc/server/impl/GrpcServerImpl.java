@@ -102,7 +102,7 @@ public class GrpcServerImpl implements GrpcServer {
       long deadline = System.currentTimeMillis() + grpcRequest.timeout;
       context.putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
     }
-    grpcRequest.init();
+    grpcRequest.init(grpcRequest.response);
     context.dispatch(grpcRequest, handler);
   }
 

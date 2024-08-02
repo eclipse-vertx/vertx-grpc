@@ -11,6 +11,7 @@
 package io.vertx.grpc.client.impl;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -18,10 +19,8 @@ import io.vertx.core.http.HttpClientResponse;
 
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.client.GrpcClientResponse;
-import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
-import io.vertx.grpc.common.GrpcStatus;
 
 import java.nio.charset.StandardCharsets;
 
@@ -81,7 +80,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
       }
     }
     super.handleEnd();
-    if (!request.trailersSent) {
+    if (!request.isTrailersSent()) {
       request.cancel();
     }
   }
