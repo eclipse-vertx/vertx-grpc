@@ -16,7 +16,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
-import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.core.spi.context.storage.AccessMode;
@@ -24,7 +23,7 @@ import io.vertx.grpc.common.GrpcMediaType;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.impl.GrpcRequestLocal;
+import io.vertx.grpc.common.GrpcLocal;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
@@ -101,7 +100,7 @@ public class GrpcServerImpl implements GrpcServer {
       httpRequest, messageDecoder, messageEncoder, methodCall);
     if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
       long deadline = System.currentTimeMillis() + grpcRequest.timeout;
-      context.putLocal(GrpcRequestLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcRequestLocal(deadline));
+      context.putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
     }
     grpcRequest.init();
     context.dispatch(grpcRequest, handler);

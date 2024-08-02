@@ -99,6 +99,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
     }
 
     GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, this, contentType, httpRequest.response(), messageEncoder);
+    response.init();
     this.timeout = timeout;
     this.httpRequest = httpRequest;
     this.response = response;

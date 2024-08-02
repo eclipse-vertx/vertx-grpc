@@ -175,7 +175,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     return (S) this;
   }
 
-  protected void handleReset(long code) {
+  public void handleReset(long code) {
     Handler<GrpcError> handler = errorHandler;
     if (handler != null) {
       GrpcError error = mapHttp2ErrorCode(code);

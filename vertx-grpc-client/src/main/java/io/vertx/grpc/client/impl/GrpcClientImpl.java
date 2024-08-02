@@ -27,7 +27,7 @@ import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.impl.GrpcRequestLocal;
+import io.vertx.grpc.common.GrpcLocal;
 
 import java.util.concurrent.TimeUnit;
 
@@ -85,11 +85,11 @@ public class GrpcClientImpl implements GrpcClient {
 
   private void configureTimeout(GrpcClientRequest<?, ?> request) {
     ContextInternal current = (ContextInternal) vertx.getOrCreateContext();
-    GrpcRequestLocal local = current.getLocal(GrpcRequestLocal.CONTEXT_LOCAL_KEY);
+    GrpcLocal local = current.getLocal(GrpcLocal.CONTEXT_LOCAL_KEY);
     long timeout = this.timeout;
     TimeUnit timeoutUnit = this.timeoutUnit;
     if (local != null) {
-      timeout = local.deadline - System.currentTimeMillis();
+      timeout = local.deadline().toEpochMilli() - System.currentTimeMillis();
       timeoutUnit = TimeUnit.MILLISECONDS;
       if (timeout < 0L) {
         throw new UnsupportedOperationException("Handle this case");

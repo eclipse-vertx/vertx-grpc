@@ -28,7 +28,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.impl.GrpcRequestLocal;
+import io.vertx.grpc.common.GrpcLocal;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -394,9 +394,9 @@ public class ServerRequestTest extends ServerTest {
   public void testTimeoutPropagationOnServer(TestContext should) throws Exception {
     startServer(GrpcServer.server(vertx, new GrpcServerOptions().setDeadlinePropagation(true)).callHandler(GREETER_SAY_HELLO, call -> {
       GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
-      GrpcRequestLocal local = ((ContextInternal)vertx.getOrCreateContext()).getLocal(GrpcRequestLocal.CONTEXT_LOCAL_KEY);
+      GrpcLocal local = ((ContextInternal)vertx.getOrCreateContext()).getLocal(GrpcLocal.CONTEXT_LOCAL_KEY);
       should.assertNotNull(local);
-      should.assertTrue(local.deadline - System.currentTimeMillis() > 8000);
+      should.assertTrue(local.deadline().toEpochMilli() - System.currentTimeMillis() > 8000);
       response.end();
     }));
 

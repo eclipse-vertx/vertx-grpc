@@ -36,12 +36,12 @@
   <dependencies>
     <dependency>
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpcio-client</artifactId>
+      <artifactId>vertx-grpc-client</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpcio-server</artifactId>
+      <artifactId>vertx-grpc-server</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -66,16 +66,6 @@
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-stub</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-netty-shaded</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -113,7 +103,6 @@
             <id>test-compile</id>
             <goals>
               <goal>test-compile</goal>
-              <goal>test-compile-custom</goal>
             </goals>
           </execution>
         </executions>

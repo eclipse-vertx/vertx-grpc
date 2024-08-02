@@ -23,16 +23,13 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import io.vertx.core.http.HttpConnection;
+import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
-import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.GrpcErrorException;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 
 /**
@@ -69,10 +66,15 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
     this.timeoutHeader = null;
     this.response = httpRequest
       .response()
-      .map(httpResponse -> {
+      .compose(httpResponse -> {
         GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(context, this, httpResponse, messageDecoder);
         grpcResponse.init();
-        return grpcResponse;
+        return Future.succeededFuture(grpcResponse);
+      }, err -> {
+        if (err instanceof StreamResetException) {
+          err = GrpcErrorException.create((StreamResetException) err);
+        }
+        return Future.failedFuture(err);
       });
   }
 

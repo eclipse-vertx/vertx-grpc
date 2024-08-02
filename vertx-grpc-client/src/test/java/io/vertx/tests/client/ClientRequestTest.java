@@ -28,8 +28,9 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
+import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.impl.GrpcRequestLocal;
+import io.vertx.grpc.common.GrpcLocal;
 import org.junit.Test;
 
 import java.io.File;
@@ -287,9 +288,9 @@ public class ClientRequestTest extends ClientTest {
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), STREAMING_SINK)
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.response().onComplete(should.asyncAssertFailure(failure -> {
-          should.assertEquals(StreamResetException.class, failure.getClass());
-          StreamResetException reset = (StreamResetException) failure;
-          should.assertEquals(8L, reset.getCode());
+          should.assertEquals(GrpcErrorException.class, failure.getClass());
+          GrpcErrorException f = (GrpcErrorException) failure;
+          should.assertEquals(GrpcStatus.CANCELLED, f.status());
           done.complete();
         }));
         callRequest.write(Item.newBuilder().setValue("the-value").build());
@@ -546,9 +547,9 @@ public class ClientRequestTest extends ClientTest {
           .timeout(1, TimeUnit.SECONDS);
         callRequest.write(Item.getDefaultInstance());
         callRequest.response().onComplete(should.asyncAssertFailure(err -> {
-          should.assertTrue(err instanceof StreamResetException);
-          StreamResetException sre = (StreamResetException) err;
-          should.assertEquals(8L, sre.getCode());
+          should.assertTrue(err instanceof GrpcErrorException);
+          GrpcErrorException failure = (GrpcErrorException) err;
+          should.assertEquals(GrpcStatus.CANCELLED, failure.status());
         }));
       }));
   }
@@ -559,14 +560,14 @@ public class ClientRequestTest extends ClientTest {
     client = GrpcClient.client(vertx, new GrpcClientOptions().setScheduleDeadlineAutomatically(true));
     ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
     context.runOnContext(v -> {
-      context.putLocal(GrpcRequestLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcRequestLocal(System.currentTimeMillis() + 1000));
+      context.putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(System.currentTimeMillis() + 1000));
       client.request(SocketAddress.inetSocketAddress(port, "localhost"), STREAMING_SINK)
         .onComplete(should.asyncAssertSuccess(callRequest -> {
           callRequest.write(Item.getDefaultInstance());
           callRequest.response().onComplete(should.asyncAssertFailure(err -> {
-            should.assertTrue(err instanceof StreamResetException);
-            StreamResetException sre = (StreamResetException) err;
-            should.assertEquals(8L, sre.getCode());
+            should.assertTrue(err instanceof GrpcErrorException);
+            GrpcErrorException failure = (GrpcErrorException) err;
+            should.assertEquals(GrpcStatus.CANCELLED, failure.status());
           }));
         }));
     });
