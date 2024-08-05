@@ -13,6 +13,7 @@ package io.vertx.tests.client;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.StreamResetException;
@@ -167,6 +168,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
         req.endHandler(v -> {
           HttpServerResponse resp = req.response();
           resp.putHeader("grpc-encoding", "gzip");
+          resp.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
           resp.putTrailer("grpc-status", "" + GrpcStatus.OK.code);
           resp.write(Buffer.buffer()
             .appendByte((byte)1)

@@ -23,6 +23,7 @@ import io.vertx.tests.common.GrpcTestBase;
 import org.junit.After;
 import org.junit.runner.RunWith;
 
+
 import java.io.IOException;
 
 import static io.vertx.grpc.common.GrpcMessageDecoder.decoder;

@@ -139,6 +139,28 @@ You can call `{@link io.vertx.grpc.client.GrpcClientRequest#cancel}` to cancel a
 
 NOTE: cancellation sends an HTTP/2 reset frame to the server
 
+=== JSON wire format
+
+gRPC implicitly assumes the usage of the https://protobuf.dev[Protobuf] wire format.
+
+The Vert.x gRPC client supports the JSON wire format as well.
+
+You can call a JSON service method with the `application/grpc+json` content-type.
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#jsonWireFormat01}
+----
+
+NOTE: JSON encoding/decoding is achieved by `com.google.protobuf:protobuf-java-util` library.
+
+Anemic JSON is also supported with Vert.x `JsonObject`
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#jsonWireFormat02}
+----
+
 === Compression
 
 You can compress request messages by setting the request encoding *prior* before sending any message
@@ -183,12 +205,21 @@ handle the message encoding:
 
 In addition to the request/response API, the Vert.x gRPC protoc plugin idiomatic service clients.
 
-A client wraps a `GrpcClient` and provides Vert.x idiomatic API to interact with the service:
+A client wraps a `GrpcClient` and provides Vert.x idiomatic API to interact with the service
 
 [source,java]
 ----
 {@link examples.GrpcClientExamples#createClientStub}
 ----
+
+You can also specify the JSON wire format when creating a stub
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#createClientStubJson}
+----
+
+The client will send `application/grpc+json` requests.
 
 ==== Unary services
 
@@ -198,7 +229,6 @@ Unary services returns a Vert.x `Future`
 ----
 {@link examples.GrpcClientExamples#unaryStub}
 ----
-
 ==== Streaming requests
 
 Streaming requests use a lambda passed a Vert.x `WriteStream` of messages sent to the service

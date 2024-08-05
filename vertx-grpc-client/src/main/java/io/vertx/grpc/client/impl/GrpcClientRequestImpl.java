@@ -13,14 +13,15 @@ package io.vertx.grpc.client.impl;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
 
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import io.vertx.core.http.HttpConnection;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
@@ -48,8 +49,9 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   public GrpcClientRequestImpl(HttpClientRequest httpRequest,
                                boolean scheduleDeadline,
-                               GrpcMessageEncoder<Req> messageEncoder, GrpcMessageDecoder<Resp> messageDecoder) {
-    super( ((PromiseInternal<?>)httpRequest.response()).context(), httpRequest, messageEncoder);
+                               GrpcMessageEncoder<Req> messageEncoder,
+                               GrpcMessageDecoder<Resp> messageDecoder) {
+    super( ((PromiseInternal<?>)httpRequest.response()).context(), "application/grpc", httpRequest, messageEncoder);
     this.httpRequest = httpRequest;
     this.scheduleDeadline = scheduleDeadline;
     this.timeout = 0L;
@@ -58,9 +60,28 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     this.response = httpRequest
       .response()
       .compose(httpResponse -> {
-        GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(context, this, httpResponse, messageDecoder);
-        grpcResponse.init(this);
-        return Future.succeededFuture(grpcResponse);
+        String msg = null;
+        String statusHeader = httpResponse.getHeader("grpc-status");
+        GrpcStatus status = statusHeader != null ? GrpcStatus.valueOf(Integer.parseInt(statusHeader)) : null;
+        WireFormat format = null;
+        if (status == null) {
+          String contentType = httpResponse.getHeader(HttpHeaders.CONTENT_TYPE);
+          if (contentType != null) {
+            format = GrpcMediaType.parseContentType(contentType, "application/grpc");
+          }
+          if (contentType == null) {
+            msg = "HTTP response missing content-type header";
+          } else {
+            msg = "Invalid HTTP response content-type header";
+          }
+        }
+        if (format != null || status != null) {
+          GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(context, this, format, status, httpResponse, messageDecoder);
+          grpcResponse.init(this);
+          return Future.succeededFuture(grpcResponse);
+        }
+        httpResponse.request().reset(GrpcError.CANCELLED.http2ResetCode);
+        return context().failedFuture(msg);
       }, err -> {
         if (err instanceof StreamResetException) {
           err = GrpcErrorException.create((StreamResetException) err);
@@ -95,12 +116,6 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     return this;
   }
 
-  @Override public GrpcClientRequest<Req, Resp> encoding(String encoding) {
-    Objects.requireNonNull(encoding);
-    this.encoding = encoding;
-    return this;
-  }
-
   @Override
   public GrpcClientRequest<Req, Resp> timeout(long timeout, TimeUnit unit) {
     if (timeout < 0L) {
@@ -131,7 +146,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected void sendHeaders(MultiMap headers, boolean end) {
+  protected void sendHeaders(String contentType, MultiMap headers, boolean end) {
     ServiceName serviceName = this.serviceName;
     String methodName = this.methodName;
     if (serviceName == null) {
@@ -150,7 +165,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       httpRequest.putHeader("grpc-timeout", timeoutHeader);
     }
     String uri = serviceName.pathOf(methodName);
-    httpRequest.putHeader("content-type", "application/grpc");
+    httpRequest.putHeader(HttpHeaders.CONTENT_TYPE, contentType);
     if (encoding != null) {
       httpRequest.putHeader("grpc-encoding", encoding);
     }
@@ -172,8 +187,8 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected Future<Void> sendMessage(GrpcMessage message) {
-    return httpRequest.write(GrpcMessageImpl.encode(message));
+  protected Future<Void> sendMessage(Buffer message, boolean compressed) {
+    return httpRequest.write(GrpcMessageImpl.encode(message, compressed, false));
   }
 
   @Override

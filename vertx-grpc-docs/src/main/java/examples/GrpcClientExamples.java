@@ -4,13 +4,13 @@ import io.grpc.MethodDescriptor;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.client.*;
-import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.*;
+import io.vertx.grpc.server.GrpcServer;
 
 import java.util.concurrent.TimeUnit;
 
@@ -113,6 +113,35 @@ public class GrpcClientExamples {
     request.cancel();
   }
 
+  public void jsonWireFormat01(GrpcClient client, SocketAddress server) {
+    client
+      .request(server, VertxGreeterGrpcClient.SayHello_JSON).compose(request -> {
+        request.end(HelloRequest
+          .newBuilder()
+          .setName("Bob")
+          .build());
+        return request.response().compose(response -> response.last());
+      }).onSuccess(reply -> {
+        System.out.println("Received " + reply.getMessage());
+      });
+  }
+
+  public void jsonWireFormat02(GrpcClient client, SocketAddress server) {
+    ServiceMethod<JsonObject, JsonObject> sayHello = ServiceMethod.client(
+      ServiceName.create("helloworld", "Greeter"),
+      "SayHello",
+      GrpcMessageEncoder.JSON_OBJECT,
+      GrpcMessageDecoder.JSON_OBJECT
+    );
+    client
+      .request(server, sayHello).compose(request -> {
+        request.end(new JsonObject().put("name", "Bob"));
+        return request.response().compose(response -> response.last());
+      }).onSuccess(reply -> {
+        System.out.println("Received " + reply.getString("message"));
+      });
+  }
+
   public void requestCompression(GrpcClientRequest<Item, Empty> request) {
     request.encoding("gzip");
 
@@ -194,6 +223,10 @@ public class GrpcClientExamples {
 
   public void createClientStub(GrpcClient grpcClient, String host, int port) {
     VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, host));
+  }
+
+  public void createClientStubJson(GrpcClient grpcClient, int port, String host) {
+    VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, host), WireFormat.JSON);
   }
 
   public void unaryStub(VertxGreeterGrpcClient client) {

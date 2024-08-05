@@ -46,11 +46,9 @@
       <groupId>io.grpc</groupId>
       <artifactId>grpc-api</artifactId>
     </dependency>
-
     <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-unit</artifactId>
-      <scope>test</scope>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java-util</artifactId>
     </dependency>
   </dependencies>
 

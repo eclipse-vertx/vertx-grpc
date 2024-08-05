@@ -23,12 +23,11 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
 import io.vertx.core.http.*;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.SelfSignedCertificate;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.GrpcLocal;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -377,6 +376,7 @@ public class ServerRequestTest extends ServerTest {
     client.request(HttpMethod.POST, port, "localhost", "/helloworld.Greeter/SayHello")
       .onComplete(should.asyncAssertSuccess(req -> {
         req.putHeader("grpc-timeout", TimeUnit.SECONDS.toMillis(1) + "m");
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
         req.response().onComplete(should.asyncAssertSuccess(resp -> {
           resp.endHandler(v -> {
             String status = resp.getTrailer("grpc-status");
@@ -416,5 +416,21 @@ public class ServerRequestTest extends ServerTest {
       }));
 
     async.awaitSuccess();
+  }
+
+  @Test
+  public void testJsonMessageFormat(TestContext should) throws Exception {
+
+    JsonObject helloReply = new JsonObject().put("message", "Hello Julien");
+    JsonObject helloRequest = new JsonObject().put("name", "Julien");
+
+    startServer(GrpcServer.server(vertx).callHandler(GREETER_SAY_HELLO_JSON, call -> {
+      call.last().onComplete(should.asyncAssertSuccess(msg -> {
+        should.assertEquals(helloRequest, msg);
+        call.response().end(helloReply);
+      }));
+    }));
+
+    super.testJsonMessageFormat(should, "application/grpc+json");
   }
 }

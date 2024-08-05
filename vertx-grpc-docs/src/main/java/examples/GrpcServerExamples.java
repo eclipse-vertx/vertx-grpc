@@ -6,13 +6,11 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.docgen.Source;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.*;
 
 @Source
@@ -133,6 +131,31 @@ public class GrpcServerExamples {
     );
   }
 
+  public void jsonWireFormat01(GrpcServer server) {
+    server.callHandler(VertxGreeterGrpcServer.SayHello_JSON, request -> {
+      request.last().onSuccess(helloRequest -> {
+        request.response().end(HelloReply.newBuilder()
+          .setMessage("Hello " + helloRequest.getName()).build()
+        );
+      });
+    });
+  }
+
+  public void jsonWireFormat02(GrpcServer server) {
+    ServiceMethod<JsonObject, JsonObject> sayHello = ServiceMethod.server(
+      ServiceName.create("helloworld", "Greeter"),
+      "SayHello",
+      GrpcMessageEncoder.JSON_OBJECT,
+      GrpcMessageDecoder.JSON_OBJECT
+    );
+
+    server.callHandler(sayHello, request -> {
+      request.last().onSuccess(helloRequest -> {
+        request.response().end(new JsonObject().put("message", "Hello " + helloRequest.getString("name")));
+      });
+    });
+  }
+
   public void responseCompression(GrpcServerResponse<Empty, Item> response) {
     response.encoding("gzip");
 
@@ -207,29 +230,35 @@ public class GrpcServerExamples {
     });
   }
 
-  public void unaryStub1() {
+  public void unaryStub1(GrpcServer server) {
     VertxGreeterGrpcServer.GreeterApi stub = new VertxGreeterGrpcServer.GreeterApi() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
         return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
       }
     };
+    stub.bindAll(server);
   }
 
-  public void unaryStub2() {
+  public void unaryStub2(GrpcServer server) {
     VertxGreeterGrpcServer.GreeterApi stub = new VertxGreeterGrpcServer.GreeterApi() {
       @Override
       public void sayHello(HelloRequest request, Promise<HelloReply> response) {
         response.complete(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
       }
     };
+    stub.bindAll(server);
   }
 
   public void unaryStub3(VertxGreeterGrpcServer.GreeterApi stub, GrpcServer server) {
     stub.bindAll(server);
   }
 
-  public void streamingRequestStub() {
+  public void unaryStub4(VertxGreeterGrpcServer.GreeterApi stub, GrpcServer server) {
+    stub.bindAll(server, WireFormat.JSON);
+  }
+
+  public void streamingRequestStub(GrpcServer server) {
     VertxStreamingGrpcServer.StreamingApi stub = new VertxStreamingGrpcServer.StreamingApi() {
       @Override
       public void sink(ReadStream<Item> stream, Promise<Empty> response) {
@@ -240,6 +269,7 @@ public class GrpcServerExamples {
         stream.endHandler(v -> response.complete(Empty.getDefaultInstance()));
       }
     };
+    stub.bindAll(server);
   }
 
   private ReadStream<Item> streamOfItems() {

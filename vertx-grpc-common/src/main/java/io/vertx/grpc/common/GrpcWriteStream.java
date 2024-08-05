@@ -17,15 +17,26 @@ public interface GrpcWriteStream<T> extends WriteStream<T> {
   MultiMap headers();
 
   /**
-   * Set the stream encoding, e.g {@code identity} or {@code gzip}.
+   * Set the stream encoding, e.g. {@code identity} or {@code gzip}.
    *
-   * It must be called before sending any message, otherwise {@code identity will be used.
+   * It must be called before sending any message, otherwise {@code identity} will be used.
    *
    * @param encoding the target message encoding
    * @return a reference to this, so the API can be used fluently
    */
   @Fluent
   GrpcWriteStream<T> encoding(String encoding);
+
+  /**
+   * Set the stream format, e.g. {@code proto} or {@code json}.
+   *
+   * It must be called before sending any message, otherwise {@code proto} will be used.
+   *
+   * @param format the message format
+   * @return a reference to this, so the API can be used fluently
+   */
+  @Fluent
+  GrpcWriteStream<T> format(WireFormat format);
 
   @Override
   GrpcWriteStream<T> exceptionHandler(@Nullable Handler<Throwable> handler);

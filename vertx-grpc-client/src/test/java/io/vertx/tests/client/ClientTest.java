@@ -19,11 +19,20 @@ import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.StreamResetException;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.ServiceName;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -402,5 +411,38 @@ public abstract class ClientTest extends ClientTestBase {
         responseObserver.onCompleted();
       }
     });
+  }
+
+  @Test
+  public abstract void testJsonMessageFormat(TestContext should) throws Exception;
+
+  public void testJsonMessageFormat(TestContext should, String expectedContentType) throws Exception {
+
+    JsonObject helloReply = new JsonObject().put("message", "Hello Julien");
+    JsonObject helloRequest = new JsonObject().put("name", "Julien");
+
+    HttpServer server = vertx.createHttpServer();
+    server.requestHandler(req -> {
+      should.assertEquals(expectedContentType, req.getHeader(HttpHeaders.CONTENT_TYPE));
+      req.body().onComplete(should.asyncAssertSuccess(body -> {
+        int len = body.getInt(1);
+        JsonObject actual = (JsonObject) Json.decodeValue(body.getBuffer(5, 5 + len));
+        should.assertEquals(helloRequest, actual);
+        Buffer json = helloReply.toBuffer();
+        req.response()
+          .putHeader(HttpHeaders.CONTENT_TYPE, expectedContentType)
+          .putTrailer("grpc-status", "0")
+          .end(Buffer
+            .buffer()
+            .appendByte((byte)0)
+            .appendInt(json.length())
+            .appendBuffer(json)
+          );
+      }));
+    });
+    server.listen(port, "localhost")
+      .toCompletionStage()
+      .toCompletableFuture()
+      .get(20, TimeUnit.SECONDS);
   }
 }

@@ -25,12 +25,7 @@ import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpVersion;
-import io.vertx.core.http.StreamResetException;
+import io.vertx.core.http.*;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcError;
@@ -96,6 +91,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
       .request(HttpMethod.POST, 8080, "localhost", "/")
       .onComplete(should.asyncAssertSuccess(request -> {
       request.putHeader("grpc-encoding", "identity");
+      request.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
       request.send(Buffer
         .buffer()
         .appendByte((byte)1)
@@ -206,6 +202,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
 
     client.request(HttpMethod.POST, 8080, "localhost", "/").onComplete( should.asyncAssertSuccess(request -> {
       request.putHeader("grpc-encoding", "gzip");
+      request.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
       request.end(Buffer
         .buffer()
         .appendByte((byte)1)

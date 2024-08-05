@@ -9,6 +9,8 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.*;
 
+import java.util.Objects;
+
 import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
 public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T> implements GrpcWriteStream<T> {
@@ -17,7 +19,9 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private final GrpcMessageEncoder<T> messageEncoder;
   private final WriteStream<Buffer> writeStream;
 
+  protected String mediaType;
   protected String encoding;
+  protected WireFormat format;
   private boolean headersSent;
   private boolean trailersSent;
   private GrpcError error;
@@ -28,10 +32,11 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcError> errorHandler;
 
-  public GrpcWriteStreamBase(ContextInternal context, WriteStream<Buffer> writeStream, GrpcMessageEncoder<T> messageEncoder) {
+  public GrpcWriteStreamBase(ContextInternal context, String mediaType, WriteStream<Buffer> writeStream, GrpcMessageEncoder<T> messageEncoder) {
     this.context = context;
     this.writeStream = writeStream;
     this.messageEncoder = messageEncoder;
+    this.mediaType = mediaType;
   }
 
   public void init() {
@@ -66,6 +71,24 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     if (handler != null) {
       handler.handle(err);
     }
+  }
+
+  @Override
+  public final S encoding(String encoding) {
+    if (headersSent) {
+      throw new IllegalStateException("Cannot set encoding when headers have been sent");
+    }
+    this.encoding = Objects.requireNonNull(encoding);
+    return (S) this;
+  }
+
+  @Override
+  public final S format(WireFormat format) {
+    if (headersSent) {
+      throw new IllegalStateException("Cannot set format when headers have been sent");
+    }
+    this.format = Objects.requireNonNull(format);
+    return (S) this;
   }
 
   public final ContextInternal context() {
@@ -152,9 +175,9 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return writeMessage(null, true);
   }
 
-  protected abstract void sendHeaders(MultiMap headers, boolean end);
+  protected abstract void sendHeaders(String contentType, MultiMap headers, boolean end);
   protected abstract void sendTrailers(MultiMap trailers);
-  protected abstract Future<Void> sendMessage(GrpcMessage message);
+  protected abstract Future<Void> sendMessage(Buffer message, boolean compressed);
   protected abstract Future<Void> sendEnd();
 
   private Future<Void> writeMessage(GrpcMessage message, boolean end) {
@@ -167,42 +190,85 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     if (message == null && !end) {
       throw new IllegalStateException();
     }
-    if (encoding != null && message != null && !encoding.equals(message.encoding())) {
-      switch (encoding) {
-        case "gzip":
-          message = GrpcMessageEncoder.GZIP.encode(message.payload());
-          break;
-        case "identity":
-          if (!message.encoding().equals("identity")) {
-            if (!message.encoding().equals("gzip")) {
-              return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
-            }
-            Buffer decoded;
-            try {
-              decoded = GrpcMessageDecoder.GZIP.decode(message);
-            } catch (CodecException e) {
-              return Future.failedFuture(e);
-            }
-            message = GrpcMessage.message("identity", decoded);
-          }
-          break;
+    if (message != null) {
+      if (format == null) {
+        format = message.format();
+      } else if (!format.equals(message.format())) {
+        return context.failedFuture("Message format does not match the response format");
       }
+    }
+    Buffer payload;
+    boolean compressed;
+    if (message != null) {
+      if (encoding != null) {
+        switch (encoding) {
+          case "gzip":
+            compressed = true;
+            if (message.encoding().equals("identity")) {
+              try {
+                payload = Utils.GZIP_ENCODER.apply(message.payload());
+              } catch (CodecException e) {
+                return Future.failedFuture(e);
+              }
+            } else {
+              if (!message.encoding().equals("gzip")) {
+                return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
+              }
+              payload = message.payload();
+            }
+            break;
+          case "identity":
+            compressed = false;
+            if (!message.encoding().equals("identity")) {
+              if (!message.encoding().equals("gzip")) {
+                return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
+              }
+              try {
+                payload = Utils.GZIP_DECODER.apply(message.payload());
+              } catch (CodecException e) {
+                return Future.failedFuture(e);
+              }
+            } else {
+              payload = message.payload();
+            }
+            break;
+          default:
+            return Future.failedFuture("Encoding " + encoding + " is not supported");
+        }
+      } else {
+        compressed = !message.encoding().equals("identity");
+        payload = message.payload();
+      }
+    } else {
+      compressed = false;
+      payload = null;
     }
     if (!headersSent) {
       headersSent = true;
-      sendHeaders(headers, end);
+      String contentType = mediaType;
+      if (format != null) {
+        switch (format) {
+          case JSON:
+            contentType = mediaType + "+json";
+            break;
+          case PROTOBUF:
+            // contentType = mediaType + "+proto";
+            break;
+        }
+      }
+      sendHeaders(contentType, headers, end);
     }
     if (end) {
       if (!trailersSent) {
         trailersSent = true;
       }
-      if (message != null) {
-        sendMessage(message);
+      if (payload != null) {
+        sendMessage(payload, compressed);
       }
       sendTrailers(trailers);
       return sendEnd();
     } else {
-      return sendMessage(message);
+      return sendMessage(payload, compressed);
     }
   }
 }

@@ -160,6 +160,30 @@ a timeout to be sent and cascade the timeout to another gRPC server.
 {@link examples.GrpcServerExamples#deadlineConfiguration}
 ----
 
+=== JSON wire format
+
+gRPC implicitly assumes the usage of the https://protobuf.dev[Protobuf] wire format.
+
+The Vert.x gRPC server supports the JSON wire format as well.
+
+You can use a JSON service method to bind a service method accepting requests carrying the `application/grpc+json` content-type.
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#jsonWireFormat01}
+----
+
+The `com.google.protobuf:protobuf-java-util` library performs the JSON encoding/decoding.
+
+NOTE: the same service method can be bound twice with Protobuf and JSON wire formats.
+
+Anemic JSON is also supported with Vert.x `JsonObject`
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#jsonWireFormat02}
+----
+
 === Compression
 
 You can compress response messages by setting the response encoding *prior* before sending any message
@@ -214,7 +238,7 @@ Each service comes in two flavors, you can override the method you like dependin
 
 ==== Unary services
 
-Unary services can return a Vert.x `Future`:
+Unary services can return a Vert.x `Future`
 
 [source,java]
 ----
@@ -228,12 +252,21 @@ or process a Vert.x `Promise`
 {@link examples.GrpcServerExamples#unaryStub2}
 ----
 
-In both case you need to bind the stub to an existing `GrpcServer`:
+In both case you need to bind the stub to an existing `GrpcServer`
 
 [source,java]
 ----
 {@link examples.GrpcServerExamples#unaryStub3}
 ----
+
+You can also specify the JSON wire format when binding a stub.
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#unaryStub4}
+----
+
+The server will accept the `application/grpc+json` requests.
 
 ==== Streaming requests
 

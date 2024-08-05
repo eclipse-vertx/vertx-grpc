@@ -43,7 +43,7 @@ public class TextServerTest extends ServerTestBase {
 
   @Override
   protected CharSequence responseContentType() {
-    return GRPC_WEB_TEXT_PROTO;
+    return "application/grpc-web-text";
   }
 
   @Override

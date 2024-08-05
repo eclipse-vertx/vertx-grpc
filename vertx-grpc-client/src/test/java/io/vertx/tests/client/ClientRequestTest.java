@@ -19,8 +19,11 @@ import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.SelfSignedCertificate;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.spi.context.storage.AccessMode;
@@ -28,10 +31,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
-import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcErrorException;
-import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.GrpcLocal;
+import io.vertx.grpc.common.*;
 import org.junit.Test;
 
 import java.io.File;
@@ -628,5 +628,75 @@ public class ClientRequestTest extends ClientTest {
           done.complete();
         }));
       }));
+  }
+
+  @Test
+  public void testMissingResponseStatusIsUnknown(TestContext should) throws Exception {
+
+    Async done = should.async();
+    HttpServer server = vertx.createHttpServer();
+    server.requestHandler(req -> {
+      req.response()
+        .putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc")
+        .end();
+    });
+    server.listen(port, "localhost")
+      .toCompletionStage()
+      .toCompletableFuture()
+      .get(20, TimeUnit.SECONDS);
+
+    client = GrpcClient.client(vertx);
+    client
+      .request(SocketAddress.inetSocketAddress(port, "localhost"), STREAMING_PIPE)
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.end();
+        callRequest
+          .response()
+          .onComplete(should.asyncAssertSuccess(resp -> {
+            resp.endHandler(v -> {
+              should.assertEquals(GrpcStatus.UNKNOWN, resp.status());
+              done.complete();
+            });
+          }));
+      }));
+
+    done.awaitSuccess();
+  }
+
+  @Test
+  public void testJsonMessageFormat(TestContext should) throws Exception {
+
+    super.testJsonMessageFormat(should, "application/grpc+json");
+
+    JsonObject helloReply = new JsonObject().put("message", "Hello Julien");
+    JsonObject helloRequest = new JsonObject().put("name", "Julien");
+
+    Async done = should.async();
+
+    ServiceMethod<JsonObject, JsonObject> serviceMethod = ServiceMethod.client(
+      ServiceName.create("helloworld", "Greeter"),
+      "SayHello",
+      GrpcMessageEncoder.JSON_OBJECT,
+      GrpcMessageDecoder.JSON_OBJECT);
+
+    client = GrpcClient.client(vertx);
+    client
+      .request(SocketAddress.inetSocketAddress(port, "localhost"), serviceMethod)
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.end(helloRequest);
+        callRequest
+          .response()
+          .onComplete(should.asyncAssertSuccess(resp -> {
+            should.assertEquals(WireFormat.JSON, resp.format());
+            resp.handler(msg -> {
+              should.assertEquals(helloReply, msg);
+            });
+            resp.endHandler(v -> {
+              done.complete();
+            });
+          }));
+      }));
+
+    done.awaitSuccess();
   }
 }

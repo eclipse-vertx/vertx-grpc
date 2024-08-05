@@ -12,6 +12,7 @@ package io.vertx.grpcio.common.impl;
 
 import io.grpc.Decompressor;
 import io.grpc.MethodDescriptor;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 
@@ -40,5 +41,10 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
         throw new RuntimeException(e);
       }
     }
+  }
+
+  @Override
+  public WireFormat format() {
+    return WireFormat.PROTOBUF;
   }
 }

@@ -14,11 +14,13 @@ import io.grpc.Compressor;
 import io.grpc.Drainable;
 import io.grpc.MethodDescriptor;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 public class BridgeMessageEncoder<T> implements GrpcMessageEncoder<T> {
@@ -32,6 +34,11 @@ public class BridgeMessageEncoder<T> implements GrpcMessageEncoder<T> {
   }
 
   @Override
+  public WireFormat format() {
+    return WireFormat.PROTOBUF;
+  }
+
+  @Override
   public GrpcMessage encode(T msg) {
     return new GrpcMessage() {
       private Buffer encoded;
@@ -40,19 +47,32 @@ public class BridgeMessageEncoder<T> implements GrpcMessageEncoder<T> {
         return compressor == null ? "identity" : compressor.getMessageEncoding();
       }
       @Override
+      public WireFormat format() {
+        return WireFormat.PROTOBUF;
+      }
+      @Override
       public Buffer payload() {
         if (encoded == null) {
           ByteArrayOutputStream baos = new ByteArrayOutputStream(); // Improve that ???
-          Drainable stream = (Drainable) marshaller.stream(msg);
-          try {
+          try (InputStream is = marshaller.stream(msg)) {
             OutputStream compressingStream;
             if (compressor == null) {
               compressingStream = baos;
             } else {
               compressingStream = compressor.compress(baos);
             }
-            stream.drainTo(compressingStream);
-            compressingStream.close();
+            try (OutputStream o = compressingStream) {
+              if (is instanceof Drainable) {
+                Drainable stream = (Drainable) is;
+                stream.drainTo(compressingStream);
+              } else {
+                byte[] tmp = new byte[1024];
+                int len;
+                while ((len = is.read(tmp)) != -1) {
+                  o.write(tmp, 0, len);
+                }
+              }
+            }
           } catch (IOException e) {
             throw new RuntimeException(e);
           }

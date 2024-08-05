@@ -17,9 +17,14 @@ public interface GrpcReadStream<T> extends ReadStream<T> {
   MultiMap headers();
 
   /**
-   * @return the stream encoding, e.g {@code identity} or {@code gzip}
+   * @return the stream encoding, e.g. {@code identity} or {@code gzip}
    */
   String encoding();
+
+  /**
+   * @return the message format, e.g. {@code proto} or {@code json}
+   */
+  WireFormat format();
 
   /**
    * Set a handler to be notified with incoming encoded messages. The {@code handler} is

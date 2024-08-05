@@ -10,6 +10,10 @@
  */
 package io.vertx.grpcio.common.impl;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
 import io.grpc.InternalMetadata;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -18,6 +22,7 @@ import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.core.MultiMap;
 import io.vertx.core.VertxException;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
@@ -29,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 public class Utils {
 
@@ -80,6 +86,10 @@ public class Utils {
           }
         }
       }
+      @Override
+      public WireFormat format() {
+        return WireFormat.PROTOBUF;
+      }
     };
   }
 
@@ -100,6 +110,37 @@ public class Utils {
           throw new VertxException(e);
         }
         return GrpcMessage.message("identity", encoded);
+      }
+      @Override
+      public WireFormat format() {
+        return WireFormat.PROTOBUF;
+      }
+    };
+  }
+
+  public static <T extends MessageOrBuilder> MethodDescriptor.Marshaller<T> marshallerFor(Supplier<Message.Builder> b) {
+    return new MethodDescriptor.Marshaller<T>() {
+      @Override
+      public InputStream stream(T value) {
+        String res;
+        try {
+          res = JsonFormat.printer().print(value);
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException(e);
+        }
+        return new ByteArrayInputStream(res.getBytes(StandardCharsets.UTF_8));
+      }
+
+      @Override
+      public T parse(InputStream stream) {
+        try {
+          Message.Builder builder = b.get();
+          byte[] bytes = stream.readAllBytes();
+          JsonFormat.parser().merge(new String(bytes, StandardCharsets.UTF_8), builder);
+          return (T) builder.build();
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
       }
     };
   }

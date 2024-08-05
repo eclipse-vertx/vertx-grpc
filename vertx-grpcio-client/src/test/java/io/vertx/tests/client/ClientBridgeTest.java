@@ -18,6 +18,7 @@ import io.grpc.examples.streaming.Empty;
 import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ClientCallStreamObserver;
+import io.grpc.stub.ClientCalls;
 import io.grpc.stub.ClientResponseObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Handler;
@@ -31,6 +32,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpcio.client.GrpcIoClient;
 import io.vertx.grpcio.client.GrpcIoClientChannel;
+import io.vertx.grpcio.common.impl.Utils;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -56,6 +58,7 @@ public class ClientBridgeTest extends ClientTest {
   protected void testUnary(TestContext should, String requestEncoding, String responseEncoding) throws IOException {
 
     super.testUnary(should, requestEncoding, responseEncoding);
+
 
     client = GrpcIoClient.client(vertx);
     GrpcIoClientChannel channel = new GrpcIoClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
@@ -603,5 +606,27 @@ public class ClientBridgeTest extends ClientTest {
       e.printStackTrace();
       should.assertEquals(Status.Code.CANCELLED, e.getStatus().getCode());
     }
+  }
+
+  @Test
+  public void testJsonMessageFormat(TestContext should) throws Exception {
+
+    super.testJsonMessageFormat(should, "application/grpc");
+
+    MethodDescriptor<HelloRequest, HelloReply> sayHello =
+      MethodDescriptor.newBuilder(
+          Utils.<HelloRequest>marshallerFor(HelloRequest::newBuilder),
+          Utils.<HelloReply>marshallerFor(HelloReply::newBuilder))
+        .setFullMethodName(
+          MethodDescriptor.generateFullMethodName(GREETER.fullyQualifiedName(), "SayHello"))
+        .setType(MethodDescriptor.MethodType.UNARY)
+        .build();
+
+    client = GrpcIoClient.client(vertx);
+    GrpcIoClientChannel channel = new GrpcIoClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    ClientCall<HelloRequest, HelloReply> call = channel.newCall(sayHello, CallOptions.DEFAULT);
+    HelloReply response = ClientCalls.blockingUnaryCall(call, HelloRequest.newBuilder().setName("Julien").build());
+    should.assertEquals("Hello Julien", response.getMessage());
   }
 }

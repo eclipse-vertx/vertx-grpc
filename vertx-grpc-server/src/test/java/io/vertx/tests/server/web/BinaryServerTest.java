@@ -33,7 +33,7 @@ public class BinaryServerTest extends ServerTestBase {
 
   @Override
   protected CharSequence responseContentType() {
-    return GRPC_WEB_PROTO;
+    return "application/grpc-web";
   }
 
   @Override
