@@ -20,20 +20,35 @@ import java.util.List;
 public class VertxStreamingGrpcServer  {
 
   public static final ServiceMethod<examples.Empty, examples.Item> Source = ServiceMethod.server(
-  ServiceName.create("streaming", "Streaming"),
-  "Source",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder(examples.Empty.parser()));
+    ServiceName.create("streaming", "Streaming"),
+    "Source",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.Empty.parser()));
+  public static final ServiceMethod<examples.Empty, examples.Item> Source_JSON = ServiceMethod.server(
+    ServiceName.create("streaming", "Streaming"),
+    "Source",
+    GrpcMessageEncoder.json(),
+    GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
   public static final ServiceMethod<examples.Item, examples.Empty> Sink = ServiceMethod.server(
-  ServiceName.create("streaming", "Streaming"),
-  "Sink",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder(examples.Item.parser()));
+    ServiceName.create("streaming", "Streaming"),
+    "Sink",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.Item.parser()));
+  public static final ServiceMethod<examples.Item, examples.Empty> Sink_JSON = ServiceMethod.server(
+    ServiceName.create("streaming", "Streaming"),
+    "Sink",
+    GrpcMessageEncoder.json(),
+    GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
   public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.server(
-  ServiceName.create("streaming", "Streaming"),
-  "Pipe",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder(examples.Item.parser()));
+    ServiceName.create("streaming", "Streaming"),
+    "Pipe",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.Item.parser()));
+  public static final ServiceMethod<examples.Item, examples.Item> Pipe_JSON = ServiceMethod.server(
+    ServiceName.create("streaming", "Streaming"),
+    "Pipe",
+    GrpcMessageEncoder.json(),
+    GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
 
   public interface StreamingApi {
 
@@ -65,7 +80,21 @@ public class VertxStreamingGrpcServer  {
     }
 
     default StreamingApi bind_source(GrpcServer server) {
-      server.callHandler(Source, request -> {
+      return bind_source(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
+    }
+    default StreamingApi bind_source(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      ServiceMethod<examples.Empty,examples.Item> serviceMethod;
+      switch(format) {
+        case PROTOBUF:
+          serviceMethod = Source;
+          break;
+        case JSON:
+          serviceMethod = Source_JSON;
+          break;
+        default:
+          throw new AssertionError();
+      }
+      server.callHandler(serviceMethod, request -> {
         request.handler(req -> {
           try {
             source(req, request.response());
@@ -77,7 +106,21 @@ public class VertxStreamingGrpcServer  {
       return this;
     }
     default StreamingApi bind_sink(GrpcServer server) {
-      server.callHandler(Sink, request -> {
+      return bind_sink(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
+    }
+    default StreamingApi bind_sink(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      ServiceMethod<examples.Item,examples.Empty> serviceMethod;
+      switch(format) {
+        case PROTOBUF:
+          serviceMethod = Sink;
+          break;
+        case JSON:
+          serviceMethod = Sink_JSON;
+          break;
+        default:
+          throw new AssertionError();
+      }
+      server.callHandler(serviceMethod, request -> {
         Promise<examples.Empty> promise = Promise.promise();
         promise.future()
           .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
@@ -91,7 +134,21 @@ public class VertxStreamingGrpcServer  {
       return this;
     }
     default StreamingApi bind_pipe(GrpcServer server) {
-      server.callHandler(Pipe, request -> {
+      return bind_pipe(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
+    }
+    default StreamingApi bind_pipe(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      ServiceMethod<examples.Item,examples.Item> serviceMethod;
+      switch(format) {
+        case PROTOBUF:
+          serviceMethod = Pipe;
+          break;
+        case JSON:
+          serviceMethod = Pipe_JSON;
+          break;
+        default:
+          throw new AssertionError();
+      }
+      server.callHandler(serviceMethod, request -> {
         try {
           pipe(request, request.response());
         } catch (RuntimeException err) {
@@ -105,6 +162,13 @@ public class VertxStreamingGrpcServer  {
       bind_source(server);
       bind_sink(server);
       bind_pipe(server);
+      return this;
+    }
+
+    default StreamingApi bindAll(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      bind_source(server, format);
+      bind_sink(server, format);
+      bind_pipe(server, format);
       return this;
     }
   }

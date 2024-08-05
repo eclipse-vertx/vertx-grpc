@@ -20,11 +20,7 @@ import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.concurrent.InboundMessageQueue;
 import io.vertx.core.streams.ReadStream;
-import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcReadStream;
+import io.vertx.grpc.common.*;
 
 import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
@@ -41,6 +37,10 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
       return null;
     }
     @Override
+    public WireFormat format() {
+      return null;
+    }
+    @Override
     public Buffer payload() {
       return null;
     }
@@ -48,6 +48,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
 
   protected final ContextInternal context;
   private final String encoding;
+  private final WireFormat format;
   private final ReadStream<Buffer> stream;
   private final InboundMessageQueue<GrpcMessage> queue;
   private Buffer buffer;
@@ -59,11 +60,12 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private final Promise<Void> end;
   private GrpcWriteStreamBase<?, ?> ws;
 
-  protected GrpcReadStreamBase(Context context, ReadStream<Buffer> stream, String encoding, GrpcMessageDecoder<T> messageDecoder) {
+  protected GrpcReadStreamBase(Context context, ReadStream<Buffer> stream, String encoding, WireFormat format, GrpcMessageDecoder<T> messageDecoder) {
     ContextInternal ctx = (ContextInternal) context;
     this.context = ctx;
     this.encoding = encoding;
     this.stream = stream;
+    this.format = format;
     this.queue = new InboundMessageQueue<>(ctx.nettyEventLoop(), ctx, 8, 16) {
       @Override
       protected void handleResume() {
@@ -107,13 +109,23 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
         // Nothing to do
         break;
       case "gzip": {
-        msg = GrpcMessage.message("identity", GrpcMessageDecoder.GZIP.decode(msg));
+        msg = GrpcMessage.message("identity", msg.format(), Utils.GZIP_DECODER.apply(msg.payload()));
         break;
       }
       default:
         throw new UnsupportedOperationException();
     }
     return messageDecoder.decode(msg);
+  }
+
+  @Override
+  public final WireFormat format() {
+    return format;
+  }
+
+  @Override
+  public final String encoding() {
+    return encoding;
   }
 
   public final S pause() {
@@ -168,7 +180,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
         throw new UnsupportedOperationException("Handle me");
       }
       Buffer payload = buffer.slice(idx + 5, idx + 5 + len);
-      GrpcMessage message = GrpcMessage.message(compressed ? encoding : "identity", payload);
+      GrpcMessage message = GrpcMessage.message(compressed ? encoding : "identity", format, payload);
       queue.write(message);
       idx += 5 + len;
     }

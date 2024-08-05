@@ -318,7 +318,8 @@ public abstract class ServerTestBase extends GrpcTestBase {
 
         assertEquals(200, response.statusCode());
         MultiMap headers = response.headers();
-        assertTrue(headers.contains(CONTENT_TYPE, responseContentType(), true));
+        CharSequence value = responseContentType();
+        assertTrue(headers.contains(CONTENT_TYPE, value, true));
 
         Buffer body = decodeBody(response.body().result());
         int pos = 0;

@@ -13,7 +13,6 @@ package io.vertx.grpc.server.impl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.base64.Base64;
-import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
@@ -26,6 +25,7 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
+import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
@@ -36,8 +36,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
-import static io.vertx.grpc.common.GrpcMediaType.*;
-import static io.vertx.grpc.common.GrpcMediaType.GRPC_PROTO;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -76,32 +74,31 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   final GrpcServerResponseImpl<Req, Resp> response;
   final long timeout;
   final boolean scheduleDeadline;
+  final GrpcProtocol protocol;
   private final GrpcMethodCall methodCall;
   private BufferInternal grpcWebTextBuffer;
   private Timer deadline;
 
   public GrpcServerRequestImpl(io.vertx.core.internal.ContextInternal context,
                                boolean scheduleDeadline,
-                               HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder,
-                               GrpcMessageEncoder<Resp> messageEncoder, GrpcMethodCall methodCall) {
-    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), messageDecoder);
+                               GrpcProtocol protocol,
+                               WireFormat format,
+                               HttpServerRequest httpRequest,
+                               GrpcMessageDecoder<Req> messageDecoder,
+                               GrpcMessageEncoder<Resp> messageEncoder,
+                               GrpcMethodCall methodCall) {
+    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, messageDecoder);
     String timeoutHeader = httpRequest.getHeader("grpc-timeout");
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 
-    CharSequence contentType;
-    if (httpRequest.version() != HttpVersion.HTTP_2) {
-      String requestMediaType = httpRequest.getHeader(CONTENT_TYPE);
-      if (isGrpcWebText(requestMediaType)) {
-        contentType = GRPC_WEB_TEXT_PROTO;
-      } else {
-        contentType = GRPC_WEB_PROTO;
-      }
-    } else {
-      contentType = GRPC_PROTO;
-    }
-
-    GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, this, contentType, httpRequest.response(), messageEncoder);
+    GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(
+      context,
+      this,
+      protocol,
+      httpRequest.response(),
+      messageEncoder);
     response.init();
+    this.protocol = protocol;
     this.timeout = timeout;
     this.httpRequest = httpRequest;
     this.response = response;
@@ -143,11 +140,6 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   @Override
   public MultiMap headers() {
     return httpRequest.headers();
-  }
-
-  @Override
-  public String encoding() {
-    return httpRequest.getHeader("grpc-encoding");
   }
 
   @Override

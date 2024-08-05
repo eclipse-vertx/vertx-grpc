@@ -25,14 +25,26 @@ public interface GrpcMessage {
   /**
    * @return a new message
    */
+  static GrpcMessage message(String encoding, WireFormat format, Buffer payload) {
+    return new GrpcMessageImpl(encoding, format, payload);
+  }
+
+  /**
+   * @return a new message in proto format
+   */
   static GrpcMessage message(String encoding, Buffer payload) {
-    return new GrpcMessageImpl(encoding, payload);
+    return new GrpcMessageImpl(encoding, WireFormat.PROTOBUF, payload);
   }
 
   /**
    * @return the message encoding
    */
   String encoding();
+
+  /**
+   * @return the message format
+   */
+  WireFormat format();
 
   /**
    * @return the message payload, usually in Protobuf format encoded in the {@link #encoding()} format

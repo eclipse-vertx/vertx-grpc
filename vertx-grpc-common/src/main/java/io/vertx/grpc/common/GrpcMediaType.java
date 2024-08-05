@@ -68,6 +68,29 @@ public final class GrpcMediaType {
     return AsciiString.regionMatches(GRPC_WEB_TEXT, true, 0, mediaType, 0, GRPC_WEB_TEXT.length());
   }
 
+  public static WireFormat parseContentType(String contentType, String mediaType) {
+    if (contentType.startsWith(mediaType)) {
+      String s = contentType.substring(mediaType.length());
+      WireFormat format;
+      if (s.isEmpty()) {
+        format = WireFormat.PROTOBUF;
+      } else {
+        switch (s) {
+          case "+json":
+            format = WireFormat.JSON;
+            break;
+          case "+proto":
+            format = WireFormat.PROTOBUF;
+            break;
+          default:
+            return null;
+        }
+      }
+      return format;
+    }
+    return null;
+  }
+
   private GrpcMediaType() {
     // Constants
   }

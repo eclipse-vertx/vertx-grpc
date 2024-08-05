@@ -30,15 +30,15 @@ import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.StreamObserver;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpVersion;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.*;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.server.GrpcServer;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -355,6 +355,7 @@ public abstract class ServerTest extends ServerTestBase {
     client.request(HttpMethod.POST, port, "localhost", "/helloworld.Greeter/SayHello")
       .onComplete(should.asyncAssertSuccess(req -> {
         req.putHeader("grpc-timeout", TimeUnit.SECONDS.toMillis(1) + "m");
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
         req.response().onComplete(should.asyncAssertSuccess(resp -> {
           String status = resp.getHeader("grpc-status");
           should.assertEquals(String.valueOf(GrpcStatus.DEADLINE_EXCEEDED.code), status);
@@ -375,5 +376,33 @@ public abstract class ServerTest extends ServerTestBase {
   protected static void assertEquals(TestContext should, byte[] expected, String actual) {
     should.assertNotNull(actual);
     should.assertTrue(Arrays.equals(expected, Base64.getDecoder().decode(actual)));
+  }
+
+  public void testJsonMessageFormat(TestContext should, String contentType) throws Exception {
+
+    JsonObject helloReply = new JsonObject().put("message", "Hello Julien");
+    JsonObject helloRequest = new JsonObject().put("name", "Julien");
+
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setHttp2ClearTextUpgrade(false)
+      .setProtocolVersion(HttpVersion.HTTP_2));
+    Async async = should.async();
+    client.request(HttpMethod.POST, port, "localhost", "/helloworld.Greeter/SayHello")
+      .onComplete(should.asyncAssertSuccess(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, contentType);
+        req.response().onComplete(should.asyncAssertSuccess(resp -> {
+          should.assertEquals(contentType, resp.getHeader(HttpHeaders.CONTENT_TYPE));
+          resp.bodyHandler(msg -> {
+            int len = msg.getInt(1);
+            JsonObject actual = msg.getBuffer(5, 5 + len).toJsonObject();
+            should.assertEquals(helloReply, actual);
+            async.complete();
+          });
+        }));
+        Buffer payload = helloRequest.toBuffer();
+        req.end(Buffer.buffer().appendByte((byte)0).appendInt(payload.length()).appendBuffer(payload));
+      }));
+
+    async.awaitSuccess();
   }
 }

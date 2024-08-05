@@ -16,6 +16,7 @@ import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.examples.streaming.Empty;
 import io.grpc.examples.streaming.Item;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.grpc.common.*;
@@ -51,6 +52,7 @@ public abstract class ServerTestBase extends GrpcTestBase {
   public static final GrpcMessageDecoder<HelloReply> HELLO_REPLY_DEC = decoder(HelloReply.parser());
 
   public static final ServiceMethod<HelloRequest, HelloReply> GREETER_SAY_HELLO = ServiceMethod.server(GREETER, "SayHello", HELLO_REPLY_ENC, HELLO_REQUEST_DEC);
+  public static final ServiceMethod<JsonObject, JsonObject> GREETER_SAY_HELLO_JSON = ServiceMethod.server(GREETER, "SayHello", GrpcMessageEncoder.JSON_OBJECT, GrpcMessageDecoder.JSON_OBJECT);
   public static final ServiceMethod<Empty, Item> STREAMING_SOURCE = ServiceMethod.server(STREAMING, "Source", ITEM_ENC, EMPTY_DEC);
   public static final ServiceMethod<Item, Empty> STREAMING_SINK = ServiceMethod.server(STREAMING, "Sink", EMPTY_ENC, ITEM_DEC);
   public static final ServiceMethod<Item, Item> STREAMING_PIPE = ServiceMethod.server(STREAMING, "Pipe", ITEM_ENC, ITEM_DEC);

@@ -23,10 +23,15 @@ public class {{className}}  {
 
 {{#allMethods}}
   public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = ServiceMethod.server(
-  ServiceName.create("{{packageName}}", "{{serviceName}}"),
-  "{{methodName}}",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder({{inputType}}.parser()));
+    ServiceName.create("{{packageName}}", "{{serviceName}}"),
+    "{{methodName}}",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder({{inputType}}.parser()));
+  public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}}_JSON = ServiceMethod.server(
+    ServiceName.create("{{packageName}}", "{{serviceName}}"),
+    "{{methodName}}",
+    GrpcMessageEncoder.json(),
+    GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()));
 {{/allMethods}}
 
   public interface {{serviceName}}Api {
@@ -76,7 +81,21 @@ public class {{className}}  {
 
 {{#unaryMethods}}
     default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      server.callHandler({{methodName}}, request -> {
+      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
+    }
+    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
+      switch(format) {
+        case PROTOBUF:
+          serviceMethod = {{methodName}};
+          break;
+        case JSON:
+          serviceMethod = {{methodName}}_JSON;
+          break;
+        default:
+          throw new AssertionError();
+      }
+      server.callHandler(serviceMethod, request -> {
         Promise<{{outputType}}> promise = Promise.promise();
         request.handler(req -> {
           try {
@@ -94,7 +113,21 @@ public class {{className}}  {
 {{/unaryMethods}}
 {{#unaryManyMethods}}
     default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      server.callHandler({{methodName}}, request -> {
+      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
+    }
+    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
+      switch(format) {
+        case PROTOBUF:
+          serviceMethod = {{methodName}};
+          break;
+        case JSON:
+          serviceMethod = {{methodName}}_JSON;
+          break;
+        default:
+          throw new AssertionError();
+      }
+      server.callHandler(serviceMethod, request -> {
         request.handler(req -> {
           try {
             {{vertxMethodName}}(req, request.response());
@@ -108,7 +141,21 @@ public class {{className}}  {
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
     default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      server.callHandler({{methodName}}, request -> {
+      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
+    }
+    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
+      switch(format) {
+        case PROTOBUF:
+          serviceMethod = {{methodName}};
+          break;
+        case JSON:
+          serviceMethod = {{methodName}}_JSON;
+          break;
+        default:
+          throw new AssertionError();
+      }
+      server.callHandler(serviceMethod, request -> {
         Promise<{{outputType}}> promise = Promise.promise();
         promise.future()
           .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
@@ -124,7 +171,21 @@ public class {{className}}  {
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
     default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      server.callHandler({{methodName}}, request -> {
+      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
+    }
+    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
+      switch(format) {
+        case PROTOBUF:
+          serviceMethod = {{methodName}};
+          break;
+        case JSON:
+          serviceMethod = {{methodName}}_JSON;
+          break;
+        default:
+          throw new AssertionError();
+      }
+      server.callHandler(serviceMethod, request -> {
         try {
           {{vertxMethodName}}(request, request.response());
         } catch (RuntimeException err) {
@@ -138,6 +199,13 @@ public class {{className}}  {
     default {{serviceName}}Api bindAll(GrpcServer server) {
 {{#methods}}
       bind_{{vertxMethodName}}(server);
+{{/methods}}
+      return this;
+    }
+
+    default {{serviceName}}Api bindAll(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+{{#methods}}
+      bind_{{vertxMethodName}}(server, format);
 {{/methods}}
       return this;
     }

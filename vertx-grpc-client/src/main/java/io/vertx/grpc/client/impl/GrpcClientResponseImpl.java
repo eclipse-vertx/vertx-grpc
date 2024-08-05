@@ -11,7 +11,6 @@
 package io.vertx.grpc.client.impl;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
-import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -33,36 +32,21 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   private final HttpClientResponse httpResponse;
   private GrpcStatus status;
   private String statusMessage;
-  private String encoding;
 
   public GrpcClientResponseImpl(ContextInternal context,
                                 GrpcClientRequestImpl<Req, Resp> request,
+                                WireFormat format,
+                                GrpcStatus status,
                                 HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
-    super(context, httpResponse, httpResponse.headers().get("grpc-encoding"), messageDecoder);
+    super(context, httpResponse, httpResponse.headers().get("grpc-encoding"), format, messageDecoder);
     this.request = request;
-    this.encoding = httpResponse.headers().get("grpc-encoding");
     this.httpResponse = httpResponse;
-
-    String responseStatus = httpResponse.getHeader("grpc-status");
-    if (responseStatus != null) {
-      status = GrpcStatus.valueOf(Integer.parseInt(responseStatus));
-      if (status != GrpcStatus.OK) {
-        String msg = httpResponse.getHeader("grpc-message");
-        if (msg != null) {
-          statusMessage = QueryStringDecoder.decodeComponent(msg, StandardCharsets.UTF_8);
-        }
-      }
-    }
+    this.status = status;
   }
 
   @Override
   public MultiMap headers() {
     return httpResponse.headers();
-  }
-
-  @Override
-  public String encoding() {
-    return encoding;
   }
 
   @Override
@@ -72,11 +56,12 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
 
   protected void handleEnd() {
     request.cancelTimeout();
-    String responseStatus = httpResponse.getTrailer("grpc-status");
-    if (responseStatus != null) {
-      status = GrpcStatus.valueOf(Integer.parseInt(responseStatus));
-      if (status != GrpcStatus.OK) {
-        statusMessage = httpResponse.getTrailer("grpc-message");
+    if (status == null) {
+      String responseStatus = httpResponse.getTrailer("grpc-status");
+      if (responseStatus != null) {
+        status = GrpcStatus.valueOf(Integer.parseInt(responseStatus));
+      } else {
+        status = GrpcStatus.UNKNOWN;
       }
     }
     super.handleEnd();
@@ -92,6 +77,12 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
 
   @Override
   public String statusMessage() {
+    if (status != null && status != GrpcStatus.OK) {
+      String msg = httpResponse.getHeader("grpc-message");
+      if (msg != null) {
+        statusMessage = QueryStringDecoder.decodeComponent(msg, StandardCharsets.UTF_8);
+      }
+    }
     return statusMessage;
   }
 
@@ -99,7 +90,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   public Future<Void> end() {
     return super.end()
       .compose(v -> {
-      if (status == GrpcStatus.OK) {
+      if (status() == GrpcStatus.OK) {
         return Future.succeededFuture();
       } else {
         return Future.failedFuture("Invalid gRPC status " + status);

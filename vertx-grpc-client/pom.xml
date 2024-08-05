@@ -56,11 +56,6 @@
       <artifactId>grpc-stub</artifactId>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-unit</artifactId>
-      <scope>test</scope>
-    </dependency>
     <!-- Self signed certificate generation -->
     <dependency>
       <groupId>org.bouncycastle</groupId>

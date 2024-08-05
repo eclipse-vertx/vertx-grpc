@@ -18,23 +18,45 @@ public class {{className}} {
 
 {{#allMethods}}
   public static final ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}} = ServiceMethod.client(
-  ServiceName.create("{{packageName}}", "{{serviceName}}"),
-  "{{methodName}}",
-  GrpcMessageEncoder.encoder(),
-  GrpcMessageDecoder.decoder({{outputType}}.parser()));
+    ServiceName.create("{{packageName}}", "{{serviceName}}"),
+    "{{methodName}}",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder({{outputType}}.parser()));
+  public static final ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}}_JSON = ServiceMethod.client(
+    ServiceName.create("{{packageName}}", "{{serviceName}}"),
+    "{{methodName}}",
+    GrpcMessageEncoder.json(),
+    GrpcMessageDecoder.json(() -> {{outputType}}.newBuilder()));
 {{/allMethods}}
 
   private final GrpcClient client;
   private final SocketAddress socketAddress;
+  private final io.vertx.grpc.common.WireFormat wireFormat;
 
   public {{className}}(GrpcClient client, SocketAddress socketAddress) {
-    this.client = client;
-    this.socketAddress = socketAddress;
+    this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
+  }
+
+  public {{className}}(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+    this.client = java.util.Objects.requireNonNull(client);
+    this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
+    this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
 
 {{#unaryMethods}}
   public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
-    return client.request(socketAddress, {{methodName}}).compose(req -> {
+    ServiceMethod<{{outputType}},{{inputType}}> serviceMethod;
+    switch(wireFormat) {
+      case PROTOBUF:
+        serviceMethod = {{methodName}};
+        break;
+      case JSON:
+        serviceMethod = {{methodName}}_JSON;
+        break;
+      default:
+        throw new AssertionError();
+    }
+    return client.request(socketAddress, serviceMethod).compose(req -> {
       req.end(request);
       return req.response().compose(resp -> resp.last());
     });
@@ -43,7 +65,18 @@ public class {{className}} {
 {{/unaryMethods}}
 {{#unaryManyMethods}}
   public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
-    return client.request(socketAddress, {{methodName}}).compose(req -> {
+    ServiceMethod<{{outputType}},{{inputType}}> serviceMethod;
+    switch(wireFormat) {
+      case PROTOBUF:
+        serviceMethod = {{methodName}};
+        break;
+      case JSON:
+        serviceMethod = {{methodName}}_JSON;
+        break;
+      default:
+        throw new AssertionError();
+    }
+    return client.request(socketAddress, serviceMethod).compose(req -> {
       req.end(request);
       return req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
@@ -58,7 +91,18 @@ public class {{className}} {
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
   public Future<{{outputType}}> {{vertxMethodName}}(Handler<WriteStream<{{inputType}}>> request) {
-    return client.request(socketAddress, {{methodName}}).compose(req -> {
+    ServiceMethod<{{outputType}},{{inputType}}> serviceMethod;
+    switch(wireFormat) {
+      case PROTOBUF:
+        serviceMethod = {{methodName}};
+        break;
+      case JSON:
+        serviceMethod = {{methodName}}_JSON;
+        break;
+      default:
+        throw new AssertionError();
+    }
+    return client.request(socketAddress, serviceMethod).compose(req -> {
       request.handle(req);
       return req.response().compose(resp -> resp.last());
     });
@@ -67,7 +111,18 @@ public class {{className}} {
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
   public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(Handler<WriteStream<{{inputType}}>> request) {
-    return client.request(socketAddress, {{methodName}}).compose(req -> {
+    ServiceMethod<{{outputType}},{{inputType}}> serviceMethod;
+    switch(wireFormat) {
+      case PROTOBUF:
+        serviceMethod = {{methodName}};
+        break;
+      case JSON:
+        serviceMethod = {{methodName}}_JSON;
+        break;
+      default:
+        throw new AssertionError();
+    }
+    return client.request(socketAddress, serviceMethod).compose(req -> {
       request.handle(req);
       return req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {

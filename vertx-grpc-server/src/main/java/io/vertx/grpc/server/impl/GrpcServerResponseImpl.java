@@ -12,10 +12,8 @@ package io.vertx.grpc.server.impl;
 
 import io.netty.handler.codec.base64.Base64;
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
@@ -24,13 +22,11 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Utils;
+import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
 
 import java.util.Map;
 import java.util.Objects;
-
-import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
-import static io.vertx.grpc.common.GrpcMediaType.*;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -39,7 +35,7 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
 
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
-  private final CharSequence contentType;
+  private final GrpcProtocol protocol;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
   private MultiMap httpResponseTrailers;
@@ -48,13 +44,13 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
 
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
-                                CharSequence contentType,
+                                GrpcProtocol protocol,
                                 HttpServerResponse httpResponse,
                                 GrpcMessageEncoder<Resp> encoder) {
-    super(context, httpResponse, encoder);
+    super(context, protocol.mediaType(), httpResponse, encoder);
     this.request = request;
     this.httpResponse = httpResponse;
-    this.contentType = contentType;
+    this.protocol = protocol;
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
@@ -66,11 +62,6 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
   @Override
   public GrpcServerResponse<Req, Resp> statusMessage(String msg) {
     this.statusMessage = msg;
-    return this;
-  }
-
-  public GrpcServerResponse<Req, Resp> encoding(String encoding) {
-    this.encoding = encoding;
     return this;
   }
 
@@ -105,17 +96,17 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
     }
   }
 
-  protected void sendHeaders(MultiMap headers, boolean end) {
+  protected void sendHeaders(String contentType, MultiMap headers, boolean end) {
     MultiMap responseHeaders = httpResponse.headers();
     trailersOnly = status != GrpcStatus.OK && end;
-    httpResponse.setChunked(isGrpcWeb() && !trailersOnly);
+    httpResponse.setChunked(protocol.isWeb() && !trailersOnly);
     if (headers != null && !headers.isEmpty()) {
       for (Map.Entry<String, String> header : headers) {
         responseHeaders.add(header.getKey(), header.getValue());
       }
     }
     responseHeaders.set("content-type", contentType);
-    if (!isGrpcWeb()) {
+    if (!protocol.isWeb()) {
       responseHeaders.set("grpc-encoding", encoding);
       responseHeaders.set("grpc-accept-encoding", "gzip");
     }
@@ -124,7 +115,7 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
   protected void sendTrailers(MultiMap trailers) {
     if (trailersOnly) {
       httpResponseTrailers = httpResponse.headers();
-    } else if (!isGrpcWeb()) {
+    } else if (!protocol.isWeb()) {
       httpResponseTrailers = httpResponse.trailers();
     } else {
       httpResponseTrailers = HttpHeaders.headers();
@@ -147,7 +138,7 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
     } else {
       httpResponseTrailers.remove("grpc-message");
     }
-    if (isGrpcWeb() && !trailersOnly) {
+    if (protocol.isWeb() && !trailersOnly) {
       Buffer buffer = Buffer.buffer();
       for (Map.Entry<String, String> trailer : httpResponseTrailers) {
         buffer.appendString(trailer.getKey())
@@ -155,12 +146,13 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
           .appendString(trailer.getValue())
           .appendString("\r\n");
       }
-      httpResponse.write(encodeMessage(new GrpcMessageImpl("identity", buffer), true));
+      httpResponse.write(encodeMessage(buffer, false, true));
     }
   }
 
-  protected Future<Void> sendMessage(GrpcMessage message) {
-    return httpResponse.write(encodeMessage(message, false));
+  @Override
+  protected Future<Void> sendMessage(Buffer message, boolean compressed) {
+    return httpResponse.write(encodeMessage(message, compressed, false));
   }
 
   protected Future<Void> sendEnd() {
@@ -168,15 +160,11 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
     return httpResponse.end();
   }
 
-  private Buffer encodeMessage(GrpcMessage message, boolean trailer) {
-    BufferInternal buffer = GrpcMessageImpl.encode(message, trailer);
-    if (GRPC_WEB_TEXT_PROTO.equals(contentType)) {
+  private Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
+    BufferInternal buffer = GrpcMessageImpl.encode(message, compressed, trailer);
+    if (protocol == GrpcProtocol.WEB_TEXT) {
       return BufferInternal.buffer(Base64.encode(buffer.getByteBuf(), false));
     }
     return buffer;
-  }
-
-  private boolean isGrpcWeb() {
-    return !GRPC_PROTO.equals(contentType);
   }
 }

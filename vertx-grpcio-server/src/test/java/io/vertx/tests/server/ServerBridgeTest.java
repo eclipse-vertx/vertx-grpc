@@ -18,9 +18,13 @@ import io.grpc.examples.streaming.Empty;
 import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ServerCallStreamObserver;
+import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpcio.common.impl.Utils;
 import io.vertx.grpcio.server.GrpcIoServer;
 import io.vertx.grpcio.server.GrpcIoServiceBridge;
 import org.junit.Ignore;
@@ -474,5 +478,43 @@ public class ServerBridgeTest extends ServerTest {
     HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
     HelloReply res = stub.sayHello(request);
     should.assertEquals(1, testAttributesStep.get());
+  }
+
+  @Test
+  public void testJsonMessageFormat(TestContext should) throws Exception {
+
+    MethodDescriptor<HelloRequest, HelloReply> sayHello =
+      MethodDescriptor.newBuilder(
+          Utils.<HelloRequest>marshallerFor(HelloRequest::newBuilder),
+          Utils.<HelloReply>marshallerFor(HelloReply::newBuilder))
+        .setFullMethodName(
+          MethodDescriptor.generateFullMethodName(GREETER.fullyQualifiedName(), "SayHello"))
+        .setType(MethodDescriptor.MethodType.UNARY)
+        .build();
+
+    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+      @Override
+      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+        responseObserver.onCompleted();
+      }
+    };
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(() -> {
+      ServiceDescriptor desc = GreeterGrpc.getServiceDescriptor();
+      return io.grpc.ServerServiceDefinition.builder(ServiceDescriptor.newBuilder(desc.getName())
+          .setSchemaDescriptor(desc.getSchemaDescriptor())
+          .addMethod(sayHello)
+          .build())
+        .addMethod(
+          sayHello,
+          ServerCalls.asyncUnaryCall(impl::sayHello))
+        .build();
+    });
+    serverStub.bind(server);
+    startServer(server);
+
+    super.testJsonMessageFormat(should, "application/grpc");
   }
 }
