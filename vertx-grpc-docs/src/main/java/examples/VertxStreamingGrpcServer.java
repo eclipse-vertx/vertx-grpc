@@ -50,39 +50,48 @@ public class VertxStreamingGrpcServer  {
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
 
-  public interface StreamingApi {
+  public static class StreamingApi {
 
-    default ReadStream<examples.Item> source(examples.Empty request) {
+    public ReadStream<examples.Item> source(examples.Empty request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void source(examples.Empty request, WriteStream<examples.Item> response) {
+    public void source(examples.Empty request, WriteStream<examples.Item> response) {
       source(request)
         .handler(msg -> response.write(msg))
         .endHandler(msg -> response.end())
         .resume();
     }
-    default Future<examples.Empty> sink(ReadStream<examples.Item> request) {
+    public Future<examples.Empty> sink(ReadStream<examples.Item> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void sink(ReadStream<examples.Item> request, Promise<examples.Empty> response) {
+    public void sink(ReadStream<examples.Item> request, Promise<examples.Empty> response) {
       sink(request)
         .onSuccess(msg -> response.complete(msg))
         .onFailure(error -> response.fail(error));
     }
-    default ReadStream<examples.Item> pipe(ReadStream<examples.Item> request) {
+    public ReadStream<examples.Item> pipe(ReadStream<examples.Item> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void pipe(ReadStream<examples.Item> request, WriteStream<examples.Item> response) {
+    public void pipe(ReadStream<examples.Item> request, WriteStream<examples.Item> response) {
       pipe(request)
         .handler(msg -> response.write(msg))
         .endHandler(msg -> response.end())
         .resume();
     }
 
-    default StreamingApi bind_source(GrpcServer server) {
+    public final void handle_source(io.vertx.grpc.server.GrpcServerRequest<examples.Empty, examples.Item> request) {
+      request.handler(msg -> {
+        try {
+          source(msg, request.response());
+        } catch (RuntimeException err) {
+          request.response().status(GrpcStatus.INTERNAL).end();
+        }
+      });
+    }
+    public StreamingApi bind_source(GrpcServer server) {
       return bind_source(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
     }
-    default StreamingApi bind_source(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+    public StreamingApi bind_source(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
       ServiceMethod<examples.Empty,examples.Item> serviceMethod;
       switch(format) {
         case PROTOBUF:
@@ -94,21 +103,24 @@ public class VertxStreamingGrpcServer  {
         default:
           throw new AssertionError();
       }
-      server.callHandler(serviceMethod, request -> {
-        request.handler(req -> {
-          try {
-            source(req, request.response());
-          } catch (RuntimeException err) {
-            request.response().status(GrpcStatus.INTERNAL).end();
-          }
-        });
-      });
+      server.callHandler(serviceMethod, this::handle_source);
       return this;
     }
-    default StreamingApi bind_sink(GrpcServer server) {
+    public final void handle_sink(io.vertx.grpc.server.GrpcServerRequest<examples.Item, examples.Empty> request) {
+      Promise<examples.Empty> promise = Promise.promise();
+      promise.future()
+        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+        .onSuccess(resp -> request.response().end(resp));
+      try {
+        sink(request, promise);
+      } catch (RuntimeException err) {
+        promise.tryFail(err);
+      }
+    }
+    public StreamingApi bind_sink(GrpcServer server) {
       return bind_sink(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
     }
-    default StreamingApi bind_sink(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+    public StreamingApi bind_sink(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
       ServiceMethod<examples.Item,examples.Empty> serviceMethod;
       switch(format) {
         case PROTOBUF:
@@ -120,23 +132,20 @@ public class VertxStreamingGrpcServer  {
         default:
           throw new AssertionError();
       }
-      server.callHandler(serviceMethod, request -> {
-        Promise<examples.Empty> promise = Promise.promise();
-        promise.future()
-          .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-          .onSuccess(resp -> request.response().end(resp));
-        try {
-          sink(request, promise);
-        } catch (RuntimeException err) {
-          promise.tryFail(err);
-        }
-      });
+      server.callHandler(serviceMethod, this::handle_sink);
       return this;
     }
-    default StreamingApi bind_pipe(GrpcServer server) {
+    public final void handle_pipe(io.vertx.grpc.server.GrpcServerRequest<examples.Item, examples.Item> request) {
+      try {
+        pipe(request, request.response());
+      } catch (RuntimeException err) {
+        request.response().status(GrpcStatus.INTERNAL).end();
+      }
+    }
+    public StreamingApi bind_pipe(GrpcServer server) {
       return bind_pipe(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
     }
-    default StreamingApi bind_pipe(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+    public final StreamingApi bind_pipe(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
       ServiceMethod<examples.Item,examples.Item> serviceMethod;
       switch(format) {
         case PROTOBUF:
@@ -148,24 +157,18 @@ public class VertxStreamingGrpcServer  {
         default:
           throw new AssertionError();
       }
-      server.callHandler(serviceMethod, request -> {
-        try {
-          pipe(request, request.response());
-        } catch (RuntimeException err) {
-          request.response().status(GrpcStatus.INTERNAL).end();
-        }
-      });
+      server.callHandler(serviceMethod, this::handle_pipe);
       return this;
     }
 
-    default StreamingApi bindAll(GrpcServer server) {
+    public final StreamingApi bindAll(GrpcServer server) {
       bind_source(server);
       bind_sink(server);
       bind_pipe(server);
       return this;
     }
 
-    default StreamingApi bindAll(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+    public final StreamingApi bindAll(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
       bind_source(server, format);
       bind_sink(server, format);
       bind_pipe(server, format);
