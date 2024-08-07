@@ -30,21 +30,34 @@ public class VertxGreeterGrpcServer  {
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()));
 
-  public interface GreeterApi {
+  public static class GreeterApi {
 
-    default Future<examples.HelloReply> sayHello(examples.HelloRequest request) {
+    public Future<examples.HelloReply> sayHello(examples.HelloRequest request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void sayHello(examples.HelloRequest request, Promise<examples.HelloReply> response) {
+    public void sayHello(examples.HelloRequest request, Promise<examples.HelloReply> response) {
       sayHello(request)
         .onSuccess(msg -> response.complete(msg))
         .onFailure(error -> response.fail(error));
     }
 
-    default GreeterApi bind_sayHello(GrpcServer server) {
+    public final void handle_sayHello(io.vertx.grpc.server.GrpcServerRequest<examples.HelloRequest, examples.HelloReply> request) {
+      Promise<examples.HelloReply> promise = Promise.promise();
+      request.handler(msg -> {
+        try {
+          sayHello(msg, promise);
+        } catch (RuntimeException err) {
+          promise.tryFail(err);
+        }
+      });
+      promise.future()
+        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+        .onSuccess(resp -> request.response().end(resp));
+    }
+    public GreeterApi bind_sayHello(GrpcServer server) {
       return bind_sayHello(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
     }
-    default GreeterApi bind_sayHello(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+    public GreeterApi bind_sayHello(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
       ServiceMethod<examples.HelloRequest,examples.HelloReply> serviceMethod;
       switch(format) {
         case PROTOBUF:
@@ -56,28 +69,16 @@ public class VertxGreeterGrpcServer  {
         default:
           throw new AssertionError();
       }
-      server.callHandler(serviceMethod, request -> {
-        Promise<examples.HelloReply> promise = Promise.promise();
-        request.handler(req -> {
-          try {
-            sayHello(req, promise);
-          } catch (RuntimeException err) {
-            promise.tryFail(err);
-          }
-        });
-        promise.future()
-          .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-          .onSuccess(resp -> request.response().end(resp));
-      });
+      server.callHandler(serviceMethod, this::handle_sayHello);
       return this;
     }
 
-    default GreeterApi bindAll(GrpcServer server) {
+    public final GreeterApi bindAll(GrpcServer server) {
       bind_sayHello(server);
       return this;
     }
 
-    default GreeterApi bindAll(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+    public final GreeterApi bindAll(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
       bind_sayHello(server, format);
       return this;
     }
