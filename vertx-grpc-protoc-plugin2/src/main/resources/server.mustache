@@ -34,23 +34,23 @@ public class {{className}}  {
     GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()));
 {{/allMethods}}
 
-  public interface {{serviceName}}Api {
+  public static class {{serviceName}}Api {
 
 {{#unaryMethods}}
-    default Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+    public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{vertxMethodName}}({{inputType}} request, Promise<{{outputType}}> response) {
+    public void {{vertxMethodName}}({{inputType}} request, Promise<{{outputType}}> response) {
       {{vertxMethodName}}(request)
         .onSuccess(msg -> response.complete(msg))
         .onFailure(error -> response.fail(error));
     }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
-    default ReadStream<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+    public ReadStream<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{vertxMethodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
+    public void {{vertxMethodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
       {{vertxMethodName}}(request)
         .handler(msg -> response.write(msg))
         .endHandler(msg -> response.end())
@@ -58,20 +58,20 @@ public class {{className}}  {
     }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
-    default Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
+    public Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{vertxMethodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
+    public void {{vertxMethodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
       {{vertxMethodName}}(request)
         .onSuccess(msg -> response.complete(msg))
         .onFailure(error -> response.fail(error));
     }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
-    default ReadStream<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
+    public ReadStream<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    default void {{vertxMethodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
+    public void {{vertxMethodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
       {{vertxMethodName}}(request)
         .handler(msg -> response.write(msg))
         .endHandler(msg -> response.end())
@@ -80,100 +80,23 @@ public class {{className}}  {
 {{/manyManyMethods}}
 
 {{#unaryMethods}}
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
-    }
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
-      switch(format) {
-        case PROTOBUF:
-          serviceMethod = {{methodName}};
-          break;
-        case JSON:
-          serviceMethod = {{methodName}}_JSON;
-          break;
-        default:
-          throw new AssertionError();
-      }
-      server.callHandler(serviceMethod, request -> {
-        Promise<{{outputType}}> promise = Promise.promise();
-        request.handler(req -> {
-          try {
-            {{vertxMethodName}}(req, promise);
-          } catch (RuntimeException err) {
-            promise.tryFail(err);
-          }
-        });
-        promise.future()
-          .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-          .onSuccess(resp -> request.response().end(resp));
-      });
-      return this;
-    }
-{{/unaryMethods}}
-{{#unaryManyMethods}}
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
-    }
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
-      switch(format) {
-        case PROTOBUF:
-          serviceMethod = {{methodName}};
-          break;
-        case JSON:
-          serviceMethod = {{methodName}}_JSON;
-          break;
-        default:
-          throw new AssertionError();
-      }
-      server.callHandler(serviceMethod, request -> {
-        request.handler(req -> {
-          try {
-            {{vertxMethodName}}(req, request.response());
-          } catch (RuntimeException err) {
-            request.response().status(GrpcStatus.INTERNAL).end();
-          }
-        });
-      });
-      return this;
-    }
-{{/unaryManyMethods}}
-{{#manyUnaryMethods}}
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
-    }
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
-      switch(format) {
-        case PROTOBUF:
-          serviceMethod = {{methodName}};
-          break;
-        case JSON:
-          serviceMethod = {{methodName}}_JSON;
-          break;
-        default:
-          throw new AssertionError();
-      }
-      server.callHandler(serviceMethod, request -> {
-        Promise<{{outputType}}> promise = Promise.promise();
-        promise.future()
-          .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-          .onSuccess(resp -> request.response().end(resp));
+    public final void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
+      Promise<{{outputType}}> promise = Promise.promise();
+      request.handler(msg -> {
         try {
-          {{vertxMethodName}}(request, promise);
+          {{vertxMethodName}}(msg, promise);
         } catch (RuntimeException err) {
           promise.tryFail(err);
         }
       });
-      return this;
+      promise.future()
+        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+        .onSuccess(resp -> request.response().end(resp));
     }
-{{/manyUnaryMethods}}
-{{#manyManyMethods}}
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
+    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
       return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
     }
-    default {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
       ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
       switch(format) {
         case PROTOBUF:
@@ -185,25 +108,106 @@ public class {{className}}  {
         default:
           throw new AssertionError();
       }
-      server.callHandler(serviceMethod, request -> {
+      server.callHandler(serviceMethod, this::handle_{{vertxMethodName}});
+      return this;
+    }
+{{/unaryMethods}}
+{{#unaryManyMethods}}
+    public final void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
+      request.handler(msg -> {
         try {
-          {{vertxMethodName}}(request, request.response());
+          {{vertxMethodName}}(msg, request.response());
         } catch (RuntimeException err) {
           request.response().status(GrpcStatus.INTERNAL).end();
         }
       });
+    }
+    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
+      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
+    }
+    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
+      switch(format) {
+        case PROTOBUF:
+          serviceMethod = {{methodName}};
+          break;
+        case JSON:
+          serviceMethod = {{methodName}}_JSON;
+          break;
+        default:
+          throw new AssertionError();
+      }
+      server.callHandler(serviceMethod, this::handle_{{vertxMethodName}});
+      return this;
+    }
+{{/unaryManyMethods}}
+{{#manyUnaryMethods}}
+    public final void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
+      Promise<{{outputType}}> promise = Promise.promise();
+      promise.future()
+        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+        .onSuccess(resp -> request.response().end(resp));
+      try {
+        {{vertxMethodName}}(request, promise);
+      } catch (RuntimeException err) {
+        promise.tryFail(err);
+      }
+    }
+    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
+      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
+    }
+    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
+      switch(format) {
+        case PROTOBUF:
+          serviceMethod = {{methodName}};
+          break;
+        case JSON:
+          serviceMethod = {{methodName}}_JSON;
+          break;
+        default:
+          throw new AssertionError();
+      }
+      server.callHandler(serviceMethod, this::handle_{{vertxMethodName}});
+      return this;
+    }
+{{/manyUnaryMethods}}
+{{#manyManyMethods}}
+    public final void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
+      try {
+        {{vertxMethodName}}(request, request.response());
+      } catch (RuntimeException err) {
+        request.response().status(GrpcStatus.INTERNAL).end();
+      }
+    }
+    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
+      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
+    }
+    public final {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
+      switch(format) {
+        case PROTOBUF:
+          serviceMethod = {{methodName}};
+          break;
+        case JSON:
+          serviceMethod = {{methodName}}_JSON;
+          break;
+        default:
+          throw new AssertionError();
+      }
+      server.callHandler(serviceMethod, this::handle_{{vertxMethodName}});
       return this;
     }
 {{/manyManyMethods}}
 
-    default {{serviceName}}Api bindAll(GrpcServer server) {
+    public final {{serviceName}}Api bindAll(GrpcServer server) {
 {{#methods}}
       bind_{{vertxMethodName}}(server);
 {{/methods}}
       return this;
     }
 
-    default {{serviceName}}Api bindAll(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+    public final {{serviceName}}Api bindAll(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
 {{#methods}}
       bind_{{vertxMethodName}}(server, format);
 {{/methods}}
