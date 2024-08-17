@@ -139,6 +139,47 @@ You can call `{@link io.vertx.grpc.client.GrpcClientRequest#cancel}` to cancel a
 
 NOTE: cancellation sends an HTTP/2 reset frame to the server
 
+=== Client side load balancing
+
+The gRPC Client can be configured to perform client side load balancing.
+
+==== DNS based load balancing
+
+DNS based load balancing works with DNS queries resolving a single host to multiple IP addresses (usually `A` records).
+
+You can set a load balancer to enable DNS-based load balancing
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#clientSideDNSBasedLoadBalancing}
+----
+
+The usual load balancing strategies are available, you can refer to the Vert.x HTTP client side load balancing documentation
+to configure them.
+
+==== Address based load balancing
+
+Address based load balancing relies on the Vert.x address resolver to resolve a single address to multiple host/port socket addresses.
+
+You can set an address resolver to enable load balancing, the Vert.x Service Resolver implements a few address resolver, e.g. like  a Kubernetes resolver.
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#clientSideAddressBasedLoadBalancing1}
+----
+
+Unlike DNS based load balancing, address based load balancing uses an abstract {@link io.vertx.core.net.Address} instead of
+a {@link io.vertx.core.net.SocketAddress}. The address resolver implementation resolves address to a list of socket addresses.
+
+The Vert.x Servicer Resolver defines a `ServiceAddress`.
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#clientSideAddressBasedLoadBalancing2}
+----
+
+You can refer to the Vert.x Service Resolver project documentation for more details.
+
 === JSON wire format
 
 gRPC implicitly assumes the usage of the https://protobuf.dev[Protobuf] wire format.

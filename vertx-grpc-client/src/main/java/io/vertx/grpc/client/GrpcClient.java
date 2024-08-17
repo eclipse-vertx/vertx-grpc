@@ -17,6 +17,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.Address;
+import io.vertx.grpc.client.impl.GrpcClientBuilderImpl;
 import io.vertx.grpc.client.impl.GrpcClientImpl;
 import io.vertx.grpc.common.ServiceMethod;
 
@@ -34,13 +35,23 @@ import io.vertx.grpc.common.ServiceMethod;
 public interface GrpcClient {
 
   /**
+   * Provide a builder for {@link GrpcClient}, it can be used to configure advanced
+   * client settings like a load balancer or an address resolver.
+   * <p>
+   * Example usage: {@code GrpcClient client = GrpcClient.builder(vertx).with(options)...build()}
+   */
+  static GrpcClientBuilder<GrpcClient> builder(Vertx vertx) {
+    return new GrpcClientBuilderImpl<>(vertx);
+  }
+
+  /**
    * Create a client.
    *
    * @param vertx the vertx instance
    * @return the created client
    */
   static GrpcClient client(Vertx vertx) {
-    return new GrpcClientImpl(vertx);
+    return builder(vertx).build();
   }
 
   /**
@@ -50,7 +61,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, GrpcClientOptions options) {
-    return new GrpcClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
+    return builder(vertx).with(options).build();
   }
 
   /**
@@ -62,7 +73,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
-    return new GrpcClientImpl(vertx, grpcOptions, httpOptions);
+    return builder(vertx).with(grpcOptions).with(httpOptions).build();
   }
 
   /**
@@ -73,7 +84,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, HttpClientOptions options) {
-    return new GrpcClientImpl(vertx, new GrpcClientOptions(), options);
+    return builder(vertx).with(options).build();
   }
 
   /**

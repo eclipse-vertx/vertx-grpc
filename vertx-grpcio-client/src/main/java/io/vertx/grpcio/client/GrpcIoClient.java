@@ -9,10 +9,9 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.Address;
-import io.vertx.grpc.client.GrpcClient;
-import io.vertx.grpc.client.GrpcClientOptions;
-import io.vertx.grpc.client.GrpcClientRequest;
-import io.vertx.grpc.client.GrpcClientResponse;
+import io.vertx.grpc.client.*;
+import io.vertx.grpc.client.impl.GrpcClientBuilderImpl;
+import io.vertx.grpcio.client.impl.GrpcIoClientBuilder;
 import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
 import java.util.function.Function;
@@ -32,6 +31,10 @@ import java.util.function.Function;
 @VertxGen
 public interface GrpcIoClient extends GrpcClient {
 
+  static GrpcClientBuilder<GrpcIoClient> builder(Vertx vertx) {
+    return new GrpcIoClientBuilder(vertx);
+  }
+
   /**
    * Create a client.
    *
@@ -39,7 +42,7 @@ public interface GrpcIoClient extends GrpcClient {
    * @return the created client
    */
   static GrpcIoClient client(Vertx vertx) {
-    return new GrpcIoClientImpl(vertx);
+    return builder(vertx).build();
   }
 
   /**
@@ -49,7 +52,7 @@ public interface GrpcIoClient extends GrpcClient {
    * @return the created client
    */
   static GrpcIoClient client(Vertx vertx, GrpcClientOptions options) {
-    return new GrpcIoClientImpl(vertx, options, new HttpClientOptions().setHttp2ClearTextUpgrade(false));
+    return builder(vertx).with(options).build();
   }
 
   /**
@@ -61,7 +64,7 @@ public interface GrpcIoClient extends GrpcClient {
    * @return the created client
    */
   static GrpcIoClient client(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
-    return new GrpcIoClientImpl(vertx, grpcOptions, httpOptions);
+    return builder(vertx).with(grpcOptions).with(httpOptions).build();
   }
 
   /**
@@ -72,7 +75,7 @@ public interface GrpcIoClient extends GrpcClient {
    * @return the created client
    */
   static GrpcIoClient client(Vertx vertx, HttpClientOptions options) {
-    return new GrpcIoClientImpl(vertx, new GrpcClientOptions(), options);
+    return builder(vertx).with(options).build();
   }
 
   /**

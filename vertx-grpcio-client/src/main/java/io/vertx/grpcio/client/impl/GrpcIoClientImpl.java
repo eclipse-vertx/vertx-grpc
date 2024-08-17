@@ -29,16 +29,12 @@ import io.vertx.grpcio.client.GrpcIoClient;
  */
 public class GrpcIoClientImpl extends GrpcClientImpl implements GrpcIoClient {
 
-  public GrpcIoClientImpl(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
-    super(vertx, grpcOptions, httpOptions);
-  }
-
-  public GrpcIoClientImpl(Vertx vertx) {
-    super(vertx);
-  }
-
   public GrpcIoClientImpl(Vertx vertx, HttpClient client) {
     super(vertx, client);
+  }
+
+  public GrpcIoClientImpl(Vertx vertx, GrpcClientOptions grpcOptions, HttpClient client, boolean close) {
+    super(vertx, grpcOptions, client, close);
   }
 
   @Override
