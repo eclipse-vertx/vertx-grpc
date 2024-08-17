@@ -5,7 +5,10 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.Address;
+import io.vertx.core.net.AddressResolver;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.core.net.endpoint.LoadBalancer;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.client.*;
@@ -111,6 +114,64 @@ public class GrpcClientExamples {
 
   public void requestCancellation(GrpcClientRequest<Item, Empty> request) {
     request.cancel();
+  }
+
+  public void clientSideDNSBasedLoadBalancing(Vertx vertx, int port, String server) {
+    GrpcClient client = GrpcClient
+      .builder(vertx)
+      .withLoadBalancer(LoadBalancer.ROUND_ROBIN)
+      .build();
+
+    client
+      .request(SocketAddress.inetSocketAddress(port, server), VertxGreeterGrpcClient.SayHello)
+      .compose(request -> {
+        request.end(HelloRequest
+          .newBuilder()
+          .setName("Bob")
+          .build());
+        return request.response().compose(response -> response.last());
+      }).onSuccess(reply -> {
+        System.out.println("Received " + reply.getMessage());
+      });
+  }
+
+  interface ServiceAddress extends Address {
+    static ServiceAddress of(String name) {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  public interface KubeResolver {
+
+    static AddressResolver create() {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+
+  public void clientSideAddressBasedLoadBalancing1(Vertx vertx, int port, String server) {
+    GrpcClient client = GrpcClient
+      .builder(vertx)
+      .withAddressResolver(KubeResolver.create())
+      .withLoadBalancer(LoadBalancer.ROUND_ROBIN)
+      .build();
+  }
+
+  public void clientSideAddressBasedLoadBalancing2(GrpcClient client) {
+    // ServiceAddress extends Address
+    ServiceAddress address = ServiceAddress.of("GreeterService");
+
+    client
+      .request(address, VertxGreeterGrpcClient.SayHello)
+      .compose(request -> {
+        request.end(HelloRequest
+          .newBuilder()
+          .setName("Bob")
+          .build());
+        return request.response().compose(response -> response.last());
+      }).onSuccess(reply -> {
+        System.out.println("Received " + reply.getMessage());
+      });
   }
 
   public void jsonWireFormat01(GrpcClient client, SocketAddress server) {

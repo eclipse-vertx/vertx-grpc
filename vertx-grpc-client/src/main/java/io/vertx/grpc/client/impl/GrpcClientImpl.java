@@ -43,19 +43,11 @@ public class GrpcClientImpl implements GrpcClient {
   private final int timeout;
   private final TimeUnit timeoutUnit;
 
-  public GrpcClientImpl(Vertx vertx, GrpcClientOptions grpcOptions, HttpClientOptions httpOptions) {
-    this(vertx, grpcOptions, vertx.createHttpClient(new HttpClientOptions(httpOptions).setProtocolVersion(HttpVersion.HTTP_2)), true);
-  }
-
-  public GrpcClientImpl(Vertx vertx) {
-    this(vertx, new GrpcClientOptions(), new HttpClientOptions().setHttp2ClearTextUpgrade(false));
-  }
-
   public GrpcClientImpl(Vertx vertx, HttpClient client) {
     this(vertx, new GrpcClientOptions(), client, false);
   }
 
-  private GrpcClientImpl(Vertx vertx, GrpcClientOptions grpcOptions, HttpClient client, boolean close) {
+  protected GrpcClientImpl(Vertx vertx, GrpcClientOptions grpcOptions, HttpClient client, boolean close) {
     this.vertx = vertx;
     this.client = client;
     this.scheduleDeadlineAutomatically = grpcOptions.getScheduleDeadlineAutomatically();

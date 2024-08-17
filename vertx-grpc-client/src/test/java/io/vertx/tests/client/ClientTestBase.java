@@ -25,6 +25,8 @@ import org.junit.runner.RunWith;
 
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static io.vertx.grpc.common.GrpcMessageDecoder.decoder;
 import static io.vertx.grpc.common.GrpcMessageEncoder.encoder;
@@ -53,11 +55,11 @@ public abstract class ClientTestBase extends GrpcTestBase {
   public static final ServiceMethod<Item, Item> STREAMING_PIPE = ServiceMethod.client(STREAMING, "Pipe", ITEM_ENC, ITEM_DEC);
 
   /* The port on which the server should run */
-  protected Server server;
+  private List<Server> servers = new ArrayList<>();
 
   @After
   public void tearDown(TestContext should) {
-    stopServer(false);
+    stopServers(false);
     super.tearDown(should);
   }
 
@@ -65,23 +67,24 @@ public abstract class ClientTestBase extends GrpcTestBase {
     startServer(service, ServerBuilder.forPort(port));
   }
 
-  void stopServer(boolean now) {
-    Server s = server;
-    if (s != null) {
-      server = null;
+  void stopServers(boolean now) {
+
+    List<Server> list = new ArrayList<>(servers);
+    servers.clear();
+    list.forEach(server -> {
       if (now) {
-        s.shutdownNow();
+        server.shutdownNow();
       } else {
-        s.shutdown();
+        server.shutdown();
       }
-    }
+    });
   }
 
-  void startServer(BindableService service, ServerBuilder builder) throws IOException {
-    server = builder
-        .addService(service)
-        .build()
-        .start();
+  void startServer(BindableService service, ServerBuilder<?> builder) throws IOException {
+    servers.add(builder
+      .addService(service)
+      .build()
+      .start());
   }
 
 
@@ -89,10 +92,10 @@ public abstract class ClientTestBase extends GrpcTestBase {
     startServer(service, ServerBuilder.forPort(port));
   }
 
-  void startServer(ServerServiceDefinition service, ServerBuilder builder) throws IOException {
-    server = builder
+  void startServer(ServerServiceDefinition service, ServerBuilder<?> builder) throws IOException {
+    servers.add(builder
       .addService(service)
       .build()
-      .start();
+      .start());
   }
 }
