@@ -50,7 +50,17 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx) {
-    return new GrpcClientImpl(vertx);
+    return client(vertx, new GrpcClientOptions());
+  }
+
+  /**
+   * Create a new client
+   *
+   * @param vertx the vertx instance
+   * @return the created client
+   */
+  static GrpcClient client(Vertx vertx, GrpcClientOptions options) {
+    return new GrpcClientImpl(vertx, options);
   }
 
   /**
@@ -61,7 +71,7 @@ public interface GrpcClient {
    * @return the created client
    */
   static GrpcClient client(Vertx vertx, HttpClientOptions options) {
-    return new GrpcClientImpl(options, vertx);
+    return client(vertx, new GrpcClientOptions().setTransportOptions(options));
   }
 
   /**

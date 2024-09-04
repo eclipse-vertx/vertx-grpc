@@ -45,10 +45,22 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   /**
    * Create a blank gRPC server
    *
+   * @param vertx the vertx instance
    * @return the created server
    */
   static GrpcServer server(Vertx vertx) {
-    return new GrpcServerImpl(vertx);
+    return server(vertx, new GrpcServerOptions());
+  }
+
+  /**
+   * Create a blank gRPC server
+   *
+   * @param vertx the vertx instance
+   * @param options the server options
+   * @return the created server
+   */
+  static GrpcServer server(Vertx vertx, GrpcServerOptions options) {
+    return new GrpcServerImpl(vertx, options);
   }
 
   /**

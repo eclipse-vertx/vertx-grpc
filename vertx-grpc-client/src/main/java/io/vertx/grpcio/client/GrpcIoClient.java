@@ -16,10 +16,10 @@ import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.impl.GrpcClientImpl;
@@ -41,7 +41,17 @@ public interface GrpcIoClient extends GrpcClient {
    * @return the created client
    */
   static GrpcIoClient client(Vertx vertx) {
-    return new GrpcClientImpl(vertx);
+    return client(vertx, new GrpcClientOptions());
+  }
+
+  /**
+   * Create a new client
+   *
+   * @param vertx the vertx instance
+   * @return the created client
+   */
+  static GrpcIoClient client(Vertx vertx, GrpcClientOptions options) {
+    return new GrpcClientImpl(vertx, options);
   }
 
   /**
@@ -52,7 +62,7 @@ public interface GrpcIoClient extends GrpcClient {
    * @return the created client
    */
   static GrpcIoClient client(Vertx vertx, HttpClientOptions options) {
-    return new GrpcClientImpl(options, vertx);
+    return client(vertx, new GrpcClientOptions().setTransportOptions(options));
   }
 
   /**

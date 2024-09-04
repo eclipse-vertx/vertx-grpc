@@ -91,14 +91,10 @@ public interface GrpcMessageDecoder<T> {
     return new GrpcMessageDecoder<T>() {
       @Override
       public T decode(GrpcMessage msg) {
-        ByteArrayInputStream in = new ByteArrayInputStream(msg.payload().getBytes());
-        try {
+        try (ByteArrayInputStream in = new ByteArrayInputStream(msg.payload().getBytes())) {
           return desc.parse(in);
-        } finally {
-          try {
-            in.close();
-          } catch (IOException ignore) {
-          }
+        } catch (Exception e) {
+          throw new CodecException(e);
         }
       }
     };

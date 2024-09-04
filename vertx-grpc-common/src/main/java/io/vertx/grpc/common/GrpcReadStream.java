@@ -35,6 +35,19 @@ public interface GrpcReadStream<T> extends ReadStream<T> {
   GrpcReadStream<T> messageHandler(@Nullable Handler<GrpcMessage> handler);
 
   /**
+   * Set a message handler that is reported with invalid message errors.
+   *
+   * <p>Warning: setting this handler overwrite the default handler which takes appropriate measure
+   * when an invalid message is encountered such as cancelling the stream. This handler should be set
+   * when control over invalid messages is required.</p>
+   *
+   * @param handler the invalid message handler
+   * @return a reference to this, so the API can be used fluently
+   */
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
+  GrpcReadStream<T> invalidMessageHandler(@Nullable Handler<InvalidMessageException> handler);
+
+  /**
    * Set a handler to be notified with gRPC errors.
    *
    * @param handler the error handler

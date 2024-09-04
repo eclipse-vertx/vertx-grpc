@@ -37,8 +37,8 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   private String statusMessage;
   private String encoding;
 
-  public GrpcClientResponseImpl(GrpcClientRequestImpl<Req, Resp> request, HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
-    super(Vertx.currentContext(), httpResponse, httpResponse.headers().get("grpc-encoding"), messageDecoder); // A bit ugly
+  public GrpcClientResponseImpl(GrpcClientRequestImpl<Req, Resp> request, HttpClientResponse httpResponse, long maxMessageSize, GrpcMessageDecoder<Resp> messageDecoder) {
+    super(Vertx.currentContext(), httpResponse, httpResponse.headers().get("grpc-encoding"), maxMessageSize, messageDecoder); // A bit ugly
     this.request = request;
     this.encoding = httpResponse.headers().get("grpc-encoding");
     this.httpResponse = httpResponse;
@@ -104,23 +104,5 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
         return Future.failedFuture("Invalid gRPC status " + status);
       }
     });
-  }
-
-  @Override
-  public GrpcClientResponseImpl<Req, Resp> handler(Handler<Resp> handler) {
-    if (handler != null) {
-      return messageHandler(msg -> {
-        Resp decoded;
-        try {
-          decoded = decodeMessage(msg);
-        } catch (CodecException e) {
-          request.cancel();
-          return;
-        }
-        handler.handle(decoded);
-      });
-    } else {
-      return messageHandler(null);
-    }
   }
 }

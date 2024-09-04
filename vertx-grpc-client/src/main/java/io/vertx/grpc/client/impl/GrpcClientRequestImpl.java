@@ -25,12 +25,7 @@ import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.impl.future.FutureInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
-import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 
 /**
@@ -49,13 +44,16 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
   private Future<GrpcClientResponse<Req, Resp>> response;
   private MultiMap headers;
 
-  public GrpcClientRequestImpl(HttpClientRequest httpRequest, GrpcMessageEncoder<Req> messageEncoder, GrpcMessageDecoder<Resp> messageDecoder) {
+  public GrpcClientRequestImpl(HttpClientRequest httpRequest, long maxMessageSize, GrpcMessageEncoder<Req> messageEncoder, GrpcMessageDecoder<Resp> messageDecoder) {
 
     this.httpRequest = httpRequest;
     this.messageEncoder = messageEncoder;
     this.response = httpRequest.response().map(httpResponse -> {
-      GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(this, httpResponse, messageDecoder);
+      GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(this, httpResponse, maxMessageSize, messageDecoder);
       grpcResponse.init();
+      grpcResponse.invalidMessageHandler(invalidMsg -> {
+        cancel();
+      });
       return grpcResponse;
     });
   }

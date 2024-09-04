@@ -11,16 +11,13 @@
 package io.vertx.grpcio.server;
 
 import io.grpc.MethodDescriptor;
-import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 
 /**
@@ -34,10 +31,22 @@ public interface GrpcIoServer extends GrpcServer {
   /**
    * Create a blank gRPC/IO server
    *
+   * @param vertx the vertx instance
    * @return the created server
    */
   static GrpcIoServer server(Vertx vertx) {
-    return new GrpcServerImpl(vertx);
+    return server(vertx, new GrpcServerOptions());
+  }
+
+  /**
+   * Create a blank gRPC/IO server
+   *
+   * @param vertx the vertx instance
+   * @param options the server options
+   * @return the created server
+   */
+  static GrpcIoServer server(Vertx vertx, GrpcServerOptions options) {
+    return new GrpcServerImpl(vertx, options);
   }
 
   /**

@@ -34,8 +34,8 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   final GrpcServerResponse<Req, Resp> response;
   private GrpcMethodCall methodCall;
 
-  public GrpcServerRequestImpl(HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, GrpcMethodCall methodCall) {
-    super(((HttpServerRequestInternal) httpRequest).context(), httpRequest, httpRequest.headers().get("grpc-encoding"), messageDecoder);
+  public GrpcServerRequestImpl(HttpServerRequest httpRequest, long maxMessageSize, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, GrpcMethodCall methodCall) {
+    super(((HttpServerRequestInternal) httpRequest).context(), httpRequest, httpRequest.headers().get("grpc-encoding"), maxMessageSize,  messageDecoder);
     this.httpRequest = httpRequest;
     this.response = new GrpcServerResponseImpl<>(this, httpRequest.response(), messageEncoder);
     this.methodCall = methodCall;
@@ -63,24 +63,6 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   @Override
   public String methodName() {
     return methodCall.methodName();
-  }
-
-  @Override
-  public GrpcServerRequest<Req, Resp> handler(Handler<Req> handler) {
-    if (handler != null) {
-      return messageHandler(msg -> {
-        Req decoded;
-        try {
-          decoded = decodeMessage(msg);
-        } catch (CodecException e) {
-          response.cancel();
-          return;
-        }
-        handler.handle(decoded);
-      });
-    } else {
-      return messageHandler(null);
-    }
   }
 
   public GrpcServerResponse<Req, Resp> response() {
