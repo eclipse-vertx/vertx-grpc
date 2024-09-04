@@ -83,11 +83,12 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                boolean scheduleDeadline,
                                GrpcProtocol protocol,
                                WireFormat format,
+                               long maxMessageSize,
                                HttpServerRequest httpRequest,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMessageEncoder<Resp> messageEncoder,
                                GrpcMethodCall methodCall) {
-    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, messageDecoder);
+    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, maxMessageSize, messageDecoder);
     String timeoutHeader = httpRequest.getHeader("grpc-timeout");
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 
@@ -153,7 +154,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   }
 
   @Override
-  public GrpcServerRequest<Req, Resp> handler(Handler<Req> handler) {
+  public GrpcServerRequestImpl<Req, Resp> handler(Handler<Req> handler) {
     if (handler != null) {
       return messageHandler(msg -> {
         Req decoded;

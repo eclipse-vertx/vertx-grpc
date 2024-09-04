@@ -48,22 +48,31 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
 
   protected final ContextInternal context;
   private final String encoding;
+  private final long maxMessageSize;
   private final WireFormat format;
   private final ReadStream<Buffer> stream;
   private final InboundMessageQueue<GrpcMessage> queue;
   private Buffer buffer;
+  private long bytesToSkip;
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcMessage> messageHandler;
   private Handler<Void> endHandler;
+  private Handler<InvalidMessageException> invalidMessageHandler;
   private GrpcMessage last;
   private final GrpcMessageDecoder<T> messageDecoder;
   private final Promise<Void> end;
   private GrpcWriteStreamBase<?, ?> ws;
 
-  protected GrpcReadStreamBase(Context context, ReadStream<Buffer> stream, String encoding, WireFormat format, GrpcMessageDecoder<T> messageDecoder) {
+  protected GrpcReadStreamBase(Context context,
+                               ReadStream<Buffer> stream,
+                               String encoding,
+                               WireFormat format,
+                               long maxMessageSize,
+                               GrpcMessageDecoder<T> messageDecoder) {
     ContextInternal ctx = (ContextInternal) context;
     this.context = ctx;
     this.encoding = encoding;
+    this.maxMessageSize = maxMessageSize;
     this.stream = stream;
     this.format = format;
     this.queue = new InboundMessageQueue<>(ctx.nettyEventLoop(), ctx, 8, 16) {
@@ -161,25 +170,83 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   }
 
   @Override
+  public final S invalidMessageHandler(@Nullable Handler<InvalidMessageException> handler) {
+    invalidMessageHandler = handler;
+    return (S) this;
+  }
+
+  @Override
+  public S handler(@Nullable Handler<T> handler) {
+    if (handler != null) {
+      return messageHandler(msg -> {
+        T decoded;
+        try {
+          decoded = decodeMessage(msg);
+        } catch (CodecException e) {
+          Handler<InvalidMessageException> errorHandler = invalidMessageHandler;
+          if (errorHandler != null) {
+            InvalidMessagePayloadException impe = new InvalidMessagePayloadException(msg, e);
+            errorHandler.handle(impe);
+          }
+          return;
+        }
+        handler.handle(decoded);
+      });
+    } else {
+      return messageHandler(null);
+    }
+  }
+
+  @Override
   public final S endHandler(Handler<Void> endHandler) {
     this.endHandler = endHandler;
     return (S) this;
   }
 
   public void handle(Buffer chunk) {
+    if (bytesToSkip > 0L) {
+      int len = chunk.length();
+      if (len <= bytesToSkip) {
+        bytesToSkip -= len;
+        return;
+      }
+      chunk = chunk.slice((int)bytesToSkip, len);
+      bytesToSkip = 0L;
+    }
     if (buffer == null) {
       buffer = chunk;
     } else {
       buffer.appendBuffer(chunk);
     }
     int idx = 0;
-    int len;
-    while (idx + 5 <= buffer.length() && (idx + 5 + (len = buffer.getInt(idx + 1)))<= buffer.length()) {
+    while (true) {
+      if (idx + 5 > buffer.length()) {
+        break;
+      }
+      long len = ((long)buffer.getInt(idx + 1)) & 0xFFFFFFFFL;
+      if (len > maxMessageSize) {
+        Handler<InvalidMessageException> handler = invalidMessageHandler;
+        if (handler != null) {
+          MessageSizeOverflowException msoe = new MessageSizeOverflowException(len);
+          context.dispatch(msoe, handler);
+        }
+        if (buffer.length() < (len + 5)) {
+          bytesToSkip = (len + 5) - buffer.length();
+          buffer = null;
+          return;
+        } else {
+          buffer = buffer.slice((int)(len + 5), buffer.length());
+          continue;
+        }
+      }
+      if (len > buffer.length() - (idx + 5)) {
+        break;
+      }
       boolean compressed = buffer.getByte(idx) == 1;
       if (compressed && encoding == null) {
         throw new UnsupportedOperationException("Handle me");
       }
-      Buffer payload = buffer.slice(idx + 5, idx + 5 + len);
+      Buffer payload = buffer.slice(idx + 5, (int)(idx + 5 + len));
       GrpcMessage message = GrpcMessage.message(compressed ? encoding : "identity", format, payload);
       queue.write(message);
       idx += 5 + len;
@@ -207,7 +274,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     }
   }
 
-  protected void handleMessage(GrpcMessage msg) {
+  private void handleMessage(GrpcMessage msg) {
     last = msg;
     Handler<GrpcMessage> handler = messageHandler;
     if (handler != null) {

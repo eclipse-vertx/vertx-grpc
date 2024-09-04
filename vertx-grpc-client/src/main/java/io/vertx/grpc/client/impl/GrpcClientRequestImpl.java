@@ -48,6 +48,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private boolean cancelled;
 
   public GrpcClientRequestImpl(HttpClientRequest httpRequest,
+                               long maxMessageSize,
                                boolean scheduleDeadline,
                                GrpcMessageEncoder<Req> messageEncoder,
                                GrpcMessageDecoder<Resp> messageDecoder) {
@@ -76,8 +77,18 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
           }
         }
         if (format != null || status != null) {
-          GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(context, this, format, status, httpResponse, messageDecoder);
+          GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(
+            context,
+            this,
+            format,
+            maxMessageSize,
+            status,
+            httpResponse,
+            messageDecoder);
           grpcResponse.init(this);
+          grpcResponse.invalidMessageHandler(invalidMsg -> {
+            cancel();
+          });
           return Future.succeededFuture(grpcResponse);
         }
         httpResponse.request().reset(GrpcError.CANCELLED.http2ResetCode);

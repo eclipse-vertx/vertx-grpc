@@ -17,6 +17,7 @@ import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.examples.streaming.Empty;
 import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpHeaders;
@@ -36,7 +37,10 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -698,5 +702,82 @@ public class ClientRequestTest extends ClientTest {
       }));
 
     done.awaitSuccess();
+  }
+
+  @Test
+  public void testDefaultMessageSizeOverflow(TestContext should) throws Exception {
+
+    Async test = should.async();
+
+    Item item = Item.newBuilder().setValue("Asmoranomardicadaistinaculdacar").build();
+    int itemLen = item.getSerializedSize();
+
+    StreamingGrpc.StreamingImplBase called = new StreamingGrpc.StreamingImplBase() {
+      @Override
+      public void source(Empty request, StreamObserver<Item> responseObserver) {
+        ServerCallStreamObserver callStreamObserver = (ServerCallStreamObserver) responseObserver;
+        callStreamObserver.setOnCancelHandler(() -> {
+          test.complete();
+        });
+        responseObserver.onNext(item);
+      }
+    };
+    startServer(called);
+
+    GrpcClient client = GrpcClient.client(vertx, new GrpcClientOptions().setMaxMessageSize(itemLen - 1));
+    client.request(SocketAddress.inetSocketAddress(port, "localhost"), STREAMING_SOURCE)
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
+          callResponse.handler(msg -> {
+            should.fail();
+          });
+        }));
+        callRequest.end(Empty.getDefaultInstance());
+      }));
+
+    test.awaitSuccess(20_000);
+  }
+
+  @Test
+  public void testInvalidMessageHandlerStream(TestContext should) throws Exception {
+
+    Async test = should.async();
+
+    List<Item> items = Arrays.asList(
+      Item.newBuilder().setValue("msg1").build(),
+      Item.newBuilder().setValue("Asmoranomardicadaistinaculdacar").build(),
+      Item.newBuilder().setValue("msg3").build()
+    );
+
+    int itemLen = items.get(1).getSerializedSize();
+
+    StreamingGrpc.StreamingImplBase called = new StreamingGrpc.StreamingImplBase() {
+      @Override
+      public void source(Empty request, StreamObserver<Item> responseObserver) {
+        items.forEach(item -> responseObserver.onNext(item));
+        responseObserver.onCompleted();
+      }
+    };
+    startServer(called);
+
+    GrpcClient client = GrpcClient.client(vertx, new GrpcClientOptions().setMaxMessageSize(itemLen - 1));
+    client.request(SocketAddress.inetSocketAddress(port, "localhost"), STREAMING_SOURCE)
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
+          List<Object> received = new ArrayList<>();
+          callResponse.invalidMessageHandler(received::add);
+          callResponse.handler(received::add);
+          callResponse.endHandler(v -> {
+            should.assertEquals(Item.class, received.get(0).getClass());
+            should.assertEquals(MessageSizeOverflowException.class, received.get(1).getClass());
+            should.assertEquals(Item.class, received.get(2).getClass());
+            should.assertEquals(3, received.size());
+            test.complete();
+          });
+        }));
+        callRequest.end(Empty.getDefaultInstance());
+      }));
+
+    test.awaitSuccess(20_000);
   }
 }

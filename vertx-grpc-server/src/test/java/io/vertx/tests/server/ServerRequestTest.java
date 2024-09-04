@@ -21,6 +21,7 @@ import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.json.JsonObject;
@@ -35,7 +36,10 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -432,5 +436,116 @@ public class ServerRequestTest extends ServerTest {
     }));
 
     super.testJsonMessageFormat(should, "application/grpc+json");
+  }
+
+  @Test
+  public void testDefaultMessageSizeOverflow(TestContext should) {
+
+    HelloRequest request = HelloRequest.newBuilder().setName("Asmoranomardicadaistinaculdacar").build();
+    int requestLen = request.getSerializedSize();
+
+    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setMaxMessageSize(requestLen - 1))
+      .callHandler(GREETER_SAY_HELLO, call -> {
+      }));
+
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+
+    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
+
+    try {
+      stub.sayHello(request);
+      should.fail();
+    } catch (StatusRuntimeException ignore) {
+      should.assertEquals(Status.RESOURCE_EXHAUSTED.getCode(), ignore.getStatus().getCode());
+    }
+  }
+
+  @Test
+  public void testInvalidMessageHandler(TestContext should) {
+
+    HelloRequest request = HelloRequest.newBuilder().setName("Asmoranomardicadaistinaculdacar").build();
+    int requestLen = request.getSerializedSize();
+
+    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setMaxMessageSize(requestLen - 1))
+      .callHandler(GREETER_SAY_HELLO, call -> {
+        AtomicInteger invalid = new AtomicInteger();
+        call.handler(msg -> {
+          should.fail();
+        });
+        call.invalidMessageHandler(err -> {
+          should.assertEquals(0, invalid.getAndIncrement());
+        });
+        call.endHandler(v -> {
+          call.response().end(HelloReply.newBuilder().setMessage("Hola").build());
+        });
+      }));
+
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+
+    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
+
+    HelloReply resp = stub.sayHello(request);
+    should.assertEquals("Hola", resp.getMessage());
+  }
+
+  @Test
+  public void testInvalidMessageHandlerStream(TestContext should) {
+
+    List<Buffer> messages = Arrays.asList(
+      Buffer.buffer(Item.newBuilder().setValue("msg1").build().toByteArray()),
+      Buffer.buffer(Item.newBuilder().setValue("msg2-invalid").build().toByteArray()),
+      Buffer.buffer(Item.newBuilder().setValue("msg3").build().toByteArray()),
+      Buffer.buffer(new byte[]{ 0,1,2,3,4,5,6,7 }),
+      Buffer.buffer(Item.newBuilder().setValue("msg5").build().toByteArray())
+    );
+
+    int invalidLen = messages.get(1).length() - 1;
+
+    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setMaxMessageSize(invalidLen - 1)).callHandler(STREAMING_SINK, call -> {
+      List<Object> received = new ArrayList<>();
+      call.invalidMessageHandler(received::add);
+      call.handler(received::add);
+      call.endHandler(v -> {
+        should.assertEquals(Item.class, received.get(0).getClass());
+        should.assertEquals(MessageSizeOverflowException.class, received.get(1).getClass());
+        should.assertEquals(Item.class, received.get(2).getClass());
+        should.assertEquals(InvalidMessagePayloadException.class, received.get(3).getClass());
+        should.assertEquals(Item.class, received.get(4).getClass());
+        should.assertEquals(5, received.size());
+        call.response().end(Empty.getDefaultInstance());
+      });
+    }));
+
+    Async test = should.async();
+
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setProtocolVersion(HttpVersion.HTTP_2)
+      .setHttp2ClearTextUpgrade(false)
+    );
+
+    client.request(HttpMethod.POST, 8080, "localhost", "/" + StreamingGrpc.SERVICE_NAME + "/Sink")
+      .onComplete(should.asyncAssertSuccess(request -> {
+        request.putHeader("grpc-encoding", "gzip");
+        request.setChunked(true);
+        messages.forEach(msg -> {
+          Buffer buffer = Buffer.buffer();
+          buffer.appendByte((byte) 0); // Uncompressed
+          buffer.appendInt(msg.length());
+          buffer.appendBuffer(msg);
+          request.write(buffer);
+        });
+        request.end();
+        request.response().onComplete(should.asyncAssertSuccess(response -> {
+          response.end().onComplete(should.asyncAssertSuccess(v -> {
+            test.complete();
+          }));
+        }));
+      }));
+
+    test.awaitSuccess(20_000);
   }
 }
