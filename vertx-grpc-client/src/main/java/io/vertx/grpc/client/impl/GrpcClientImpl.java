@@ -40,6 +40,7 @@ public class GrpcClientImpl implements GrpcClient {
   private HttpClient client;
   private boolean closeClient;
   private final boolean scheduleDeadlineAutomatically;
+  private final long maxMessageSize;
   private final int timeout;
   private final TimeUnit timeoutUnit;
 
@@ -51,6 +52,7 @@ public class GrpcClientImpl implements GrpcClient {
     this.vertx = vertx;
     this.client = client;
     this.scheduleDeadlineAutomatically = grpcOptions.getScheduleDeadlineAutomatically();
+    this.maxMessageSize = grpcOptions.getMaxMessageSize();;
     this.timeout = grpcOptions.getTimeout();
     this.timeoutUnit = grpcOptions.getTimeoutUnit();
     this.closeClient = close;
@@ -59,7 +61,12 @@ public class GrpcClientImpl implements GrpcClient {
   public Future<GrpcClientRequest<Buffer, Buffer>> request(RequestOptions options) {
     return client.request(options)
       .map(httpRequest -> {
-        GrpcClientRequestImpl<Buffer, Buffer> grpcRequest = new GrpcClientRequestImpl<>(httpRequest, scheduleDeadlineAutomatically, GrpcMessageEncoder.IDENTITY, GrpcMessageDecoder.IDENTITY);
+        GrpcClientRequestImpl<Buffer, Buffer> grpcRequest = new GrpcClientRequestImpl<>(
+          httpRequest,
+          maxMessageSize,
+          scheduleDeadlineAutomatically,
+          GrpcMessageEncoder.IDENTITY,
+          GrpcMessageDecoder.IDENTITY);
         grpcRequest.init();
         configureTimeout(grpcRequest);
         return grpcRequest;
@@ -107,7 +114,12 @@ public class GrpcClientImpl implements GrpcClient {
   private <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(RequestOptions options, ServiceMethod<Resp, Req> method) {
     return client.request(options)
       .map(request -> {
-        GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(request, scheduleDeadlineAutomatically, method.encoder(), method.decoder());
+        GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(
+          request,
+          maxMessageSize,
+          scheduleDeadlineAutomatically,
+          method.encoder(),
+          method.decoder());
         call.init();
         call.serviceName(method.serviceName());
         call.methodName(method.methodName());

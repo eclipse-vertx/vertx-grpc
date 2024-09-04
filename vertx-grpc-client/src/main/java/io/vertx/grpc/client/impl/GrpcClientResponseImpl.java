@@ -36,9 +36,10 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   public GrpcClientResponseImpl(ContextInternal context,
                                 GrpcClientRequestImpl<Req, Resp> request,
                                 WireFormat format,
+                                long maxMessageSize,
                                 GrpcStatus status,
                                 HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
-    super(context, httpResponse, httpResponse.headers().get("grpc-encoding"), format, messageDecoder);
+    super(context, httpResponse, httpResponse.headers().get("grpc-encoding"), format, maxMessageSize, messageDecoder);
     this.request = request;
     this.httpResponse = httpResponse;
     this.status = status;

@@ -38,9 +38,15 @@ public class GrpcServerOptions {
    */
   public static final boolean DEFAULT_PROPAGATE_DEADLINE = false;
 
+  /**
+   * The default maximum message size in bytes accepted from a client = {@code 256KB}
+   */
+  public static final long DEFAULT_MAX_MESSAGE_SIZE = 256 * 1024;
+
   private boolean grpcWebEnabled;
   private boolean scheduleDeadlineAutomatically;
   private boolean deadlinePropagation;
+  private long maxMessageSize;
 
   /**
    * Default options.
@@ -49,6 +55,7 @@ public class GrpcServerOptions {
     grpcWebEnabled = DEFAULT_GRPC_WEB_ENABLED;
     scheduleDeadlineAutomatically = DEFAULT_SCHEDULE_DEADLINE_AUTOMATICALLY;
     deadlinePropagation = DEFAULT_PROPAGATE_DEADLINE;
+    maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
   }
 
   /**
@@ -58,6 +65,7 @@ public class GrpcServerOptions {
     grpcWebEnabled = other.grpcWebEnabled;
     scheduleDeadlineAutomatically = other.scheduleDeadlineAutomatically;
     deadlinePropagation = other.deadlinePropagation;
+    maxMessageSize = other.maxMessageSize;
   }
 
   /**
@@ -127,6 +135,30 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions setDeadlinePropagation(boolean deadlinePropagation) {
     this.deadlinePropagation = deadlinePropagation;
+    return this;
+  }
+
+
+  /**
+   * @return the maximum message size in bytes accepted by the server
+   */
+  public long getMaxMessageSize() {
+    return maxMessageSize;
+  }
+
+  /**
+   * Set the maximum message size in bytes accepted from a client, the maximum value is {@code 0xFFFFFFFF}
+   * @param maxMessageSize the size
+   * @return a reference to this, so the API can be used fluently
+   */
+  public GrpcServerOptions setMaxMessageSize(long maxMessageSize) {
+    if (maxMessageSize <= 0) {
+      throw new IllegalArgumentException("Max message size must be > 0");
+    }
+    if (maxMessageSize > 0xFFFFFFFFL) {
+      throw new IllegalArgumentException("Max message size must be <= 0xFFFFFFFF");
+    }
+    this.maxMessageSize = maxMessageSize;
     return this;
   }
 

@@ -41,7 +41,7 @@ public interface GrpcMessageDecoder<T> {
         try {
           return parser.parseFrom(msg.payload().getBytes());
         } catch (InvalidProtocolBufferException e) {
-          return null;
+          throw new CodecException(e);
         }
       }
       @Override

@@ -36,9 +36,15 @@ public class GrpcClientOptions {
    */
   public static final TimeUnit DEFAULT_TIMEOUT_UNIT = TimeUnit.SECONDS;
 
+  /**
+   * The default maximum message size in bytes accepted from a server = {@code 256KB}
+   */
+  public static final long DEFAULT_MAX_MESSAGE_SIZE = 256 * 1024;
+
   private boolean scheduleDeadlineAutomatically;
   private int timeout;
   private TimeUnit timeoutUnit;
+  private long maxMessageSize;
 
   /**
    * Default constructor.
@@ -47,6 +53,7 @@ public class GrpcClientOptions {
     scheduleDeadlineAutomatically = DEFAULT_SCHEDULE_DEADLINE_AUTOMATICALLY;
     timeout = DEFAULT_TIMEOUT;
     timeoutUnit = DEFAULT_TIMEOUT_UNIT;
+    this.maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
   }
 
   /**
@@ -58,6 +65,7 @@ public class GrpcClientOptions {
     scheduleDeadlineAutomatically = other.scheduleDeadlineAutomatically;
     timeout = other.timeout;
     timeoutUnit = other.timeoutUnit;
+    maxMessageSize = other.maxMessageSize;
   }
 
   /**
@@ -125,6 +133,29 @@ public class GrpcClientOptions {
    */
   public GrpcClientOptions setTimeoutUnit(TimeUnit timeoutUnit) {
     this.timeoutUnit = Objects.requireNonNull(timeoutUnit);
+    return this;
+  }
+
+  /**
+   * @return the maximum message size in bytes accepted by the client
+   */
+  public long getMaxMessageSize() {
+    return maxMessageSize;
+  }
+
+  /**
+   * Set the maximum message size in bytes accepted from a server, the maximum value is {@code 0xFFFFFFFF}
+   * @param maxMessageSize the size
+   * @return a reference to this, so the API can be used fluently
+   */
+  public GrpcClientOptions setMaxMessageSize(long maxMessageSize) {
+    if (maxMessageSize <= 0) {
+      throw new IllegalArgumentException("Max message size must be > 0");
+    }
+    if (maxMessageSize > 0xFFFFFFFFL) {
+      throw new IllegalArgumentException("Max message size must be <= 0xFFFFFFFF");
+    }
+    this.maxMessageSize = maxMessageSize;
     return this;
   }
 }

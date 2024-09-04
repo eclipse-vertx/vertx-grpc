@@ -143,6 +143,7 @@ public class GrpcServerImpl implements GrpcServer {
       options.getScheduleDeadlineAutomatically(),
       protocol,
       format,
+      options.getMaxMessageSize(),
       httpRequest,
       messageDecoder,
       messageEncoder,
@@ -152,6 +153,13 @@ public class GrpcServerImpl implements GrpcServer {
       context.putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
     }
     grpcRequest.init(grpcRequest.response);
+    grpcRequest.invalidMessageHandler(invalidMsg -> {
+      if (invalidMsg instanceof MessageSizeOverflowException) {
+        grpcRequest.response().status(GrpcStatus.RESOURCE_EXHAUSTED).end();
+      } else {
+        grpcRequest.response.cancel();
+      }
+    });
     context.dispatch(grpcRequest, handler);
   }
 
