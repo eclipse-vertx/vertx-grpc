@@ -20,9 +20,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.internal.buffer.VertxByteBufAllocator;
 import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
