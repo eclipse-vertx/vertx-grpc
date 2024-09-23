@@ -75,7 +75,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     this.maxMessageSize = maxMessageSize;
     this.stream = stream;
     this.format = format;
-    this.queue = new InboundMessageQueue<>(ctx.nettyEventLoop(), ctx, 8, 16) {
+    this.queue = new InboundMessageQueue<>(ctx.eventLoop(), ctx.executor(), 8, 16) {
       @Override
       protected void handleResume() {
         stream.resume();
