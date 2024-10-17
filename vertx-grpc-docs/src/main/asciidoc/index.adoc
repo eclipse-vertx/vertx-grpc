@@ -2,7 +2,7 @@
 
 The best description of gRPC can be seen at wikipedia.
 
-[quote, wikipedia, wikipedia]
+[quote, Wikipedia]
 ____
 gRPC is an open source remote procedure call (RPC) system initially developed at Google. It uses HTTP/2 for
 transport, Protocol Buffers as the interface description language, and provides features such as authentication,
