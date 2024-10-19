@@ -26,6 +26,8 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.common.GrpcReadStream;
+import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.test.fakestream.FakeStream;
@@ -166,7 +168,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public void streamingInputCall(ReadStream<Messages.StreamingInputCallRequest> request, Promise<Messages.StreamingInputCallResponse> response) {
+      public void streamingInputCall(GrpcReadStream<Messages.StreamingInputCallRequest> request, Promise<Messages.StreamingInputCallResponse> response) {
         List<Messages.StreamingInputCallRequest> list = new ArrayList<>();
         request.handler(list::add);
         request.endHandler($ -> {
@@ -208,7 +210,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public Future<Messages.StreamingInputCallResponse> streamingInputCall(ReadStream<Messages.StreamingInputCallRequest> request) {
+      public Future<Messages.StreamingInputCallResponse> streamingInputCall(GrpcReadStream<Messages.StreamingInputCallRequest> request) {
         Promise<Messages.StreamingInputCallResponse> promise = Promise.promise();
         List<Messages.StreamingInputCallRequest> list = new ArrayList<>();
         request.handler(list::add);
@@ -252,7 +254,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public Future<Messages.StreamingInputCallResponse> streamingInputCall(ReadStream<Messages.StreamingInputCallRequest> request) {
+      public Future<Messages.StreamingInputCallResponse> streamingInputCall(GrpcReadStream<Messages.StreamingInputCallRequest> request) {
         throw new RuntimeException("Simulated error");
       }
     }.bind_streamingInputCall(grpcServer);
@@ -287,7 +289,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public void streamingOutputCall(Messages.StreamingOutputCallRequest request, WriteStream<Messages.StreamingOutputCallResponse> response) {
+      public void streamingOutputCall(Messages.StreamingOutputCallRequest request, GrpcWriteStream<Messages.StreamingOutputCallResponse> response) {
         response.write(Messages.StreamingOutputCallResponse.newBuilder()
           .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
           .build());
@@ -402,7 +404,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public void fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request, WriteStream<Messages.StreamingOutputCallResponse> response) {
+      public void fullDuplexCall(GrpcReadStream<Messages.StreamingOutputCallRequest> request, GrpcWriteStream<Messages.StreamingOutputCallResponse> response) {
         request.endHandler($ -> {
           response.write(Messages.StreamingOutputCallResponse.newBuilder()
             .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
@@ -450,7 +452,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public ReadStream<Messages.StreamingOutputCallResponse> fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request) {
+      public ReadStream<Messages.StreamingOutputCallResponse> fullDuplexCall(GrpcReadStream<Messages.StreamingOutputCallRequest> request) {
         FakeStream<Messages.StreamingOutputCallResponse> response = new FakeStream<>();
         request.endHandler($ -> {
           response.write(Messages.StreamingOutputCallResponse.newBuilder()
@@ -500,7 +502,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     new VertxTestServiceGrpcServer.TestServiceApi() {
       @Override
-      public ReadStream<Messages.StreamingOutputCallResponse> fullDuplexCall(ReadStream<Messages.StreamingOutputCallRequest> request) {
+      public GrpcReadStream<Messages.StreamingOutputCallResponse> fullDuplexCall(GrpcReadStream<Messages.StreamingOutputCallRequest> request) {
         throw new RuntimeException("Simulated error");
       }
     }.bind_fullDuplexCall(grpcServer);

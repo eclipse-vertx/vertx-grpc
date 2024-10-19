@@ -11,6 +11,8 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.GrpcReadStream;
+import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
@@ -64,7 +66,7 @@ public class {{className}} {
 
 {{/unaryMethods}}
 {{#unaryManyMethods}}
-  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
+  public Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
     ServiceMethod<{{outputType}},{{inputType}}> serviceMethod;
     switch(wireFormat) {
       case PROTOBUF:
@@ -90,7 +92,7 @@ public class {{className}} {
 
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
-  public Future<{{outputType}}> {{vertxMethodName}}(Handler<WriteStream<{{inputType}}>> request) {
+  public Future<{{outputType}}> {{vertxMethodName}}(Handler<GrpcWriteStream<{{inputType}}>> request) {
     ServiceMethod<{{outputType}},{{inputType}}> serviceMethod;
     switch(wireFormat) {
       case PROTOBUF:
@@ -110,7 +112,7 @@ public class {{className}} {
 
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
-  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(Handler<WriteStream<{{inputType}}>> request) {
+  public Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}(Handler<GrpcWriteStream<{{inputType}}>> request) {
     ServiceMethod<{{outputType}},{{inputType}}> serviceMethod;
     switch(wireFormat) {
       case PROTOBUF:

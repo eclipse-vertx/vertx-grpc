@@ -9,6 +9,8 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.GrpcReadStream;
+import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -55,24 +57,24 @@ public class VertxStreamingGrpcServer  {
     public ReadStream<examples.Item> source(examples.Empty request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    public void source(examples.Empty request, WriteStream<examples.Item> response) {
+    public void source(examples.Empty request, GrpcWriteStream<examples.Item> response) {
       source(request)
         .handler(msg -> response.write(msg))
         .endHandler(msg -> response.end())
         .resume();
     }
-    public Future<examples.Empty> sink(ReadStream<examples.Item> request) {
+    public Future<examples.Empty> sink(GrpcReadStream<examples.Item> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    public void sink(ReadStream<examples.Item> request, Promise<examples.Empty> response) {
+    public void sink(GrpcReadStream<examples.Item> request, Promise<examples.Empty> response) {
       sink(request)
         .onSuccess(msg -> response.complete(msg))
         .onFailure(error -> response.fail(error));
     }
-    public ReadStream<examples.Item> pipe(ReadStream<examples.Item> request) {
+    public ReadStream<examples.Item> pipe(GrpcReadStream<examples.Item> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    public void pipe(ReadStream<examples.Item> request, WriteStream<examples.Item> response) {
+    public void pipe(GrpcReadStream<examples.Item> request, GrpcWriteStream<examples.Item> response) {
       pipe(request)
         .handler(msg -> response.write(msg))
         .endHandler(msg -> response.end())

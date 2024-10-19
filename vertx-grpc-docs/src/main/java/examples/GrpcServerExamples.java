@@ -261,7 +261,7 @@ public class GrpcServerExamples {
   public void streamingRequestStub(GrpcServer server) {
     VertxStreamingGrpcServer.StreamingApi stub = new VertxStreamingGrpcServer.StreamingApi() {
       @Override
-      public void sink(ReadStream<Item> stream, Promise<Empty> response) {
+      public void sink(GrpcReadStream<Item> stream, Promise<Empty> response) {
         stream.handler(item -> {
           System.out.println("Process item " + item.getValue());
         });
@@ -288,7 +288,7 @@ public class GrpcServerExamples {
   public void streamingResponseStub2() {
     VertxStreamingGrpcServer.StreamingApi stub = new VertxStreamingGrpcServer.StreamingApi() {
       @Override
-      public void source(Empty request, WriteStream<Item> response) {
+      public void source(Empty request, GrpcWriteStream<Item> response) {
         response.write(Item.newBuilder().setValue("value-1").build());
         response.end(Item.newBuilder().setValue("value-2").build());
       }

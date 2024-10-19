@@ -11,6 +11,8 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.GrpcReadStream;
+import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -50,7 +52,7 @@ public class {{className}}  {
     public ReadStream<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    public void {{vertxMethodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
+    public void {{vertxMethodName}}({{inputType}} request, GrpcWriteStream<{{outputType}}> response) {
       {{vertxMethodName}}(request)
         .handler(msg -> response.write(msg))
         .endHandler(msg -> response.end())
@@ -58,20 +60,20 @@ public class {{className}}  {
     }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
-    public Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
+    public Future<{{outputType}}> {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    public void {{vertxMethodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
+    public void {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
       {{vertxMethodName}}(request)
         .onSuccess(msg -> response.complete(msg))
         .onFailure(error -> response.fail(error));
     }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
-    public ReadStream<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
+    public ReadStream<{{outputType}}> {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request) {
       throw new UnsupportedOperationException("Not implemented");
     }
-    public void {{vertxMethodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
+    public void {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request, GrpcWriteStream<{{outputType}}> response) {
       {{vertxMethodName}}(request)
         .handler(msg -> response.write(msg))
         .endHandler(msg -> response.end())

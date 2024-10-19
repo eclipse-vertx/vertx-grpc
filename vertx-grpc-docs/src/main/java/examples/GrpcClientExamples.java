@@ -307,7 +307,7 @@ public class GrpcClientExamples {
   }
 
   public void streamingResponseStub(VertxStreamingGrpcClient client) {
-    Future<ReadStream<Item>> response = client.source(Empty.getDefaultInstance());
+    Future<GrpcReadStream<Item>> response = client.source(Empty.getDefaultInstance());
 
     response.onSuccess(stream -> stream
       .handler(item -> System.out.println("Item " + item.getValue()))
