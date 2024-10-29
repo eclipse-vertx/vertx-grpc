@@ -18,7 +18,6 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.compression.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.buffer.BufferInternal;
-import io.vertx.core.internal.buffer.VertxByteBufAllocator;
 import io.vertx.grpc.common.CodecException;
 
 import java.net.URLEncoder;
@@ -30,7 +29,7 @@ public class Utils {
 
   public static final Function<Buffer, Buffer> GZIP_DECODER = data -> {
     EmbeddedChannel channel = new EmbeddedChannel(ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP));
-    channel.config().setAllocator(VertxByteBufAllocator.UNPOOLED_ALLOCATOR);
+    channel.config().setAllocator(BufferInternal.buffer().getByteBuf().alloc());
     try {
       ChannelFuture fut = channel.writeOneInbound(((BufferInternal)data).getByteBuf());
       if (fut.isSuccess()) {
@@ -63,7 +62,7 @@ public class Utils {
     GzipOptions options = StandardCompressionOptions.gzip();
     ZlibEncoder encoder = ZlibCodecFactory.newZlibEncoder(ZlibWrapper.GZIP, options.compressionLevel(), options.windowBits(), options.memLevel());
     EmbeddedChannel channel = new EmbeddedChannel(encoder);
-    channel.config().setAllocator(VertxByteBufAllocator.UNPOOLED_ALLOCATOR);
+    channel.config().setAllocator(BufferInternal.buffer().getByteBuf().alloc());
     channel.writeOutbound(((BufferInternal) data).getByteBuf());
     channel.finish();
     Queue<Object> messages = channel.outboundMessages();
