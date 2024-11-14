@@ -11,6 +11,7 @@
 package io.vertx.grpc.client.impl;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.vertx.core.Expectation;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -18,6 +19,7 @@ import io.vertx.core.http.HttpClientResponse;
 
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.client.GrpcClientResponse;
+import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 
@@ -90,13 +92,16 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   @Override
   public Future<Void> end() {
     return super.end()
-      .compose(v -> {
-      if (status() == GrpcStatus.OK) {
-        return Future.succeededFuture();
-      } else {
-        return Future.failedFuture("Invalid gRPC status " + status);
-      }
-    });
+      .expecting(new Expectation<>() {
+        @Override
+        public boolean test(Void value) {
+          return status() == GrpcStatus.OK;
+        }
+        @Override
+        public Throwable describe(Void value) {
+          return new InvalidStatusException(GrpcStatus.OK, status());
+        }
+      });
   }
 
   @Override
