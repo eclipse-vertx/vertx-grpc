@@ -26,7 +26,9 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.GrpcReadStream;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.client.GrpcClient;
@@ -156,7 +158,9 @@ public class ProtocPluginTest extends ProxyTestBase {
         .setFillUsername(true)
         .build())
       .onComplete(should.asyncAssertFailure(err -> {
-        should.assertEquals("Invalid gRPC status 13", err.getMessage());
+        should.assertTrue(err instanceof InvalidStatusException);
+        InvalidStatusException ise = (InvalidStatusException) err;
+        should.assertEquals(GrpcStatus.INTERNAL, ise.actualStatus());
         test.complete();
       }));
     test.awaitSuccess();
@@ -277,7 +281,9 @@ public class ProtocPluginTest extends ProxyTestBase {
         req.end();
       })
       .onComplete(should.asyncAssertFailure(err -> {
-        should.assertEquals("Invalid gRPC status 13", err.getMessage());
+        should.assertTrue(err instanceof InvalidStatusException);
+        InvalidStatusException ise = (InvalidStatusException) err;
+        should.assertEquals(GrpcStatus.INTERNAL, ise.actualStatus());
         test.complete();
       }));
     test.awaitSuccess();

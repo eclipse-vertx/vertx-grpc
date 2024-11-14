@@ -32,6 +32,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
+import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
 import org.junit.Test;
 
@@ -126,7 +127,8 @@ public class ClientRequestTest extends ClientTest {
 
     super.testStatus(should);
 
-    Async test = should.async();
+    Async latch1 = should.async();
+    Async latch2 = should.async();
     client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), GREETER_SAY_HELLO)
       .onComplete(should.asyncAssertSuccess(callRequest -> {
@@ -137,8 +139,14 @@ public class ClientRequestTest extends ClientTest {
           callResponse.endHandler(v2 -> {
             should.assertEquals(GrpcStatus.UNAVAILABLE, callResponse.status());
             should.assertEquals("~Greeter temporarily unavailable...~", callResponse.statusMessage());
-            test.complete();
+            latch1.complete();
           });
+          callResponse.last().onComplete(should.asyncAssertFailure(err -> {
+            should.assertTrue(err instanceof InvalidStatusException);
+            should.assertEquals(GrpcStatus.OK, ((InvalidStatusException)err).expectedStatus());
+            should.assertEquals(GrpcStatus.UNAVAILABLE, ((InvalidStatusException)err).actualStatus());
+            latch2.complete();
+          }));
         }));
         callRequest.end(HelloRequest.newBuilder().setName("Julien").build());
       }));
