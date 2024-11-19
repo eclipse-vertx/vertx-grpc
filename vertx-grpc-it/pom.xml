@@ -14,14 +14,15 @@
   ~
   ~  You may elect to redistribute this code under either of these licenses.
   -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>io.vertx</groupId>
     <artifactId>vertx-grpc-aggregator</artifactId>
-    <version>4.4.4</version>
+    <version>4.5.11</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -42,11 +43,6 @@
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-grpc-server</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpc-jwt-auth</artifactId>
-      <version>${project.version}</version>
     </dependency>
 
     <dependency>
