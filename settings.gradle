@@ -1,0 +1,7 @@
+rootProject.name = 'vertx-grpc-aggregator'
+include 'vertx-grpc-common'
+include 'vertx-grpc-server'
+include 'vertx-grpc-client'
+include 'vertx-grpc-context-storage'
+include 'vertx-grpc-protoc-plugin2'
+include 'vertx-grpc-it'

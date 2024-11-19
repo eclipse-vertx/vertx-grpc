@@ -1,0 +1,13 @@
+plugins {
+  id 'java'
+}
+dependencies {
+  implementation project(':vertx-grpc-common')
+
+  testImplementation 'io.vertx:vertx-unit:4.5.11'
+  testImplementation project(':vertx-grpc-client')
+  testImplementation project(':vertx-grpc-server')
+  testImplementation('io.grpc:grpc-netty:1.68.1') {
+    exclude group: '*', module: '*'
+  }
+}

@@ -1,0 +1,19 @@
+dependencies {
+  implementation('com.salesforce.servicelibs:jprotoc:1.2.1') {
+    exclude group: 'javax.annotation', module: 'javax.annotation-api'
+  }
+}
+
+jar {
+  manifest {
+    attributes(
+      'Main-Class': 'io.vertx.grpc.plugin.VertxGrpcGenerator'
+    )
+  }
+
+  from {
+    configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+  }
+
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}

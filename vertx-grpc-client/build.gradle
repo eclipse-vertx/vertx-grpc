@@ -1,0 +1,21 @@
+plugins {
+  id 'java'
+}
+
+dependencies {
+  implementation project(':vertx-grpc-common')
+  implementation('io.grpc:grpc-stub:1.68.1') {
+    exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
+  }
+  implementation('io.grpc:grpc-api:1.68.1') {
+    exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
+    exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
+  }
+
+  testImplementation project(':vertx-grpc-common').sourceSets.test.output
+  testImplementation 'io.vertx:vertx-unit:4.5.11'
+  testImplementation 'org.bouncycastle:bcpkix-jdk15on:1.65'
+  testImplementation('io.grpc:grpc-netty:1.68.1') {
+    exclude group: '*', module: '*'
+  }
+}

@@ -1,0 +1,59 @@
+plugins {
+  id 'java'
+  id 'maven-publish'
+}
+
+allprojects {
+  group = 'io.vertx'
+  version = '4.5.11'
+
+  apply plugin: 'java'
+  apply plugin: 'maven-publish'
+
+  repositories {
+    mavenCentral()
+  }
+
+  java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+  }
+}
+
+subprojects {
+  dependencies {
+    implementation 'io.vertx:vertx-codegen:4.5.11'
+    implementation 'io.vertx:vertx-docgen:4.5.11'
+    testImplementation 'junit:junit:4.13.1'
+    testImplementation 'io.vertx:vertx-core:4.5.11:tests'
+  }
+
+  tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+  }
+}
+
+// vertx-grpc-server/build.gradle
+project(':vertx-grpc-server') {
+
+}
+
+// vertx-grpc-client/build.gradle
+project(':vertx-grpc-client') {
+
+}
+
+// vertx-grpc-context-storage/build.gradle
+project(':vertx-grpc-context-storage') {
+
+}
+
+// vertx-grpc-protoc-plugin2/build.gradle
+project(':vertx-grpc-protoc-plugin2') {
+
+}
+
+// vertx-grpc-it/build.gradle
+project(':vertx-grpc-it') {
+
+}
