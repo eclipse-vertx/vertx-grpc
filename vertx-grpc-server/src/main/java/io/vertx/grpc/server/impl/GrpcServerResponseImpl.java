@@ -90,9 +90,9 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
       requestEnded = fut.succeeded();
     }
     if (!requestEnded || !isTrailersSent()) {
-      if (httpResponse.reset(GrpcError.CANCELLED.http2ResetCode)) {
-        handleError(GrpcError.CANCELLED);
-      }
+      httpResponse
+        .reset(GrpcError.CANCELLED.http2ResetCode)
+        .onSuccess(v -> handleError(GrpcError.CANCELLED));
     }
   }
 

@@ -239,9 +239,9 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
         responseEnded = false;
       }
       if (!isTrailersSent() || !responseEnded) {
-        if (httpRequest.reset(GrpcError.CANCELLED.http2ResetCode)) {
-          handleError(GrpcError.CANCELLED);
-        }
+        httpRequest
+          .reset(GrpcError.CANCELLED.http2ResetCode)
+          .onSuccess(v -> handleError(GrpcError.CANCELLED));
       }
     });
   }
