@@ -246,12 +246,17 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     }
   }
 
-  protected void handleException(Throwable err) {
-    end.tryFail(err);
-    Handler<Throwable> handler = exceptionHandler;
-    if (handler != null) {
-      handler.handle(err);
+  public void tryFail(Throwable err) {
+    if (end.tryFail(err)) {
+      Handler<Throwable> handler = exceptionHandler;
+      if (handler != null) {
+        context.dispatch(err, handler);
+      }
     }
+  }
+
+  protected void handleException(Throwable err) {
+    tryFail(err);
   }
 
   protected void handleEnd() {
