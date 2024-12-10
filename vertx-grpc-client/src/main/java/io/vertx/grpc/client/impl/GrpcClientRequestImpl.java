@@ -88,6 +88,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
           grpcResponse.init(this);
           grpcResponse.invalidMessageHandler(invalidMsg -> {
             cancel();
+            grpcResponse.tryFail(invalidMsg);
           });
           return Future.succeededFuture(grpcResponse);
         }
