@@ -53,6 +53,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
       grpcResponse.init();
       grpcResponse.invalidMessageHandler(invalidMsg -> {
         cancel();
+        grpcResponse.tryFail(invalidMsg);
       });
       return grpcResponse;
     });

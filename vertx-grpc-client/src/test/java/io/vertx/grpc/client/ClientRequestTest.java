@@ -19,15 +19,13 @@ import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
-import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.StreamResetException;
+import io.vertx.core.Handler;
+import io.vertx.core.http.*;
 import io.vertx.core.net.SelfSignedCertificate;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.common.GrpcReadStream;
-import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.MessageSizeOverflowException;
+import io.vertx.grpc.common.*;
 import org.junit.Test;
 
 import java.io.File;
@@ -568,10 +566,91 @@ public class ClientRequestTest extends ClientTest {
   }
 
   @Test
-  public void testInvalidMessageHandlerStream(TestContext should) throws Exception {
-
+  public void testInvalidMessage(TestContext should) throws Exception {
     Async test = should.async();
+    testInvalidMessage(should, callResponse -> {
+      callResponse.exceptionHandler(err -> {
+        should.assertEquals(MessageSizeOverflowException.class, err.getClass());
+        test.complete();
+      });
+      callResponse.endHandler(v -> should.fail());
+    });
+    test.awaitSuccess(20_000);
+  }
 
+  @Test
+  public void testInvalidMessageHandler(TestContext should) throws Exception {
+    Async test = should.async();
+    testInvalidMessage(should, callResponse -> {
+      List<Object> received = new ArrayList<>();
+      callResponse.invalidMessageHandler(received::add);
+      callResponse.handler(msg -> should.fail());
+      callResponse.endHandler(v -> {
+        should.assertEquals(MessageSizeOverflowException.class, received.get(0).getClass());
+        test.complete();
+      });
+    });
+    test.awaitSuccess(20_000);
+  }
+
+  private void testInvalidMessage(TestContext should, Handler<GrpcClientResponse<HelloRequest, HelloReply>> responseHandler) throws Exception {
+    HelloReply reply = HelloReply.newBuilder().setMessage("Asmoranomardicadaistinaculdacar").build();
+
+    GreeterGrpc.GreeterImplBase called = new GreeterGrpc.GreeterImplBase() {
+      @Override
+      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+        responseObserver.onNext(reply);
+        responseObserver.onCompleted();
+      }
+    };
+    startServer(called);
+
+    GrpcClient client = GrpcClient.client(vertx, new GrpcClientOptions().setMaxMessageSize(reply.getSerializedSize() - 1));
+    client.request(SocketAddress.inetSocketAddress(port, "localhost"), GreeterGrpc.getSayHelloMethod())
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.response().onComplete(should.asyncAssertSuccess(responseHandler));
+        callRequest.end(HelloRequest.getDefaultInstance());
+      }));
+  }
+
+  @Test
+  public void testInvalidMessageStream(TestContext should) throws Exception {
+    Async test = should.async();
+    testInvalidMessageStream(should, callResponse -> {
+      List<Object> received = new ArrayList<>();
+      callResponse.handler(received::add);
+      callResponse.exceptionHandler(err -> {
+        should.assertEquals(Item.class, received.get(0).getClass());
+        should.assertEquals(MessageSizeOverflowException.class, err.getClass());
+        should.assertEquals(1, received.size());
+        test.complete();
+      });
+      callResponse.endHandler(v -> {
+        should.fail();
+      });
+    });
+    test.awaitSuccess(20_000);
+  }
+
+  @Test
+  public void testInvalidMessageHandlerStream(TestContext should) throws Exception {
+    Async test = should.async();
+    testInvalidMessageStream(should, callResponse -> {
+      List<Object> received = new ArrayList<>();
+      callResponse.invalidMessageHandler(received::add);
+      callResponse.handler(received::add);
+      callResponse.endHandler(v -> {
+        should.assertEquals(Item.class, received.get(0).getClass());
+        should.assertEquals(MessageSizeOverflowException.class, received.get(1).getClass());
+        should.assertEquals(Item.class, received.get(2).getClass());
+        should.assertEquals(3, received.size());
+        test.complete();
+      });
+    });
+    test.awaitSuccess(20_000);
+  }
+
+  public void testInvalidMessageStream(TestContext should, Handler<GrpcClientResponse<Empty, Item>> responseHandler) throws Exception {
     List<Item> items = Arrays.asList(
       Item.newBuilder().setValue("msg1").build(),
       Item.newBuilder().setValue("Asmoranomardicadaistinaculdacar").build(),
@@ -592,21 +671,8 @@ public class ClientRequestTest extends ClientTest {
     GrpcClient client = GrpcClient.client(vertx, new GrpcClientOptions().setMaxMessageSize(itemLen - 1));
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), StreamingGrpc.getSourceMethod())
       .onComplete(should.asyncAssertSuccess(callRequest -> {
-        callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
-          List<Object> received = new ArrayList<>();
-          callResponse.invalidMessageHandler(received::add);
-          callResponse.handler(received::add);
-          callResponse.endHandler(v -> {
-            should.assertEquals(Item.class, received.get(0).getClass());
-            should.assertEquals(MessageSizeOverflowException.class, received.get(1).getClass());
-            should.assertEquals(Item.class, received.get(2).getClass());
-            should.assertEquals(3, received.size());
-            test.complete();
-          });
-        }));
+        callRequest.response().onComplete(should.asyncAssertSuccess(responseHandler));
         callRequest.end(Empty.getDefaultInstance());
       }));
-
-    test.awaitSuccess(20_000);
   }
 }
