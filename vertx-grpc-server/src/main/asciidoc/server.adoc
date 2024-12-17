@@ -43,7 +43,7 @@ A `GrpcServer` can be used within a Vert.x Web router:
 
 [source,java]
 ----
-router.consumes("application/grpc").handler(rc -> grpcServer.handle(rc.request()));
+route.consumes("application/grpc").handler(rc -> grpcServer.handle(rc.request()));
 ----
 ====
 
