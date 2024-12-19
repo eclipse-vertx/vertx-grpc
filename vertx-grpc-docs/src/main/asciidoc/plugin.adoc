@@ -75,7 +75,13 @@ If you’re using Apache Maven you need to add the plugin:
 </plugin>
 ----
 
-The `${os.detected.classifier}` property is used to make the build OS independant, on OSX it is replaced
+[TIP]
+====
+With `io.vertx.grpc.plugin.VertxGrpcGenerator`, the plugin generates both the client and the server files.
+If you need only one side, use either `io.vertx.grpc.plugin.VertxGrpcClientGenerator` or `io.vertx.grpc.plugin.VertxGrpcServerGenerator`.
+====
+
+The `${os.detected.classifier}` property is used to make the build OS independent, on OSX it is replaced
 by _osx-x86_64_ and so on. To use it you need to add the os-maven-plugin[https://github.com/trustin/os-maven-plugin]
 in the `build` section of your `pom.xml`:
 
