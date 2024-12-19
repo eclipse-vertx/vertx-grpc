@@ -156,13 +156,13 @@ public class ContextStorageTest {
   @Test
   public void testNestedDuplicate(TestContext should) {
     Async async = should.async();
-    io.vertx.core.Context context = ((ContextInternal)vertx.getOrCreateContext()).duplicate();
+    io.vertx.core.internal.ContextInternal context = ((ContextInternal)vertx.getOrCreateContext()).duplicate();
     context.putLocal("local", "local-value-1");
     context.runOnContext(v1 -> {
       should.assertEquals("local-value-1", context.getLocal("local"));
       Context ctx1 = Context.ROOT.withValue(key1, "value-1");
       ctx1.run(() -> {
-        io.vertx.core.Context current = vertx.getOrCreateContext();
+        io.vertx.core.internal.ContextInternal current = (ContextInternal) vertx.getOrCreateContext();
         should.assertNotEquals(context, current);
         should.assertEquals("local-value-1", current.getLocal("local"));
         current.putLocal("local", "local-value-2");
