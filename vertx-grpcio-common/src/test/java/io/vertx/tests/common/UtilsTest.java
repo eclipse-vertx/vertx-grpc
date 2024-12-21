@@ -36,17 +36,32 @@ public class UtilsTest {
     headers.add("key0", "value2");
 
     Metadata metadata = Utils.readMetadata(headers);
-    assertEquals(metadata.keys().size(), 2);
+    assertEquals(2, metadata.keys().size());
 
     List<String> l = StreamSupport.stream(metadata.getAll(Metadata.Key.of("key0", Metadata.ASCII_STRING_MARSHALLER)).spliterator(), false)
       .collect(Collectors.toList());
-    assertEquals(l.size(), 2);
+    assertEquals(2, l.size());
     assertTrue(l.contains("value0"));
     assertTrue(l.contains("value2"));
 
     l = StreamSupport.stream(metadata.getAll(Metadata.Key.of("key1", Metadata.ASCII_STRING_MARSHALLER)).spliterator(), false)
       .collect(Collectors.toList());
-    assertEquals(l.size(), 1);
+    assertEquals(1, l.size());
     assertTrue(l.contains("value1"));
   }
+
+  @Test
+  public void lowercaseMetadata() {
+    MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+
+    headers.add("Authorization", "test");
+
+    Metadata metadata = Utils.readMetadata(headers);
+    assertEquals(1, metadata.keys().size());
+
+    String authorization = metadata.get(Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER));
+
+    assertEquals("test", authorization);
+  }
+
 }
