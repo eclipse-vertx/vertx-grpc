@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -57,7 +58,7 @@ public class Utils {
     byte[][] array = new byte[entries.size() * 2][];
     int idx = 0;
     for (Map.Entry<String, String> entry : entries) {
-      String key = entry.getKey();
+      String key = entry.getKey().toLowerCase(Locale.ROOT);
       array[idx++] = key.getBytes(StandardCharsets.UTF_8);
       String value = entry.getValue();
       byte[] data;
