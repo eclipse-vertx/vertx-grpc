@@ -19,6 +19,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.GrpcWriteStream;
+import io.vertx.grpc.common.WireFormat;
 
 @VertxGen
 public interface GrpcServerResponse<Req, Resp> extends GrpcWriteStream<Resp> {
@@ -43,6 +44,9 @@ public interface GrpcServerResponse<Req, Resp> extends GrpcWriteStream<Resp> {
 
   @Fluent
   GrpcServerResponse<Req, Resp> encoding(String encoding);
+
+  @Fluent
+  GrpcServerResponse<Req, Resp> format(WireFormat format);
 
   /**
    * @return the {@link MultiMap} to write metadata trailers
