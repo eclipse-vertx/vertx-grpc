@@ -21,6 +21,8 @@ import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
+import io.vertx.core.json.DecodeException;
+import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
@@ -28,8 +30,11 @@ import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.transcoding.HttpVariableBinding;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -71,6 +76,8 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   private static final BufferInternal EMPTY_BUFFER = BufferInternal.buffer(Unpooled.EMPTY_BUFFER);
 
   final HttpServerRequest httpRequest;
+  final String transcodingRequestBody;
+  final List<HttpVariableBinding> bindings;
   final GrpcServerResponseImpl<Req, Resp> response;
   final long timeout;
   final boolean scheduleDeadline;
@@ -80,14 +87,17 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   private Timer deadline;
 
   public GrpcServerRequestImpl(io.vertx.core.internal.ContextInternal context,
-                               boolean scheduleDeadline,
-                               GrpcProtocol protocol,
-                               WireFormat format,
-                               long maxMessageSize,
-                               HttpServerRequest httpRequest,
-                               GrpcMessageDecoder<Req> messageDecoder,
-                               GrpcMessageEncoder<Resp> messageEncoder,
-                               GrpcMethodCall methodCall) {
+    boolean scheduleDeadline,
+    GrpcProtocol protocol,
+    WireFormat format,
+    long maxMessageSize,
+    HttpServerRequest httpRequest,
+    String transcodingRequestBody,
+    String transcodingResponseBody,
+    List<HttpVariableBinding> bindings,
+    GrpcMessageDecoder<Req> messageDecoder,
+    GrpcMessageEncoder<Resp> messageEncoder,
+    GrpcMethodCall methodCall) {
     super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, maxMessageSize, messageDecoder);
     String timeoutHeader = httpRequest.getHeader("grpc-timeout");
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
@@ -97,11 +107,14 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
       this,
       protocol,
       httpRequest.response(),
+      transcodingResponseBody,
       messageEncoder);
     response.init();
     this.protocol = protocol;
     this.timeout = timeout;
     this.httpRequest = httpRequest;
+    this.transcodingRequestBody = transcodingRequestBody;
+    this.bindings = bindings;
     this.response = response;
     this.methodCall = methodCall;
     this.scheduleDeadline = scheduleDeadline;
@@ -193,9 +206,25 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   @Override
   public void handle(Buffer chunk) {
     if (notGrpcWebText()) {
+      if (isTranscodable()) {
+        BufferInternal transcoded = (BufferInternal) mutateMessage(chunk, bindings);
+        if(transcoded == null) {
+          return;
+        }
+
+        Buffer prefixed = BufferInternal.buffer(transcoded.length() + 5);
+
+        prefixed.appendByte((byte) 0); // uncompressed flag
+        prefixed.appendInt(transcoded.length()); // content length
+        prefixed.appendBuffer(transcoded);
+
+        chunk = prefixed;
+      }
+
       super.handle(chunk);
       return;
     }
+
     if (grpcWebTextBuffer == EMPTY_BUFFER) {
       ByteBuf bbuf = ((BufferInternal) chunk).getByteBuf();
       if ((chunk.length() & 0b11) == 0) {
@@ -204,6 +233,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
       } else {
         grpcWebTextBuffer = BufferInternal.buffer(bbuf.copy());
       }
+
       return;
     }
     bufferAndDecode(chunk);
@@ -211,6 +241,61 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
 
   private boolean notGrpcWebText() {
     return grpcWebTextBuffer == null;
+  }
+
+  public boolean isTranscodable() {
+    return (httpRequest.version() == HttpVersion.HTTP_1_0 || httpRequest.version() == HttpVersion.HTTP_1_1) && GrpcProtocol.HTTP_1.mediaType()
+      .equals(httpRequest.getHeader(CONTENT_TYPE));
+  }
+
+  private Buffer mutateMessage(Buffer message, List<HttpVariableBinding> bindings) {
+    if (bindings.isEmpty() && transcodingRequestBody == null) {
+      return message;
+    }
+    BufferInternal buffer = BufferInternal.buffer();
+
+    try {
+      JsonObject json = new JsonObject(message.toString());
+
+      // Handle bindings
+      for (HttpVariableBinding binding : bindings) {
+        JsonObject parent = json;
+        List<String> fieldPath = binding.getFieldPath();
+        for (int i = 0; i < fieldPath.size() - 1; i++) {
+          String fieldName = fieldPath.get(i);
+          if (!parent.containsKey(fieldName)) {
+            parent.put(fieldName, new JsonObject());
+          }
+          parent = parent.getJsonObject(fieldName);
+        }
+        parent.put(fieldPath.get(fieldPath.size() - 1), binding.getValue());
+      }
+
+      if (transcodingRequestBody != null && !transcodingRequestBody.isEmpty()) {
+        if (transcodingRequestBody.equals("*")) {
+          // If transcodingRequestBody is "*", merge the entire message into the root
+          json = json.mergeIn(new JsonObject(message.toString()));
+        } else {
+          JsonObject parent = json;
+          String[] path = transcodingRequestBody.split("\\.");
+          for (int i = 0; i < path.length - 1; i++) {
+            String fieldName = path[i];
+            if (!parent.containsKey(fieldName)) {
+              parent.put(fieldName, new JsonObject());
+            }
+            parent = parent.getJsonObject(fieldName);
+          }
+          parent.put(path[path.length - 1], new JsonObject(message.toString()));
+        }
+      }
+
+      buffer.appendString(json.encode());
+    } catch (DecodeException e) {
+      response.status(GrpcStatus.INTERNAL).statusMessage("Invalid JSON payload").end();
+      return null;
+    }
+
+    return buffer;
   }
 
   private void bufferAndDecode(Buffer chunk) {

@@ -12,8 +12,8 @@ package io.vertx.grpc.common.impl;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.buffer.BufferInternal;
-import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.WireFormat;
 
 import java.util.Objects;
 

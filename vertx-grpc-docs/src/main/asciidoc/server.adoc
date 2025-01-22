@@ -68,6 +68,12 @@ router.route("/com.mycompany.MyService/*").handler(corsHandler);
 ----
 ====
 
+==== gRPC Transcoding
+
+The Vert.x gRPC Server supports the gRPC transcoding. The transcoding is disabled by default.
+
+To enable the gRPC transcoding, configure options with {@link io.vertx.grpc.server.GrpcServerOptions#setGrpcTranscodingEnabled GrpcServerOptions#setGrpcTranscodingEnabled(true)} and then create a server with {@link io.vertx.grpc.server.GrpcServer#server(io.vertx.core.Vertx, io.vertx.grpc.server.GrpcServerOptions) GrpcServer#server(vertx, options)}.
+
 === Server request/response API
 
 The gRPC request/response server API provides an alternative way to interact with a client without the need of extending

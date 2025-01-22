@@ -256,6 +256,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
             break;
         }
       }
+
       sendHeaders(contentType, headers, end);
     }
     if (end) {

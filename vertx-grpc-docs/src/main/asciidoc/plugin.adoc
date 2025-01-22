@@ -184,3 +184,5 @@ Vert.x gRPC needs to know to interact with gRPC.
 - the message encoder
 
 They can be used to bind services or interact with a remote server.
+
+=== Generate transcoding definitions

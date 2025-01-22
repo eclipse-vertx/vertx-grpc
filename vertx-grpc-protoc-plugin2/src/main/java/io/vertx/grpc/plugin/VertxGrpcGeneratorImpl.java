@@ -10,6 +10,8 @@
  */
 package io.vertx.grpc.plugin;
 
+import com.google.api.AnnotationsProto;
+import com.google.api.HttpRule;
 import com.google.common.base.Strings;
 import com.google.common.html.HtmlEscapers;
 import com.google.protobuf.DescriptorProtos;
@@ -97,7 +99,8 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return Strings.nullToEmpty(proto.getPackage());
   }
 
-  private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int serviceNumber) {
+  private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations,
+    int serviceNumber) {
     ServiceContext serviceContext = new ServiceContext();
     // Set Later
     //serviceContext.fileName = CLASS_PREFIX + serviceProto.getName() + "Grpc.java";
@@ -127,12 +130,18 @@ public class VertxGrpcGeneratorImpl extends Generator {
         methodNumber
       );
 
+      if (methodContext.transcodingContext.path == null) {
+        methodContext.transcodingContext.method = "POST";
+        methodContext.transcodingContext.path = "/" + serviceProto.getName() + "/" + methodContext.methodName;
+      }
+
       serviceContext.methods.add(methodContext);
     }
     return serviceContext;
   }
 
-  private MethodContext buildMethodContext(DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int methodNumber) {
+  private MethodContext buildMethodContext(DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations,
+    int methodNumber) {
     MethodContext methodContext = new MethodContext();
     methodContext.methodName = methodProto.getName();
     methodContext.vertxMethodName = mixedLower(methodProto.getName());
@@ -142,6 +151,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     methodContext.isManyInput = methodProto.getClientStreaming();
     methodContext.isManyOutput = methodProto.getServerStreaming();
     methodContext.methodNumber = methodNumber;
+    methodContext.transcodingContext = new TranscodingContext();
 
     DescriptorProtos.SourceCodeInfo.Location methodLocation = locations.stream()
       .filter(location ->
@@ -168,7 +178,53 @@ public class VertxGrpcGeneratorImpl extends Generator {
       methodContext.vertxCallsMethodName = "manyToMany";
       methodContext.grpcCallsMethodName = "asyncBidiStreamingCall";
     }
+
+    if (methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
+      HttpRule httpRule = methodProto.getOptions().getExtension(AnnotationsProto.http);
+      methodContext.transcodingContext = buildTranscodingContext(httpRule);
+    }
+
     return methodContext;
+  }
+
+  private TranscodingContext buildTranscodingContext(HttpRule rule) {
+    TranscodingContext transcodingContext = new TranscodingContext();
+    switch (rule.getPatternCase()) {
+      case GET:
+        transcodingContext.path = rule.getGet();
+        transcodingContext.method = "GET";
+        break;
+      case POST:
+        transcodingContext.path = rule.getPost();
+        transcodingContext.method = "POST";
+        break;
+      case PUT:
+        transcodingContext.path = rule.getPut();
+        transcodingContext.method = "PUT";
+        break;
+      case DELETE:
+        transcodingContext.path = rule.getDelete();
+        transcodingContext.method = "DELETE";
+        break;
+      case PATCH:
+        transcodingContext.path = rule.getPatch();
+        transcodingContext.method = "PATCH";
+        break;
+      case CUSTOM:
+        transcodingContext.path = rule.getCustom().getPath();
+        transcodingContext.method = rule.getCustom().getKind();
+        break;
+    }
+
+    transcodingContext.selector = rule.getSelector();
+    transcodingContext.body = rule.getBody();
+    transcodingContext.responseBody = rule.getResponseBody();
+
+    transcodingContext.additionalBindings = rule.getAdditionalBindingsList().stream()
+      .map(this::buildTranscodingContext)
+      .collect(Collectors.toList());
+
+    return transcodingContext;
   }
 
   // java keywords from: https://docs.oracle.com/javase/specs/jls/se8/html/jls-3.html#jls-3.9
@@ -229,9 +285,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
   );
 
   /**
-   * Adjust a method name prefix identifier to follow the JavaBean spec:
-   * - decapitalize the first letter
-   * - remove embedded underscores & capitalize the following letter
+   * Adjust a method name prefix identifier to follow the JavaBean spec: - decapitalize the first letter - remove embedded underscores & capitalize the following letter
    * <p>
    * Finally, if the result is a reserved java keyword, append an underscore.
    *
@@ -390,6 +444,8 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public int methodNumber;
     public String javaDoc;
 
+    public TranscodingContext transcodingContext;
+
     // This method mimics the upper-casing method ogf gRPC to ensure compatibility
     // See https://github.com/grpc/grpc-java/blob/v1.8.0/compiler/src/java_plugin/cpp/java_generator.cpp#L58
     public String methodNameUpperUnderscore() {
@@ -420,5 +476,14 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
       return mh;
     }
+  }
+
+  private static class TranscodingContext {
+    public String path;
+    public String method;
+    public String selector;
+    public String body;
+    public String responseBody;
+    public List<TranscodingContext> additionalBindings = new ArrayList<>();
   }
 }

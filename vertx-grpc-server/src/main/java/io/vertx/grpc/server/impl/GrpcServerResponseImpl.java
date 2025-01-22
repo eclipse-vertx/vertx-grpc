@@ -18,6 +18,8 @@ import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.json.DecodeException;
+import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
@@ -35,6 +37,7 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
 
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
+  private final String transcodingResponseBody;
   private final GrpcProtocol protocol;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
@@ -43,13 +46,15 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
   private boolean cancelled;
 
   public GrpcServerResponseImpl(ContextInternal context,
-                                GrpcServerRequestImpl<Req, Resp> request,
-                                GrpcProtocol protocol,
-                                HttpServerResponse httpResponse,
-                                GrpcMessageEncoder<Resp> encoder) {
+    GrpcServerRequestImpl<Req, Resp> request,
+    GrpcProtocol protocol,
+    HttpServerResponse httpResponse,
+    String transcodingResponseBody,
+    GrpcMessageEncoder<Resp> encoder) {
     super(context, protocol.mediaType(), httpResponse, encoder);
     this.request = request;
     this.httpResponse = httpResponse;
+    this.transcodingResponseBody = transcodingResponseBody;
     this.protocol = protocol;
   }
 
@@ -152,7 +157,39 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
 
   @Override
   protected Future<Void> sendMessage(Buffer message, boolean compressed) {
+    if (request.isTranscodable()) {
+      return sendTranscodedMessage(message, compressed);
+    }
+
     return httpResponse.write(encodeMessage(message, compressed, false));
+  }
+
+  private Future<Void> sendTranscodedMessage(Buffer message, boolean compressed) {
+    try {
+      if (transcodingResponseBody != null && !transcodingResponseBody.isEmpty()) {
+        Object value = new JsonObject(message.toString());
+        if (!transcodingResponseBody.equals("*")) {
+          // Extract the value at the specified path
+          String[] path = transcodingResponseBody.split("\\.");
+          for (String field : path) {
+            if (value instanceof JsonObject) {
+              value = ((JsonObject) value).getValue(field);
+            } else {
+              // Handle the case where the path is invalid
+              throw new IllegalStateException("Invalid transcodingResponseBody path: " + transcodingResponseBody);
+            }
+          }
+        }
+        message = Buffer.buffer(value.toString());
+      }
+
+      BufferInternal transcoded = (BufferInternal) message;
+      httpResponse.putHeader("content-length", Integer.toString(message.length()));
+      httpResponse.putHeader("content-type", GrpcProtocol.HTTP_1.mediaType());
+      return httpResponse.write(transcoded);
+    } catch (DecodeException e) {
+      return Future.failedFuture(e);
+    }
   }
 
   protected Future<Void> sendEnd() {
@@ -165,6 +202,7 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
     if (protocol == GrpcProtocol.WEB_TEXT) {
       return BufferInternal.buffer(Base64.encode(buffer.getByteBuf(), false));
     }
+
     return buffer;
   }
 }
