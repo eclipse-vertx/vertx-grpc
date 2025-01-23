@@ -45,7 +45,7 @@ public class PathMatcherImpl implements PathMatcher {
       return null;
     }
 
-    PathMatcherNode.PathMatcherLookupResult result = PathMatcherUtility.lookupInPathMatcherNode(root, parts, httpMethod + verb);
+    PathMatcherNode.PathMatcherNodeLookupResult result = PathMatcherUtility.lookupInPathMatcherNode(root, parts, httpMethod + verb);
 
     if (result.getData() == null || result.isMultiple()) {
       return null;

@@ -14,7 +14,7 @@ public class PathMatcherNode {
   public static final String HTTP_WILD_CARD = "*";
 
   private final Map<String, PathMatcherNode> children = new HashMap<>();
-  private Map<String, PathMatcherLookupResult> results = new HashMap<>();
+  private Map<String, PathMatcherNodeLookupResult> results = new HashMap<>();
   private boolean wildcard;
 
   /**
@@ -32,7 +32,7 @@ public class PathMatcherNode {
    * @param method HTTP method to match
    * @param result Container for the lookup result
    */
-  public void lookupPath(List<String> path, int current, String method, PathMatcherLookupResult result) {
+  public void lookupPath(List<String> path, int current, String method, PathMatcherNodeLookupResult result) {
     while (true) {
       if (current == path.size()) {
         if (!getResultForHttpMethod(method, result)) {
@@ -80,7 +80,7 @@ public class PathMatcherNode {
 
   private boolean insertTemplate(List<String> path, int current, String method, Object data, boolean markDuplicates) {
     if (current == path.size()) {
-      PathMatcherLookupResult existing = results.putIfAbsent(method, new PathMatcherLookupResult(data, false));
+      PathMatcherNodeLookupResult existing = results.putIfAbsent(method, new PathMatcherNodeLookupResult(data, false));
       if (existing != null) {
         existing.data = data;
         if (markDuplicates) {
@@ -97,7 +97,7 @@ public class PathMatcherNode {
     return child.insertTemplate(path, current + 1, method, data, markDuplicates);
   }
 
-  private boolean lookupPathFromChild(String key, List<String> path, int current, String method, PathMatcherLookupResult result) {
+  private boolean lookupPathFromChild(String key, List<String> path, int current, String method, PathMatcherNodeLookupResult result) {
     PathMatcherNode child = children.get(key);
     if (child != null) {
       child.lookupPath(path, current + 1, method, result);
@@ -108,8 +108,8 @@ public class PathMatcherNode {
     return false;
   }
 
-  private boolean getResultForHttpMethod(String key, PathMatcherLookupResult result) {
-    PathMatcherLookupResult found = results.getOrDefault(key, results.get(HTTP_WILD_CARD));
+  private boolean getResultForHttpMethod(String key, PathMatcherNodeLookupResult result) {
+    PathMatcherNodeLookupResult found = results.getOrDefault(key, results.get(HTTP_WILD_CARD));
     if (found != null) {
       result.data = found.data;
       result.multiple = found.multiple;
@@ -136,11 +136,11 @@ public class PathMatcherNode {
   /**
    * Container class for path matching results.
    */
-  public static class PathMatcherLookupResult {
+  public static class PathMatcherNodeLookupResult {
     private Object data;
     private boolean multiple;
 
-    public PathMatcherLookupResult(Object data, boolean multiple) {
+    public PathMatcherNodeLookupResult(Object data, boolean multiple) {
       this.data = data;
       this.multiple = multiple;
     }

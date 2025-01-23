@@ -124,8 +124,8 @@ public class PathMatcherUtility {
     return "";
   }
 
-  protected static PathMatcherNode.PathMatcherLookupResult lookupInPathMatcherNode(PathMatcherNode root, List<String> parts, String httpMethod) {
-    PathMatcherNode.PathMatcherLookupResult result = new PathMatcherNode.PathMatcherLookupResult(null, false);
+  protected static PathMatcherNode.PathMatcherNodeLookupResult lookupInPathMatcherNode(PathMatcherNode root, List<String> parts, String httpMethod) {
+    PathMatcherNode.PathMatcherNodeLookupResult result = new PathMatcherNode.PathMatcherNodeLookupResult(null, false);
     root.lookupPath(parts, 0, httpMethod, result);
     return result;
   }

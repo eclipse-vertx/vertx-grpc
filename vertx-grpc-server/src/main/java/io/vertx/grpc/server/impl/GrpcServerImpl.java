@@ -104,19 +104,25 @@ public class GrpcServerImpl implements GrpcServer {
       httpRequest.response().setStatusCode(415).end();
       return;
     }
-    GrpcMethodCall methodCall = lookupMethod(httpRequest);
-    if (methodCall == null) {
-      log.trace("No method found for " + httpRequest.path());
-      httpRequest.response().setStatusCode(404).end();
-      return;
+
+    PathMatcherLookupResult pathMatcherLookupResult = null;
+    if (httpRequest.version() != HttpVersion.HTTP_2 && GrpcProtocol.HTTP_1.mediaType().equals(httpRequest.headers().get(CONTENT_TYPE))) {
+      for (PathMatcher pathMatcher : pathMatchers) {
+        pathMatcherLookupResult = pathMatcher.lookup(httpRequest.method().name(), httpRequest.path(), httpRequest.query());
+        if (pathMatcherLookupResult != null) {
+          break;
+        }
+      }
     }
 
+    GrpcMethodCall methodCall = lookupMethod(httpRequest, pathMatcherLookupResult);
     String fmn = methodCall.fullMethodName();
     List<MethodCallHandler<?, ?>> methods = methodCallHandlers.get(fmn);
+
     if (methods != null) {
       for (MethodCallHandler<?, ?> method : methods) {
         if (GrpcProtocol.HTTP_1 == protocol && protocol.mediaType().equals(httpRequest.headers().get(CONTENT_TYPE))) {
-          handle(method, httpRequest, methodCall);
+          handle(method, httpRequest, methodCall, pathMatcherLookupResult);
           return;
         }
 
@@ -156,24 +162,19 @@ public class GrpcServerImpl implements GrpcServer {
     return -1;
   }
 
-  private GrpcMethodCall lookupMethod(HttpServerRequest request) {
+  private GrpcMethodCall lookupMethod(HttpServerRequest request, PathMatcherLookupResult pathMatcherLookupResult) {
     if (request.version() == HttpVersion.HTTP_2) {
       return new GrpcMethodCall(request.path());
     }
 
-    if (GrpcProtocol.HTTP_1.mediaType().equals(request.headers().get(CONTENT_TYPE))) {
-      for (PathMatcher pathMatcher : pathMatchers) {
-        PathMatcherLookupResult result = pathMatcher.lookup(request.method().name(), request.path(), request.query());
-        if (result != null) {
-          return new GrpcMethodCall("/" + result.getMethod());
-        }
-      }
+    if (GrpcProtocol.HTTP_1.mediaType().equals(request.headers().get(CONTENT_TYPE)) && pathMatcherLookupResult != null) {
+      return new GrpcMethodCall("/" + pathMatcherLookupResult.getMethod());
     }
 
     return new GrpcMethodCall(request.path());
   }
 
-  private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest request, GrpcMethodCall methodCall) {
+  private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest request, GrpcMethodCall methodCall, PathMatcherLookupResult pathMatcherLookupResult) {
     if (request.version() == HttpVersion.HTTP_2) {
       return;
     }
@@ -184,13 +185,8 @@ public class GrpcServerImpl implements GrpcServer {
     }
 
     List<HttpVariableBinding> bindings = new ArrayList<>();
-
-    for (PathMatcher pathMatcher : pathMatchers) {
-      PathMatcherLookupResult result = pathMatcher.lookup(request.method().name(), request.path(), request.query());
-      if (result != null) {
-        bindings.addAll(result.getVariableBindings());
-        break;
-      }
+    if (request.version() != HttpVersion.HTTP_2 && GrpcProtocol.HTTP_1.mediaType().equals(request.getHeader(CONTENT_TYPE))) {
+      bindings.addAll(pathMatcherLookupResult.getVariableBindings());
     }
 
     ServiceTranscodingOptions transcodingOptions = this.transcodingOptions.get(methodCall.fullMethodName());
