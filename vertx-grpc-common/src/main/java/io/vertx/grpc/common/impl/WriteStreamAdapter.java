@@ -10,8 +10,8 @@
  */
 package io.vertx.grpc.common.impl;
 
-import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcWriteStream;
+import io.vertx.grpc.common.GrpcMessageEncoder;
 
 /**
  * An adapter between gRPC and Vert.x back-pressure.

@@ -19,8 +19,8 @@ import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.Json;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.json.JsonArray;
 
 import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
