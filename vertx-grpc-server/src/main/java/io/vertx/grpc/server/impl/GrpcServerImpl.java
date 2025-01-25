@@ -22,9 +22,8 @@ import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.transcoding.*;
-import io.vertx.grpc.transcoding.impl.PathMatcherBuilderImpl;
-import io.vertx.grpc.transcoding.impl.PathMatcherImpl;
-import io.vertx.grpc.transcoding.impl.PathMatcherUtility;
+import io.vertx.grpc.transcoding.PathMatcherBuilder;
+import io.vertx.grpc.transcoding.PathMatcherUtility;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
@@ -288,10 +287,10 @@ public class GrpcServerImpl implements GrpcServer {
     this.callHandler(serviceMethod, handler);
 
     if (!options.isGrpcTranscodingEnabled()) {
-      return this;
+      throw new IllegalStateException("gRPC transcoding is not enabled");
     }
 
-    PathMatcherBuilder pmb = new PathMatcherBuilderImpl();
+    PathMatcherBuilder pmb = new PathMatcherBuilder();
     PathMatcherUtility.registerByHttpRule(pmb, transcodingOptions, serviceMethod.fullMethodName());
 
     this.pathMatchers.add(pmb.build());

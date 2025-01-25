@@ -1,7 +1,6 @@
-package io.vertx.grpc.transcoding.impl;
+package io.vertx.grpc.transcoding;
 
 import com.google.common.base.Splitter;
-import io.vertx.grpc.transcoding.*;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -18,6 +17,10 @@ public class PathMatcherUtility {
 
   public static boolean registerByHttpRule(PathMatcherBuilder pmb, ServiceTranscodingOptions transcodingOptions, Set<String> systemQueryParameterNames, String method) {
     boolean ok = pmb.register(transcodingOptions, systemQueryParameterNames, method);
+
+    if (transcodingOptions.getAdditionalBindings() == null) {
+      return ok;
+    }
 
     for (ServiceTranscodingOptions binding : transcodingOptions.getAdditionalBindings()) {
       if (!ok) {
@@ -37,7 +40,7 @@ public class PathMatcherUtility {
     List<HttpVariableBinding> bindings = new ArrayList<>();
 
     for (HttpTemplateVariable var : vars) {
-      HttpVariableBinding binding = HttpVariableBinding.create(var.getFieldPath(), null);
+      HttpVariableBinding binding = new HttpVariableBinding(var.getFieldPath(), null);
       int end = var.getEndSegment() >= 0 ? var.getEndSegment() : parts.size() + var.getEndSegment() + 1;
       boolean multipart = (end - var.getStartSegment()) > 1 || var.getEndSegment() < 0;
       PercentEncoding.UrlUnescapeSpec spec = multipart ? unescapeSpec : PercentEncoding.UrlUnescapeSpec.ALL_CHARACTERS;
@@ -69,7 +72,7 @@ public class PathMatcherUtility {
       if (pos != 0 && pos != -1) {
         String name = param.substring(0, pos);
         if (!systemParams.contains(name)) {
-          HttpVariableBinding binding = HttpVariableBinding.create(Splitter.on('.').splitToList(name), PercentEncoding.urlUnescapeString(
+          HttpVariableBinding binding = new HttpVariableBinding(Splitter.on('.').splitToList(name), PercentEncoding.urlUnescapeString(
             param.substring(pos + 1),
             PercentEncoding.UrlUnescapeSpec.ALL_CHARACTERS,
             queryParamUnescapePlus));

@@ -1,8 +1,9 @@
 package io.vertx.grpc.transcoding;
 
-import io.vertx.codegen.annotations.VertxGen;
+import io.vertx.codegen.annotations.DataObject;
 import io.vertx.core.http.HttpMethod;
 
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -16,67 +17,25 @@ import java.util.List;
  *   <li>How to map the HTTP request/response bodies to gRPC messages</li>
  * </ul>
  */
-@VertxGen
-public interface ServiceTranscodingOptions {
+@DataObject
+public class ServiceTranscodingOptions {
 
-  /**
-   * Creates a new ServiceTranscodingOptions instance with all configuration options.
-   *
-   * @param selector The fully-qualified name of the gRPC method (e.g., "mypackage.MyService.MyMethod")
-   * @param httpMethod The HTTP method to match (GET, POST, etc.)
-   * @param path The URL path template with optional variables (e.g., "/v1/users/{user_id}")
-   * @param body The field path where the HTTP request body should be mapped in the gRPC request message
-   * @param responseBody The field path in the gRPC response message to use as the HTTP response body
-   * @param additionalBindings Additional HTTP bindings for the same gRPC method
-   * @return A new ServiceTranscodingOptions instance
-   */
-  static ServiceTranscodingOptions create(String selector, HttpMethod httpMethod, String path, String body, String responseBody,
-    List<ServiceTranscodingOptions> additionalBindings) {
-    return new ServiceTranscodingOptions() {
-      @Override
-      public String getSelector() {
-        return selector;
-      }
+  private final String selector;
+  private final HttpMethod httpMethod;
+  private final String path;
+  private final String body;
+  private final String responseBody;
+  private final List<ServiceTranscodingOptions> additionalBindings = new LinkedList<>();
 
-      @Override
-      public HttpMethod getHttpMethod() {
-        return httpMethod;
-      }
-
-      @Override
-      public String getPath() {
-        return path;
-      }
-
-      @Override
-      public String getBody() {
-        return body;
-      }
-
-      @Override
-      public String getResponseBody() {
-        return responseBody;
-      }
-
-      @Override
-      public List<ServiceTranscodingOptions> getAdditionalBindings() {
-        return additionalBindings == null ? List.of() : additionalBindings;
-      }
-    };
-  }
-
-  /**
-   * Creates a simple binding without additional bindings.
-   *
-   * @param selector The fully-qualified name of the gRPC method
-   * @param httpMethod The HTTP method to match
-   * @param path The URL path template
-   * @param body The request body field path
-   * @param responseBody The response body field path
-   * @return A new ServiceTranscodingOptions instance
-   */
-  static ServiceTranscodingOptions createBinding(String selector, HttpMethod httpMethod, String path, String body, String responseBody) {
-    return create(selector, httpMethod, path, body, responseBody, null);
+  public ServiceTranscodingOptions(String selector, HttpMethod httpMethod, String path, String body, String responseBody, List<ServiceTranscodingOptions> additionalBindings) {
+    this.selector = selector;
+    this.httpMethod = httpMethod;
+    this.path = path;
+    this.body = body;
+    this.responseBody = responseBody;
+    if (additionalBindings != null) {
+      this.additionalBindings.addAll(additionalBindings);
+    }
   }
 
   /**
@@ -84,29 +43,26 @@ public interface ServiceTranscodingOptions {
    *
    * @return The method selector string (e.g., "mypackage.MyService.MyMethod")
    */
-  String getSelector();
+  public String getSelector() {
+    return selector;
+  }
 
   /**
    * Gets the HTTP method that this binding should match.
    *
    * @return The HTTP method (GET, POST, etc.)
    */
-  HttpMethod getHttpMethod();
+  public HttpMethod getHttpMethod() {
+    return httpMethod;
+  }
 
   /**
    * Gets the URL path template for this binding.
    *
    * @return The path template string (e.g., "/v1/users/{user_id}")
    */
-  String getPath();
-
-  /**
-   * Parses the path template into a structured HttpTemplate object.
-   *
-   * @return An HttpTemplate instance representing the parsed path
-   */
-  default HttpTemplate getHttpTemplate() {
-    return HttpTemplate.parse(getPath());
+  public String getPath() {
+    return path;
   }
 
   /**
@@ -114,19 +70,25 @@ public interface ServiceTranscodingOptions {
    *
    * @return The body field path or null if no body mapping is needed
    */
-  String getBody();
+  public String getBody() {
+    return body;
+  }
 
   /**
    * Gets the field path in the gRPC response message to use as the HTTP response body.
    *
    * @return The response body field path or null if no response body mapping is needed
    */
-  String getResponseBody();
+  public String getResponseBody() {
+    return responseBody;
+  }
 
   /**
    * Gets additional HTTP bindings for the same gRPC method. This allows a single gRPC method to be exposed through multiple HTTP endpoints.
    *
    * @return A list of additional bindings, or an empty list if none exist
    */
-  List<ServiceTranscodingOptions> getAdditionalBindings();
+  public List<ServiceTranscodingOptions> getAdditionalBindings() {
+    return additionalBindings;
+  }
 }

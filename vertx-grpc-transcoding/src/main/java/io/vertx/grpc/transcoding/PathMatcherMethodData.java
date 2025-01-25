@@ -1,6 +1,4 @@
-package io.vertx.grpc.transcoding.impl;
-
-import io.vertx.grpc.transcoding.HttpTemplateVariable;
+package io.vertx.grpc.transcoding;
 
 import java.util.List;
 import java.util.Set;

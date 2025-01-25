@@ -33,7 +33,7 @@ public class VertxGreeterGrpcServer  {
     "SayHello",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()));
-  public static final ServiceTranscodingOptions SayHello_TRANSCODING = ServiceTranscodingOptions.create(
+  public static final ServiceTranscodingOptions SayHello_TRANSCODING = new ServiceTranscodingOptions(
     "",
     HttpMethod.valueOf("POST"),
     "/Greeter/SayHello",

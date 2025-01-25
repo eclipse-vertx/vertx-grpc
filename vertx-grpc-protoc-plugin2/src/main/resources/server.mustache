@@ -36,7 +36,7 @@ public class {{className}}  {
     "{{methodName}}",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()));
-  public static final ServiceTranscodingOptions {{methodName}}_TRANSCODING = ServiceTranscodingOptions.create(
+  public static final ServiceTranscodingOptions {{methodName}}_TRANSCODING = new ServiceTranscodingOptions(
     "{{transcodingContext.selector}}",
     HttpMethod.valueOf("{{transcodingContext.method}}"),
     "{{transcodingContext.path}}",
@@ -44,7 +44,7 @@ public class {{className}}  {
     "{{transcodingContext.responseBody}}",
     List.of(
     {{#transcodingContext.additionalBindings}}
-    ServiceTranscodingOptions.create("{{selector}}", HttpMethod.valueOf("{{method}}"), "{{path}}", "{{body}}", "{{responseBody}}"),
+    new ServiceTranscodingOptions("{{selector}}", HttpMethod.valueOf("{{method}}"), "{{path}}", "{{body}}", "{{responseBody}}"),
     {{/transcodingContext.additionalBindings}}
     ));
 {{/allMethods}}

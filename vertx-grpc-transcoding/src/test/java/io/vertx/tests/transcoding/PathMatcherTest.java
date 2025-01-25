@@ -2,8 +2,6 @@ package io.vertx.tests.transcoding;
 
 import io.vertx.core.http.HttpMethod;
 import io.vertx.grpc.transcoding.*;
-import io.vertx.grpc.transcoding.impl.PercentEncoding;
-import io.vertx.grpc.transcoding.impl.PathMatcherBuilderImpl;
 import org.junit.Test;
 
 import java.util.*;
@@ -12,13 +10,13 @@ import static org.junit.Assert.*;
 
 public class PathMatcherTest {
 
-  private final PathMatcherBuilder builder = new PathMatcherBuilderImpl();
+  private final PathMatcherBuilder builder = new PathMatcherBuilder();
   private PathMatcher matcher;
   private final List<String> storedMethods = new ArrayList<>();
 
   private String addPathWithBodyFieldPath(String httpMethod, String httpTemplate, String bodyFieldPath) {
     String method = "method_" + storedMethods.size();
-    ServiceTranscodingOptions transcodingOptions = ServiceTranscodingOptions.create("selector", HttpMethod.valueOf(httpMethod), httpTemplate, bodyFieldPath, "response", List.of());
+    ServiceTranscodingOptions transcodingOptions = new ServiceTranscodingOptions("selector", HttpMethod.valueOf(httpMethod), httpTemplate, bodyFieldPath, "response", List.of());
     assertTrue(builder.register(transcodingOptions, method));
     storedMethods.add(method);
     return method;
@@ -26,7 +24,7 @@ public class PathMatcherTest {
 
   private String addPathWithSystemParams(String httpMethod, String httpTemplate, Set<String> systemParams) {
     String method = "method_" + storedMethods.size();
-    ServiceTranscodingOptions transcodingOptions = ServiceTranscodingOptions.create("selector", HttpMethod.valueOf(httpMethod), httpTemplate, "", "response", List.of());
+    ServiceTranscodingOptions transcodingOptions = new ServiceTranscodingOptions("selector", HttpMethod.valueOf(httpMethod), httpTemplate, "", "response", List.of());
     assertTrue(builder.register(transcodingOptions, systemParams, method));
     storedMethods.add(method);
     return method;
@@ -84,8 +82,8 @@ public class PathMatcherTest {
     assertEquals(path, result.getMethod());
     assertVariableList(
       Arrays.asList(
-        HttpVariableBinding.create(Collections.singletonList("x"), "!#$&'()*+,/:;=?@[]"),
-        HttpVariableBinding.create(Collections.singletonList("y"), expectedComponent)
+        new HttpVariableBinding(Collections.singletonList("x"), "!#$&'()*+,/:;=?@[]"),
+        new HttpVariableBinding(Collections.singletonList("y"), expectedComponent)
       ), result.getVariableBindings());
   }
 
@@ -147,58 +145,58 @@ public class PathMatcherTest {
     PathMatcherLookupResult result = lookup("GET", "/a/book/c/d/e");
 
     assertEquals(pathACDE, result.getMethod());
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "book")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "book")), result.getVariableBindings());
 
     result = lookup("GET", "/a/hello/b/world/c");
 
     assertEquals(pathABC, result.getMethod());
     assertVariableList(Arrays.asList(
-        HttpVariableBinding.create(Collections.singletonList("x"), "a/hello"),
-        HttpVariableBinding.create(Collections.singletonList("y"), "world")),
+        new HttpVariableBinding(Collections.singletonList("x"), "a/hello"),
+        new HttpVariableBinding(Collections.singletonList("y"), "world")),
       result.getVariableBindings());
 
     result = lookup("GET", "/a/b/zoo/d/animal/tiger");
 
     assertEquals(pathABD, result.getMethod());
     assertVariableList(Arrays.asList(
-        HttpVariableBinding.create(Collections.singletonList("x"), "b/zoo"),
-        HttpVariableBinding.create(Collections.singletonList("y"), "d/animal/tiger")),
+        new HttpVariableBinding(Collections.singletonList("x"), "b/zoo"),
+        new HttpVariableBinding(Collections.singletonList("y"), "d/animal/tiger")),
       result.getVariableBindings());
 
     result = lookup("GET", "/alpha/dog/beta/eat/bones/gamma");
 
     assertEquals(pathAlphaBetaGamma, result.getMethod());
     assertVariableList(Arrays.asList(
-        HttpVariableBinding.create(Collections.singletonList("x"), "dog"),
-        HttpVariableBinding.create(Collections.singletonList("y"), "eat/bones")),
+        new HttpVariableBinding(Collections.singletonList("x"), "dog"),
+        new HttpVariableBinding(Collections.singletonList("y"), "eat/bones")),
       result.getVariableBindings());
 
     result = lookup("GET", "/foo/a");
 
     assertEquals(pathA, result.getMethod());
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "foo")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "foo")), result.getVariableBindings());
 
     result = lookup("GET", "/foo/bar/a/b");
 
     assertEquals(pathAB, result.getMethod());
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "foo/bar")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "foo/bar")), result.getVariableBindings());
 
     result = lookup("GET", "/a/b/foo");
 
     assertEquals(pathAB0, result.getMethod());
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "foo")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "foo")), result.getVariableBindings());
 
     result = lookup("GET", "/a/b/c/foo/bar/baz");
 
     assertEquals(pathABC0, result.getMethod());
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "foo/bar/baz")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "foo/bar/baz")), result.getVariableBindings());
 
     result = lookup("GET", "/foo/d/e/f/bar/baz");
 
     assertEquals(pathDEF, result.getMethod());
     assertVariableList(Arrays.asList(
-        HttpVariableBinding.create(Collections.singletonList("x"), "foo"),
-        HttpVariableBinding.create(Collections.singletonList("y"), "bar/baz")),
+        new HttpVariableBinding(Collections.singletonList("x"), "foo"),
+        new HttpVariableBinding(Collections.singletonList("y"), "bar/baz")),
       result.getVariableBindings());
   }
 
@@ -211,7 +209,7 @@ public class PathMatcherTest {
     PathMatcherLookupResult result = lookup("GET", "/a/p%20q%2Fr+/c");
     // Also test '+',  make sure it is not unescaped
     assertEquals(path, result.getMethod());
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "p q/r+")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "p q/r+")), result.getVariableBindings());
   }
 
   @Test
@@ -225,7 +223,7 @@ public class PathMatcherTest {
 
         PathMatcherLookupResult result = lookup("GET", path);
         assertEquals(getPath, result.getMethod());
-        assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), String.valueOf(c))), result.getVariableBindings());
+        assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), String.valueOf(c))), result.getVariableBindings());
       }
     }
   }
@@ -238,7 +236,7 @@ public class PathMatcherTest {
     PathMatcherLookupResult result = lookup("GET", "/a/p/foo%20foo/q/bar%2Fbar/c");
     assertEquals(path, result.getMethod());
     // space (%20) is escaped, but slash (%2F) isn't.
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "p/foo foo/q/bar%2Fbar")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "p/foo foo/q/bar%2Fbar")), result.getVariableBindings());
   }
 
   @Test
@@ -250,7 +248,7 @@ public class PathMatcherTest {
     // Also test '+',  make sure it is not unescaped
     assertEquals(path, result.getMethod());
     // space (%20) is unescaped, but slash (%2F) isn't. nor +
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "p/foo foo/q/bar%2Fbar+")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "p/foo foo/q/bar%2Fbar+")), result.getVariableBindings());
   }
 
   @Test
@@ -288,23 +286,23 @@ public class PathMatcherTest {
 
     // with the verb
     assertEquals(verb, result.getMethod());
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "person")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "person")), result.getVariableBindings());
 
     result = lookup("GET", "/person/jason:verb");
 
     assertEquals(verb, result.getMethod());
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "person/jason")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "person/jason")), result.getVariableBindings());
 
     // with the verb but with a different prefix
     result = lookup("GET", "/animal:verb");
 
     assertEquals(verb, result.getMethod());
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "animal")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "animal")), result.getVariableBindings());
 
     result = lookup("GET", "/animal/cat:verb");
 
     assertEquals(verb, result.getMethod());
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create(Collections.singletonList("x"), "animal/cat")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "animal/cat")), result.getVariableBindings());
 
     // without a verb
     assertEquals(listPerson, lookup("GET", "/person").getMethod());
@@ -318,7 +316,7 @@ public class PathMatcherTest {
     result = lookup("GET", "/person/jason:other");
 
     assertEquals(getPerson, result.getMethod());
-    assertVariableList(Collections.singletonList(HttpVariableBinding.create((Collections.singletonList("id")), "jason:other")), result.getVariableBindings());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding((Collections.singletonList("id")), "jason:other")), result.getVariableBindings());
 
     assertNull(lookup("GET", "/animal:other"));
     assertNull(lookup("GET", "/animal/cat:other"));

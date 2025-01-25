@@ -18,8 +18,8 @@ public class HttpTemplateTest {
     assertNotNull(template);
     assertEquals(Arrays.asList("shelves", "*", "books", "*"), template.getSegments());
     List<HttpTemplateVariable> expectedVariables = Arrays.asList(
-      HttpTemplateVariable.create(List.of("shelf"), 1, 2, false),
-      HttpTemplateVariable.create(List.of("book"), 3, 4, false)
+      new HttpTemplateVariable(List.of("shelf"), 1, 2, false),
+      new HttpTemplateVariable(List.of("book"), 3, 4, false)
     );
 
     assertVariableList(expectedVariables, template.getVariables());
@@ -95,7 +95,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "*"), template.getSegments());
     assertEquals("", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("a", "b", "c"), 1, 2, false)
+      new HttpTemplateVariable(List.of("a", "b", "c"), 1, 2, false)
     );
 
     assertVariableList(expectedVariables, template.getVariables());
@@ -108,7 +108,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "*"), template.getSegments());
     assertEquals("", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("a", "b", "c"), 1, 2, false)
+      new HttpTemplateVariable(List.of("a", "b", "c"), 1, 2, false)
     );
 
     assertVariableList(expectedVariables, template.getVariables());
@@ -121,7 +121,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "*"), template.getSegments());
     assertEquals("", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("b"), 1, 2, false)
+      new HttpTemplateVariable(List.of("b"), 1, 2, false)
     );
 
     assertVariableList(expectedVariables, template.getVariables());
@@ -134,7 +134,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "**"), template.getSegments());
     assertEquals("", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("b"), 1, -1, true)
+      new HttpTemplateVariable(List.of("b"), 1, -1, true)
     );
 
     assertVariableList(expectedVariables, template.getVariables());
@@ -147,7 +147,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "c", "*"), template.getSegments());
     assertEquals("", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("b"), 1, 3, false)
+      new HttpTemplateVariable(List.of("b"), 1, 3, false)
     );
 
     assertVariableList(expectedVariables, template.getVariables());
@@ -160,7 +160,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "c", "*", "d"), template.getSegments());
     assertEquals("", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("b"), 1, 4, false)
+      new HttpTemplateVariable(List.of("b"), 1, 4, false)
     );
 
     assertVariableList(expectedVariables, template.getVariables());
@@ -173,7 +173,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "c", "**"), template.getSegments());
     assertEquals("", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("b"), 1, -1, true)
+      new HttpTemplateVariable(List.of("b"), 1, -1, true)
     );
 
     assertVariableList(expectedVariables, template.getVariables());
@@ -186,7 +186,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "c", "**", "d", "e"), template.getSegments());
     assertEquals("", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("b"), 1, -3, true)
+      new HttpTemplateVariable(List.of("b"), 1, -3, true)
     );
 
     assertVariableList(expectedVariables, template.getVariables());
@@ -199,7 +199,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "c", "**", "d", "e"), template.getSegments());
     assertEquals("", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("b"), 1, -2, true)
+      new HttpTemplateVariable(List.of("b"), 1, -2, true)
     );
 
     assertVariableList(expectedVariables, template.getVariables());
@@ -212,7 +212,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "c", "**", "d", "e"), template.getSegments());
     assertEquals("verb", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("b"), 1, -2, true)
+      new HttpTemplateVariable(List.of("b"), 1, -2, true)
     );
 
     assertVariableList(expectedVariables, template.getVariables());
@@ -234,7 +234,7 @@ public class HttpTemplateTest {
     assertNotNull(template);
     assertEquals(List.of("*"), template.getSegments());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("a"), 0, 1, false)
+      new HttpTemplateVariable(List.of("a"), 0, 1, false)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -251,7 +251,7 @@ public class HttpTemplateTest {
     template = HttpTemplate.parse("/a/b/{a}:verb");
     assertNotNull(template);
     assertEquals(Arrays.asList("a", "b", "*"), template.getSegments());
-    expectedVariables = Collections.singletonList(HttpTemplateVariable.create(List.of("a"), 2, 3, false));
+    expectedVariables = Collections.singletonList(new HttpTemplateVariable(List.of("a"), 2, 3, false));
     assertVariableList(expectedVariables, template.getVariables());
   }
 
@@ -263,7 +263,7 @@ public class HttpTemplateTest {
     assertEquals(List.of("*"), template.getSegments());
     assertEquals("", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x"), 0, 1, false)
+      new HttpTemplateVariable(List.of("x"), 0, 1, false)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -273,7 +273,7 @@ public class HttpTemplateTest {
     assertEquals(List.of("*"), template.getSegments());
     assertEquals("", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x", "y", "z"), 0, 1, false)
+      new HttpTemplateVariable(List.of("x", "y", "z"), 0, 1, false)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -283,7 +283,7 @@ public class HttpTemplateTest {
     assertEquals(List.of("*"), template.getSegments());
     assertEquals("", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x"), 0, 1, false)
+      new HttpTemplateVariable(List.of("x"), 0, 1, false)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -293,7 +293,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "*"), template.getSegments());
     assertEquals("", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x"), 0, 2, false)
+      new HttpTemplateVariable(List.of("x"), 0, 2, false)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -303,7 +303,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("*", "a", "b", "c"), template.getSegments());
     assertEquals("", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x", "y", "z"), 0, 3, false)
+      new HttpTemplateVariable(List.of("x", "y", "z"), 0, 3, false)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -313,7 +313,7 @@ public class HttpTemplateTest {
     assertEquals(List.of("**"), template.getSegments());
     assertEquals("", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x"), 0, -1, true)
+      new HttpTemplateVariable(List.of("x"), 0, -1, true)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -323,7 +323,7 @@ public class HttpTemplateTest {
     assertEquals(List.of("**"), template.getSegments());
     assertEquals("", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x", "y", "z"), 0, -1, true)
+      new HttpTemplateVariable(List.of("x", "y", "z"), 0, -1, true)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -333,7 +333,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "**", "b"), template.getSegments());
     assertEquals("", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x", "y", "z"), 0, -1, true)
+      new HttpTemplateVariable(List.of("x", "y", "z"), 0, -1, true)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -343,7 +343,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "**", "b", "c", "d"), template.getSegments());
     assertEquals("", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x", "y", "z"), 0, -3, true)
+      new HttpTemplateVariable(List.of("x", "y", "z"), 0, -3, true)
     );
     assertVariableList(expectedVariables, template.getVariables());
   }
@@ -356,7 +356,7 @@ public class HttpTemplateTest {
     assertEquals(List.of("*"), template.getSegments());
     assertEquals("verb", template.getVerb());
     List<HttpTemplateVariable> expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x"), 0, 1, false)
+      new HttpTemplateVariable(List.of("x"), 0, 1, false)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -366,7 +366,7 @@ public class HttpTemplateTest {
     assertEquals(List.of("*"), template.getSegments());
     assertEquals("verb", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x", "y", "z"), 0, 1, false)
+      new HttpTemplateVariable(List.of("x", "y", "z"), 0, 1, false)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -376,7 +376,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("*", "*"), template.getSegments());
     assertEquals("verb", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x", "y", "z"), 0, 2, false)
+      new HttpTemplateVariable(List.of("x", "y", "z"), 0, 2, false)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -386,7 +386,7 @@ public class HttpTemplateTest {
     assertEquals(List.of("**"), template.getSegments());
     assertEquals("myverb", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x"), 0, -1, true)
+      new HttpTemplateVariable(List.of("x"), 0, -1, true)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -396,7 +396,7 @@ public class HttpTemplateTest {
     assertEquals(List.of("**"), template.getSegments());
     assertEquals("myverb", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x", "y", "z"), 0, -1, true)
+      new HttpTemplateVariable(List.of("x", "y", "z"), 0, -1, true)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -406,7 +406,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "**", "b"), template.getSegments());
     assertEquals("custom", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x", "y", "z"), 0, -1, true)
+      new HttpTemplateVariable(List.of("x", "y", "z"), 0, -1, true)
     );
     assertVariableList(expectedVariables, template.getVariables());
 
@@ -416,7 +416,7 @@ public class HttpTemplateTest {
     assertEquals(Arrays.asList("a", "**", "b", "c", "d"), template.getSegments());
     assertEquals("custom", template.getVerb());
     expectedVariables = Collections.singletonList(
-      HttpTemplateVariable.create(List.of("x", "y", "z"), 0, -3, true)
+      new HttpTemplateVariable(List.of("x", "y", "z"), 0, -3, true)
     );
     assertVariableList(expectedVariables, template.getVariables());
   }

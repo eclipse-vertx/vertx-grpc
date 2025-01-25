@@ -1,8 +1,6 @@
 package io.vertx.grpc.transcoding;
 
-import io.vertx.codegen.annotations.VertxGen;
-import io.vertx.grpc.transcoding.impl.HttpTemplateImpl;
-import io.vertx.grpc.transcoding.impl.HttpTemplateParser;
+import io.vertx.codegen.annotations.DataObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,46 +12,62 @@ import java.util.List;
  *
  * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/http_template.cc">grpc-httpjson-transcoding</a>
  */
-@VertxGen
-public interface HttpTemplate {
+@DataObject
+public class HttpTemplate {
 
-  /**
-   * Parses the given HTTP template string.
-   *
-   * @param template The HTTP template string to parse.
-   * @return The parsed {@code HttpTemplate}, or {@code null} if the parsing failed.
-   */
-  static HttpTemplate parse(String template) {
-    if (template.equals("/")) {
-      return new HttpTemplateImpl(new ArrayList<>(), "", new ArrayList<>());
+    private final List<String> segments;
+    private final String verb;
+    private final List<HttpTemplateVariable> variables;
+
+    public HttpTemplate(List<String> segments, String verb, List<HttpTemplateVariable> variables) {
+        this.segments = segments;
+        this.verb = verb;
+        this.variables = variables;
     }
 
-    HttpTemplateParser parser = new HttpTemplateParser(template);
-    if (!parser.parse() || !parser.validateParts()) {
-      return null;
+    /**
+     * Parses the given HTTP template string.
+     *
+     * @param template The HTTP template string to parse.
+     * @return The parsed {@code HttpTemplate}, or {@code null} if the parsing failed.
+     */
+    public static HttpTemplate parse(String template) {
+        if (template.equals("/")) {
+            return new HttpTemplate(new ArrayList<>(), "", new ArrayList<>());
+        }
+
+        HttpTemplateParser parser = new HttpTemplateParser(template);
+        if (!parser.parse() || !parser.validateParts()) {
+            return null;
+        }
+
+        return new HttpTemplate(parser.segments(), parser.verb(), parser.variables());
     }
 
-    return new HttpTemplateImpl(parser.segments(), parser.verb(), parser.variables());
-  }
+    /**
+     * Returns the list of segments in the parsed template.
+     *
+     * @return The list of segments.
+     */
+    public List<String> getSegments() {
+        return segments;
+    }
 
-  /**
-   * Returns the list of segments in the parsed template.
-   *
-   * @return The list of segments.
-   */
-  List<String> getSegments();
+    /**
+     * Returns the verb in the parsed template.
+     *
+     * @return The verb.
+     */
+    public String getVerb() {
+        return verb;
+    }
 
-  /**
-   * Returns the verb in the parsed template.
-   *
-   * @return The verb.
-   */
-  String getVerb();
-
-  /**
-   * Returns the list of variables in the parsed template.
-   *
-   * @return The list of variables.
-   */
-  List<HttpTemplateVariable> getVariables();
+    /**
+     * Returns the list of variables in the parsed template.
+     *
+     * @return The list of variables.
+     */
+    public List<HttpTemplateVariable> getVariables() {
+        return variables;
+    }
 }

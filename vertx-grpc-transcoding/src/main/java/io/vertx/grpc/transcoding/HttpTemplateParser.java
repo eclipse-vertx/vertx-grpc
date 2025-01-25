@@ -1,6 +1,4 @@
-package io.vertx.grpc.transcoding.impl;
-
-import io.vertx.grpc.transcoding.HttpTemplateVariable;
+package io.vertx.grpc.transcoding;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +13,7 @@ import java.util.List;
  * <ul>
  *   <li>verb: "get"</li>
  *   <li>segments: ["users", "{user_id=*}"]</li>
- *   <li>variables: [HttpTemplateVariableImpl{fieldPath=["user_id"], startSegment=1, endSegment=2, wildcardPath=true}]</li>
+ *   <li>variables: [HttpTemplateVariable{fieldPath=["user_id"], startSegment=1, endSegment=2, wildcardPath=true}]</li>
  * </ul>
  */
 public class HttpTemplateParser {
@@ -268,7 +266,7 @@ public class HttpTemplateParser {
 
   private boolean beginVariableParsing() {
     if (!parsingVariable) {
-      variables.add(new HttpTemplateVariableImpl());
+      variables.add(new HttpTemplateVariable());
       getCurrentVariable().setStartSegment(segments.size());
       getCurrentVariable().setWildcardPath(false);
       parsingVariable = true;

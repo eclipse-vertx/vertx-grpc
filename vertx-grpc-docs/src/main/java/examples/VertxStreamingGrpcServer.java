@@ -33,7 +33,7 @@ public class VertxStreamingGrpcServer  {
     "Source",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
-  public static final ServiceTranscodingOptions Source_TRANSCODING = ServiceTranscodingOptions.create(
+  public static final ServiceTranscodingOptions Source_TRANSCODING = new ServiceTranscodingOptions(
     "",
     HttpMethod.valueOf("POST"),
     "/Streaming/Source",
@@ -51,7 +51,7 @@ public class VertxStreamingGrpcServer  {
     "Sink",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
-  public static final ServiceTranscodingOptions Sink_TRANSCODING = ServiceTranscodingOptions.create(
+  public static final ServiceTranscodingOptions Sink_TRANSCODING = new ServiceTranscodingOptions(
     "",
     HttpMethod.valueOf("POST"),
     "/Streaming/Sink",
@@ -69,7 +69,7 @@ public class VertxStreamingGrpcServer  {
     "Pipe",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
-  public static final ServiceTranscodingOptions Pipe_TRANSCODING = ServiceTranscodingOptions.create(
+  public static final ServiceTranscodingOptions Pipe_TRANSCODING = new ServiceTranscodingOptions(
     "",
     HttpMethod.valueOf("POST"),
     "/Streaming/Pipe",

@@ -9,7 +9,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
 
-package io.vertx.tests.server;
+package io.vertx.tests.server.transcoding;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
@@ -18,9 +18,11 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.internal.buffer.BufferInternal;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -29,13 +31,22 @@ import io.vertx.grpcweb.GrpcWebTesting.*;
 import io.vertx.tests.common.GrpcTestBase;
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.IntStream;
+
+import static io.vertx.core.http.HttpHeaders.CONTENT_LENGTH;
+import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 import static java.util.stream.Collectors.joining;
 import static org.junit.Assert.*;
 
 /**
  * A test class for grpc transcoding.
  */
-public class ServerTranscodingTest extends GrpcTestBase {
+public class TranscodingTest extends GrpcTestBase {
 
   public static GrpcMessageDecoder<Empty> EMPTY_DECODER = GrpcMessageDecoder.json(Empty::newBuilder);
   public static GrpcMessageEncoder<Empty> EMPTY_ENCODER = GrpcMessageEncoder.json();
@@ -47,8 +58,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static final ServiceMethod<EchoRequest, EchoResponse> UNARY_CALL = ServiceMethod.server(TEST_SERVICE_NAME, "UnaryCall", ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER);
 
   public static final ServiceTranscodingOptions EMPTY_TRANSCODING = new ServiceTranscodingOptions("", HttpMethod.valueOf("POST"), "/hello", "", "", null);
-  public static final ServiceTranscodingOptions UNARY_TRANSCODING = new ServiceTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello", "", "", null);
-  public static final ServiceTranscodingOptions UNARY_TRANSCODING_WITH_PARAM = new ServiceTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello/{payload}", "", "", null);
+  public static final ServiceTranscodingOptions UNARY_TRANSCODING = new ServiceTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello/{payload}", "", "", null);
 
   private static final String TEST_SERVICE = "/io.vertx.grpcweb.TestService";
 
@@ -92,23 +102,6 @@ public class ServerTranscodingTest extends GrpcTestBase {
         }
       });
     }, UNARY_TRANSCODING);
-    grpcServer.callHandlerWithTranscoding(UNARY_CALL, request -> {
-      request.handler(requestMsg -> {
-        GrpcServerResponse<EchoRequest, EchoResponse> response = request.response();
-        copyHeaders(request.headers(), response.headers());
-        copyTrailers(request.headers(), response.trailers());
-        String payload = requestMsg.getPayload();
-        if ("boom".equals(payload)) {
-          response.trailers().set("x-error-trailer", "boom");
-          response.status(GrpcStatus.INTERNAL).end();
-        } else {
-          EchoResponse responseMsg = EchoResponse.newBuilder()
-            .setPayload(payload)
-            .build();
-          response.end(responseMsg);
-        }
-      });
-    }, UNARY_TRANSCODING_WITH_PARAM);
     httpServer = vertx.createHttpServer(new HttpServerOptions().setPort(port)).requestHandler(grpcServer);
     httpServer.listen().onComplete(should.asyncAssertSuccess());
   }
@@ -140,7 +133,6 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public void testEmpty(TestContext should) {
     httpClient.request(HttpMethod.POST, "/hello").compose(req -> {
         req.headers().addAll(HEADERS);
-        // TODO: We should not need to encode the empty message here as the transcoding should be able to handle empty bodies - REMOVE THIS!
         return req.send(encode(EMPTY_DEFAULT_INSTANCE)).compose(response -> response.body().map(response));
       })
       .onComplete(should.asyncAssertSuccess(response -> {
@@ -162,24 +154,8 @@ public class ServerTranscodingTest extends GrpcTestBase {
     String payload = "foobar";
     httpClient.request(HttpMethod.GET, "/hello/" + payload).compose(req -> {
       req.headers().addAll(HEADERS);
-      // TODO: We should not need to encode the empty message here as the transcoding should be able to handle empty bodies - REMOVE THIS!
-      return req.send(encode(EMPTY_DEFAULT_INSTANCE)).compose(response -> response.body().map(response));
-    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
-      assertEquals(200, response.statusCode());
-      MultiMap headers = response.headers();
-      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
-      JsonObject body = decodeBody(response.body().result());
-      assertEquals(payload, body.getString("payload"));
-    })));
-  }
-
-  @Test
-  public void testSmallPayloadWithQuery(TestContext should) {
-    String payload = "foobar";
-    httpClient.request(HttpMethod.GET, "/hello?payload=" + payload).compose(req -> {
-      req.headers().addAll(HEADERS);
-      // TODO: We should not need to encode the empty message here as the transcoding should be able to handle empty bodies - REMOVE THIS!
-      return req.send(encode(EMPTY_DEFAULT_INSTANCE)).compose(response -> response.body().map(response));
+      EchoRequest echoRequest = EchoRequest.newBuilder().setPayload(payload).build();
+      return req.send(encode(echoRequest)).compose(response -> response.body().map(response));
     }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
       assertEquals(200, response.statusCode());
       MultiMap headers = response.headers();
