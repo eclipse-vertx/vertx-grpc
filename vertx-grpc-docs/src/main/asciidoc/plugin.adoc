@@ -194,7 +194,7 @@ The plugin can also generate transcoding definitions for the gRPC services. For 
 
 Currently, the plugin supports generating transcoding definitions for the gRPC services via https://github.com/googleapis/api-common-protos/blob/main/google/api/http.proto[http.proto]. This feature is enabled by default.
 
-[WARN]
+[WARNING]
 ====
 The plugin generates the transcoding definitions even if the definitions are not defined and by default schema for
 the transcoding for each method which does not have a definition is of http method `POST` and the path is in the format
