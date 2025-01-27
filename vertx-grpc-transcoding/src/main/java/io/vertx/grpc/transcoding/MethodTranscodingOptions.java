@@ -18,16 +18,16 @@ import java.util.List;
  * </ul>
  */
 @DataObject
-public class ServiceTranscodingOptions {
+public class MethodTranscodingOptions {
 
   private final String selector;
   private final HttpMethod httpMethod;
   private final String path;
   private final String body;
   private final String responseBody;
-  private final List<ServiceTranscodingOptions> additionalBindings = new LinkedList<>();
+  private final List<MethodTranscodingOptions> additionalBindings = new LinkedList<>();
 
-  public ServiceTranscodingOptions(String selector, HttpMethod httpMethod, String path, String body, String responseBody, List<ServiceTranscodingOptions> additionalBindings) {
+  public MethodTranscodingOptions(String selector, HttpMethod httpMethod, String path, String body, String responseBody, List<MethodTranscodingOptions> additionalBindings) {
     this.selector = selector;
     this.httpMethod = httpMethod;
     this.path = path;
@@ -88,7 +88,7 @@ public class ServiceTranscodingOptions {
    *
    * @return A list of additional bindings, or an empty list if none exist
    */
-  public List<ServiceTranscodingOptions> getAdditionalBindings() {
+  public List<MethodTranscodingOptions> getAdditionalBindings() {
     return additionalBindings;
   }
 }

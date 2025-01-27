@@ -11,18 +11,18 @@ import java.util.Set;
  * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/include/grpc_transcoding/path_matcher.h">grpc-httpjson-transcoding</a>
  */
 public class PathMatcherUtility {
-  public static boolean registerByHttpRule(PathMatcherBuilder pmb, ServiceTranscodingOptions transcodingOptions, String method) {
+  public static boolean registerByHttpRule(PathMatcherBuilder pmb, MethodTranscodingOptions transcodingOptions, String method) {
     return registerByHttpRule(pmb, transcodingOptions, new HashSet<>(), method);
   }
 
-  public static boolean registerByHttpRule(PathMatcherBuilder pmb, ServiceTranscodingOptions transcodingOptions, Set<String> systemQueryParameterNames, String method) {
+  public static boolean registerByHttpRule(PathMatcherBuilder pmb, MethodTranscodingOptions transcodingOptions, Set<String> systemQueryParameterNames, String method) {
     boolean ok = pmb.register(transcodingOptions, systemQueryParameterNames, method);
 
     if (transcodingOptions.getAdditionalBindings() == null) {
       return ok;
     }
 
-    for (ServiceTranscodingOptions binding : transcodingOptions.getAdditionalBindings()) {
+    for (MethodTranscodingOptions binding : transcodingOptions.getAdditionalBindings()) {
       if (!ok) {
         return ok;
       }

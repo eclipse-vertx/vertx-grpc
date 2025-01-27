@@ -132,7 +132,11 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
       if (methodContext.transcodingContext.path == null) {
         methodContext.transcodingContext.method = "POST";
-        methodContext.transcodingContext.path = "/" + serviceProto.getName() + "/" + methodContext.methodName;
+        if (serviceContext.packageName == null || serviceContext.packageName.isEmpty()) {
+          methodContext.transcodingContext.path = "/" + serviceContext.serviceName + "/" + methodContext.methodName;
+        } else {
+          methodContext.transcodingContext.path = "/" + serviceContext.packageName + "/" + serviceContext.serviceName + "/" + methodContext.methodName;
+        }
       }
 
       serviceContext.methods.add(methodContext);

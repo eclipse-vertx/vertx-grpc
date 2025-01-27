@@ -16,7 +16,7 @@ public class PathMatcherTest {
 
   private String addPathWithBodyFieldPath(String httpMethod, String httpTemplate, String bodyFieldPath) {
     String method = "method_" + storedMethods.size();
-    ServiceTranscodingOptions transcodingOptions = new ServiceTranscodingOptions("selector", HttpMethod.valueOf(httpMethod), httpTemplate, bodyFieldPath, "response", List.of());
+    MethodTranscodingOptions transcodingOptions = new MethodTranscodingOptions("selector", HttpMethod.valueOf(httpMethod), httpTemplate, bodyFieldPath, "response", List.of());
     assertTrue(builder.register(transcodingOptions, method));
     storedMethods.add(method);
     return method;
@@ -24,7 +24,7 @@ public class PathMatcherTest {
 
   private String addPathWithSystemParams(String httpMethod, String httpTemplate, Set<String> systemParams) {
     String method = "method_" + storedMethods.size();
-    ServiceTranscodingOptions transcodingOptions = new ServiceTranscodingOptions("selector", HttpMethod.valueOf(httpMethod), httpTemplate, "", "response", List.of());
+    MethodTranscodingOptions transcodingOptions = new MethodTranscodingOptions("selector", HttpMethod.valueOf(httpMethod), httpTemplate, "", "response", List.of());
     assertTrue(builder.register(transcodingOptions, systemParams, method));
     storedMethods.add(method);
     return method;

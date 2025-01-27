@@ -48,7 +48,7 @@ public class GrpcServerImpl implements GrpcServer {
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
   private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
   private final List<PathMatcher> pathMatchers = new ArrayList<>();
-  private final Map<String, ServiceTranscodingOptions> transcodingOptions = new HashMap<>();
+  private final Map<String, MethodTranscodingOptions> transcodingOptions = new HashMap<>();
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
@@ -188,7 +188,7 @@ public class GrpcServerImpl implements GrpcServer {
       bindings.addAll(pathMatcherLookupResult.getVariableBindings());
     }
 
-    ServiceTranscodingOptions transcodingOptions = this.transcodingOptions.get(methodCall.fullMethodName());
+    MethodTranscodingOptions transcodingOptions = this.transcodingOptions.get(methodCall.fullMethodName());
     if (transcodingOptions == null) {
       return;
     }
@@ -204,7 +204,7 @@ public class GrpcServerImpl implements GrpcServer {
     GrpcMethodCall methodCall,
     GrpcProtocol protocol,
     WireFormat format,
-    ServiceTranscodingOptions transcodingOptions,
+    MethodTranscodingOptions transcodingOptions,
     List<HttpVariableBinding> bindings,
     GrpcMessageDecoder<Req> messageDecoder,
     GrpcMessageEncoder<Resp> messageEncoder,
@@ -283,7 +283,7 @@ public class GrpcServerImpl implements GrpcServer {
 
   @Override
   public <Req, Resp> GrpcServer callHandlerWithTranscoding(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler,
-    ServiceTranscodingOptions transcodingOptions) {
+    MethodTranscodingOptions transcodingOptions) {
     this.callHandler(serviceMethod, handler);
 
     if (!options.isGrpcTranscodingEnabled()) {

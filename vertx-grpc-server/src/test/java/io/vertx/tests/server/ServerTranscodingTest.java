@@ -24,7 +24,7 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
-import io.vertx.grpc.transcoding.ServiceTranscodingOptions;
+import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 import io.vertx.grpcweb.GrpcWebTesting.*;
 import io.vertx.tests.common.GrpcTestBase;
 import org.junit.Test;
@@ -46,9 +46,9 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static final ServiceMethod<Empty, Empty> EMPTY_CALL = ServiceMethod.server(TEST_SERVICE_NAME, "EmptyCall", EMPTY_ENCODER, EMPTY_DECODER);
   public static final ServiceMethod<EchoRequest, EchoResponse> UNARY_CALL = ServiceMethod.server(TEST_SERVICE_NAME, "UnaryCall", ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER);
 
-  public static final ServiceTranscodingOptions EMPTY_TRANSCODING = new ServiceTranscodingOptions("", HttpMethod.valueOf("POST"), "/hello", "", "", null);
-  public static final ServiceTranscodingOptions UNARY_TRANSCODING = new ServiceTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello", "", "", null);
-  public static final ServiceTranscodingOptions UNARY_TRANSCODING_WITH_PARAM = new ServiceTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello/{payload}", "", "", null);
+  public static final MethodTranscodingOptions EMPTY_TRANSCODING = new MethodTranscodingOptions("", HttpMethod.valueOf("POST"), "/hello", "", "", null);
+  public static final MethodTranscodingOptions UNARY_TRANSCODING = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello", "", "", null);
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_PARAM = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello/{payload}", "", "", null);
 
   private static final String TEST_SERVICE = "/io.vertx.grpcweb.TestService";
 

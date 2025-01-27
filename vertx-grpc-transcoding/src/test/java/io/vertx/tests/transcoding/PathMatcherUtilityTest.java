@@ -1,10 +1,10 @@
 package io.vertx.tests.transcoding;
 
 import io.vertx.core.http.HttpMethod;
+import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 import io.vertx.grpc.transcoding.PathMatcher;
 import io.vertx.grpc.transcoding.PathMatcherBuilder;
 import io.vertx.grpc.transcoding.PathMatcherUtility;
-import io.vertx.grpc.transcoding.ServiceTranscodingOptions;
 import org.junit.Test;
 
 import java.util.*;
@@ -18,7 +18,7 @@ public class PathMatcherUtilityTest {
 
   @Test
   public void testNeverRegister() {
-    ServiceTranscodingOptions options = new ServiceTranscodingOptions("selector", HttpMethod.GET, "/path", "body", "response", Collections.emptyList());
+    MethodTranscodingOptions options = new MethodTranscodingOptions("selector", HttpMethod.GET, "/path", "body", "response", Collections.emptyList());
     PathMatcherBuilder pmb = new PathMatcherBuilder();
 
     assertTrue(PathMatcherUtility.registerByHttpRule(pmb, options, method1));
@@ -29,7 +29,7 @@ public class PathMatcherUtilityTest {
 
   @Test
   public void testRegisterGet() {
-    ServiceTranscodingOptions options = new ServiceTranscodingOptions("selector", HttpMethod.GET, "/path", "body", "response", Collections.emptyList());
+    MethodTranscodingOptions options = new MethodTranscodingOptions("selector", HttpMethod.GET, "/path", "body", "response", Collections.emptyList());
     PathMatcherBuilder pmb = new PathMatcherBuilder();
 
     assertTrue(PathMatcherUtility.registerByHttpRule(pmb, options, method1));
@@ -40,7 +40,7 @@ public class PathMatcherUtilityTest {
 
   @Test
   public void testRegisterPut() {
-    ServiceTranscodingOptions options = new ServiceTranscodingOptions("selector", HttpMethod.PUT, "/path", "body", "response", Collections.emptyList());
+    MethodTranscodingOptions options = new MethodTranscodingOptions("selector", HttpMethod.PUT, "/path", "body", "response", Collections.emptyList());
     PathMatcherBuilder pmb = new PathMatcherBuilder();
 
     assertTrue(PathMatcherUtility.registerByHttpRule(pmb, options, method1));
@@ -51,7 +51,7 @@ public class PathMatcherUtilityTest {
 
   @Test
   public void testRegisterPost() {
-    ServiceTranscodingOptions options = new ServiceTranscodingOptions("selector", HttpMethod.POST, "/path", "body", "response", Collections.emptyList());
+    MethodTranscodingOptions options = new MethodTranscodingOptions("selector", HttpMethod.POST, "/path", "body", "response", Collections.emptyList());
     PathMatcherBuilder pmb = new PathMatcherBuilder();
 
     assertTrue(PathMatcherUtility.registerByHttpRule(pmb, options, method1));
@@ -62,7 +62,7 @@ public class PathMatcherUtilityTest {
 
   @Test
   public void testRegisterDelete() {
-    ServiceTranscodingOptions options = new ServiceTranscodingOptions("selector", HttpMethod.DELETE, "/path", "body", "response", Collections.emptyList());
+    MethodTranscodingOptions options = new MethodTranscodingOptions("selector", HttpMethod.DELETE, "/path", "body", "response", Collections.emptyList());
     PathMatcherBuilder pmb = new PathMatcherBuilder();
 
     assertTrue(PathMatcherUtility.registerByHttpRule(pmb, options, method1));
@@ -73,7 +73,7 @@ public class PathMatcherUtilityTest {
 
   @Test
   public void testRegisterPatch() {
-    ServiceTranscodingOptions options = new ServiceTranscodingOptions("selector", HttpMethod.PATCH, "/path", "body", "response", Collections.emptyList());
+    MethodTranscodingOptions options = new MethodTranscodingOptions("selector", HttpMethod.PATCH, "/path", "body", "response", Collections.emptyList());
     PathMatcherBuilder pmb = new PathMatcherBuilder();
 
     assertTrue(PathMatcherUtility.registerByHttpRule(pmb, options, method1));
@@ -84,7 +84,7 @@ public class PathMatcherUtilityTest {
 
   @Test
   public void testRegisterCustom() {
-    ServiceTranscodingOptions options = new ServiceTranscodingOptions("selector", HttpMethod.OPTIONS, "/custom_path", "body", "response", Collections.emptyList());
+    MethodTranscodingOptions options = new MethodTranscodingOptions("selector", HttpMethod.OPTIONS, "/custom_path", "body", "response", Collections.emptyList());
     PathMatcherBuilder pmb = new PathMatcherBuilder();
 
     assertTrue(PathMatcherUtility.registerByHttpRule(pmb, options, method1));
@@ -95,16 +95,16 @@ public class PathMatcherUtilityTest {
 
   @Test
   public void testRegisterAdditionalBindings() {
-    ServiceTranscodingOptions options = new ServiceTranscodingOptions(
+    MethodTranscodingOptions options = new MethodTranscodingOptions(
       "selector",
       HttpMethod.GET,
       "/path",
       "body",
       "response",
       Arrays.asList(
-        new ServiceTranscodingOptions("selector", HttpMethod.OPTIONS, "/custom_path", "body1", "response", null),
-        new ServiceTranscodingOptions("selector", HttpMethod.HEAD, "/path", null, "response", null),
-        new ServiceTranscodingOptions("selector", HttpMethod.PUT, "/put_path", null, "response", null)
+        new MethodTranscodingOptions("selector", HttpMethod.OPTIONS, "/custom_path", "body1", "response", null),
+        new MethodTranscodingOptions("selector", HttpMethod.HEAD, "/path", null, "response", null),
+        new MethodTranscodingOptions("selector", HttpMethod.PUT, "/put_path", null, "response", null)
       )
     );
 
@@ -118,7 +118,7 @@ public class PathMatcherUtilityTest {
 
   @Test
   public void testRegisterRootPath() {
-    ServiceTranscodingOptions options = new ServiceTranscodingOptions("selector", HttpMethod.GET, "/", "body", "response", Collections.emptyList());
+    MethodTranscodingOptions options = new MethodTranscodingOptions("selector", HttpMethod.GET, "/", "body", "response", Collections.emptyList());
     PathMatcherBuilder pmb = new PathMatcherBuilder();
 
     assertTrue(PathMatcherUtility.registerByHttpRule(pmb, options, method1));

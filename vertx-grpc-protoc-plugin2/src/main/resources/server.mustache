@@ -16,7 +16,7 @@ import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.transcoding.ServiceTranscodingOptions;
+import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServer;
 
@@ -36,7 +36,7 @@ public class {{className}}  {
     "{{methodName}}",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()));
-  public static final ServiceTranscodingOptions {{methodName}}_TRANSCODING = new ServiceTranscodingOptions(
+  public static final MethodTranscodingOptions {{methodName}}_TRANSCODING = new MethodTranscodingOptions(
     "{{transcodingContext.selector}}",
     HttpMethod.valueOf("{{transcodingContext.method}}"),
     "{{transcodingContext.path}}",
@@ -44,7 +44,7 @@ public class {{className}}  {
     "{{transcodingContext.responseBody}}",
     List.of(
     {{#transcodingContext.additionalBindings}}
-    new ServiceTranscodingOptions("{{selector}}", HttpMethod.valueOf("{{method}}"), "{{path}}", "{{body}}", "{{responseBody}}"),
+    new MethodTranscodingOptions("{{selector}}", HttpMethod.valueOf("{{method}}"), "{{path}}", "{{body}}", "{{responseBody}}"),
     {{/transcodingContext.additionalBindings}}
     ));
 {{/allMethods}}

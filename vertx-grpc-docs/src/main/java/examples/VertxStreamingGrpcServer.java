@@ -14,7 +14,7 @@ import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.transcoding.ServiceTranscodingOptions;
+import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServer;
 
@@ -33,7 +33,7 @@ public class VertxStreamingGrpcServer  {
     "Source",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
-  public static final ServiceTranscodingOptions Source_TRANSCODING = new ServiceTranscodingOptions(
+  public static final MethodTranscodingOptions Source_TRANSCODING = new MethodTranscodingOptions(
     "",
     HttpMethod.valueOf("POST"),
     "/Streaming/Source",
@@ -51,7 +51,7 @@ public class VertxStreamingGrpcServer  {
     "Sink",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
-  public static final ServiceTranscodingOptions Sink_TRANSCODING = new ServiceTranscodingOptions(
+  public static final MethodTranscodingOptions Sink_TRANSCODING = new MethodTranscodingOptions(
     "",
     HttpMethod.valueOf("POST"),
     "/Streaming/Sink",
@@ -69,7 +69,7 @@ public class VertxStreamingGrpcServer  {
     "Pipe",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
-  public static final ServiceTranscodingOptions Pipe_TRANSCODING = new ServiceTranscodingOptions(
+  public static final MethodTranscodingOptions Pipe_TRANSCODING = new MethodTranscodingOptions(
     "",
     HttpMethod.valueOf("POST"),
     "/Streaming/Pipe",

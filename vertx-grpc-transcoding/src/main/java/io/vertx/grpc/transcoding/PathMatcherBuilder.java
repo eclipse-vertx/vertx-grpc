@@ -27,7 +27,7 @@ public class PathMatcherBuilder {
    * @param method the gRPC method name to associate with this pattern
    * @return true if registration was successful, false otherwise
    */
-  public boolean register(ServiceTranscodingOptions transcoding, Set<String> queryParameterNames, String method) {
+  public boolean register(MethodTranscodingOptions transcoding, Set<String> queryParameterNames, String method) {
     HttpTemplate ht = HttpTemplate.parse(transcoding.getPath());
     if (ht == null) {
       return false;
@@ -61,7 +61,7 @@ public class PathMatcherBuilder {
    * @param method the gRPC method name to associate with this pattern
    * @return true if registration was successful, false otherwise
    */
-  public boolean register(ServiceTranscodingOptions transcodingOptions, String method) {
+  public boolean register(MethodTranscodingOptions transcodingOptions, String method) {
     return register(transcodingOptions, new HashSet<>(), method);
   }
 
