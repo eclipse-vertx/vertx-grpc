@@ -26,6 +26,7 @@ import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.transcoding.MessageWeaver;
 
 import java.util.Map;
 import java.util.Objects;
@@ -158,38 +159,17 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
   @Override
   protected Future<Void> sendMessage(Buffer message, boolean compressed) {
     if (request.isTranscodable()) {
-      return sendTranscodedMessage(message, compressed);
+      return sendTranscodedMessage(message);
     }
 
     return httpResponse.write(encodeMessage(message, compressed, false));
   }
 
-  private Future<Void> sendTranscodedMessage(Buffer message, boolean compressed) {
-    try {
-      if (transcodingResponseBody != null && !transcodingResponseBody.isEmpty()) {
-        Object value = new JsonObject(message.toString());
-        if (!transcodingResponseBody.equals("*")) {
-          // Extract the value at the specified path
-          String[] path = transcodingResponseBody.split("\\.");
-          for (String field : path) {
-            if (value instanceof JsonObject) {
-              value = ((JsonObject) value).getValue(field);
-            } else {
-              // Handle the case where the path is invalid
-              throw new IllegalStateException("Invalid transcodingResponseBody path: " + transcodingResponseBody);
-            }
-          }
-        }
-        message = Buffer.buffer(value.toString());
-      }
-
-      BufferInternal transcoded = (BufferInternal) message;
-      httpResponse.putHeader("content-length", Integer.toString(message.length()));
-      httpResponse.putHeader("content-type", GrpcProtocol.HTTP_1.mediaType());
-      return httpResponse.write(transcoded);
-    } catch (DecodeException e) {
-      return Future.failedFuture(e);
-    }
+  private Future<Void> sendTranscodedMessage(Buffer message) {
+    BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(message, transcodingResponseBody);
+    httpResponse.putHeader("content-length", Integer.toString(message.length()));
+    httpResponse.putHeader("content-type", GrpcProtocol.HTTP_1.mediaType());
+    return httpResponse.write(transcoded);
   }
 
   protected Future<Void> sendEnd() {

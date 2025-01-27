@@ -31,6 +31,7 @@ import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.transcoding.HttpVariableBinding;
+import io.vertx.grpc.transcoding.MessageWeaver;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -207,8 +208,8 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   public void handle(Buffer chunk) {
     if (notGrpcWebText()) {
       if (isTranscodable()) {
-        BufferInternal transcoded = (BufferInternal) mutateMessage(chunk, bindings);
-        if(transcoded == null) {
+        BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveRequestMessage(chunk, bindings, transcodingRequestBody);
+        if (transcoded == null) {
           return;
         }
 
@@ -246,56 +247,6 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   public boolean isTranscodable() {
     return (httpRequest.version() == HttpVersion.HTTP_1_0 || httpRequest.version() == HttpVersion.HTTP_1_1) && GrpcProtocol.HTTP_1.mediaType()
       .equals(httpRequest.getHeader(CONTENT_TYPE));
-  }
-
-  private Buffer mutateMessage(Buffer message, List<HttpVariableBinding> bindings) {
-    if (bindings.isEmpty() && transcodingRequestBody == null) {
-      return message;
-    }
-    BufferInternal buffer = BufferInternal.buffer();
-
-    try {
-      JsonObject json = new JsonObject(message.toString());
-
-      // Handle bindings
-      for (HttpVariableBinding binding : bindings) {
-        JsonObject parent = json;
-        List<String> fieldPath = binding.getFieldPath();
-        for (int i = 0; i < fieldPath.size() - 1; i++) {
-          String fieldName = fieldPath.get(i);
-          if (!parent.containsKey(fieldName)) {
-            parent.put(fieldName, new JsonObject());
-          }
-          parent = parent.getJsonObject(fieldName);
-        }
-        parent.put(fieldPath.get(fieldPath.size() - 1), binding.getValue());
-      }
-
-      if (transcodingRequestBody != null && !transcodingRequestBody.isEmpty()) {
-        if (transcodingRequestBody.equals("*")) {
-          // If transcodingRequestBody is "*", merge the entire message into the root
-          json = json.mergeIn(new JsonObject(message.toString()));
-        } else {
-          JsonObject parent = json;
-          String[] path = transcodingRequestBody.split("\\.");
-          for (int i = 0; i < path.length - 1; i++) {
-            String fieldName = path[i];
-            if (!parent.containsKey(fieldName)) {
-              parent.put(fieldName, new JsonObject());
-            }
-            parent = parent.getJsonObject(fieldName);
-          }
-          parent.put(path[path.length - 1], new JsonObject(message.toString()));
-        }
-      }
-
-      buffer.appendString(json.encode());
-    } catch (DecodeException e) {
-      response.status(GrpcStatus.INTERNAL).statusMessage("Invalid JSON payload").end();
-      return null;
-    }
-
-    return buffer;
   }
 
   private void bufferAndDecode(Buffer chunk) {

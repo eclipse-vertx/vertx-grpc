@@ -174,12 +174,9 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest request, GrpcMethodCall methodCall, PathMatcherLookupResult pathMatcherLookupResult) {
-    if (request.version() == HttpVersion.HTTP_2) {
-      return;
-    }
-
     String contentType = request.getHeader(CONTENT_TYPE);
     if (!contentType.equals(GrpcProtocol.HTTP_1.mediaType())) {
+      request.response().setStatusCode(415).end();
       return;
     }
 
@@ -190,6 +187,7 @@ public class GrpcServerImpl implements GrpcServer {
 
     MethodTranscodingOptions transcodingOptions = this.transcodingOptions.get(methodCall.fullMethodName());
     if (transcodingOptions == null) {
+      request.response().setStatusCode(404).end();
       return;
     }
 
