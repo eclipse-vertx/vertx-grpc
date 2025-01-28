@@ -20,10 +20,10 @@
   </scm>
 
   <properties>
-    <grpc.version>1.65.0</grpc.version>
+    <grpc.version>1.70.0</grpc.version>
     <jprotoc.version>1.2.2</jprotoc.version>
-    <protoc.version>4.27.2</protoc.version>
-    <protobuf.version>4.27.2</protobuf.version>
+    <protoc.version>4.29.3</protoc.version>
+    <protobuf.version>4.29.3</protobuf.version>
   </properties>
 
   <dependencyManagement>
