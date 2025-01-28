@@ -61,6 +61,21 @@ public final class GreeterGrpc {
   }
 
   /**
+   * Creates a new blocking-style stub that supports all types of calls on the service
+   */
+  public static GreeterBlockingV2Stub newBlockingV2Stub(
+      io.grpc.Channel channel) {
+    io.grpc.stub.AbstractStub.StubFactory<GreeterBlockingV2Stub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<GreeterBlockingV2Stub>() {
+        @java.lang.Override
+        public GreeterBlockingV2Stub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new GreeterBlockingV2Stub(channel, callOptions);
+        }
+      };
+    return GreeterBlockingV2Stub.newStub(factory, channel);
+  }
+
+  /**
    * Creates a new blocking-style stub that supports unary and streaming output calls on the service
    */
   public static GreeterBlockingStub newBlockingStub(
@@ -155,6 +170,36 @@ public final class GreeterGrpc {
 
   /**
    * A stub to allow clients to do synchronous rpc calls to service Greeter.
+   * <pre>
+   * The greeting service definition.
+   * </pre>
+   */
+  public static final class GreeterBlockingV2Stub
+      extends io.grpc.stub.AbstractBlockingStub<GreeterBlockingV2Stub> {
+    private GreeterBlockingV2Stub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+      super(channel, callOptions);
+    }
+
+    @java.lang.Override
+    protected GreeterBlockingV2Stub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+      return new GreeterBlockingV2Stub(channel, callOptions);
+    }
+
+    /**
+     * <pre>
+     * Sends a greeting
+     * </pre>
+     */
+    public examples.HelloReply sayHello(examples.HelloRequest request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getSayHelloMethod(), getCallOptions(), request);
+    }
+  }
+
+  /**
+   * A stub to allow clients to do limited synchronous rpc calls to service Greeter.
    * <pre>
    * The greeting service definition.
    * </pre>
