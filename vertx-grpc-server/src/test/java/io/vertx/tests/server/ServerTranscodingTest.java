@@ -140,7 +140,6 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public void testEmpty(TestContext should) {
     httpClient.request(HttpMethod.POST, "/hello").compose(req -> {
         req.headers().addAll(HEADERS);
-        // TODO: We should not need to encode the empty message here as the transcoding should be able to handle empty bodies - REMOVE THIS!
         return req.send().compose(response -> response.body().map(response));
       })
       .onComplete(should.asyncAssertSuccess(response -> {

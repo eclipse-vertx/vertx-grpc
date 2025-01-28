@@ -18,7 +18,7 @@ public class MessageWeaver {
     }
 
     BufferInternal buffer = BufferInternal.buffer();
-    JsonObject result = new JsonObject(message.toString());
+    JsonObject result = message.toString().isBlank() ? new JsonObject() : message.toJsonObject();
 
     for (HttpVariableBinding binding : bindings) {
       JsonObject current = result;
@@ -66,7 +66,7 @@ public class MessageWeaver {
       }
     }
 
-    if(transcodingRequestBody != null && !transcodingRequestBody.equals("*")) {
+    if (transcodingRequestBody != null && !transcodingRequestBody.isBlank() && !transcodingRequestBody.equals("*")) {
       String path = transcodingRequestBody.split("\\.")[0];
       result.fieldNames().removeIf(key -> !key.equals(path));
     }

@@ -17,15 +17,13 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
-import io.vertx.core.json.DecodeException;
-import io.vertx.core.json.JsonObject;
+import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
@@ -33,7 +31,6 @@ import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.transcoding.HttpVariableBinding;
 import io.vertx.grpc.transcoding.MessageWeaver;
 
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,7 +96,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
     GrpcMessageDecoder<Req> messageDecoder,
     GrpcMessageEncoder<Resp> messageEncoder,
     GrpcMethodCall methodCall) {
-    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, maxMessageSize, messageDecoder);
+    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, GrpcServerRequestImpl.isTranscodable(httpRequest), maxMessageSize, messageDecoder);
     String timeoutHeader = httpRequest.getHeader("grpc-timeout");
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 
@@ -129,6 +126,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   @Override
   public void init(GrpcWriteStreamBase ws) {
     super.init(ws);
+
     if (timeout > 0L) {
       if (scheduleDeadline) {
         Timer timer = context.timer(timeout, TimeUnit.MILLISECONDS);
@@ -138,6 +136,16 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
         });
       }
     }
+  }
+
+  public static boolean isTranscodable(HttpServerRequest httpRequest) {
+    if (httpRequest == null) {
+      return false;
+    }
+
+    return (httpRequest.version() == HttpVersion.HTTP_1_0 ||
+      httpRequest.version() == HttpVersion.HTTP_1_1) &&
+      GrpcProtocol.HTTP_1.mediaType().equals(httpRequest.getHeader(CONTENT_TYPE));
   }
 
   void cancelTimeout() {
@@ -207,7 +215,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   @Override
   public void handle(Buffer chunk) {
     if (notGrpcWebText()) {
-      if (isTranscodable()) {
+      if (isTranscodable(httpRequest)) {
         BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveRequestMessage(chunk, bindings, transcodingRequestBody);
         if (transcoded == null) {
           return;
@@ -242,11 +250,6 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
 
   private boolean notGrpcWebText() {
     return grpcWebTextBuffer == null;
-  }
-
-  public boolean isTranscodable() {
-    return (httpRequest.version() == HttpVersion.HTTP_1_0 || httpRequest.version() == HttpVersion.HTTP_1_1) && GrpcProtocol.HTTP_1.mediaType()
-      .equals(httpRequest.getHeader(CONTENT_TYPE));
   }
 
   private void bufferAndDecode(Buffer chunk) {

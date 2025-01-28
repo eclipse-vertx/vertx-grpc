@@ -36,10 +36,12 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     public String encoding() {
       return null;
     }
+
     @Override
     public WireFormat format() {
       return null;
     }
+
     @Override
     public Buffer payload() {
       return null;
@@ -62,13 +64,15 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private final GrpcMessageDecoder<T> messageDecoder;
   private final Promise<Void> end;
   private GrpcWriteStreamBase<?, ?> ws;
+  private boolean transcodable;
 
   protected GrpcReadStreamBase(Context context,
-                               ReadStream<Buffer> stream,
-                               String encoding,
-                               WireFormat format,
-                               long maxMessageSize,
-                               GrpcMessageDecoder<T> messageDecoder) {
+    ReadStream<Buffer> stream,
+    String encoding,
+    WireFormat format,
+    boolean transcodable,
+    long maxMessageSize,
+    GrpcMessageDecoder<T> messageDecoder) {
     ContextInternal ctx = (ContextInternal) context;
     this.context = ctx;
     this.encoding = encoding;
@@ -80,10 +84,12 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
       protected void handleResume() {
         stream.resume();
       }
+
       @Override
       protected void handlePause() {
         stream.pause();
       }
+
       @Override
       protected void handleMessage(GrpcMessage msg) {
         if (msg == END_SENTINEL) {
@@ -95,12 +101,18 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     };
     this.messageDecoder = messageDecoder;
     this.end = ctx.promise();
+    this.transcodable = transcodable;
   }
 
   public void init(GrpcWriteStreamBase<?, ?> ws) {
     this.ws = ws;
     stream.handler(this);
-    stream.endHandler(v -> queue.write(END_SENTINEL));
+    stream.endHandler(v -> {
+      if (transcodable) {
+        handle(Buffer.buffer());
+      }
+      queue.write(END_SENTINEL);
+    });
     stream.exceptionHandler(err -> {
       if (err instanceof StreamResetException) {
         StreamResetException reset = (StreamResetException) err;
@@ -210,7 +222,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
         bytesToSkip -= len;
         return;
       }
-      chunk = chunk.slice((int)bytesToSkip, len);
+      chunk = chunk.slice((int) bytesToSkip, len);
       bytesToSkip = 0L;
     }
     if (buffer == null) {
@@ -223,7 +235,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
       if (idx + 5 > buffer.length()) {
         break;
       }
-      long len = ((long)buffer.getInt(idx + 1)) & 0xFFFFFFFFL;
+      long len = ((long) buffer.getInt(idx + 1)) & 0xFFFFFFFFL;
       if (len > maxMessageSize) {
         Handler<InvalidMessageException> handler = invalidMessageHandler;
         if (handler != null) {
@@ -235,7 +247,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
           buffer = null;
           return;
         } else {
-          buffer = buffer.slice((int)(len + 5), buffer.length());
+          buffer = buffer.slice((int) (len + 5), buffer.length());
           continue;
         }
       }
@@ -246,7 +258,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
       if (compressed && encoding == null) {
         throw new UnsupportedOperationException("Handle me");
       }
-      Buffer payload = buffer.slice(idx + 5, (int)(idx + 5 + len));
+      Buffer payload = buffer.slice(idx + 5, (int) (idx + 5 + len));
       GrpcMessage message = GrpcMessage.message(compressed ? encoding : "identity", format, payload);
       queue.write(message);
       idx += 5 + len;

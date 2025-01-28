@@ -14,13 +14,13 @@ import io.netty.handler.codec.base64.Base64;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.json.DecodeException;
-import io.vertx.core.json.JsonObject;
-import io.vertx.grpc.common.*;
+import io.vertx.core.internal.buffer.BufferInternal;
+import io.vertx.grpc.common.GrpcError;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Utils;
@@ -158,7 +158,7 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
 
   @Override
   protected Future<Void> sendMessage(Buffer message, boolean compressed) {
-    if (request.isTranscodable()) {
+    if (GrpcServerRequestImpl.isTranscodable(request.httpRequest)) {
       return sendTranscodedMessage(message);
     }
 

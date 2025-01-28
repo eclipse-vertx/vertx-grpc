@@ -21,13 +21,11 @@ import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
-import io.vertx.grpc.transcoding.*;
-import io.vertx.grpc.transcoding.PathMatcherBuilder;
-import io.vertx.grpc.transcoding.PathMatcherUtility;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.transcoding.*;
 
 import java.util.*;
 import java.util.regex.Matcher;
