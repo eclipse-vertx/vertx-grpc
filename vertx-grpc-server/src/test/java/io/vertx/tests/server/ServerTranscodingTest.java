@@ -157,11 +157,10 @@ public class ServerTranscodingTest extends GrpcTestBase {
   }
 
   @Test
-  public void testSmallPayload(TestContext should) {
+  public void testPayload(TestContext should) {
     String payload = "foobar";
     httpClient.request(HttpMethod.GET, "/hello/" + payload).compose(req -> {
       req.headers().addAll(HEADERS);
-      // TODO: We should not need to encode the empty message here as the transcoding should be able to handle empty bodies - REMOVE THIS!
       return req.send().compose(response -> response.body().map(response));
     }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
       assertEquals(200, response.statusCode());
@@ -173,12 +172,28 @@ public class ServerTranscodingTest extends GrpcTestBase {
   }
 
   @Test
-  public void testSmallPayloadWithQuery(TestContext should) {
+  public void testPayloadWithQuery(TestContext should) {
     String payload = "foobar";
     httpClient.request(HttpMethod.GET, "/hello?payload=" + payload).compose(req -> {
       req.headers().addAll(HEADERS);
-      // TODO: We should not need to encode the empty message here as the transcoding should be able to handle empty bodies - REMOVE THIS!
       return req.send().compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      MultiMap headers = response.headers();
+      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonObject body = decodeBody(response.body().result());
+      assertEquals(payload, body.getString("payload"));
+    })));
+  }
+
+  @Test
+  public void testPayloadWithBody(TestContext should) {
+    String payload = "foobar";
+    httpClient.request(HttpMethod.GET, "/hello").compose(req -> {
+      String body = encode(EchoRequest.newBuilder().setPayload("foobar").build()).toString();
+      req.headers().addAll(HEADERS);
+      req.headers().set(HttpHeaders.CONTENT_LENGTH, String.valueOf(body.length()));
+      return req.send(body).compose(response -> response.body().map(response));
     }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
       assertEquals(200, response.statusCode());
       MultiMap headers = response.headers();

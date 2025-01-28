@@ -108,7 +108,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     this.ws = ws;
     stream.handler(this);
     stream.endHandler(v -> {
-      if (transcodable) {
+      if (transcodable && last == null) {
         handle(Buffer.buffer());
       }
       queue.write(END_SENTINEL);
