@@ -15,6 +15,8 @@ import java.util.List;
  *   <li>segments: ["users", "{user_id=*}"]</li>
  *   <li>variables: [HttpTemplateVariable{fieldPath=["user_id"], startSegment=1, endSegment=2, wildcardPath=true}]</li>
  * </ul>
+ *
+ * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/http_template.cc">grpc-httpjson-transcoding</a>
  */
 public class HttpTemplateParser {
   public static final String SINGLE_PARAMETER_KEY = "/.";

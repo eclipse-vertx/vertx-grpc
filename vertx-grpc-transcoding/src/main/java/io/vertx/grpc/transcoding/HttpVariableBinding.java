@@ -9,6 +9,8 @@ import java.util.List;
  * transcoding to map HTTP request variables to their appropriate locations in the gRPC message.
  *
  * The binding consists of: - A field path representing the location in the gRPC message where the value should be placed - The actual value extracted from the HTTP request
+ *
+ * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/http_template.cc">grpc-httpjson-transcoding</a>
  */
 @DataObject
 public class HttpVariableBinding {

@@ -8,6 +8,8 @@ import java.util.Set;
 /**
  * Matches HTTP request paths against registered patterns to look up corresponding gRPC methods. This interface provides functionality to match incoming HTTP requests to their
  * corresponding gRPC method handlers based on the HTTP method, path, and optional query parameters.
+ *
+ * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/include/grpc_transcoding/path_matcher.h">grpc-httpjson-transcoding</a>
  */
 public class PathMatcher {
   private final PathMatcherNode root;

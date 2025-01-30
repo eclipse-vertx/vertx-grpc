@@ -8,6 +8,8 @@ import java.util.Set;
 /**
  * Builder interface for creating {@link PathMatcher} instances. Provides methods to configure and construct a path matcher with specific behaviors for HTTP-to-gRPC transcoding,
  * including URL encoding/decoding options and custom verb handling.
+ *
+ * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/include/grpc_transcoding/path_matcher.h">grpc-httpjson-transcoding</a>
  */
 public class PathMatcherBuilder {
   private final PathMatcherNode root = new PathMatcherNode();

@@ -8,6 +8,8 @@ import java.util.Map;
 /**
  * Implements a trie-based path matching system for HTTP request routing. This class maintains a tree structure where each node represents a path segment and can match both literal
  * path parts and variable segments including wildcards.
+ *
+ * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/path_matcher_node.cc">grpc-httpjson-transcoding</a>
  */
 public class PathMatcherNode {
   /** Wildcard string for matching any HTTP method */
