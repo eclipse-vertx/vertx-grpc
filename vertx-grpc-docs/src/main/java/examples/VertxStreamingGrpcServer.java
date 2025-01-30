@@ -33,14 +33,6 @@ public class VertxStreamingGrpcServer  {
     "Source",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
-  public static final MethodTranscodingOptions Source_TRANSCODING = new MethodTranscodingOptions(
-    "",
-    HttpMethod.valueOf("POST"),
-    "/Streaming/Source",
-    "",
-    "",
-    List.of(
-    ));
   public static final ServiceMethod<examples.Item, examples.Empty> Sink = ServiceMethod.server(
     ServiceName.create("streaming", "Streaming"),
     "Sink",
@@ -51,14 +43,6 @@ public class VertxStreamingGrpcServer  {
     "Sink",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
-  public static final MethodTranscodingOptions Sink_TRANSCODING = new MethodTranscodingOptions(
-    "",
-    HttpMethod.valueOf("POST"),
-    "/Streaming/Sink",
-    "",
-    "",
-    List.of(
-    ));
   public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.server(
     ServiceName.create("streaming", "Streaming"),
     "Pipe",
@@ -69,14 +53,7 @@ public class VertxStreamingGrpcServer  {
     "Pipe",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
-  public static final MethodTranscodingOptions Pipe_TRANSCODING = new MethodTranscodingOptions(
-    "",
-    HttpMethod.valueOf("POST"),
-    "/Streaming/Pipe",
-    "",
-    "",
-    List.of(
-    ));
+
 
   public static class StreamingApi {
 
@@ -134,24 +111,6 @@ public class VertxStreamingGrpcServer  {
       server.callHandler(serviceMethod, this::handle_source);
       return this;
     }
-    public StreamingApi bind_source_with_transcoding(GrpcServer server) {
-      return bind_source_with_transcoding(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
-    }
-    public StreamingApi bind_source_with_transcoding(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      ServiceMethod<examples.Empty,examples.Item> serviceMethod;
-      switch(format) {
-      case PROTOBUF:
-        serviceMethod = Source;
-        break;
-      case JSON:
-        serviceMethod = Source_JSON;
-        break;
-      default:
-        throw new AssertionError();
-    }
-      server.callHandlerWithTranscoding(serviceMethod, this::handle_source, Source_TRANSCODING);
-      return this;
-    }
     public final void handle_sink(io.vertx.grpc.server.GrpcServerRequest<examples.Item, examples.Empty> request) {
       Promise<examples.Empty> promise = Promise.promise();
       promise.future()
@@ -181,24 +140,6 @@ public class VertxStreamingGrpcServer  {
       server.callHandler(serviceMethod, this::handle_sink);
       return this;
     }
-    public StreamingApi bind_sink_with_transcoding(GrpcServer server) {
-      return bind_sink_with_transcoding(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
-    }
-    public StreamingApi bind_sink_with_transcoding(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      ServiceMethod<examples.Item,examples.Empty> serviceMethod;
-      switch(format) {
-      case PROTOBUF:
-        serviceMethod = Sink;
-        break;
-      case JSON:
-        serviceMethod = Sink_JSON;
-        break;
-      default:
-        throw new AssertionError();
-      }
-      server.callHandlerWithTranscoding(serviceMethod, this::handle_sink, Sink_TRANSCODING);
-      return this;
-    }
     public final void handle_pipe(io.vertx.grpc.server.GrpcServerRequest<examples.Item, examples.Item> request) {
       try {
         pipe(request, request.response());
@@ -224,24 +165,7 @@ public class VertxStreamingGrpcServer  {
       server.callHandler(serviceMethod, this::handle_pipe);
       return this;
     }
-    public StreamingApi bind_pipe_with_transcoding(GrpcServer server) {
-      return bind_pipe_with_transcoding(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
-    }
-    public StreamingApi bind_pipe_with_transcoding(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      ServiceMethod<examples.Item,examples.Item> serviceMethod;
-      switch(format) {
-        case PROTOBUF:
-          serviceMethod = Pipe;
-          break;
-        case JSON:
-          serviceMethod = Pipe_JSON;
-          break;
-        default:
-          throw new AssertionError();
-      }
-      server.callHandlerWithTranscoding(serviceMethod, this::handle_pipe, Pipe_TRANSCODING);
-      return this;
-    }
+
 
     public final StreamingApi bindAll(GrpcServer server) {
       bind_source(server);
@@ -258,16 +182,10 @@ public class VertxStreamingGrpcServer  {
     }
 
     public final StreamingApi bindAllWithTranscoding(GrpcServer server) {
-      bind_source_with_transcoding(server);
-      bind_sink_with_transcoding(server);
-      bind_pipe_with_transcoding(server);
       return this;
     }
 
     public final StreamingApi bindAllWithTranscoding(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      bind_source_with_transcoding(server, format);
-      bind_sink_with_transcoding(server, format);
-      bind_pipe_with_transcoding(server, format);
       return this;
     }
   }

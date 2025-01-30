@@ -31,18 +31,14 @@ public class TranscodingTest extends ProxyTestBase {
         });
       }, VertxGreeterGrpcServer.SayHello_TRANSCODING)).listen(8080, "localhost");
 
-    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/Greeter/SayHello").setMethod(HttpMethod.POST);
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/Julien").setMethod(HttpMethod.GET);
 
     Async test = should.async();
-
-    String data = createRequest("Julien");
 
     server.onComplete(should.asyncAssertSuccess(v -> {
       client.request(options).compose(req -> {
         req.putHeader("Content-Type", "application/json");
         req.putHeader("Accept", "application/json");
-        req.putHeader("Content-Length", String.valueOf(data.length()));
-        req.write(data);
         return req.send();
       }).compose(resp -> {
         should.assertEquals(200, resp.statusCode());

@@ -130,15 +130,6 @@ public class VertxGrpcGeneratorImpl extends Generator {
         methodNumber
       );
 
-      if (methodContext.transcodingContext.path == null) {
-        methodContext.transcodingContext.method = "POST";
-        if (serviceContext.packageName == null || serviceContext.packageName.isEmpty()) {
-          methodContext.transcodingContext.path = "/" + serviceContext.serviceName + "/" + methodContext.methodName;
-        } else {
-          methodContext.transcodingContext.path = "/" + serviceContext.packageName + "/" + serviceContext.serviceName + "/" + methodContext.methodName;
-        }
-      }
-
       serviceContext.methods.add(methodContext);
     }
     return serviceContext;
@@ -428,6 +419,10 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
     public List<MethodContext> manyManyMethods() {
       return methods.stream().filter(m -> m.isManyInput && m.isManyOutput).collect(Collectors.toList());
+    }
+
+    public List<MethodContext> transcodingMethods() {
+      return methods.stream().filter(t -> t.transcodingContext != null && t.transcodingContext.path != null).collect(Collectors.toList());
     }
   }
 

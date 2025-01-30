@@ -33,14 +33,7 @@ public class VertxGreeterGrpcServer  {
     "SayHello",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()));
-  public static final MethodTranscodingOptions SayHello_TRANSCODING = new MethodTranscodingOptions(
-    "",
-    HttpMethod.valueOf("POST"),
-    "/Greeter/SayHello",
-    "",
-    "",
-    List.of(
-    ));
+
 
   public static class GreeterApi {
 
@@ -84,24 +77,7 @@ public class VertxGreeterGrpcServer  {
       server.callHandler(serviceMethod, this::handle_sayHello);
       return this;
     }
-    public GreeterApi bind_sayHello_with_transcoding(GrpcServer server) {
-      return bind_sayHello_with_transcoding(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
-    }
-    public GreeterApi bind_sayHello_with_transcoding(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      ServiceMethod<examples.HelloRequest,examples.HelloReply> serviceMethod;
-      switch(format) {
-        case PROTOBUF:
-          serviceMethod = SayHello;
-          break;
-        case JSON:
-          serviceMethod = SayHello_JSON;
-          break;
-        default:
-          throw new AssertionError();
-      }
-      server.callHandlerWithTranscoding(serviceMethod, this::handle_sayHello, SayHello_TRANSCODING);
-      return this;
-    }
+
 
     public final GreeterApi bindAll(GrpcServer server) {
       bind_sayHello(server);
@@ -114,12 +90,10 @@ public class VertxGreeterGrpcServer  {
     }
 
     public final GreeterApi bindAllWithTranscoding(GrpcServer server) {
-      bind_sayHello_with_transcoding(server);
       return this;
     }
 
     public final GreeterApi bindAllWithTranscoding(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      bind_sayHello_with_transcoding(server, format);
       return this;
     }
   }
