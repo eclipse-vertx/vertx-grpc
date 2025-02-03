@@ -18,7 +18,7 @@ import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.internal.concurrent.InboundMessageQueue;
+import io.vertx.core.internal.concurrent.InboundMessageChannel;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
 
@@ -51,7 +51,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private final long maxMessageSize;
   private final WireFormat format;
   private final ReadStream<Buffer> stream;
-  private final InboundMessageQueue<GrpcMessage> queue;
+  private final InboundMessageChannel<GrpcMessage> queue;
   private Buffer buffer;
   private long bytesToSkip;
   private Handler<Throwable> exceptionHandler;
@@ -75,7 +75,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     this.maxMessageSize = maxMessageSize;
     this.stream = stream;
     this.format = format;
-    this.queue = new InboundMessageQueue<>(ctx.eventLoop(), ctx.executor(), 8, 16) {
+    this.queue = new InboundMessageChannel<>(ctx.eventLoop(), ctx.executor(), 8, 16) {
       @Override
       protected void handleResume() {
         stream.resume();
