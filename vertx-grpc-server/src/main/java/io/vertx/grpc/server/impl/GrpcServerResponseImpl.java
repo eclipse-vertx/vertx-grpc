@@ -166,10 +166,15 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
   }
 
   private Future<Void> sendTranscodedMessage(Buffer message) {
-    BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(message, transcodingResponseBody);
-    httpResponse.putHeader("content-length", Integer.toString(message.length()));
-    httpResponse.putHeader("content-type", GrpcProtocol.HTTP_1.mediaType());
-    return httpResponse.write(transcoded);
+    try {
+      BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(message, transcodingResponseBody);
+      httpResponse.putHeader("content-length", Integer.toString(message.length()));
+      httpResponse.putHeader("content-type", GrpcProtocol.HTTP_1.mediaType());
+      return httpResponse.write(transcoded);
+    } catch (Exception e) {
+      httpResponse.setStatusCode(500).end();
+      return Future.failedFuture(e);
+    }
   }
 
   protected Future<Void> sendEnd() {

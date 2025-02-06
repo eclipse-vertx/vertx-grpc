@@ -21,6 +21,7 @@ import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.internal.buffer.BufferInternal;
+import io.vertx.core.json.DecodeException;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
@@ -216,18 +217,23 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   public void handle(Buffer chunk) {
     if (notGrpcWebText()) {
       if (isTranscodable(httpRequest)) {
-        BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveRequestMessage(chunk, bindings, transcodingRequestBody);
-        if (transcoded == null) {
+        try {
+          BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveRequestMessage(chunk, bindings, transcodingRequestBody);
+          if (transcoded == null) {
+            return;
+          }
+
+          Buffer prefixed = BufferInternal.buffer(transcoded.length() + 5);
+
+          prefixed.appendByte((byte) 0); // uncompressed flag
+          prefixed.appendInt(transcoded.length()); // content length
+          prefixed.appendBuffer(transcoded);
+
+          chunk = prefixed;
+        } catch (DecodeException e) {
+          httpRequest.response().setStatusCode(400);
           return;
         }
-
-        Buffer prefixed = BufferInternal.buffer(transcoded.length() + 5);
-
-        prefixed.appendByte((byte) 0); // uncompressed flag
-        prefixed.appendInt(transcoded.length()); // content length
-        prefixed.appendBuffer(transcoded);
-
-        chunk = prefixed;
       }
 
       super.handle(chunk);

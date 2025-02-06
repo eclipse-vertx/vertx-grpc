@@ -47,7 +47,7 @@ public class {{className}}  {
     "{{transcodingContext.responseBody}}",
     List.of(
     {{#transcodingContext.additionalBindings}}
-      new MethodTranscodingOptions("{{selector}}", HttpMethod.valueOf("{{method}}"), "{{path}}", "{{body}}", "{{responseBody}}"),
+      new MethodTranscodingOptions("{{selector}}", HttpMethod.valueOf("{{method}}"), "{{path}}", "{{body}}", "{{responseBody}}", null){{,}}
     {{/transcodingContext.additionalBindings}}
   ));
 {{/transcodingMethods}}
