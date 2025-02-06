@@ -55,6 +55,42 @@ public class TranscodingTest extends ProxyTestBase {
   }
 
   @Test
+  public void testUnaryBasicReversed(TestContext should) {
+    HttpClient client = vertx.createHttpClient();
+    GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
+
+    Future<HttpServer> server = vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandlerWithTranscoding(VertxGreeterGrpcServer.SayHelloAgain_JSON, call -> {
+        call.handler(helloRequest -> {
+          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
+            .build();
+          call.response().end(helloReply);
+        });
+      }, VertxGreeterGrpcServer.SayHelloAgain_TRANSCODING)).listen(8080, "localhost");
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v2/hello/Julien").setMethod(HttpMethod.GET);
+
+    Async test = should.async();
+
+    server.onComplete(should.asyncAssertSuccess(v -> {
+      client.request(options).compose(req -> {
+        req.putHeader("Accept", "application/json");
+        req.putHeader("Content-Type", "application/json");
+        return req.send();
+      }).compose(resp -> {
+        should.assertEquals(200, resp.statusCode());
+        should.assertEquals("application/json", resp.getHeader("Content-Type"));
+        return resp.body();
+      }).onComplete(should.asyncAssertSuccess(body -> {
+        should.assertEquals("Hello Julien", getMessage(body.toString()));
+        test.complete();
+      }));
+    }));
+
+    test.awaitSuccess();
+  }
+
+  @Test
   public void testUnaryBasicUnknownPath(TestContext should) {
     HttpClient client = vertx.createHttpClient();
     GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
@@ -198,7 +234,7 @@ public class TranscodingTest extends ProxyTestBase {
     GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandlerWithTranscoding(VertxGreeterGrpcServer.SayHelloCustom, call -> {
+      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandlerWithTranscoding(VertxGreeterGrpcServer.SayHelloCustom_JSON, call -> {
         call.handler(helloRequest -> {
           io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
             .build();

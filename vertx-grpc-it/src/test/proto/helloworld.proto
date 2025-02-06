@@ -54,7 +54,6 @@ service Greeter {
   rpc SayHelloAgain (HelloRequest) returns (HelloReply) {
     option (google.api.http) = {
       post: "/v2/hello"
-      body: "*"
       additional_bindings {
         get: "/v2/hello/{name}"
       }
@@ -68,22 +67,6 @@ service Greeter {
         kind: "ACL"
         path: "/v1/hello/custom/{name}"
       }
-    };
-  }
-
-  // Sends a greeting with a specific response body field
-  rpc SayHelloResponseBody (HelloRequest) returns (HelloReply) {
-    option (google.api.http) = {
-      post: "/v1/hello/response_body"
-      response_body: "message"
-    };
-  }
-
-  // Sends a greeting with a specific request body field
-  rpc SayHelloRequestBody (HelloRequest) returns (HelloReply) {
-    option (google.api.http) = {
-      post: "/v1/hello/request_body"
-      body: "name"
     };
   }
 }

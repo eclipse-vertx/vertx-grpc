@@ -279,6 +279,10 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     }
   }
 
+  protected final void cancelTranscodable() {
+    transcodable = false;
+  }
+
   protected final void handleException(Throwable err) {
     tryFail(err);
   }

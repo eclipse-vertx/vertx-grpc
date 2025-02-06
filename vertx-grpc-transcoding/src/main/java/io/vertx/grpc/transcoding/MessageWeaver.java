@@ -49,7 +49,7 @@ public class MessageWeaver {
 
     // Handle transcoding request body
     if (transcodingRequestBody != null && !transcodingRequestBody.isEmpty()) {
-      JsonObject messageJson = new JsonObject(message.toString());
+      JsonObject messageJson = message.toString().isBlank() ? new JsonObject() : new JsonObject(message.toString());
       if (transcodingRequestBody.equals("*")) {
         result.mergeIn(messageJson);
       } else {

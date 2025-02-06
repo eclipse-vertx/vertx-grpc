@@ -231,7 +231,12 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
 
           chunk = prefixed;
         } catch (DecodeException e) {
+          cancelTranscodable();
           httpRequest.response().setStatusCode(400);
+          if (!httpRequest.response().ended()) {
+            response.end();
+          }
+
           return;
         }
       }
