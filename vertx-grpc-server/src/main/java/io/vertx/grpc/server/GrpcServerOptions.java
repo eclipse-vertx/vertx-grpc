@@ -164,6 +164,7 @@ public class GrpcServerOptions {
     return this;
   }
 
+
   /**
    * @return the maximum message size in bytes accepted by the server
    */
@@ -173,7 +174,6 @@ public class GrpcServerOptions {
 
   /**
    * Set the maximum message size in bytes accepted from a client, the maximum value is {@code 0xFFFFFFFF}
-   *
    * @param maxMessageSize the size
    * @return a reference to this, so the API can be used fluently
    */

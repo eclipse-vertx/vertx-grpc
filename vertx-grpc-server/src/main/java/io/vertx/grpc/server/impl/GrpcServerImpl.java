@@ -197,14 +197,14 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   private <Req, Resp> void handle(HttpServerRequest httpRequest,
-    GrpcMethodCall methodCall,
-    GrpcProtocol protocol,
-    WireFormat format,
-    MethodTranscodingOptions transcodingOptions,
-    List<HttpVariableBinding> bindings,
-    GrpcMessageDecoder<Req> messageDecoder,
-    GrpcMessageEncoder<Resp> messageEncoder,
-    Handler<GrpcServerRequest<Req, Resp>> handler) {
+                                  GrpcMethodCall methodCall,
+                                  GrpcProtocol protocol,
+                                  WireFormat format,
+                                  MethodTranscodingOptions transcodingOptions,
+                                  List<HttpVariableBinding> bindings,
+                                  GrpcMessageDecoder<Req> messageDecoder,
+                                  GrpcMessageEncoder<Resp> messageEncoder,
+                                  Handler<GrpcServerRequest<Req, Resp>> handler) {
     io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
     GrpcServerRequestImpl<Req, Resp> grpcRequest = new GrpcServerRequestImpl<>(
       context,
@@ -247,7 +247,7 @@ public class GrpcServerImpl implements GrpcServer {
         if (prev == null) {
           prev = new ArrayList<>();
         }
-        for (int i = 0; i < prev.size(); i++) {
+        for (int i = 0;i < prev.size();i++) {
           MethodCallHandler<?, ?> a = prev.get(i);
           if (a.messageDecoder.format() == serviceMethod.decoder().format() && a.messageEncoder.format() == serviceMethod.encoder().format()) {
             prev.set(i, p);
@@ -260,7 +260,7 @@ public class GrpcServerImpl implements GrpcServer {
     } else {
       methodCallHandlers.compute(serviceMethod.fullMethodName(), (key, prev) -> {
         if (prev != null) {
-          for (int i = 0; i < prev.size(); i++) {
+          for (int i = 0;i < prev.size();i++) {
             MethodCallHandler<?, ?> a = prev.get(i);
             if (a.messageDecoder.format() == serviceMethod.decoder().format() && a.messageEncoder.format() == serviceMethod.encoder().format()) {
               prev.remove(i);

@@ -86,17 +86,17 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   private Timer deadline;
 
   public GrpcServerRequestImpl(io.vertx.core.internal.ContextInternal context,
-    boolean scheduleDeadline,
-    GrpcProtocol protocol,
-    WireFormat format,
-    long maxMessageSize,
-    HttpServerRequest httpRequest,
-    String transcodingRequestBody,
-    String transcodingResponseBody,
-    List<HttpVariableBinding> bindings,
-    GrpcMessageDecoder<Req> messageDecoder,
-    GrpcMessageEncoder<Resp> messageEncoder,
-    GrpcMethodCall methodCall) {
+                               boolean scheduleDeadline,
+                               GrpcProtocol protocol,
+                               WireFormat format,
+                               long maxMessageSize,
+                               HttpServerRequest httpRequest,
+                               String transcodingRequestBody,
+                               String transcodingResponseBody,
+                               List<HttpVariableBinding> bindings,
+                               GrpcMessageDecoder<Req> messageDecoder,
+                               GrpcMessageEncoder<Resp> messageEncoder,
+                               GrpcMethodCall methodCall) {
     super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, GrpcServerRequestImpl.isTranscodable(httpRequest), maxMessageSize, messageDecoder);
     String timeoutHeader = httpRequest.getHeader("grpc-timeout");
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
@@ -127,7 +127,6 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   @Override
   public void init(GrpcWriteStreamBase ws) {
     super.init(ws);
-
     if (timeout > 0L) {
       if (scheduleDeadline) {
         Timer timer = context.timer(timeout, TimeUnit.MILLISECONDS);
@@ -244,7 +243,6 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
       super.handle(chunk);
       return;
     }
-
     if (grpcWebTextBuffer == EMPTY_BUFFER) {
       ByteBuf bbuf = ((BufferInternal) chunk).getByteBuf();
       if ((chunk.length() & 0b11) == 0) {
@@ -253,7 +251,6 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
       } else {
         grpcWebTextBuffer = BufferInternal.buffer(bbuf.copy());
       }
-
       return;
     }
     bufferAndDecode(chunk);

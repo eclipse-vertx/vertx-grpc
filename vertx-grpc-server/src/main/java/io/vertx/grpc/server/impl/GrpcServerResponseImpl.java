@@ -47,11 +47,11 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
   private boolean cancelled;
 
   public GrpcServerResponseImpl(ContextInternal context,
-    GrpcServerRequestImpl<Req, Resp> request,
-    GrpcProtocol protocol,
-    HttpServerResponse httpResponse,
-    String transcodingResponseBody,
-    GrpcMessageEncoder<Resp> encoder) {
+                                GrpcServerRequestImpl<Req, Resp> request,
+                                GrpcProtocol protocol,
+                                HttpServerResponse httpResponse,
+                                String transcodingResponseBody,
+                                GrpcMessageEncoder<Resp> encoder) {
     super(context, protocol.mediaType(), httpResponse, encoder);
     this.request = request;
     this.httpResponse = httpResponse;
@@ -187,7 +187,6 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
     if (protocol == GrpcProtocol.WEB_TEXT) {
       return BufferInternal.buffer(Base64.encode(buffer.getByteBuf(), false));
     }
-
     return buffer;
   }
 }

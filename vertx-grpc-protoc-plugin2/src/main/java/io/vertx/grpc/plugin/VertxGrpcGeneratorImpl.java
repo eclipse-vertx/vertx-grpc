@@ -99,8 +99,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return Strings.nullToEmpty(proto.getPackage());
   }
 
-  private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations,
-    int serviceNumber) {
+  private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int serviceNumber) {
     ServiceContext serviceContext = new ServiceContext();
     // Set Later
     //serviceContext.fileName = CLASS_PREFIX + serviceProto.getName() + "Grpc.java";
@@ -135,8 +134,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return serviceContext;
   }
 
-  private MethodContext buildMethodContext(DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations,
-    int methodNumber) {
+  private MethodContext buildMethodContext(DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int methodNumber) {
     MethodContext methodContext = new MethodContext();
     methodContext.methodName = methodProto.getName();
     methodContext.vertxMethodName = mixedLower(methodProto.getName());
@@ -280,7 +278,9 @@ public class VertxGrpcGeneratorImpl extends Generator {
   );
 
   /**
-   * Adjust a method name prefix identifier to follow the JavaBean spec: - decapitalize the first letter - remove embedded underscores & capitalize the following letter
+   * Adjust a method name prefix identifier to follow the JavaBean spec:
+   * - decapitalize the first letter
+   * - remove embedded underscores & capitalize the following letter
    * <p>
    * Finally, if the result is a reserved java keyword, append an underscore.
    *
