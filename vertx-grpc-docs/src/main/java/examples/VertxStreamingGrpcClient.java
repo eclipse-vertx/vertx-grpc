@@ -14,7 +14,7 @@ import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
-public class VertxStreamingGrpcClient {
+public interface VertxStreamingGrpcClient {
 
   public static final ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
     ServiceName.create("streaming", "Streaming"),
@@ -47,23 +47,25 @@ public class VertxStreamingGrpcClient {
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
 
+static VertxStreamingGrpcClient create(GrpcClient client, SocketAddress socketAddress) {
+  return new VertxStreamingGrpcClientImpl(client, socketAddress);
+}
+
+static VertxStreamingGrpcClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  return new VertxStreamingGrpcClientImpl(client, socketAddress, wireFormat);
+}
+
+static class VertxStreamingGrpcClientImpl implements VertxStreamingGrpcClient {
+
   private final GrpcClient client;
   private final SocketAddress socketAddress;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  public static VertxStreamingGrpcClient create(GrpcClient client, SocketAddress socketAddress) {
-    return new VertxStreamingGrpcClient(client, socketAddress);
-  }
-
-  public static VertxStreamingGrpcClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new VertxStreamingGrpcClient(client, socketAddress, wireFormat);
-  }
-
-  private VertxStreamingGrpcClient(GrpcClient client, SocketAddress socketAddress) {
+  private VertxStreamingGrpcClientImpl(GrpcClient client, SocketAddress socketAddress) {
     this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  private VertxStreamingGrpcClient(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  private VertxStreamingGrpcClientImpl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
@@ -134,5 +136,11 @@ public class VertxStreamingGrpcClient {
       });
     });
   }
+
+  }
+
+  Future<GrpcReadStream<examples.Item>> source(examples.Empty request);
+  Future<examples.Empty> sink(Handler<GrpcWriteStream<examples.Item>> request);
+  Future<GrpcReadStream<examples.Item>> pipe(Handler<GrpcWriteStream<examples.Item>> request);
 
 }
