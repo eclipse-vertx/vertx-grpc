@@ -14,6 +14,7 @@ import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
+@io.vertx.codegen.annotations.VertxGen
 public interface VertxStreamingGrpcClient {
 
   public static final ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
@@ -47,13 +48,15 @@ public interface VertxStreamingGrpcClient {
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
 
-static VertxStreamingGrpcClient create(GrpcClient client, SocketAddress socketAddress) {
-  return new VertxStreamingGrpcClientImpl(client, socketAddress);
-}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  static VertxStreamingGrpcClient create(GrpcClient client, SocketAddress socketAddress) {
+    return new VertxStreamingGrpcClientImpl(client, socketAddress);
+  }
 
-static VertxStreamingGrpcClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
-  return new VertxStreamingGrpcClientImpl(client, socketAddress, wireFormat);
-}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  static VertxStreamingGrpcClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new VertxStreamingGrpcClientImpl(client, socketAddress, wireFormat);
+  }
 
 static class VertxStreamingGrpcClientImpl implements VertxStreamingGrpcClient {
 
@@ -139,8 +142,11 @@ static class VertxStreamingGrpcClientImpl implements VertxStreamingGrpcClient {
 
   }
 
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<GrpcReadStream<examples.Item>> source(examples.Empty request);
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<examples.Empty> sink(Handler<GrpcWriteStream<examples.Item>> request);
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<GrpcReadStream<examples.Item>> pipe(Handler<GrpcWriteStream<examples.Item>> request);
 
 }

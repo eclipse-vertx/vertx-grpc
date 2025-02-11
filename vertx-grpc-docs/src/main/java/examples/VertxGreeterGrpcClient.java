@@ -14,6 +14,7 @@ import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
+@io.vertx.codegen.annotations.VertxGen
 public interface VertxGreeterGrpcClient {
 
   public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
@@ -27,13 +28,15 @@ public interface VertxGreeterGrpcClient {
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.HelloReply.newBuilder()));
 
-static VertxGreeterGrpcClient create(GrpcClient client, SocketAddress socketAddress) {
-  return new VertxGreeterGrpcClientImpl(client, socketAddress);
-}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  static VertxGreeterGrpcClient create(GrpcClient client, SocketAddress socketAddress) {
+    return new VertxGreeterGrpcClientImpl(client, socketAddress);
+  }
 
-static VertxGreeterGrpcClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
-  return new VertxGreeterGrpcClientImpl(client, socketAddress, wireFormat);
-}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  static VertxGreeterGrpcClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new VertxGreeterGrpcClientImpl(client, socketAddress, wireFormat);
+  }
 
 static class VertxGreeterGrpcClientImpl implements VertxGreeterGrpcClient {
 
@@ -71,6 +74,7 @@ static class VertxGreeterGrpcClientImpl implements VertxGreeterGrpcClient {
 
   }
 
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<examples.HelloReply> sayHello(examples.HelloRequest request);
 
 }
