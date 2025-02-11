@@ -16,30 +16,67 @@ import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
-public class {{className}} {
+@io.vertx.codegen.annotations.VertxGen
+public interface {{className}} {
 
 {{#allMethods}}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   public static final ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}} = ServiceMethod.client(
     ServiceName.create("{{packageName}}", "{{serviceName}}"),
     "{{methodName}}",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder({{outputType}}.parser()));
-  public static final ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}}_JSON = ServiceMethod.client(
-    ServiceName.create("{{packageName}}", "{{serviceName}}"),
-    "{{methodName}}",
-    GrpcMessageEncoder.json(),
-    GrpcMessageDecoder.json(() -> {{outputType}}.newBuilder()));
 {{/allMethods}}
+
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  public final class Json {
+{{#allMethods}}
+    public static final ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}} = ServiceMethod.client(
+      ServiceName.create("{{packageName}}", "{{serviceName}}"),
+      "{{methodName}}",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> {{outputType}}.newBuilder()));
+{{/allMethods}}
+  }
+
+  static {{className}} create(GrpcClient client, SocketAddress socketAddress) {
+    return new {{className}}Impl(client, socketAddress);
+  }
+
+  static {{className}} create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new {{className}}Impl(client, socketAddress, wireFormat);
+  }
+
+{{#unaryMethods}}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
+{{/unaryMethods}}
+{{#unaryManyMethods}}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);
+{{/unaryManyMethods}}
+{{#manyUnaryMethods}}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<{{outputType}}> {{vertxMethodName}}(Handler<GrpcWriteStream<{{inputType}}>> request);
+{{/manyUnaryMethods}}
+{{#manyManyMethods}}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}(Handler<GrpcWriteStream<{{inputType}}>> request);
+{{/manyManyMethods}}
+
+}
+
+class {{className}}Impl implements {{className}} {
 
   private final GrpcClient client;
   private final SocketAddress socketAddress;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  public {{className}}(GrpcClient client, SocketAddress socketAddress) {
+  {{className}}Impl(GrpcClient client, SocketAddress socketAddress) {
     this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  public {{className}}(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  {{className}}Impl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
@@ -53,7 +90,7 @@ public class {{className}} {
         serviceMethod = {{methodName}};
         break;
       case JSON:
-        serviceMethod = {{methodName}}_JSON;
+        serviceMethod = Json.{{methodName}};
         break;
       default:
         throw new AssertionError();
@@ -73,7 +110,7 @@ public class {{className}} {
         serviceMethod = {{methodName}};
         break;
       case JSON:
-        serviceMethod = {{methodName}}_JSON;
+        serviceMethod = Json.{{methodName}};
         break;
       default:
         throw new AssertionError();
@@ -99,7 +136,7 @@ public class {{className}} {
         serviceMethod = {{methodName}};
         break;
       case JSON:
-        serviceMethod = {{methodName}}_JSON;
+        serviceMethod = Json.{{methodName}};
         break;
       default:
         throw new AssertionError();
@@ -119,7 +156,7 @@ public class {{className}} {
         serviceMethod = {{methodName}};
         break;
       case JSON:
-        serviceMethod = {{methodName}}_JSON;
+        serviceMethod = Json.{{methodName}};
         break;
       default:
         throw new AssertionError();

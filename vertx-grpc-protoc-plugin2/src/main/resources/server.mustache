@@ -23,48 +23,79 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class {{className}}  {
-
 {{#allMethods}}
+
   public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = ServiceMethod.server(
     ServiceName.create("{{packageName}}", "{{serviceName}}"),
     "{{methodName}}",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder({{inputType}}.parser()));
-  public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}}_JSON = ServiceMethod.server(
-    ServiceName.create("{{packageName}}", "{{serviceName}}"),
-    "{{methodName}}",
-    GrpcMessageEncoder.json(),
-    GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()));
 {{/allMethods}}
 
-{{#transcodingMethods}}
-  private static final io.vertx.grpc.transcoding.MethodTranscodingOptions {{methodName}}_TRANSCODING_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
-    .setSelector("{{transcodingContext.selector}}")
-    .setHttpMethod(HttpMethod.valueOf("{{transcodingContext.method}}"))
-    .setPath("{{transcodingContext.path}}")
-    .setBody("{{transcodingContext.body}}")
-    .setResponseBody("{{transcodingContext.responseBody}}")
-    {{#transcodingContext.additionalBindings}}
-    .addAdditionalBinding(new io.vertx.grpc.transcoding.MethodTranscodingOptions()
-      .setSelector("{{selector}}")
-      .setHttpMethod(HttpMethod.valueOf("{{method}}"))
-      .setPath("{{path}}")
-      .setBody("{{body}}")
-      .setResponseBody("{{responseBody}}"))
-    {{/transcodingContext.additionalBindings}}
-  ;
-{{/transcodingMethods}}
+  public static final java.util.List<ServiceMethod<?, ?>> all() {
+    java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
+{{#allMethods}}
+    all.add({{methodName}});
+{{/allMethods}}
+    return all;
+  }
 
+  public static final class Json {
+{{#allMethods}}
+
+    public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = ServiceMethod.server(
+      ServiceName.create("{{packageName}}", "{{serviceName}}"),
+      "{{methodName}}",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()));
+{{/allMethods}}
+
+    public static final java.util.List<ServiceMethod<?, ?>> all() {
+      java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
+{{#allMethods}}
+      all.add({{methodName}});
+{{/allMethods}}
+      return all;
+    }
+  }
+
+  public static final class Transcoding {
 {{#transcodingMethods}}
-  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<{{inputType}}, {{outputType}}> {{methodName}}_TRANSCODING = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+
+    private static final io.vertx.grpc.transcoding.MethodTranscodingOptions {{methodName}}_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
+      .setSelector("{{transcodingContext.selector}}")
+      .setHttpMethod(HttpMethod.valueOf("{{transcodingContext.method}}"))
+      .setPath("{{transcodingContext.path}}")
+      .setBody("{{transcodingContext.body}}")
+      .setResponseBody("{{transcodingContext.responseBody}}")
+      {{#transcodingContext.additionalBindings}}
+      .addAdditionalBinding(new io.vertx.grpc.transcoding.MethodTranscodingOptions()
+        .setSelector("{{selector}}")
+        .setHttpMethod(HttpMethod.valueOf("{{method}}"))
+        .setPath("{{path}}")
+        .setBody("{{body}}")
+        .setResponseBody("{{responseBody}}"))
+      {{/transcodingContext.additionalBindings}}
+    ;
+{{/transcodingMethods}}
+{{#transcodingMethods}}
+
+  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
     ServiceName.create("{{packageName}}", "{{serviceName}}"),
     "{{methodName}}",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()),
-    {{methodName}}_TRANSCODING_OPTIONS);
+    {{methodName}}_OPTIONS);
 {{/transcodingMethods}}
 
-  public static class {{serviceName}}Api {
+  public static final java.util.List<ServiceMethod<?, ?>> all() {
+      java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
+{{#transcodingMethods}}
+      all.add({{methodName}});
+{{/transcodingMethods}}
+      return all;
+    }
+  }
 
 {{#unaryMethods}}
     public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
@@ -109,153 +140,95 @@ public class {{className}}  {
     }
 {{/manyManyMethods}}
 
+  public class Binder {
+    private final List<ServiceMethod<?, ?>> serviceMethods;
+    private Binder(List<ServiceMethod<?, ?>> serviceMethods) {
+      this.serviceMethods = serviceMethods;
+    }
+    private void validate() {
+      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
+        if (resolveHandler(serviceMethod) == null) {
+          throw new IllegalArgumentException("Invalid service method:" + serviceMethod);
+        }
+      }
+    }
+    private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
+{{#methods}}
+      if ({{methodName}} == serviceMethod || Json.{{methodName}} == serviceMethod) {
+        Handler<io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}>> handler = {{className}}.this::handle_{{vertxMethodName}};
+        Handler<?> handler2 = handler;
+        return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
+      }
+{{/methods}}
+      return null;
+    }
+    private <Req, Resp> void bindHandler(GrpcServer server, ServiceMethod<Req, Resp> serviceMethod) {
+      Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
+      server.callHandler(serviceMethod, handler);
+    }
+    public void to(GrpcServer server) {
+      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
+        bindHandler(server, serviceMethod);
+      }
+    }
+  }
+
+  public Binder bind(List<ServiceMethod<?, ?>> serviceMethods) {
+    Binder binder = new Binder(serviceMethods);
+    binder.validate();
+    return binder;
+  }
+
+  public Binder bind(ServiceMethod<?, ?>... serviceMethods) {
+    return bind(java.util.Arrays.asList(serviceMethods));
+  }
+
 {{#unaryMethods}}
-    public final void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
-      Promise<{{outputType}}> promise = Promise.promise();
-      request.handler(msg -> {
-        try {
-          {{vertxMethodName}}(msg, promise);
-        } catch (RuntimeException err) {
-          promise.tryFail(err);
-        }
-      });
-      promise.future()
-        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-        .onSuccess(resp -> request.response().end(resp));
-    }
-    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
-    }
-    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
-      switch(format) {
-        case PROTOBUF:
-          serviceMethod = {{methodName}};
-          break;
-        case JSON:
-          serviceMethod = {{methodName}}_JSON;
-          break;
-        default:
-          throw new AssertionError();
-      }
-      server.callHandler(serviceMethod, this::handle_{{vertxMethodName}});
-      return this;
-    }
-{{/unaryMethods}}
-{{#unaryManyMethods}}
-    public final void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
-      request.handler(msg -> {
-        try {
-          {{vertxMethodName}}(msg, request.response());
-        } catch (RuntimeException err) {
-          request.response().status(GrpcStatus.INTERNAL).end();
-        }
-      });
-    }
-    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
-    }
-    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
-      switch(format) {
-        case PROTOBUF:
-          serviceMethod = {{methodName}};
-          break;
-        case JSON:
-          serviceMethod = {{methodName}}_JSON;
-          break;
-        default:
-          throw new AssertionError();
-      }
-      server.callHandler(serviceMethod, this::handle_{{vertxMethodName}});
-      return this;
-    }
-{{/unaryManyMethods}}
-{{#manyUnaryMethods}}
-    public final void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
-      Promise<{{outputType}}> promise = Promise.promise();
-      promise.future()
-        .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-        .onSuccess(resp -> request.response().end(resp));
+  private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
+    Promise<{{outputType}}> promise = Promise.promise();
+    request.handler(msg -> {
       try {
-        {{vertxMethodName}}(request, promise);
+        {{vertxMethodName}}(msg, promise);
       } catch (RuntimeException err) {
         promise.tryFail(err);
       }
-    }
-    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
-    }
-    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
-      switch(format) {
-        case PROTOBUF:
-          serviceMethod = {{methodName}};
-          break;
-        case JSON:
-          serviceMethod = {{methodName}}_JSON;
-          break;
-        default:
-          throw new AssertionError();
-      }
-      server.callHandler(serviceMethod, this::handle_{{vertxMethodName}});
-      return this;
-    }
-{{/manyUnaryMethods}}
-{{#manyManyMethods}}
-    public final void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
+    });
+    promise.future()
+      .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+      .onSuccess(resp -> request.response().end(resp));
+  }
+{{/unaryMethods}}
+{{#unaryManyMethods}}
+  private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
+    request.handler(msg -> {
       try {
-        {{vertxMethodName}}(request, request.response());
+        {{vertxMethodName}}(msg, request.response());
       } catch (RuntimeException err) {
         request.response().status(GrpcStatus.INTERNAL).end();
       }
-    }
-    public {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server) {
-      return bind_{{vertxMethodName}}(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
-    }
-    public final {{serviceName}}Api bind_{{vertxMethodName}}(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
-      switch(format) {
-        case PROTOBUF:
-          serviceMethod = {{methodName}};
-          break;
-        case JSON:
-          serviceMethod = {{methodName}}_JSON;
-          break;
-        default:
-          throw new AssertionError();
-      }
-      server.callHandler(serviceMethod, this::handle_{{vertxMethodName}});
-      return this;
-    }
-{{/manyManyMethods}}
-
-{{#transcodingMethods}}
-    public {{serviceName}}Api bind_{{vertxMethodName}}_with_transcoding(GrpcServer server) {
-      server.callHandler({{methodName}}_TRANSCODING, this::handle_{{vertxMethodName}});
-      return this;
-    }
-{{/transcodingMethods}}
-
-    public final {{serviceName}}Api bindAll(GrpcServer server) {
-{{#methods}}
-      bind_{{vertxMethodName}}(server);
-{{/methods}}
-      return this;
-    }
-
-    public final {{serviceName}}Api bindAll(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
-{{#methods}}
-      bind_{{vertxMethodName}}(server, format);
-{{/methods}}
-      return this;
-    }
-
-    public final {{serviceName}}Api bindAllWithTranscoding(GrpcServer server) {
-{{#transcodingMethods}}
-      bind_{{vertxMethodName}}_with_transcoding(server);
-{{/transcodingMethods}}
-      return this;
+    });
+  }
+{{/unaryManyMethods}}
+{{#manyUnaryMethods}}
+  private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
+    Promise<{{outputType}}> promise = Promise.promise();
+    promise.future()
+      .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
+      .onSuccess(resp -> request.response().end(resp));
+    try {
+      {{vertxMethodName}}(request, promise);
+    } catch (RuntimeException err) {
+      promise.tryFail(err);
     }
   }
+{{/manyUnaryMethods}}
+{{#manyManyMethods}}
+  private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
+    try {
+      {{vertxMethodName}}(request, request.response());
+    } catch (RuntimeException err) {
+      request.response().status(GrpcStatus.INTERNAL).end();
+    }
+  }
+{{/manyManyMethods}}
 }

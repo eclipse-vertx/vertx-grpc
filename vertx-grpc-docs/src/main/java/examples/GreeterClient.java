@@ -14,28 +14,49 @@ import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
-public class VertxGreeterGrpcClient {
+@io.vertx.codegen.annotations.VertxGen
+public interface GreeterClient {
 
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
     ServiceName.create("helloworld", "Greeter"),
     "SayHello",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.HelloReply.parser()));
-  public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello_JSON = ServiceMethod.client(
-    ServiceName.create("helloworld", "Greeter"),
-    "SayHello",
-    GrpcMessageEncoder.json(),
-    GrpcMessageDecoder.json(() -> examples.HelloReply.newBuilder()));
+
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  public final class Json {
+    public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
+      ServiceName.create("helloworld", "Greeter"),
+      "SayHello",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> examples.HelloReply.newBuilder()));
+  }
+
+  static GreeterClient create(GrpcClient client, SocketAddress socketAddress) {
+    return new GreeterClientImpl(client, socketAddress);
+  }
+
+  static GreeterClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new GreeterClientImpl(client, socketAddress, wireFormat);
+  }
+
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<examples.HelloReply> sayHello(examples.HelloRequest request);
+
+}
+
+class GreeterClientImpl implements GreeterClient {
 
   private final GrpcClient client;
   private final SocketAddress socketAddress;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  public VertxGreeterGrpcClient(GrpcClient client, SocketAddress socketAddress) {
+  GreeterClientImpl(GrpcClient client, SocketAddress socketAddress) {
     this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  public VertxGreeterGrpcClient(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  GreeterClientImpl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
@@ -48,7 +69,7 @@ public class VertxGreeterGrpcClient {
         serviceMethod = SayHello;
         break;
       case JSON:
-        serviceMethod = SayHello_JSON;
+        serviceMethod = Json.SayHello;
         break;
       default:
         throw new AssertionError();

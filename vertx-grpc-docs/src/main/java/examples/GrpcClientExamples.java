@@ -27,7 +27,7 @@ public class GrpcClientExamples {
   public void sendRequest(GrpcClient client) {
 
     SocketAddress server = SocketAddress.inetSocketAddress(443, "example.com");
-    ServiceMethod<HelloReply, HelloRequest> sayHelloMethod = VertxGreeterGrpcClient.SayHello;
+    ServiceMethod<HelloReply, HelloRequest> sayHelloMethod = GreeterClient.SayHello;
     Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, sayHelloMethod);
     fut.onSuccess(request -> {
       // The end method calls the service
@@ -46,7 +46,7 @@ public class GrpcClientExamples {
 
   public void requestResponse(GrpcClient client, SocketAddress server) {
     client
-      .request(server, VertxGreeterGrpcClient.SayHello).compose(request -> {
+      .request(server, GreeterClient.SayHello).compose(request -> {
         request.end(HelloRequest
           .newBuilder()
           .setName("Bob")
@@ -59,7 +59,7 @@ public class GrpcClientExamples {
 
   public void streamingRequest(GrpcClient client, SocketAddress server) {
     client
-      .request(server, VertxStreamingGrpcClient.Sink)
+      .request(server, StreamingClient.Sink)
       .onSuccess(request -> {
       for (int i = 0;i < 10;i++) {
         request.write(Item.newBuilder().setValue("1").build());
@@ -70,7 +70,7 @@ public class GrpcClientExamples {
 
   public void streamingResponse(GrpcClient client, SocketAddress server) {
     client
-      .request(server, VertxStreamingGrpcClient.Source)
+      .request(server, StreamingClient.Source)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
         return request.response();
@@ -123,7 +123,7 @@ public class GrpcClientExamples {
       .build();
 
     client
-      .request(SocketAddress.inetSocketAddress(port, server), VertxGreeterGrpcClient.SayHello)
+      .request(SocketAddress.inetSocketAddress(port, server), GreeterClient.SayHello)
       .compose(request -> {
         request.end(HelloRequest
           .newBuilder()
@@ -162,7 +162,7 @@ public class GrpcClientExamples {
     ServiceAddress address = ServiceAddress.of("GreeterService");
 
     client
-      .request(address, VertxGreeterGrpcClient.SayHello)
+      .request(address, GreeterClient.SayHello)
       .compose(request -> {
         request.end(HelloRequest
           .newBuilder()
@@ -176,7 +176,7 @@ public class GrpcClientExamples {
 
   public void jsonWireFormat01(GrpcClient client, SocketAddress server) {
     client
-      .request(server, VertxGreeterGrpcClient.SayHello_JSON).compose(request -> {
+      .request(server, GreeterClient.Json.SayHello).compose(request -> {
         request.end(HelloRequest
           .newBuilder()
           .setName("Bob")
@@ -224,7 +224,7 @@ public class GrpcClientExamples {
 
   public void requestWithDeadline2(GrpcClient client, SocketAddress server, MethodDescriptor<HelloRequest, HelloReply> sayHelloMethod) {
 
-    Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, VertxGreeterGrpcClient.SayHello);
+    Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, GreeterClient.SayHello);
     fut.onSuccess(request -> {
 
       request
@@ -283,14 +283,14 @@ public class GrpcClientExamples {
   }
 
   public void createClientStub(GrpcClient grpcClient, String host, int port) {
-    VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, host));
+    GreeterClient client = GreeterClient.create(grpcClient, SocketAddress.inetSocketAddress(port, host));
   }
 
   public void createClientStubJson(GrpcClient grpcClient, int port, String host) {
-    VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, host), WireFormat.JSON);
+    GreeterClient client = GreeterClient.create(grpcClient, SocketAddress.inetSocketAddress(port, host), WireFormat.JSON);
   }
 
-  public void unaryStub(VertxGreeterGrpcClient client) {
+  public void unaryStub(GreeterClient client) {
     Future<HelloReply> response = client.sayHello(HelloRequest.newBuilder().setName("John").build());
 
     response.onSuccess(result -> System.out.println("Service responded: " + response.result().getMessage()));
@@ -298,7 +298,7 @@ public class GrpcClientExamples {
     response.onFailure(err -> System.out.println("Service failure: " + response.cause().getMessage()));
   }
 
-  public void streamingRequestStub(VertxStreamingGrpcClient client) {
+  public void streamingRequestStub(StreamingClient client) {
     Future<Empty> response = client.sink(stream -> {
       stream.write(Item.newBuilder().setValue("Value 1").build());
       stream.write(Item.newBuilder().setValue("Value 2").build());
@@ -306,7 +306,7 @@ public class GrpcClientExamples {
     });
   }
 
-  public void streamingResponseStub(VertxStreamingGrpcClient client) {
+  public void streamingResponseStub(StreamingClient client) {
     Future<GrpcReadStream<Item>> response = client.source(Empty.getDefaultInstance());
 
     response.onSuccess(stream -> stream

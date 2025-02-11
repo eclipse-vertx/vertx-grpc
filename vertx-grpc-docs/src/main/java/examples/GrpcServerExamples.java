@@ -32,7 +32,7 @@ public class GrpcServerExamples {
 
   public void requestResponse(GrpcServer server) {
 
-    ServiceMethod<HelloRequest, HelloReply> serviceMethod = VertxGreeterGrpcServer.SayHello;
+    ServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterService.SayHello;
 
     server.callHandler(serviceMethod, request -> {
 
@@ -49,7 +49,7 @@ public class GrpcServerExamples {
 
   public void streamingRequest(GrpcServer server) {
 
-    server.callHandler(VertxStreamingGrpcServer.Sink, request -> {
+    server.callHandler(StreamingService.Sink, request -> {
       request.handler(item -> {
         // Process item
       });
@@ -66,7 +66,7 @@ public class GrpcServerExamples {
 
   public void streamingResponse(GrpcServer server) {
 
-    server.callHandler(VertxStreamingGrpcServer.Source, request -> {
+    server.callHandler(StreamingService.Source, request -> {
       GrpcServerResponse<Empty, Item> response = request.response();
       request.handler(empty -> {
         for (int i = 0;i < 10;i++) {
@@ -79,7 +79,7 @@ public class GrpcServerExamples {
 
   public void bidi(GrpcServer server) {
 
-    server.callHandler(VertxStreamingGrpcServer.Pipe, request -> {
+    server.callHandler(StreamingService.Pipe, request -> {
 
       request.handler(item -> request.response().write(item));
       request.endHandler(v -> request.response().end());
@@ -135,7 +135,7 @@ public class GrpcServerExamples {
   }
 
   public void jsonWireFormat01(GrpcServer server) {
-    server.callHandler(VertxGreeterGrpcServer.SayHello_JSON, request -> {
+    server.callHandler(GreeterService.Json.SayHello, request -> {
       request.last().onSuccess(helloRequest -> {
         request.response().end(HelloReply.newBuilder()
           .setMessage("Hello " + helloRequest.getName()).build()
@@ -170,7 +170,7 @@ public class GrpcServerExamples {
 
   public GrpcServer transcodingRequestResponse(GrpcServer server) {
     // Define the service method
-    TranscodingServiceMethod<HelloRequest, HelloReply> serviceMethod = VertxGreeterGrpcServer.SayHello_TRANSCODING;
+    TranscodingServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterService.Transcoding.SayHello;
 
     // Register the handler with transcoding options
     server.callHandler(serviceMethod, request -> {
@@ -255,35 +255,35 @@ public class GrpcServerExamples {
   }
 
   public void unaryStub1(GrpcServer server) {
-    VertxGreeterGrpcServer.GreeterApi stub = new VertxGreeterGrpcServer.GreeterApi() {
+    GreeterService stub = new GreeterService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
         return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
       }
     };
-    stub.bindAll(server);
+    stub.bind(GreeterService.SayHello).to(server);
   }
 
   public void unaryStub2(GrpcServer server) {
-    VertxGreeterGrpcServer.GreeterApi stub = new VertxGreeterGrpcServer.GreeterApi() {
+    GreeterService stub = new GreeterService() {
       @Override
       public void sayHello(HelloRequest request, Promise<HelloReply> response) {
         response.complete(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
       }
     };
-    stub.bindAll(server);
+    stub.bind(GreeterService.SayHello).to(server);
   }
 
-  public void unaryStub3(VertxGreeterGrpcServer.GreeterApi stub, GrpcServer server) {
-    stub.bindAll(server);
+  public void unaryStub3(GreeterService stub, GrpcServer server) {
+    stub.bind(GreeterService.all()).to(server);
   }
 
-  public void unaryStub4(VertxGreeterGrpcServer.GreeterApi stub, GrpcServer server) {
-    stub.bindAll(server, WireFormat.JSON);
+  public void unaryStub4(GreeterService stub, GrpcServer server) {
+    stub.bind(GreeterService.Json.all()).to(server);
   }
 
   public void streamingRequestStub(GrpcServer server) {
-    VertxStreamingGrpcServer.StreamingApi stub = new VertxStreamingGrpcServer.StreamingApi() {
+    StreamingService stub = new StreamingService() {
       @Override
       public void sink(GrpcReadStream<Item> stream, Promise<Empty> response) {
         stream.handler(item -> {
@@ -293,7 +293,7 @@ public class GrpcServerExamples {
         stream.endHandler(v -> response.complete(Empty.getDefaultInstance()));
       }
     };
-    stub.bindAll(server);
+    stub.bind(StreamingService.Sink).to(server);
   }
 
   private ReadStream<Item> streamOfItems() {
@@ -301,7 +301,7 @@ public class GrpcServerExamples {
   }
 
   public void streamingResponseStub1() {
-    VertxStreamingGrpcServer.StreamingApi stub = new VertxStreamingGrpcServer.StreamingApi() {
+    StreamingService stub = new StreamingService() {
       @Override
       public ReadStream<Item> source(Empty request) {
         return streamOfItems();
@@ -310,7 +310,7 @@ public class GrpcServerExamples {
   }
 
   public void streamingResponseStub2() {
-    VertxStreamingGrpcServer.StreamingApi stub = new VertxStreamingGrpcServer.StreamingApi() {
+    StreamingService stub = new StreamingService() {
       @Override
       public void source(Empty request, GrpcWriteStream<Item> response) {
         response.write(Item.newBuilder().setValue("value-1").build());
