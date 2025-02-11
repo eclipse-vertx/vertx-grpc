@@ -18,8 +18,9 @@ public class MessageWeaver {
     }
 
     BufferInternal buffer = BufferInternal.buffer();
-    JsonObject result = message.toString().isBlank() ? new JsonObject() : message.toJsonObject();
+    JsonObject result = new JsonObject();
 
+    // First handle the bindings
     for (HttpVariableBinding binding : bindings) {
       JsonObject current = result;
       List<String> fieldPath = binding.getFieldPath();
@@ -27,48 +28,45 @@ public class MessageWeaver {
       // Navigate to parent object, creating path if needed
       for (int i = 0; i < fieldPath.size() - 1; i++) {
         String fieldName = fieldPath.get(i);
-        JsonObject next;
         if (!current.containsKey(fieldName)) {
-          next = new JsonObject();
-          current.put(fieldName, next);
-        } else {
-          Object existing = current.getValue(fieldName);
-          if (!(existing instanceof JsonObject)) {
-            next = new JsonObject();
-            current.put(fieldName, next);
-          } else {
-            next = (JsonObject) existing;
-          }
+          current.put(fieldName, new JsonObject());
         }
-        current = next;
+        Object fieldValue = current.getValue(fieldName);
+        if (!(fieldValue instanceof JsonObject)) {
+          // If the field exists but is not an object, overwrite it with an empty object
+          current.put(fieldName, new JsonObject());
+        }
+        current = current.getJsonObject(fieldName);
       }
 
       // Set the value at the final path position
       current.put(fieldPath.get(fieldPath.size() - 1), binding.getValue());
     }
 
-    // Handle transcoding request body
+    // Then handle the transcoding request body
     if (transcodingRequestBody != null && !transcodingRequestBody.isEmpty()) {
       JsonObject messageJson = message.toString().isBlank() ? new JsonObject() : new JsonObject(message.toString());
-      if (transcodingRequestBody.equals("*")) {
-        result.mergeIn(messageJson);
-      } else {
-        JsonObject current = result;
-        String[] path = transcodingRequestBody.split("\\.");
-        for (int i = 0; i < path.length - 1; i++) {
-          String fieldName = path[i];
-          if (!current.containsKey(fieldName)) {
-            current.put(fieldName, new JsonObject());
+      if (!messageJson.isEmpty()) {
+        if (transcodingRequestBody.equals("*")) {
+          result.mergeIn(messageJson);
+        } else {
+          JsonObject current = result;
+          String[] path = transcodingRequestBody.split("\\.");
+          for (int i = 0; i < path.length - 1; i++) {
+            String fieldName = path[i];
+            if (!current.containsKey(fieldName)) {
+              current.put(fieldName, new JsonObject());
+            }
+            current = current.getJsonObject(fieldName);
           }
-          current = current.getJsonObject(fieldName);
+          current.put(path[path.length - 1], messageJson);
         }
-        current.put(path[path.length - 1], messageJson);
       }
-    }
-
-    if (transcodingRequestBody != null && !transcodingRequestBody.isBlank() && !transcodingRequestBody.equals("*")) {
-      String path = transcodingRequestBody.split("\\.")[0];
-      result.fieldNames().removeIf(key -> !key.equals(path));
+    } else {
+      JsonObject messageJson = message.toString().isBlank() ? new JsonObject() : message.toJsonObject();
+      if (!messageJson.isEmpty()) {
+        result.mergeIn(messageJson, true);
+      }
     }
 
     buffer.appendString(result.encode());
@@ -80,7 +78,7 @@ public class MessageWeaver {
       return message;
     }
 
-    JsonObject json = new JsonObject(message.toString());
+    JsonObject json = message.toJsonObject();
 
     if (transcodingResponseBody.equals("*")) {
       return message;

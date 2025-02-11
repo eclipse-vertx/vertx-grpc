@@ -248,6 +248,21 @@ public class ServerTranscodingTest extends GrpcTestBase {
   }
 
   @Test
+  public void testNestedQueryBody(TestContext should) {
+    String payload = "foobar";
+    httpClient.request(HttpMethod.GET, "/body?request.payload=" + payload).compose(req -> {
+      req.headers().addAll(HEADERS);
+      return req.send().compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      MultiMap headers = response.headers();
+      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonObject body = decodeBody(response.body().result());
+      assertEquals(payload, body.getString("payload"));
+    })));
+  }
+
+  @Test
   public void testInvalidPayload(TestContext should) {
     String payload = "boom";
     httpClient.request(HttpMethod.GET, "/hello").compose(req -> {

@@ -7,6 +7,8 @@ import java.util.regex.Pattern;
  */
 public class PercentEncoding {
 
+  private static final Pattern ESCAPE_STRING_PATTERN = Pattern.compile("[^a-zA-Z0-9-_.~]");
+
   public enum UrlUnescapeSpec {
     ALL_CHARACTERS_EXCEPT_RESERVED,
     ALL_CHARACTERS_EXCEPT_SLASH,
@@ -122,12 +124,13 @@ public class PercentEncoding {
     return unescaped.toString();
   }
 
-  public static String urlUnescapeString(String part) {
+  /** Remove this in the future, if not needed */
+  private static String urlUnescapeString(String part) {
     return urlUnescapeString(part, UrlUnescapeSpec.ALL_CHARACTERS, false);
   }
 
-  public static String urlEscapeString(String str) {
-    return Pattern.compile("[^a-zA-Z0-9-_.~]").matcher(str)
-      .replaceAll(m -> "%" + Integer.toHexString(m.group().charAt(0)).toUpperCase());
+  /** Remove this in the future, if not needed */
+  private static String urlEscapeString(String str) {
+    return ESCAPE_STRING_PATTERN.matcher(str).replaceAll(m -> "%" + Integer.toHexString(m.group().charAt(0)).toUpperCase());
   }
 }
