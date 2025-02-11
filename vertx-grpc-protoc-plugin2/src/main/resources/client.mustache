@@ -35,11 +35,19 @@ public class {{className}} {
   private final SocketAddress socketAddress;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  public {{className}}(GrpcClient client, SocketAddress socketAddress) {
+  public static {{className}} create(GrpcClient client, SocketAddress socketAddress) {
+    return new {{className}}(client, socketAddress);
+  }
+
+  public static {{className}} create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new {{className}}(client, socketAddress, wireFormat);
+  }
+
+  private {{className}}(GrpcClient client, SocketAddress socketAddress) {
     this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  public {{className}}(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  private {{className}}(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);

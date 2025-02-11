@@ -51,11 +51,19 @@ public class VertxStreamingGrpcClient {
   private final SocketAddress socketAddress;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  public VertxStreamingGrpcClient(GrpcClient client, SocketAddress socketAddress) {
+  public static VertxStreamingGrpcClient create(GrpcClient client, SocketAddress socketAddress) {
+    return new VertxStreamingGrpcClient(client, socketAddress);
+  }
+
+  public static VertxStreamingGrpcClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new VertxStreamingGrpcClient(client, socketAddress, wireFormat);
+  }
+
+  private VertxStreamingGrpcClient(GrpcClient client, SocketAddress socketAddress) {
     this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  public VertxStreamingGrpcClient(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  private VertxStreamingGrpcClient(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);

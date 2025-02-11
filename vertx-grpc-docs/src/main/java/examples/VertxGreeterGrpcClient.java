@@ -31,11 +31,19 @@ public class VertxGreeterGrpcClient {
   private final SocketAddress socketAddress;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  public VertxGreeterGrpcClient(GrpcClient client, SocketAddress socketAddress) {
+  public static VertxGreeterGrpcClient create(GrpcClient client, SocketAddress socketAddress) {
+    return new VertxGreeterGrpcClient(client, socketAddress);
+  }
+
+  public static VertxGreeterGrpcClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new VertxGreeterGrpcClient(client, socketAddress, wireFormat);
+  }
+
+  private VertxGreeterGrpcClient(GrpcClient client, SocketAddress socketAddress) {
     this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  public VertxGreeterGrpcClient(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  private VertxGreeterGrpcClient(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);

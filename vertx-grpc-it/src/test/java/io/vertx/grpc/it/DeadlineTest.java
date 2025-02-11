@@ -49,7 +49,7 @@ public class DeadlineTest extends ProxyTestBase {
         latch.countDown();
       });
     })).listen(8080, "localhost");
-    VertxGreeterGrpcClient stub = new VertxGreeterGrpcClient(client, SocketAddress.inetSocketAddress(8080, "localhost"));
+    VertxGreeterGrpcClient stub = VertxGreeterGrpcClient.create(client, SocketAddress.inetSocketAddress(8080, "localhost"));
     VertxGreeterGrpcServer.GreeterApi impl = new VertxGreeterGrpcServer.GreeterApi() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
