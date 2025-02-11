@@ -10,10 +10,10 @@
  */
 package io.vertx.grpc.it;
 
+import io.grpc.examples.helloworld.GreeterClient;
+import io.grpc.examples.helloworld.GreeterService;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
-import io.grpc.examples.helloworld.VertxGreeterGrpcClient;
-import io.grpc.examples.helloworld.VertxGreeterGrpcServer;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.net.SocketAddress;
@@ -36,7 +36,7 @@ public class JsonWireFormatTest extends ProxyTestBase {
 
     GrpcClient client = GrpcClient.client(vertx);
 
-    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(VertxGreeterGrpcServer.SayHello_JSON, call -> {
+    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(GreeterService.Json.SayHello, call -> {
       call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         call.response().end(helloReply);
@@ -45,7 +45,7 @@ public class JsonWireFormatTest extends ProxyTestBase {
 
     Async test = should.async();
     server.onComplete(should.asyncAssertSuccess(v -> {
-      client.request(SocketAddress.inetSocketAddress(8080, "localhost"), VertxGreeterGrpcClient.SayHello_JSON)
+      client.request(SocketAddress.inetSocketAddress(8080, "localhost"), GreeterClient.Json.SayHello)
         .onComplete(should.asyncAssertSuccess(callRequest -> {
           callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
             AtomicInteger count = new AtomicInteger();
@@ -70,7 +70,7 @@ public class JsonWireFormatTest extends ProxyTestBase {
 
     GrpcClient client = GrpcClient.client(vertx);
 
-    VertxGreeterGrpcServer.GreeterApi greeter = new VertxGreeterGrpcServer.GreeterApi() {
+    GreeterService greeter = new GreeterService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
         return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
@@ -79,14 +79,14 @@ public class JsonWireFormatTest extends ProxyTestBase {
 
     GrpcServer grpcServer = GrpcServer.server(vertx);
 
-    greeter.bind_sayHello(grpcServer, WireFormat.JSON);
+    greeter.bind(GreeterService.Json.SayHello).to(grpcServer);
 
     Future<HttpServer> server = vertx
       .createHttpServer()
       .requestHandler(grpcServer)
       .listen(8080, "localhost");
 
-    VertxGreeterGrpcClient stub = new VertxGreeterGrpcClient(client, SocketAddress.inetSocketAddress(8080, "localhost"), WireFormat.JSON);
+    GreeterClient stub = GreeterClient.create(client, SocketAddress.inetSocketAddress(8080, "localhost"), WireFormat.JSON);
 
     Async test = should.async();
     server.onComplete(should.asyncAssertSuccess(v -> {

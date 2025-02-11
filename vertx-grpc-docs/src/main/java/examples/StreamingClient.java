@@ -14,48 +14,75 @@ import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
-public class VertxStreamingGrpcClient {
+@io.vertx.codegen.annotations.VertxGen
+public interface StreamingClient {
 
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   public static final ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
     ServiceName.create("streaming", "Streaming"),
     "Source",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
-  public static final ServiceMethod<examples.Item, examples.Empty> Source_JSON = ServiceMethod.client(
-    ServiceName.create("streaming", "Streaming"),
-    "Source",
-    GrpcMessageEncoder.json(),
-    GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   public static final ServiceMethod<examples.Empty, examples.Item> Sink = ServiceMethod.client(
     ServiceName.create("streaming", "Streaming"),
     "Sink",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Empty.parser()));
-  public static final ServiceMethod<examples.Empty, examples.Item> Sink_JSON = ServiceMethod.client(
-    ServiceName.create("streaming", "Streaming"),
-    "Sink",
-    GrpcMessageEncoder.json(),
-    GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.client(
     ServiceName.create("streaming", "Streaming"),
     "Pipe",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
-  public static final ServiceMethod<examples.Item, examples.Item> Pipe_JSON = ServiceMethod.client(
-    ServiceName.create("streaming", "Streaming"),
-    "Pipe",
-    GrpcMessageEncoder.json(),
-    GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
+
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  public final class Json {
+    public static final ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
+      ServiceName.create("streaming", "Streaming"),
+      "Source",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
+    public static final ServiceMethod<examples.Empty, examples.Item> Sink = ServiceMethod.client(
+      ServiceName.create("streaming", "Streaming"),
+      "Sink",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
+    public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.client(
+      ServiceName.create("streaming", "Streaming"),
+      "Pipe",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
+  }
+
+  static StreamingClient create(GrpcClient client, SocketAddress socketAddress) {
+    return new StreamingClientImpl(client, socketAddress);
+  }
+
+  static StreamingClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new StreamingClientImpl(client, socketAddress, wireFormat);
+  }
+
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<GrpcReadStream<examples.Item>> source(examples.Empty request);
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<examples.Empty> sink(Handler<GrpcWriteStream<examples.Item>> request);
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<GrpcReadStream<examples.Item>> pipe(Handler<GrpcWriteStream<examples.Item>> request);
+
+}
+
+class StreamingClientImpl implements StreamingClient {
 
   private final GrpcClient client;
   private final SocketAddress socketAddress;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  public VertxStreamingGrpcClient(GrpcClient client, SocketAddress socketAddress) {
+  StreamingClientImpl(GrpcClient client, SocketAddress socketAddress) {
     this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  public VertxStreamingGrpcClient(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  StreamingClientImpl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
@@ -68,7 +95,7 @@ public class VertxStreamingGrpcClient {
         serviceMethod = Source;
         break;
       case JSON:
-        serviceMethod = Source_JSON;
+        serviceMethod = Json.Source;
         break;
       default:
         throw new AssertionError();
@@ -92,7 +119,7 @@ public class VertxStreamingGrpcClient {
         serviceMethod = Sink;
         break;
       case JSON:
-        serviceMethod = Sink_JSON;
+        serviceMethod = Json.Sink;
         break;
       default:
         throw new AssertionError();
@@ -110,7 +137,7 @@ public class VertxStreamingGrpcClient {
         serviceMethod = Pipe;
         break;
       case JSON:
-        serviceMethod = Pipe_JSON;
+        serviceMethod = Json.Pipe;
         break;
       default:
         throw new AssertionError();
