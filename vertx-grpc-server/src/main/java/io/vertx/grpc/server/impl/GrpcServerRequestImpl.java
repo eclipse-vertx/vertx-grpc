@@ -77,10 +77,10 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   final HttpServerRequest httpRequest;
   final String transcodingRequestBody;
   final List<HttpVariableBinding> bindings;
-  final GrpcServerResponseImpl<Req, Resp> response;
   final long timeout;
   final boolean scheduleDeadline;
   final GrpcProtocol protocol;
+  private GrpcServerResponseImpl<Req, Resp> response;
   private final GrpcMethodCall methodCall;
   private BufferInternal grpcWebTextBuffer;
   private Timer deadline;
@@ -101,20 +101,11 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
     String timeoutHeader = httpRequest.getHeader("grpc-timeout");
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 
-    GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(
-      context,
-      this,
-      protocol,
-      httpRequest.response(),
-      transcodingResponseBody,
-      messageEncoder);
-    response.init();
     this.protocol = protocol;
     this.timeout = timeout;
     this.httpRequest = httpRequest;
     this.transcodingRequestBody = transcodingRequestBody;
     this.bindings = bindings;
-    this.response = response;
     this.methodCall = methodCall;
     this.scheduleDeadline = scheduleDeadline;
     if (httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE))) {
@@ -126,6 +117,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
 
   @Override
   public void init(GrpcWriteStreamBase ws) {
+    this.response = (GrpcServerResponseImpl<Req, Resp>) ws;
     super.init(ws);
     if (timeout > 0L) {
       if (scheduleDeadline) {

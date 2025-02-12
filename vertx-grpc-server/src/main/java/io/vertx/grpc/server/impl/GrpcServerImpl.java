@@ -219,16 +219,24 @@ public class GrpcServerImpl implements GrpcServer {
       messageDecoder,
       messageEncoder,
       methodCall);
+    GrpcServerResponseImpl<Req, Resp> grpcResponse = new GrpcServerResponseImpl<>(
+      context,
+      grpcRequest,
+      protocol,
+      httpRequest.response(),
+      transcodingOptions == null ? null : transcodingOptions.getResponseBody(),
+      messageEncoder);
     if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
       long deadline = System.currentTimeMillis() + grpcRequest.timeout;
       context.putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
     }
-    grpcRequest.init(grpcRequest.response);
+    grpcResponse.init();
+    grpcRequest.init(grpcResponse);
     grpcRequest.invalidMessageHandler(invalidMsg -> {
       if (invalidMsg instanceof MessageSizeOverflowException) {
         grpcRequest.response().status(GrpcStatus.RESOURCE_EXHAUSTED).end();
       } else {
-        grpcRequest.response.cancel();
+        grpcResponse.cancel();
       }
     });
     context.dispatch(grpcRequest, handler);
