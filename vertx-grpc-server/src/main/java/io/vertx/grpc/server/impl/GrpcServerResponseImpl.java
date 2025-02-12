@@ -171,11 +171,7 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     return httpResponse.end();
   }
 
-  private Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
-    BufferInternal buffer = GrpcMessageImpl.encode(message, compressed, trailer);
-    if (protocol == GrpcProtocol.WEB_TEXT) {
-      return BufferInternal.buffer(Base64.encode(buffer.getByteBuf(), false));
-    }
-    return buffer;
+  protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
+    return GrpcMessageImpl.encode(message, compressed, trailer);
   }
 }
