@@ -217,8 +217,6 @@ public class GrpcServerImpl implements GrpcServer {
           format,
           options.getMaxMessageSize(),
           httpRequest,
-          null,
-          bindings,
           messageDecoder,
           methodCall);
         grpcResponse = new Http2GrpcServerResponse<>(
@@ -226,7 +224,6 @@ public class GrpcServerImpl implements GrpcServer {
           grpcRequest,
           protocol,
           httpRequest.response(),
-          null,
           messageEncoder);
         break;
       case WEB:
@@ -238,8 +235,6 @@ public class GrpcServerImpl implements GrpcServer {
           format,
           options.getMaxMessageSize(),
           httpRequest,
-          null,
-          bindings,
           messageDecoder,
           methodCall);
         grpcResponse = new WebGrpcServerResponse<>(
@@ -247,7 +242,6 @@ public class GrpcServerImpl implements GrpcServer {
           grpcRequest,
           protocol,
           httpRequest.response(),
-          null,
           messageEncoder);
         break;
       case HTTP_1:

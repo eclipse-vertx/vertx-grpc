@@ -39,7 +39,6 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
 
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
-  private final String transcodingResponseBody;
   private final GrpcProtocol protocol;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
@@ -51,12 +50,10 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
                                 GrpcServerRequestImpl<Req, Resp> request,
                                 GrpcProtocol protocol,
                                 HttpServerResponse httpResponse,
-                                String transcodingResponseBody,
                                 GrpcMessageEncoder<Resp> encoder) {
     super(context, protocol.mediaType(), httpResponse, encoder);
     this.request = request;
     this.httpResponse = httpResponse;
-    this.transcodingResponseBody = transcodingResponseBody;
     this.protocol = protocol;
   }
 
@@ -163,23 +160,7 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
 
   @Override
   protected Future<Void> sendMessage(Buffer message, boolean compressed) {
-    if (GrpcServerRequestImpl.isTranscodable(request.httpRequest)) {
-      return sendTranscodedMessage(message);
-    }
-
     return httpResponse.write(encodeMessage(message, compressed, false));
-  }
-
-  private Future<Void> sendTranscodedMessage(Buffer message) {
-    try {
-      BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(message, transcodingResponseBody);
-      httpResponse.putHeader("content-length", Integer.toString(message.length()));
-      httpResponse.putHeader("content-type", GrpcProtocol.HTTP_1.mediaType());
-      return httpResponse.write(transcoded);
-    } catch (Exception e) {
-      httpResponse.setStatusCode(500).end();
-      return Future.failedFuture(e);
-    }
   }
 
   protected Future<Void> sendEnd() {

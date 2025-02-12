@@ -17,7 +17,7 @@ import io.vertx.grpc.server.GrpcProtocol;
 
 public class Http2GrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req,Resp> {
 
-  public Http2GrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, HttpServerResponse httpResponse, String transcodingResponseBody, GrpcMessageEncoder<Resp> encoder) {
-    super(context, request, protocol, httpResponse, transcodingResponseBody, encoder);
+  public Http2GrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
+    super(context, request, protocol, httpResponse, encoder);
   }
 }

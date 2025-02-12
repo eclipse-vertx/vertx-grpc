@@ -16,13 +16,10 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcProtocol;
-import io.vertx.grpc.transcoding.HttpVariableBinding;
-
-import java.util.List;
 
 public class Http2GrpcServerRequest<Req, Resp> extends GrpcServerRequestImpl<Req, Resp> {
 
-    public Http2GrpcServerRequest(ContextInternal context, boolean scheduleDeadline, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, String transcodingRequestBody, List<HttpVariableBinding> bindings, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
-        super(context, scheduleDeadline, protocol, format, maxMessageSize, httpRequest, transcodingRequestBody, bindings, messageDecoder, methodCall);
+    public Http2GrpcServerRequest(ContextInternal context, boolean scheduleDeadline, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
+        super(context, scheduleDeadline, protocol, format, maxMessageSize, httpRequest, messageDecoder, methodCall);
     }
 }
