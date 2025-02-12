@@ -62,11 +62,13 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private final GrpcMessageDecoder<T> messageDecoder;
   private final Promise<Void> end;
   private GrpcWriteStreamBase<?, ?> ws;
+  private boolean transcodable;
 
   protected GrpcReadStreamBase(Context context,
                                ReadStream<Buffer> stream,
                                String encoding,
                                WireFormat format,
+                               boolean transcodable,
                                long maxMessageSize,
                                GrpcMessageDecoder<T> messageDecoder) {
     ContextInternal ctx = (ContextInternal) context;
@@ -95,12 +97,18 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     };
     this.messageDecoder = messageDecoder;
     this.end = ctx.promise();
+    this.transcodable = transcodable;
   }
 
   public void init(GrpcWriteStreamBase<?, ?> ws) {
     this.ws = ws;
     stream.handler(this);
-    stream.endHandler(v -> queue.write(END_SENTINEL));
+    stream.endHandler(v -> {
+      if (transcodable && last == null) {
+        handle(Buffer.buffer());
+      }
+      queue.write(END_SENTINEL);
+    });
     stream.exceptionHandler(err -> {
       if (err instanceof StreamResetException) {
         StreamResetException reset = (StreamResetException) err;
@@ -265,6 +273,10 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
         context.dispatch(err, handler);
       }
     }
+  }
+
+  protected final void cancelTranscodable() {
+    transcodable = false;
   }
 
   protected final void handleException(Throwable err) {

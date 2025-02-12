@@ -5,6 +5,7 @@ package io.vertx.grpcweb;
 service TestService {
   rpc EmptyCall(Empty) returns (Empty);
   rpc UnaryCall(EchoRequest) returns (EchoResponse);
+  rpc UnaryCallBody(EchoRequestBody) returns (EchoResponse);
   rpc StreamingCall(StreamingRequest) returns (stream StreamingResponse);
 }
 
@@ -16,6 +17,10 @@ message Empty {}
 
 message EchoRequest {
   string payload = 1;
+}
+
+message EchoRequestBody {
+  EchoRequest request = 1;
 }
 
 message EchoResponse {

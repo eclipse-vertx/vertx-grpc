@@ -14,16 +14,20 @@ import io.netty.handler.codec.base64.Base64;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.*;
+import io.vertx.core.internal.buffer.BufferInternal;
+import io.vertx.grpc.common.GrpcError;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.transcoding.GrpcTranscodingError;
+import io.vertx.grpc.transcoding.MessageWeaver;
 
 import java.util.Map;
 import java.util.Objects;
@@ -35,6 +39,7 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
 
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
+  private final String transcodingResponseBody;
   private final GrpcProtocol protocol;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
@@ -46,10 +51,12 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
                                 GrpcServerRequestImpl<Req, Resp> request,
                                 GrpcProtocol protocol,
                                 HttpServerResponse httpResponse,
+                                String transcodingResponseBody,
                                 GrpcMessageEncoder<Resp> encoder) {
     super(context, protocol.mediaType(), httpResponse, encoder);
     this.request = request;
     this.httpResponse = httpResponse;
+    this.transcodingResponseBody = transcodingResponseBody;
     this.protocol = protocol;
   }
 
@@ -135,6 +142,10 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
       if (msg != null && !responseHeaders.contains("grpc-status-message")) {
         httpResponseTrailers.set("grpc-message", Utils.utf8PercentEncode(msg));
       }
+
+      if (GrpcServerRequestImpl.isTranscodable(request.httpRequest)) {
+        httpResponse.setStatusCode(GrpcTranscodingError.fromHttp2Code(status.code).getHttpStatusCode());
+      }
     } else {
       httpResponseTrailers.remove("grpc-message");
     }
@@ -152,7 +163,23 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
 
   @Override
   protected Future<Void> sendMessage(Buffer message, boolean compressed) {
+    if (GrpcServerRequestImpl.isTranscodable(request.httpRequest)) {
+      return sendTranscodedMessage(message);
+    }
+
     return httpResponse.write(encodeMessage(message, compressed, false));
+  }
+
+  private Future<Void> sendTranscodedMessage(Buffer message) {
+    try {
+      BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(message, transcodingResponseBody);
+      httpResponse.putHeader("content-length", Integer.toString(message.length()));
+      httpResponse.putHeader("content-type", GrpcProtocol.HTTP_1.mediaType());
+      return httpResponse.write(transcoded);
+    } catch (Exception e) {
+      httpResponse.setStatusCode(500).end();
+      return Future.failedFuture(e);
+    }
   }
 
   protected Future<Void> sendEnd() {

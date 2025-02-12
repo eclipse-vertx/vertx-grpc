@@ -29,6 +29,8 @@
 
 syntax = "proto3";
 
+import "google/api/annotations.proto";
+
 option java_multiple_files = true;
 option java_package = "io.grpc.examples.helloworld";
 option java_outer_classname = "HelloWorldProto";
@@ -39,7 +41,34 @@ package helloworld;
 // The greeting service definition.
 service Greeter {
   // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {}
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      get: "/v1/hello/{name}"
+      additional_bindings {
+        post: "/v1/hello"
+      }
+    };
+  }
+
+  // Sends another greeting
+  rpc SayHelloAgain (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      post: "/v2/hello"
+      additional_bindings {
+        get: "/v2/hello/{name}"
+      }
+    };
+  }
+
+  // Sends a greeting with a custom verb
+  rpc SayHelloCustom (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      custom: {
+        kind: "ACL"
+        path: "/v1/hello/custom/{name}"
+      }
+    };
+  }
 }
 
 // The request message containing the user's name.

@@ -17,19 +17,23 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
+import io.vertx.core.internal.buffer.BufferInternal;
+import io.vertx.core.json.DecodeException;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.transcoding.HttpVariableBinding;
+import io.vertx.grpc.transcoding.MessageWeaver;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -71,6 +75,8 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   private static final BufferInternal EMPTY_BUFFER = BufferInternal.buffer(Unpooled.EMPTY_BUFFER);
 
   final HttpServerRequest httpRequest;
+  final String transcodingRequestBody;
+  final List<HttpVariableBinding> bindings;
   final GrpcServerResponseImpl<Req, Resp> response;
   final long timeout;
   final boolean scheduleDeadline;
@@ -85,10 +91,13 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                WireFormat format,
                                long maxMessageSize,
                                HttpServerRequest httpRequest,
+                               String transcodingRequestBody,
+                               String transcodingResponseBody,
+                               List<HttpVariableBinding> bindings,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMessageEncoder<Resp> messageEncoder,
                                GrpcMethodCall methodCall) {
-    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, maxMessageSize, messageDecoder);
+    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, GrpcServerRequestImpl.isTranscodable(httpRequest), maxMessageSize, messageDecoder);
     String timeoutHeader = httpRequest.getHeader("grpc-timeout");
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 
@@ -97,11 +106,14 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
       this,
       protocol,
       httpRequest.response(),
+      transcodingResponseBody,
       messageEncoder);
     response.init();
     this.protocol = protocol;
     this.timeout = timeout;
     this.httpRequest = httpRequest;
+    this.transcodingRequestBody = transcodingRequestBody;
+    this.bindings = bindings;
     this.response = response;
     this.methodCall = methodCall;
     this.scheduleDeadline = scheduleDeadline;
@@ -124,6 +136,16 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
         });
       }
     }
+  }
+
+  public static boolean isTranscodable(HttpServerRequest httpRequest) {
+    if (httpRequest == null) {
+      return false;
+    }
+
+    return (httpRequest.version() == HttpVersion.HTTP_1_0 ||
+      httpRequest.version() == HttpVersion.HTTP_1_1) &&
+      GrpcProtocol.HTTP_1.mediaType().equals(httpRequest.getHeader(CONTENT_TYPE));
   }
 
   void cancelTimeout() {
@@ -193,6 +215,31 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   @Override
   public void handle(Buffer chunk) {
     if (notGrpcWebText()) {
+      if (isTranscodable(httpRequest)) {
+        try {
+          BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveRequestMessage(chunk, bindings, transcodingRequestBody);
+          if (transcoded == null) {
+            return;
+          }
+
+          Buffer prefixed = BufferInternal.buffer(transcoded.length() + 5);
+
+          prefixed.appendByte((byte) 0); // uncompressed flag
+          prefixed.appendInt(transcoded.length()); // content length
+          prefixed.appendBuffer(transcoded);
+
+          chunk = prefixed;
+        } catch (DecodeException e) {
+          cancelTranscodable();
+          httpRequest.response().setStatusCode(400);
+          if (!httpRequest.response().ended()) {
+            response.end();
+          }
+
+          return;
+        }
+      }
+
       super.handle(chunk);
       return;
     }

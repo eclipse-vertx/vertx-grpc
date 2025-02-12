@@ -3,6 +3,7 @@ package examples;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Handler;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
@@ -13,6 +14,7 @@ import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServer;
 
@@ -51,6 +53,7 @@ public class VertxStreamingGrpcServer  {
     "Pipe",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
+
 
   public static class StreamingApi {
 
@@ -163,6 +166,7 @@ public class VertxStreamingGrpcServer  {
       return this;
     }
 
+
     public final StreamingApi bindAll(GrpcServer server) {
       bind_source(server);
       bind_sink(server);
@@ -174,6 +178,14 @@ public class VertxStreamingGrpcServer  {
       bind_source(server, format);
       bind_sink(server, format);
       bind_pipe(server, format);
+      return this;
+    }
+
+    public final StreamingApi bindAllWithTranscoding(GrpcServer server) {
+      return this;
+    }
+
+    public final StreamingApi bindAllWithTranscoding(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
       return this;
     }
   }

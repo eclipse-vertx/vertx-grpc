@@ -5,6 +5,7 @@ package {{vertxPackageName}};
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Handler;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
@@ -15,6 +16,7 @@ import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServer;
 
@@ -35,6 +37,20 @@ public class {{className}}  {
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()));
 {{/allMethods}}
+
+{{#transcodingMethods}}
+  public static final MethodTranscodingOptions {{methodName}}_TRANSCODING = new MethodTranscodingOptions(
+    "{{transcodingContext.selector}}",
+    HttpMethod.valueOf("{{transcodingContext.method}}"),
+    "{{transcodingContext.path}}",
+    "{{transcodingContext.body}}",
+    "{{transcodingContext.responseBody}}",
+    List.of(
+    {{#transcodingContext.additionalBindings}}
+      new MethodTranscodingOptions("{{selector}}", HttpMethod.valueOf("{{method}}"), "{{path}}", "{{body}}", "{{responseBody}}", null){{,}}
+    {{/transcodingContext.additionalBindings}}
+  ));
+{{/transcodingMethods}}
 
   public static class {{serviceName}}Api {
 
@@ -202,6 +218,27 @@ public class {{className}}  {
     }
 {{/manyManyMethods}}
 
+{{#transcodingMethods}}
+    public {{serviceName}}Api bind_{{vertxMethodName}}_with_transcoding(GrpcServer server) {
+      return bind_{{vertxMethodName}}_with_transcoding(server, io.vertx.grpc.common.WireFormat.PROTOBUF);
+    }
+    public {{serviceName}}Api bind_{{vertxMethodName}}_with_transcoding(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+      ServiceMethod<{{inputType}},{{outputType}}> serviceMethod;
+      switch(format) {
+        case PROTOBUF:
+          serviceMethod = {{methodName}};
+          break;
+        case JSON:
+          serviceMethod = {{methodName}}_JSON;
+          break;
+        default:
+          throw new AssertionError();
+      }
+      server.callHandlerWithTranscoding(serviceMethod, this::handle_{{vertxMethodName}}, {{methodName}}_TRANSCODING);
+      return this;
+    }
+{{/transcodingMethods}}
+
     public final {{serviceName}}Api bindAll(GrpcServer server) {
 {{#methods}}
       bind_{{vertxMethodName}}(server);
@@ -213,6 +250,20 @@ public class {{className}}  {
 {{#methods}}
       bind_{{vertxMethodName}}(server, format);
 {{/methods}}
+      return this;
+    }
+
+    public final {{serviceName}}Api bindAllWithTranscoding(GrpcServer server) {
+{{#transcodingMethods}}
+      bind_{{vertxMethodName}}_with_transcoding(server);
+{{/transcodingMethods}}
+      return this;
+    }
+
+    public final {{serviceName}}Api bindAllWithTranscoding(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
+{{#transcodingMethods}}
+      bind_{{vertxMethodName}}_with_transcoding(server, format);
+{{/transcodingMethods}}
       return this;
     }
   }

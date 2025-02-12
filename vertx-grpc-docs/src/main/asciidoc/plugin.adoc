@@ -184,3 +184,59 @@ Vert.x gRPC needs to know to interact with gRPC.
 - the message encoder
 
 They can be used to bind services or interact with a remote server.
+
+=== Generate transcoding definitions
+
+The plugin can also generate transcoding definitions for the gRPC services. For more information see the
+ xref:server.adoc#_grpc_transcoding[Transcoding] section.
+
+==== Generate transcoding definitions
+
+Currently, the plugin supports generating transcoding definitions for the gRPC services via https://github.com/googleapis/api-common-protos/blob/main/google/api/http.proto[http.proto]. This feature is enabled by default.
+
+Example of the gRPC transcoding definition:
+
+[source,proto]
+----
+syntax = "proto3";
+
+import "google/api/http.proto";
+
+service Greeter {
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      post: "/v1/hello"
+    };
+  }
+
+  rpc SayHelloAgain (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      post: "/v1/hello/{name}"
+    };
+  }
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloReply {
+  string message = 1;
+}
+
+----
+
+To test if the transcoding is working correctly, you can use the `curl` command:
+
+[source]
+----
+curl -X POST -H "Content-Type: application/json" -d '{"name":"vert.x"}' http://localhost:8080/v1/hello
+----
+
+And for the `SayHelloAgain` method:
+
+[source]
+----
+curl -X POST -H "Content-Type: application/json" http://localhost:8080/v1/hello/vert.x
+----
+

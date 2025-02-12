@@ -68,6 +68,117 @@ router.route("/com.mycompany.MyService/*").handler(corsHandler);
 ----
 ====
 
+=== gRPC Transcoding
+
+gRPC transcoding is a feature that enables mapping between HTTP/JSON requests and gRPC services.
+
+==== What is gRPC Transcoding?
+
+gRPC transcoding allows your services to accept both gRPC and HTTP/JSON requests, providing greater flexibility. This feature is particularly useful when:
+
+* You want to expose your gRPC services to clients that don't support gRPC
+* You need to support both traditional REST APIs and gRPC endpoints
+* You want to leverage gRPC's efficiency while maintaining HTTP/JSON compatibility
+
+==== Configuration
+
+==== Enabling Transcoding
+
+By default, gRPC transcoding is disabled in Vert.x. To enable it:
+
+[source,java]
+----
+GrpcServerOptions options = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
+
+GrpcServer server = GrpcServer.server(vertx, options);
+----
+
+==== Creating Bindings
+
+To create HTTP/gRPC bindings:
+
+1. Create a `MethodTranscodingOptions` instance
+2. Configure the binding options
+3. Pass the options when registering the handler
+
+[source,java]
+----
+import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerOptions;
+import io.vertx.grpc.transcoding.MethodTranscodingOptions;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.core.http.HttpMethod;
+
+public class GrpcServerExamples {
+
+  // The encoder and decoder for the service method. Must be provided by the user and must be able to decode/encode the from wire format.
+  public static GrpcMessageDecoder<GetUserRequest> DECODER = GrpcMessageDecoder.json(GetUserRequest::newBuilder);
+  public static GrpcMessageEncoder<GetUserResponse> ENCODER = GrpcMessageEncoder.json();
+
+  public GrpcServer createTranscodingServer() {
+    // Create a new gRPC server with transcoding enabled
+    GrpcServer server = GrpcServer.server(vertx, new GrpcServerOptions().setGrpcTranscodingEnabled(true));
+
+    // Define the service method
+    ServiceMethod<GetUserRequest, GetUserResponse> getUser = ServiceMethod.server("UserService", "GetUser", ENCODER, DECODER);
+
+    // Define the transcoding options
+    MethodTranscodingOptions transcodingOptions = new MethodTranscodingOptions(null, HttpMethod.GET, "/v1/users/{id}", "*", null, null);
+
+    // Register the handler with transcoding options
+    server.callHandlerWithTranscoding(
+        getUser,
+        request -> {
+            // Handle the request
+        },
+        transcodingOptions
+    );
+
+    return server;
+  }
+}
+----
+
+==== Testing Transcoding
+
+To test gRPC transcoding, you can use a tool like `curl` to send HTTP requests to your gRPC service.
+
+For example, to send a `GET` request to the `/v1/users/123` endpoint:
+
+[source]
+----
+curl -X GET http://localhost:8080/v1/users/123
+----
+
+==== Error Handling
+
+If an error occurs during transcoding, the server will return an HTTP error response with the appropriate status code.
+Most grpc status codes are mapped to the corresponding HTTP status codes on best effort basis. If the status code is not mapped,
+the server will return a 500 Internal Server Error.
+
+|===
+|gRPC Status Code | HTTP Status Code | Description
+|OK | 200 | The operation completed successfully.
+|CANCELLED | 408 | The operation was cancelled (typically by the caller).
+|UNKNOWN | 500 | Unknown error.
+|INVALID_ARGUMENT | 400 | Client specified an invalid argument.
+|DEADLINE_EXCEEDED | 504 | Deadline expired before operation could complete.
+|NOT_FOUND | 404 | Some requested entity (e.g., file or directory) was not found.
+|ALREADY_EXISTS | 409 | Some entity that we attempted to create (e.g., file or directory) already exists.
+|PERMISSION_DENIED | 403 | The caller does not have permission to execute the specified operation.
+|RESOURCE_EXHAUSTED | 429 | Some resource has been exhausted, perhaps a per-user quota, or perhaps the entire file system is out of space.
+|FAILED_PRECONDITION | 400 | Operation was rejected because the system is not in a state required for the operation's execution
+|ABORTED | 409 | The operation was aborted, typically due to a concurrency issue like sequencer check failures, transaction aborts, etc.
+|OUT_OF_RANGE | 400 | Operation was attempted past the valid range.
+|UNIMPLEMENTED | 501 | Operation is not implemented or not supported/enabled in this service.
+|INTERNAL | 500 | Internal errors. This means that some invariants expected by the underlying system have been broken.
+|UNAVAILABLE | 503 | The service is currently unavailable.
+|DATA_LOSS | 500 | Unrecoverable data loss or corruption.
+|UNAUTHENTICATED | 401 | The request does not have valid authentication credentials for the operation.
+|===
+
 === Server request/response API
 
 The gRPC request/response server API provides an alternative way to interact with a client without the need of extending
