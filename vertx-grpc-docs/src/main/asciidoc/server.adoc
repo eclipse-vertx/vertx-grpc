@@ -152,6 +152,33 @@ For example, to send a `GET` request to the `/v1/users/123` endpoint:
 curl -X GET http://localhost:8080/v1/users/123
 ----
 
+==== Error Handling
+
+If an error occurs during transcoding, the server will return an HTTP error response with the appropriate status code.
+Most grpc status codes are mapped to the corresponding HTTP status codes on best effort basis. If the status code is not mapped,
+the server will return a 500 Internal Server Error.
+
+|===
+|gRPC Status Code | HTTP Status Code | Description
+|OK | 200 | The operation completed successfully.
+|CANCELLED | 408 | The operation was cancelled (typically by the caller).
+|UNKNOWN | 500 | Unknown error.
+|INVALID_ARGUMENT | 400 | Client specified an invalid argument.
+|DEADLINE_EXCEEDED | 504 | Deadline expired before operation could complete.
+|NOT_FOUND | 404 | Some requested entity (e.g., file or directory) was not found.
+|ALREADY_EXISTS | 409 | Some entity that we attempted to create (e.g., file or directory) already exists.
+|PERMISSION_DENIED | 403 | The caller does not have permission to execute the specified operation.
+|RESOURCE_EXHAUSTED | 429 | Some resource has been exhausted, perhaps a per-user quota, or perhaps the entire file system is out of space.
+|FAILED_PRECONDITION | 400 | Operation was rejected because the system is not in a state required for the operation's execution
+|ABORTED | 409 | The operation was aborted, typically due to a concurrency issue like sequencer check failures, transaction aborts, etc.
+|OUT_OF_RANGE | 400 | Operation was attempted past the valid range.
+|UNIMPLEMENTED | 501 | Operation is not implemented or not supported/enabled in this service.
+|INTERNAL | 500 | Internal errors. This means that some invariants expected by the underlying system have been broken.
+|UNAVAILABLE | 503 | The service is currently unavailable.
+|DATA_LOSS | 500 | Unrecoverable data loss or corruption.
+|UNAUTHENTICATED | 401 | The request does not have valid authentication credentials for the operation.
+|===
+
 === Server request/response API
 
 The gRPC request/response server API provides an alternative way to interact with a client without the need of extending

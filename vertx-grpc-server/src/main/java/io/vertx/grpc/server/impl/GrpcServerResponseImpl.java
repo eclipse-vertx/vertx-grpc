@@ -26,6 +26,7 @@ import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.transcoding.GrpcTranscodingError;
 import io.vertx.grpc.transcoding.MessageWeaver;
 
 import java.util.Map;
@@ -140,6 +141,10 @@ public class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcS
       String msg = statusMessage;
       if (msg != null && !responseHeaders.contains("grpc-status-message")) {
         httpResponseTrailers.set("grpc-message", Utils.utf8PercentEncode(msg));
+      }
+
+      if (GrpcServerRequestImpl.isTranscodable(request.httpRequest)) {
+        httpResponse.setStatusCode(GrpcTranscodingError.fromHttp2Code(status.code).getHttpStatusCode());
       }
     } else {
       httpResponseTrailers.remove("grpc-message");

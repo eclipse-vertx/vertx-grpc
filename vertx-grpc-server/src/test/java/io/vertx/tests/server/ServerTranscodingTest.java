@@ -307,6 +307,33 @@ public class ServerTranscodingTest extends GrpcTestBase {
     })));
   }
 
+  @Test
+  public void testMethodWithErrorRequestBody(TestContext should) {
+    String payload = "boom";
+    httpClient.request(HttpMethod.GET, "/body").compose(req -> {
+      String body = encode(EchoRequest.newBuilder().setPayload(payload).build()).toString();
+      req.headers().addAll(HEADERS);
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(500, response.statusCode());
+      MultiMap headers = response.headers();
+      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+    })));
+  }
+
+  @Test
+  public void testMethodWithMalformedRequestBody(TestContext should) {
+    String payload = "malformatedbody";
+    httpClient.request(HttpMethod.GET, "/body").compose(req -> {
+      req.headers().addAll(HEADERS);
+      return req.send(payload).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(400, response.statusCode());
+      MultiMap headers = response.headers();
+      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+    })));
+  }
+
   private Buffer encode(Message message) {
     Buffer buffer = BufferInternal.buffer();
     try {
