@@ -13,27 +13,16 @@ package io.vertx.grpc.server.impl;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
-import io.vertx.grpc.transcoding.HttpVariableBinding;
-
-import java.util.List;
 
 /**
  *
  */
 public class TranscodingMessageDeframer implements GrpcMessageDeframer {
 
-  private final String transcodingRequestBody;
-  private final List<HttpVariableBinding> bindings;
-
   private Buffer buffer;
 
   private boolean ended;
   private boolean processed;
-
-  public TranscodingMessageDeframer(String transcodingRequestBody, List<HttpVariableBinding> bindings) {
-    this.transcodingRequestBody = transcodingRequestBody;
-    this.bindings = bindings;
-  }
 
   @Override
   public void update(Buffer chunk) {

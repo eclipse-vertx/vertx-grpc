@@ -46,7 +46,7 @@ public class TranscodingGrpcServerRequest<Req, Resp> extends GrpcServerRequestIm
   private TranscodingGrpcServerResponse<Req, Resp> response;
 
   public TranscodingGrpcServerRequest(ContextInternal context, boolean scheduleDeadline, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, String transcodingRequestBody, List<HttpVariableBinding> bindings, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
-    super(context, scheduleDeadline, protocol, format, httpRequest, new TranscodingMessageDeframer(transcodingRequestBody, bindings), new GrpcMessageDecoder<>() {
+    super(context, scheduleDeadline, protocol, format, httpRequest, new TranscodingMessageDeframer(), new GrpcMessageDecoder<>() {
       @Override
       public Req decode(GrpcMessage msg) throws CodecException {
         Buffer transcoded;
