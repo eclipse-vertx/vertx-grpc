@@ -12,6 +12,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Map;

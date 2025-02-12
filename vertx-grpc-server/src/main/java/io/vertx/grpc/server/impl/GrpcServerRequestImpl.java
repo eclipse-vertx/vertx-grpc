@@ -15,7 +15,6 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpVersion;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
@@ -31,8 +30,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -81,7 +78,7 @@ public abstract class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBas
                                GrpcMessageDeframer messageDeframer,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMethodCall methodCall) {
-    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, GrpcServerRequestImpl.isTranscodable(httpRequest), messageDeframer, messageDecoder);
+    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, messageDeframer, messageDecoder);
     String timeoutHeader = httpRequest.getHeader("grpc-timeout");
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 
@@ -105,16 +102,6 @@ public abstract class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBas
         });
       }
     }
-  }
-
-  public static boolean isTranscodable(HttpServerRequest httpRequest) {
-    if (httpRequest == null) {
-      return false;
-    }
-
-    return (httpRequest.version() == HttpVersion.HTTP_1_0 ||
-      httpRequest.version() == HttpVersion.HTTP_1_1) &&
-      GrpcProtocol.HTTP_1.mediaType().equals(httpRequest.getHeader(CONTENT_TYPE));
   }
 
   void cancelTimeout() {

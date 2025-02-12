@@ -27,7 +27,6 @@ import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.transcoding.GrpcTranscodingError;
-import io.vertx.grpc.transcoding.MessageWeaver;
 
 import java.util.Map;
 import java.util.Objects;
@@ -94,10 +93,14 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
       requestEnded = fut.succeeded();
     }
     if (!requestEnded || !isTrailersSent()) {
-      httpResponse
-        .reset(GrpcError.CANCELLED.http2ResetCode)
-        .onSuccess(v -> handleError(GrpcError.CANCELLED));
+      sendCancel();
     }
+  }
+
+  protected void sendCancel() {
+    httpResponse
+      .reset(GrpcError.CANCELLED.http2ResetCode)
+      .onSuccess(v -> handleError(GrpcError.CANCELLED));
   }
 
   protected void sendHeaders(String contentType, MultiMap headers, boolean end) {
@@ -140,7 +143,7 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
         httpResponseTrailers.set("grpc-message", Utils.utf8PercentEncode(msg));
       }
 
-      if (GrpcServerRequestImpl.isTranscodable(request.httpRequest)) {
+      if (TranscodingGrpcServerRequest.isTranscodable(request.httpRequest)) {
         httpResponse.setStatusCode(GrpcTranscodingError.fromHttp2Code(status.code).getHttpStatusCode());
       }
     } else {

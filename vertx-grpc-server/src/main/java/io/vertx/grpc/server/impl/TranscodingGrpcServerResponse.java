@@ -47,9 +47,15 @@ public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponse
 
   @Override
   protected Future<Void> sendMessage(Buffer message, boolean compressed) {
-    if (GrpcServerRequestImpl.isTranscodable(request.httpRequest)) {
+    if (TranscodingGrpcServerRequest.isTranscodable(request.httpRequest)) {
       return sendTranscodedMessage(message);
     }
     return super.sendMessage(message, compressed);
+  }
+
+  @Override
+  protected void sendCancel() {
+    httpResponse.setStatusCode(400);
+    httpResponse.end();
   }
 }

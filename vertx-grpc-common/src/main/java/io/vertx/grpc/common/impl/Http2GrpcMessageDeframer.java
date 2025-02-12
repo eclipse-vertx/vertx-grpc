@@ -62,6 +62,10 @@ public class Http2GrpcMessageDeframer implements GrpcMessageDeframer {
     }
   }
 
+  @Override
+  public void end() {
+  }
+
   public Object next() {
     if (buffer == null) {
       return null;
