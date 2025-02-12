@@ -48,12 +48,10 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
 
   protected final ContextInternal context;
   private final String encoding;
-  private final long maxMessageSize;
   private final WireFormat format;
   private final ReadStream<Buffer> stream;
+  private final GrpcMessageDeframer deframer;
   private final InboundMessageChannel<GrpcMessage> queue;
-  private Buffer buffer;
-  private long bytesToSkip;
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcMessage> messageHandler;
   private Handler<Void> endHandler;
@@ -74,7 +72,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     ContextInternal ctx = (ContextInternal) context;
     this.context = ctx;
     this.encoding = encoding;
-    this.maxMessageSize = maxMessageSize;
     this.stream = stream;
     this.format = format;
     this.queue = new InboundMessageChannel<>(ctx.eventLoop(), ctx.executor(), 8, 16) {
@@ -98,6 +95,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     this.messageDecoder = messageDecoder;
     this.end = ctx.promise();
     this.transcodable = transcodable;
+    this.deframer = new Http2GrpcMessageDeframer(maxMessageSize, encoding, format);
   }
 
   public void init(GrpcWriteStreamBase<?, ?> ws) {
@@ -212,57 +210,21 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   }
 
   public void handle(Buffer chunk) {
-    if (bytesToSkip > 0L) {
-      int len = chunk.length();
-      if (len <= bytesToSkip) {
-        bytesToSkip -= len;
-        return;
-      }
-      chunk = chunk.slice((int)bytesToSkip, len);
-      bytesToSkip = 0L;
-    }
-    if (buffer == null) {
-      buffer = chunk;
-    } else {
-      buffer.appendBuffer(chunk);
-    }
-    int idx = 0;
+    deframer.update(chunk);
     while (true) {
-      if (idx + 5 > buffer.length()) {
+      Object ret = deframer.next();
+      if (ret == null) {
         break;
-      }
-      long len = ((long)buffer.getInt(idx + 1)) & 0xFFFFFFFFL;
-      if (len > maxMessageSize) {
+      } else if (ret instanceof MessageSizeOverflowException) {
+        MessageSizeOverflowException msoe = (MessageSizeOverflowException) ret;
         Handler<InvalidMessageException> handler = invalidMessageHandler;
         if (handler != null) {
-          MessageSizeOverflowException msoe = new MessageSizeOverflowException(len);
           context.dispatch(msoe, handler);
         }
-        if (buffer.length() < (len + 5)) {
-          bytesToSkip = (len + 5) - buffer.length();
-          buffer = null;
-          return;
-        } else {
-          buffer = buffer.slice((int)(len + 5), buffer.length());
-          continue;
-        }
+      } else {
+        GrpcMessage msg = (GrpcMessage) ret;
+        queue.write(msg);
       }
-      if (len > buffer.length() - (idx + 5)) {
-        break;
-      }
-      boolean compressed = buffer.getByte(idx) == 1;
-      if (compressed && encoding == null) {
-        throw new UnsupportedOperationException("Handle me");
-      }
-      Buffer payload = buffer.slice(idx + 5, (int)(idx + 5 + len));
-      GrpcMessage message = GrpcMessage.message(compressed ? encoding : "identity", format, payload);
-      queue.write(message);
-      idx += 5 + len;
-    }
-    if (idx < buffer.length()) {
-      buffer = buffer.getBuffer(idx, buffer.length());
-    } else {
-      buffer = null;
     }
   }
 
