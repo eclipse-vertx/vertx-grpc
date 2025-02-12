@@ -22,6 +22,7 @@ import io.vertx.grpc.common.GrpcMediaType;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
 
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
@@ -33,7 +34,7 @@ public class WebGrpcServerRequest<Req, Resp> extends GrpcServerRequestImpl<Req, 
   private BufferInternal grpcWebTextBuffer;
 
   public WebGrpcServerRequest(ContextInternal context, boolean scheduleDeadline, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
-    super(context, scheduleDeadline, protocol, format, maxMessageSize, httpRequest, messageDecoder, methodCall);
+    super(context, scheduleDeadline, protocol, format, httpRequest, new Http2GrpcMessageDeframer(maxMessageSize, httpRequest.headers().get("grpc-encoding"), format), messageDecoder, methodCall);
 
     if (httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE))) {
       grpcWebTextBuffer = EMPTY_BUFFER;

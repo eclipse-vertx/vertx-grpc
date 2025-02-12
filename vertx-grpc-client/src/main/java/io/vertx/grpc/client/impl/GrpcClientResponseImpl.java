@@ -22,6 +22,7 @@ import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
+import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
 import java.nio.charset.StandardCharsets;
 
@@ -41,7 +42,14 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
                                 long maxMessageSize,
                                 GrpcStatus status,
                                 HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
-    super(context, httpResponse, httpResponse.headers().get("grpc-encoding"), format, false, maxMessageSize, messageDecoder);
+    super(
+      context,
+      httpResponse,
+      httpResponse.headers().get("grpc-encoding"),
+      format,
+      false,
+      new Http2GrpcMessageDeframer(maxMessageSize, httpResponse.headers().get("grpc-encoding"), format),
+      messageDecoder);
     this.request = request;
     this.httpResponse = httpResponse;
     this.status = status;

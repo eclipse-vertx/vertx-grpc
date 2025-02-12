@@ -18,6 +18,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
@@ -76,11 +77,11 @@ public abstract class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBas
                                boolean scheduleDeadline,
                                GrpcProtocol protocol,
                                WireFormat format,
-                               long maxMessageSize,
                                HttpServerRequest httpRequest,
+                               GrpcMessageDeframer messageDeframer,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMethodCall methodCall) {
-    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, GrpcServerRequestImpl.isTranscodable(httpRequest), maxMessageSize, messageDecoder);
+    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, GrpcServerRequestImpl.isTranscodable(httpRequest), messageDeframer, messageDecoder);
     String timeoutHeader = httpRequest.getHeader("grpc-timeout");
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 

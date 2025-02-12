@@ -67,7 +67,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
                                String encoding,
                                WireFormat format,
                                boolean transcodable,
-                               long maxMessageSize,
+                               GrpcMessageDeframer messageDeframer,
                                GrpcMessageDecoder<T> messageDecoder) {
     ContextInternal ctx = (ContextInternal) context;
     this.context = ctx;
@@ -95,7 +95,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     this.messageDecoder = messageDecoder;
     this.end = ctx.promise();
     this.transcodable = transcodable;
-    this.deframer = new Http2GrpcMessageDeframer(maxMessageSize, encoding, format);
+    this.deframer = messageDeframer;
   }
 
   public void init(GrpcWriteStreamBase<?, ?> ws) {

@@ -20,6 +20,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
+import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.transcoding.HttpVariableBinding;
 import io.vertx.grpc.transcoding.MessageWeaver;
@@ -33,7 +34,7 @@ public class TranscodingGrpcServerRequest<Req, Resp> extends GrpcServerRequestIm
   private TranscodingGrpcServerResponse<Req, Resp> response;
 
   public TranscodingGrpcServerRequest(ContextInternal context, boolean scheduleDeadline, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, String transcodingRequestBody, List<HttpVariableBinding> bindings, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
-    super(context, scheduleDeadline, protocol, format, maxMessageSize, httpRequest, messageDecoder, methodCall);
+    super(context, scheduleDeadline, protocol, format, httpRequest, new Http2GrpcMessageDeframer(maxMessageSize, httpRequest.headers().get("grpc-encoding"), format), messageDecoder, methodCall);
 
     this.transcodingRequestBody = transcodingRequestBody;
     this.bindings = bindings;
