@@ -20,6 +20,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
+import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.json.DecodeException;
 import io.vertx.grpc.common.*;
@@ -85,17 +86,15 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   private BufferInternal grpcWebTextBuffer;
   private Timer deadline;
 
-  public GrpcServerRequestImpl(io.vertx.core.internal.ContextInternal context,
+  public GrpcServerRequestImpl(ContextInternal context,
                                boolean scheduleDeadline,
                                GrpcProtocol protocol,
                                WireFormat format,
                                long maxMessageSize,
                                HttpServerRequest httpRequest,
                                String transcodingRequestBody,
-                               String transcodingResponseBody,
                                List<HttpVariableBinding> bindings,
                                GrpcMessageDecoder<Req> messageDecoder,
-                               GrpcMessageEncoder<Resp> messageEncoder,
                                GrpcMethodCall methodCall) {
     super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, GrpcServerRequestImpl.isTranscodable(httpRequest), maxMessageSize, messageDecoder);
     String timeoutHeader = httpRequest.getHeader("grpc-timeout");

@@ -218,10 +218,8 @@ public class GrpcServerImpl implements GrpcServer {
           options.getMaxMessageSize(),
           httpRequest,
           null,
-          null,
           bindings,
           messageDecoder,
-          messageEncoder,
           methodCall);
         grpcResponse = new GrpcServerResponseImpl<>(
           context,
@@ -241,10 +239,8 @@ public class GrpcServerImpl implements GrpcServer {
           options.getMaxMessageSize(),
           httpRequest,
           null,
-          null,
           bindings,
           messageDecoder,
-          messageEncoder,
           methodCall);
         grpcResponse = new GrpcServerResponseImpl<>(
           context,
@@ -263,10 +259,8 @@ public class GrpcServerImpl implements GrpcServer {
           options.getMaxMessageSize(),
           httpRequest,
           transcodingOptions.getBody(),
-          transcodingOptions.getResponseBody(),
           bindings,
           messageDecoder,
-          messageEncoder,
           methodCall);
         grpcResponse = new GrpcServerResponseImpl<>(
           context,
