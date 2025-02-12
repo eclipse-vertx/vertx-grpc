@@ -210,7 +210,7 @@ public class GrpcServerImpl implements GrpcServer {
     GrpcServerResponseImpl<Req, Resp> grpcResponse;
     switch (protocol) {
       case HTTP_2:
-        grpcRequest = new GrpcServerRequestImpl<>(
+        grpcRequest = new Http2GrpcServerRequest<>(
           context,
           options.getScheduleDeadlineAutomatically(),
           protocol,
@@ -221,7 +221,7 @@ public class GrpcServerImpl implements GrpcServer {
           bindings,
           messageDecoder,
           methodCall);
-        grpcResponse = new GrpcServerResponseImpl<>(
+        grpcResponse = new Http2GrpcServerResponse<>(
           context,
           grpcRequest,
           protocol,
@@ -231,7 +231,7 @@ public class GrpcServerImpl implements GrpcServer {
         break;
       case WEB:
       case WEB_TEXT:
-        grpcRequest = new GrpcServerRequestImpl<>(
+        grpcRequest = new WebGrpcServerRequest<>(
           context,
           options.getScheduleDeadlineAutomatically(),
           protocol,
@@ -242,7 +242,7 @@ public class GrpcServerImpl implements GrpcServer {
           bindings,
           messageDecoder,
           methodCall);
-        grpcResponse = new GrpcServerResponseImpl<>(
+        grpcResponse = new WebGrpcServerResponse<>(
           context,
           grpcRequest,
           protocol,
@@ -251,7 +251,7 @@ public class GrpcServerImpl implements GrpcServer {
           messageEncoder);
         break;
       case HTTP_1:
-        grpcRequest = new GrpcServerRequestImpl<>(
+        grpcRequest = new TranscodingGrpcServerRequest<>(
           context,
           options.getScheduleDeadlineAutomatically(),
           protocol,
@@ -262,7 +262,7 @@ public class GrpcServerImpl implements GrpcServer {
           bindings,
           messageDecoder,
           methodCall);
-        grpcResponse = new GrpcServerResponseImpl<>(
+        grpcResponse = new TranscodingGrpcServerResponse<>(
           context,
           grpcRequest,
           protocol,
