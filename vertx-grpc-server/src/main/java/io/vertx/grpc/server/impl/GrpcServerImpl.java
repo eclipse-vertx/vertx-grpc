@@ -206,26 +206,79 @@ public class GrpcServerImpl implements GrpcServer {
                                   GrpcMessageEncoder<Resp> messageEncoder,
                                   Handler<GrpcServerRequest<Req, Resp>> handler) {
     io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
-    GrpcServerRequestImpl<Req, Resp> grpcRequest = new GrpcServerRequestImpl<>(
-      context,
-      options.getScheduleDeadlineAutomatically(),
-      protocol,
-      format,
-      options.getMaxMessageSize(),
-      httpRequest,
-      transcodingOptions == null ? null : transcodingOptions.getBody(),
-      transcodingOptions == null ? null : transcodingOptions.getResponseBody(),
-      bindings,
-      messageDecoder,
-      messageEncoder,
-      methodCall);
-    GrpcServerResponseImpl<Req, Resp> grpcResponse = new GrpcServerResponseImpl<>(
-      context,
-      grpcRequest,
-      protocol,
-      httpRequest.response(),
-      transcodingOptions == null ? null : transcodingOptions.getResponseBody(),
-      messageEncoder);
+    GrpcServerRequestImpl<Req, Resp> grpcRequest;
+    GrpcServerResponseImpl<Req, Resp> grpcResponse;
+    switch (protocol) {
+      case HTTP_2:
+        grpcRequest = new GrpcServerRequestImpl<>(
+          context,
+          options.getScheduleDeadlineAutomatically(),
+          protocol,
+          format,
+          options.getMaxMessageSize(),
+          httpRequest,
+          null,
+          null,
+          bindings,
+          messageDecoder,
+          messageEncoder,
+          methodCall);
+        grpcResponse = new GrpcServerResponseImpl<>(
+          context,
+          grpcRequest,
+          protocol,
+          httpRequest.response(),
+          null,
+          messageEncoder);
+        break;
+      case WEB:
+      case WEB_TEXT:
+        grpcRequest = new GrpcServerRequestImpl<>(
+          context,
+          options.getScheduleDeadlineAutomatically(),
+          protocol,
+          format,
+          options.getMaxMessageSize(),
+          httpRequest,
+          null,
+          null,
+          bindings,
+          messageDecoder,
+          messageEncoder,
+          methodCall);
+        grpcResponse = new GrpcServerResponseImpl<>(
+          context,
+          grpcRequest,
+          protocol,
+          httpRequest.response(),
+          null,
+          messageEncoder);
+        break;
+      case HTTP_1:
+        grpcRequest = new GrpcServerRequestImpl<>(
+          context,
+          options.getScheduleDeadlineAutomatically(),
+          protocol,
+          format,
+          options.getMaxMessageSize(),
+          httpRequest,
+          transcodingOptions.getBody(),
+          transcodingOptions.getResponseBody(),
+          bindings,
+          messageDecoder,
+          messageEncoder,
+          methodCall);
+        grpcResponse = new GrpcServerResponseImpl<>(
+          context,
+          grpcRequest,
+          protocol,
+          httpRequest.response(),
+          transcodingOptions.getResponseBody(),
+          messageEncoder);
+        break;
+      default:
+        throw new AssertionError();
+    }
     if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
       long deadline = System.currentTimeMillis() + grpcRequest.timeout;
       context.putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
