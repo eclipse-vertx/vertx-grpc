@@ -139,7 +139,7 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     }
     if (status != GrpcStatus.OK) {
       String msg = statusMessage;
-      if (msg != null && !responseHeaders.contains("grpc-status-message")) {
+      if (msg != null && !responseHeaders.contains("grpc-message")) {
         httpResponseTrailers.set("grpc-message", Utils.utf8PercentEncode(msg));
       }
 
