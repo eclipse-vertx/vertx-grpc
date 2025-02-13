@@ -45,8 +45,7 @@ public class GrpcServerImpl implements GrpcServer {
   private final GrpcServerOptions options;
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
   private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
-  private final List<PathMatcher> pathMatchers = new ArrayList<>();
-  private final Map<String, MethodTranscodingOptions> transcodingOptions = new HashMap<>();
+  private final List<MountPoint> mountPoints = new ArrayList<>();
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
@@ -117,39 +116,43 @@ public class GrpcServerImpl implements GrpcServer {
       return;
     }
 
-    PathMatcherLookupResult pathMatcherLookupResult = null;
-    if (httpRequest.version() != HttpVersion.HTTP_2 && GrpcProtocol.TRANSCODING.mediaType().equals(httpRequest.headers().get(CONTENT_TYPE))) {
-      for (PathMatcher pathMatcher : pathMatchers) {
-        pathMatcherLookupResult = pathMatcher.lookup(httpRequest.method().name(), httpRequest.path(), httpRequest.query());
-        if (pathMatcherLookupResult != null) {
-          break;
-        }
-      }
-    }
-
-    GrpcMethodCall methodCall = lookupMethod(httpRequest, pathMatcherLookupResult);
-    String fmn = methodCall.fullMethodName();
-    List<MethodCallHandler<?, ?>> methods = methodCallHandlers.get(fmn);
-
-    if (methods != null) {
-      for (MethodCallHandler<?, ?> method : methods) {
-        if (GrpcProtocol.TRANSCODING == details.protocol && details.protocol.mediaType().equals(httpRequest.headers().get(CONTENT_TYPE))) {
-          handle(method, httpRequest, methodCall, pathMatcherLookupResult);
-          return;
-        }
-
-        if (method.messageEncoder.format() == details.format && method.messageDecoder.format() == details.format) {
-          handle(method, httpRequest, methodCall, details.protocol, details.format);
+    if (details.protocol == GrpcProtocol.TRANSCODING) {
+      for (MountPoint mountPoint : mountPoints) {
+        GrpcInvocation<?, ?> invocation = mountPoint.accept(httpRequest);
+        if (invocation != null) {
+          handle(invocation);
           return;
         }
       }
+      httpRequest.response().setStatusCode(500).end();
+      return;
     }
+
+    GrpcMethodCall methodCall = new GrpcMethodCall(httpRequest.path());
+    MethodCallHandler<?, ?> mch = findMethodCallHandler(methodCall, details.format);
+    if (mch != null) {
+      handle(mch, httpRequest, methodCall, details.protocol, details.format);
+      return;
+    }
+
     Handler<GrpcServerRequest<Buffer, Buffer>> handler = requestHandler;
     if (handler != null) {
-      handle(httpRequest, methodCall, details.protocol, details.format, null, null, GrpcMessageDecoder.IDENTITY, GrpcMessageEncoder.IDENTITY, handler);
+      handle(new MethodCallHandler<>(GrpcMessageDecoder.IDENTITY, GrpcMessageEncoder.IDENTITY, handler), httpRequest, methodCall, details.protocol, details.format);
     } else {
       httpRequest.response().setStatusCode(500).end();
     }
+  }
+
+  private MethodCallHandler<?, ?> findMethodCallHandler(GrpcMethodCall methodCall, WireFormat format) {
+    List<MethodCallHandler<?, ?>> methods = methodCallHandlers.get(methodCall.fullMethodName());
+    if (methods != null) {
+      for (MethodCallHandler<?, ?> method : methods) {
+        if (method.messageEncoder.format() == format && method.messageDecoder.format() == format) {
+          return method;
+        }
+      }
+    }
+    return null;
   }
 
   private int validate(HttpVersion version, GrpcProtocol protocol, WireFormat format) {
@@ -183,52 +186,11 @@ public class GrpcServerImpl implements GrpcServer {
     return -1;
   }
 
-  private GrpcMethodCall lookupMethod(HttpServerRequest request, PathMatcherLookupResult pathMatcherLookupResult) {
-    if (request.version() == HttpVersion.HTTP_2) {
-      return new GrpcMethodCall(request.path());
-    }
-
-    if (GrpcProtocol.TRANSCODING.mediaType().equals(request.headers().get(CONTENT_TYPE)) && pathMatcherLookupResult != null) {
-      return new GrpcMethodCall("/" + pathMatcherLookupResult.getMethod());
-    }
-
-    return new GrpcMethodCall(request.path());
-  }
-
-  private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest request, GrpcMethodCall methodCall, PathMatcherLookupResult pathMatcherLookupResult) {
-    String contentType = request.getHeader(CONTENT_TYPE);
-    if (!contentType.equals(GrpcProtocol.TRANSCODING.mediaType())) {
-      request.response().setStatusCode(415).end();
-      return;
-    }
-
-    List<HttpVariableBinding> bindings = new ArrayList<>();
-    if (request.version() != HttpVersion.HTTP_2 && GrpcProtocol.TRANSCODING.mediaType().equals(request.getHeader(CONTENT_TYPE))) {
-      bindings.addAll(pathMatcherLookupResult.getVariableBindings());
-    }
-
-    MethodTranscodingOptions transcodingOptions = this.transcodingOptions.get(methodCall.fullMethodName());
-    if (transcodingOptions == null) {
-      request.response().setStatusCode(404).end();
-      return;
-    }
-
-    handle(request, methodCall, GrpcProtocol.TRANSCODING, WireFormat.JSON, transcodingOptions, bindings, method.messageDecoder, method.messageEncoder, method);
+  private <Req, Resp> void handle(GrpcInvocation<Req, Resp> invocation) {
+    handle(invocation.grpcRequest, invocation.grpcResponse, invocation.handler);
   }
 
   private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall, GrpcProtocol protocol, WireFormat format) {
-    handle(httpRequest, methodCall, protocol, format, null, null, method.messageDecoder, method.messageEncoder, method);
-  }
-
-  private <Req, Resp> void handle(HttpServerRequest httpRequest,
-                                  GrpcMethodCall methodCall,
-                                  GrpcProtocol protocol,
-                                  WireFormat format,
-                                  MethodTranscodingOptions transcodingOptions,
-                                  List<HttpVariableBinding> bindings,
-                                  GrpcMessageDecoder<Req> messageDecoder,
-                                  GrpcMessageEncoder<Resp> messageEncoder,
-                                  Handler<GrpcServerRequest<Req, Resp>> handler) {
     io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
     GrpcServerRequestImpl<Req, Resp> grpcRequest;
     GrpcServerResponseImpl<Req, Resp> grpcResponse;
@@ -241,14 +203,14 @@ public class GrpcServerImpl implements GrpcServer {
           format,
           options.getMaxMessageSize(),
           httpRequest,
-          messageDecoder,
+          method.messageDecoder,
           methodCall);
         grpcResponse = new Http2GrpcServerResponse<>(
           context,
           grpcRequest,
           protocol,
           httpRequest.response(),
-          messageEncoder);
+          method.messageEncoder);
         break;
       case WEB:
       case WEB_TEXT:
@@ -259,41 +221,27 @@ public class GrpcServerImpl implements GrpcServer {
           format,
           options.getMaxMessageSize(),
           httpRequest,
-          messageDecoder,
+          method.messageDecoder,
           methodCall);
         grpcResponse = new WebGrpcServerResponse<>(
           context,
           grpcRequest,
           protocol,
           httpRequest.response(),
-          messageEncoder);
-        break;
-      case TRANSCODING:
-        grpcRequest = new TranscodingGrpcServerRequest<>(
-          context,
-          options.getScheduleDeadlineAutomatically(),
-          protocol,
-          format,
-          options.getMaxMessageSize(),
-          httpRequest,
-          transcodingOptions.getBody(),
-          bindings,
-          messageDecoder,
-          methodCall);
-        grpcResponse = new TranscodingGrpcServerResponse<>(
-          context,
-          grpcRequest,
-          protocol,
-          httpRequest.response(),
-          transcodingOptions.getResponseBody(),
-          messageEncoder);
+          method.messageEncoder);
         break;
       default:
         throw new AssertionError();
     }
+    handle(grpcRequest, grpcResponse, method);
+  }
+
+  private <Req, Resp> void handle(GrpcServerRequestImpl<Req, Resp> grpcRequest,
+                                  GrpcServerResponseImpl<Req, Resp> grpcResponse,
+                                  Handler<GrpcServerRequest<Req, Resp>> handler) {
     if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
       long deadline = System.currentTimeMillis() + grpcRequest.timeout;
-      context.putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
+      grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
     }
     grpcResponse.init();
     grpcRequest.init(grpcResponse);
@@ -304,7 +252,7 @@ public class GrpcServerImpl implements GrpcServer {
         grpcResponse.cancel();
       }
     });
-    context.dispatch(grpcRequest, handler);
+    grpcRequest.context().dispatch(grpcRequest, handler);
   }
 
   public GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {
@@ -354,17 +302,42 @@ public class GrpcServerImpl implements GrpcServer {
   public <Req, Resp> GrpcServer callHandlerWithTranscoding(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler,
     MethodTranscodingOptions transcodingOptions) {
     this.callHandler(serviceMethod, handler);
-
     if (!options.isGrpcTranscodingEnabled()) {
       throw new IllegalStateException("gRPC transcoding is not enabled");
     }
-
     PathMatcherBuilder pmb = new PathMatcherBuilder();
     PathMatcherUtility.registerByHttpRule(pmb, transcodingOptions, serviceMethod.fullMethodName());
-
-    this.pathMatchers.add(pmb.build());
-    this.transcodingOptions.put(serviceMethod.fullMethodName(), transcodingOptions);
-
+    PathMatcher pathMatcher = pmb.build();
+    this.mountPoints.add(new MountPoint() {
+      @Override
+      public GrpcInvocation<Req, Resp> accept(HttpServerRequest httpRequest) {
+        PathMatcherLookupResult res = pathMatcher.lookup(httpRequest.method().name(), httpRequest.path(), httpRequest.query());
+        if (res != null) {
+          List<HttpVariableBinding> bindings = new ArrayList<>(res.getVariableBindings());
+          io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
+          GrpcServerRequestImpl<Req, Resp> grpcRequest = new TranscodingGrpcServerRequest<>(
+            context,
+            options.getScheduleDeadlineAutomatically(),
+            GrpcProtocol.TRANSCODING,
+            WireFormat.JSON,
+            options.getMaxMessageSize(),
+            httpRequest,
+            transcodingOptions.getBody(),
+            bindings,
+            serviceMethod.decoder(),
+            new GrpcMethodCall("/" + res.getMethod()));
+          GrpcServerResponseImpl<Req, Resp> grpcResponse = new TranscodingGrpcServerResponse<>(
+            context,
+            grpcRequest,
+            GrpcProtocol.TRANSCODING,
+            httpRequest.response(),
+            transcodingOptions.getResponseBody(),
+            serviceMethod.encoder());
+          return new GrpcInvocation<>(grpcRequest, grpcResponse, handler);
+        }
+        return null;
+      }
+    });
     return this;
   }
 

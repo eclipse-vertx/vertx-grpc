@@ -89,6 +89,10 @@ public abstract class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBas
     this.scheduleDeadline = scheduleDeadline;
   }
 
+  ContextInternal context() {
+    return context;
+  }
+
   @Override
   public void init(GrpcWriteStreamBase ws) {
     this.response = (GrpcServerResponseImpl<Req, Resp>) ws;
@@ -149,7 +153,7 @@ public abstract class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBas
     }
   }
 
-  public GrpcServerResponse<Req, Resp> response() {
+  public GrpcServerResponseImpl<Req, Resp> response() {
     return response;
   }
 
