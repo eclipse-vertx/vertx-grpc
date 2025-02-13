@@ -40,7 +40,7 @@ public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponse
   protected Future<Void> sendMessage(Buffer message, boolean compressed) {
     try {
       BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(message, transcodingResponseBody);
-      httpResponse.putHeader("content-length", Integer.toString(message.length()));
+      httpResponse.putHeader("content-length", Integer.toString(transcoded.length()));
       httpResponse.putHeader("content-type", GrpcProtocol.TRANSCODING.mediaType());
       return httpResponse.write(transcoded);
     } catch (Exception e) {
