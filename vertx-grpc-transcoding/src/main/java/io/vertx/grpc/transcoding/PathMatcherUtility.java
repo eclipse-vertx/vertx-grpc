@@ -11,6 +11,7 @@ import java.util.Set;
  * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/include/grpc_transcoding/path_matcher.h">grpc-httpjson-transcoding</a>
  */
 public class PathMatcherUtility {
+
   public static boolean registerByHttpRule(PathMatcherBuilder pmb, MethodTranscodingOptions transcodingOptions, String method) {
     return registerByHttpRule(pmb, transcodingOptions, new HashSet<>(), method);
   }

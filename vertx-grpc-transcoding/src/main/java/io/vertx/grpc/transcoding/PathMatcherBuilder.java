@@ -12,6 +12,7 @@ import java.util.Set;
  * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/include/grpc_transcoding/path_matcher.h">grpc-httpjson-transcoding</a>
  */
 public class PathMatcherBuilder {
+
   private final PathMatcherNode root = new PathMatcherNode();
   private final Set<String> customVerbs = new HashSet<>();
   private final List<PathMatcherMethodData> methods = new ArrayList<>();

@@ -12,6 +12,7 @@ import java.util.Map;
  * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/path_matcher_node.cc">grpc-httpjson-transcoding</a>
  */
 public class PathMatcherNode {
+
   /** Wildcard string for matching any HTTP method */
   public static final String HTTP_WILD_CARD = "*";
 

@@ -14,94 +14,96 @@ import java.util.List;
  */
 @DataObject
 public class HttpTemplateVariable {
-    private List<String> fieldPath;
-    private int startSegment;
-    private int endSegment;
-    private boolean wildcardPath;
 
-    public HttpTemplateVariable() {
-        this.fieldPath = new ArrayList<>();
-        this.startSegment = 0;
-        this.endSegment = 0;
-        this.wildcardPath = false;
-    }
+  private List<String> fieldPath;
+  private int startSegment;
+  private int endSegment;
+  private boolean wildcardPath;
 
-    public HttpTemplateVariable(List<String> fieldPath, int startSegment, int endSegment, boolean wildcardPath) {
-        this.fieldPath = fieldPath;
-        this.startSegment = startSegment;
-        this.endSegment = endSegment;
-        this.wildcardPath = wildcardPath;
-    }
+  public HttpTemplateVariable() {
+    this.fieldPath = new ArrayList<>();
+    this.startSegment = 0;
+    this.endSegment = 0;
+    this.wildcardPath = false;
+  }
 
-    /**
-     * Returns the field path of the variable.
-     *
-     * @return The field path.
-     */
-    public List<String> getFieldPath() {
-        return fieldPath;
-    }
+  public HttpTemplateVariable(List<String> fieldPath, int startSegment, int endSegment, boolean wildcardPath) {
+    this.fieldPath = fieldPath;
+    this.startSegment = startSegment;
+    this.endSegment = endSegment;
+    this.wildcardPath = wildcardPath;
+  }
 
-    /**
-     * Sets the field path of the variable.
-     *
-     * @param fieldPath The field path to set.
-     */
-    public void setFieldPath(List<String> fieldPath) {
-        this.fieldPath = fieldPath;
-    }
+  /**
+   * Returns the field path of the variable.
+   *
+   * @return The field path.
+   */
+  public List<String> getFieldPath() {
+    return fieldPath;
+  }
 
-    /**
-     * Returns the starting segment of the variable.
-     *
-     * @return The starting segment.
-     */
-    public int getStartSegment() {
-        return startSegment;
-    }
+  /**
+   * Sets the field path of the variable.
+   *
+   * @param fieldPath The field path to set.
+   */
+  public void setFieldPath(List<String> fieldPath) {
+    this.fieldPath = fieldPath;
+  }
 
-    /**
-     * Sets the starting segment of the variable.
-     *
-     * @param startSegment The starting segment to set.
-     */
-    public void setStartSegment(int startSegment) {
-        this.startSegment = startSegment;
-    }
+  /**
+   * Returns the starting segment of the variable.
+   *
+   * @return The starting segment.
+   */
+  public int getStartSegment() {
+    return startSegment;
+  }
 
-    /**
-     * Returns the ending segment of the variable.
-     *
-     * @return The ending segment.
-     */
-    public int getEndSegment() {
-        return endSegment;
-    }
+  /**
+   * Sets the starting segment of the variable.
+   *
+   * @param startSegment The starting segment to set.
+   */
+  public void setStartSegment(int startSegment) {
+    this.startSegment = startSegment;
+  }
 
-    /**
-     * Sets the ending segment of the variable.
-     *
-     * @param endSegment The ending segment to set.
-     */
-    public void setEndSegment(int endSegment) {
-        this.endSegment = endSegment;
-    }
+  /**
+   * Returns the ending segment of the variable.
+   *
+   * @return The ending segment.
+   */
+  public int getEndSegment() {
+    return endSegment;
+  }
 
-    /**
-     * Checks if the variable represents a wildcard path.
-     *
-     * @return {@code true} if the variable represents a wildcard path, {@code false} otherwise.
-     */
-    public boolean hasWildcardPath() {
-        return wildcardPath;
-    }
+  /**
+   * Sets the ending segment of the variable.
+   *
+   * @param endSegment The ending segment to set.
+   */
+  public void setEndSegment(int endSegment) {
+    this.endSegment = endSegment;
+  }
 
-    /**
-     * Sets whether the variable represents a wildcard path.
-     *
-     * @param wildcardPath {@code true} if the variable represents a wildcard path, {@code false} otherwise.
-     */
-    public void setWildcardPath(boolean wildcardPath) {
-        this.wildcardPath = wildcardPath;
-    }
+  /**
+   * Checks if the variable represents a wildcard path.
+   *
+   * @return {@code true} if the variable represents a wildcard path, {@code false} otherwise.
+   */
+  public boolean hasWildcardPath() {
+    return wildcardPath;
+  }
+
+  /**
+   * Sets whether the variable represents a wildcard path.
+   *
+   * @param wildcardPath {@code true} if the variable represents a wildcard path, {@code false} otherwise.
+   */
+  public void setWildcardPath(boolean wildcardPath) {
+    this.wildcardPath = wildcardPath;
+  }
+
 }

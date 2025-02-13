@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Set;
 
 public class PathMatcherMethodData {
+
   private String method;
   private List<HttpTemplateVariable> variables;
   private String bodyFieldPath;

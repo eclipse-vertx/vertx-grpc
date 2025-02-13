@@ -19,6 +19,7 @@ import java.util.List;
  * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/http_template.cc">grpc-httpjson-transcoding</a>
  */
 public class HttpTemplateParser {
+
   public static final String SINGLE_PARAMETER_KEY = "/.";
   public static final String WILD_CARD_PATH_PART_KEY = "*";
   public static final String WILD_CARD_PATH_KEY = "**";

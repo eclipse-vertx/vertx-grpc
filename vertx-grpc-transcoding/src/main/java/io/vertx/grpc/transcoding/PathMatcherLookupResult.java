@@ -3,6 +3,7 @@ package io.vertx.grpc.transcoding;
 import java.util.List;
 
 public class PathMatcherLookupResult {
+
   private final String method;
   private final List<HttpVariableBinding> variableBindings;
   private final String bodyFieldPath;

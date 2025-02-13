@@ -49,4 +49,5 @@ public enum GrpcTranscodingError {
   public String getMessage() {
     return message;
   }
+
 }
