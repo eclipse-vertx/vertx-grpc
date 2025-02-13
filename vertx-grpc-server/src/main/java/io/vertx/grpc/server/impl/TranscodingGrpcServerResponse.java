@@ -41,7 +41,7 @@ public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponse
     try {
       BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(message, transcodingResponseBody);
       httpResponse.putHeader("content-length", Integer.toString(message.length()));
-      httpResponse.putHeader("content-type", GrpcProtocol.HTTP_1.mediaType());
+      httpResponse.putHeader("content-type", GrpcProtocol.TRANSCODING.mediaType());
       return httpResponse.write(transcoded);
     } catch (Exception e) {
       httpResponse.setStatusCode(500).end();

@@ -52,15 +52,18 @@ public class GrpcServerImpl implements GrpcServer {
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
   }
 
-  @Override
-  public void handle(HttpServerRequest httpRequest) {
-    int errorCode = refuseRequest(httpRequest);
-    if (errorCode > 0) {
-      httpRequest.response().setStatusCode(errorCode).end();
-      return;
+  // Internal pojo, the name does not matter much at the moment
+  private static class Details {
+    final GrpcProtocol protocol;
+    final WireFormat format;
+    Details(GrpcProtocol protocol, WireFormat format) {
+      this.protocol = protocol;
+      this.format = format;
     }
+  }
+
+  private Details determine(String contentType) {
     WireFormat format;
-    String contentType = httpRequest.getHeader(CONTENT_TYPE);
     GrpcProtocol protocol;
     if (contentType != null) {
       Matcher matcher = CONTENT_TYPE_PATTERN.matcher(contentType);
@@ -69,10 +72,6 @@ public class GrpcServerImpl implements GrpcServer {
           protocol = matcher.group(2) == null ? GrpcProtocol.WEB : GrpcProtocol.WEB_TEXT;
         } else {
           protocol = GrpcProtocol.HTTP_2;
-        }
-        if (protocol.isWeb() && !options.isGrpcWebEnabled()) {
-          httpRequest.response().setStatusCode(415).end();
-          return;
         }
         if (matcher.group(3) != null) {
           switch (matcher.group(4)) {
@@ -88,14 +87,30 @@ public class GrpcServerImpl implements GrpcServer {
         } else {
           format = WireFormat.PROTOBUF;
         }
+        return new Details(protocol, format);
       } else {
-        if (GrpcProtocol.HTTP_1.mediaType().equals(contentType)) {
-          protocol = GrpcProtocol.HTTP_1;
+        if (GrpcProtocol.TRANSCODING.mediaType().equals(contentType)) {
+          protocol = GrpcProtocol.TRANSCODING;
           format = WireFormat.JSON;
+          return new Details(protocol, format);
         } else {
-          httpRequest.response().setStatusCode(415).end();
-          return;
+          return null;
         }
+      }
+    } else {
+      return null;
+    }
+  }
+
+  @Override
+  public void handle(HttpServerRequest httpRequest) {
+    String contentType = httpRequest.getHeader(CONTENT_TYPE);
+    Details details;
+    if (contentType != null && (details = determine(contentType)) != null) {
+      int errorCode = validate(httpRequest.version(), details.protocol, details.format);
+      if (errorCode > 0) {
+        httpRequest.response().setStatusCode(errorCode).end();
+        return;
       }
     } else {
       httpRequest.response().setStatusCode(415).end();
@@ -103,7 +118,7 @@ public class GrpcServerImpl implements GrpcServer {
     }
 
     PathMatcherLookupResult pathMatcherLookupResult = null;
-    if (httpRequest.version() != HttpVersion.HTTP_2 && GrpcProtocol.HTTP_1.mediaType().equals(httpRequest.headers().get(CONTENT_TYPE))) {
+    if (httpRequest.version() != HttpVersion.HTTP_2 && GrpcProtocol.TRANSCODING.mediaType().equals(httpRequest.headers().get(CONTENT_TYPE))) {
       for (PathMatcher pathMatcher : pathMatchers) {
         pathMatcherLookupResult = pathMatcher.lookup(httpRequest.method().name(), httpRequest.path(), httpRequest.query());
         if (pathMatcherLookupResult != null) {
@@ -118,43 +133,52 @@ public class GrpcServerImpl implements GrpcServer {
 
     if (methods != null) {
       for (MethodCallHandler<?, ?> method : methods) {
-        if (GrpcProtocol.HTTP_1 == protocol && protocol.mediaType().equals(httpRequest.headers().get(CONTENT_TYPE))) {
+        if (GrpcProtocol.TRANSCODING == details.protocol && details.protocol.mediaType().equals(httpRequest.headers().get(CONTENT_TYPE))) {
           handle(method, httpRequest, methodCall, pathMatcherLookupResult);
           return;
         }
 
-        if (method.messageEncoder.format() == format && method.messageDecoder.format() == format) {
-          handle(method, httpRequest, methodCall, protocol, format);
+        if (method.messageEncoder.format() == details.format && method.messageDecoder.format() == details.format) {
+          handle(method, httpRequest, methodCall, details.protocol, details.format);
           return;
         }
       }
     }
     Handler<GrpcServerRequest<Buffer, Buffer>> handler = requestHandler;
     if (handler != null) {
-      handle(httpRequest, methodCall, protocol, format, null, null, GrpcMessageDecoder.IDENTITY, GrpcMessageEncoder.IDENTITY, handler);
+      handle(httpRequest, methodCall, details.protocol, details.format, null, null, GrpcMessageDecoder.IDENTITY, GrpcMessageEncoder.IDENTITY, handler);
     } else {
       httpRequest.response().setStatusCode(500).end();
     }
   }
 
-  private int refuseRequest(HttpServerRequest request) {
-    if (request.version() != HttpVersion.HTTP_2) {
+  private int validate(HttpVersion version, GrpcProtocol protocol, WireFormat format) {
+    if (version != HttpVersion.HTTP_2) {
       if (!options.isGrpcWebEnabled() && !options.isGrpcTranscodingEnabled()) {
         log.trace("The server is not configured to handle HTTP/1.1 requests, sending error 505");
         return 505;
       }
-
-      String contentType = request.headers().get(CONTENT_TYPE);
-
-      if (options.isGrpcWebEnabled() && (!GrpcMediaType.isGrpcWeb(contentType) && !GrpcProtocol.HTTP_1.mediaType().equals(contentType))) {
-        log.trace("gRPC-Web is the only media type supported on HTTP/1.1, sending error 415");
-        return 415;
-      }
-
-      if (options.isGrpcTranscodingEnabled() && !GrpcProtocol.HTTP_1.mediaType().equals(contentType)) {
-        log.trace("The server is configured to handle transcoding, but the request does not contain application/json, sending error 415");
-        return 415;
-      }
+    }
+    // Check HTTP version compatibility
+    if (!protocol.accepts(version)) {
+      log.trace(protocol.name() + " not supported on " + version + ", sending error 415");
+      return 415;
+    }
+    // Check config
+    switch (protocol) {
+      case WEB:
+      case WEB_TEXT:
+        if (!options.isGrpcWebEnabled()) {
+          log.trace("gRPC-Web is not supported on HTTP/1.1, sending error 415");
+          return 415;
+        }
+        break;
+      case TRANSCODING:
+        if (!options.isGrpcTranscodingEnabled()) {
+          log.trace("gRPC transcoding is not supported on HTTP/1.1, sending error 415");
+          return 415;
+        }
+        break;
     }
     return -1;
   }
@@ -164,7 +188,7 @@ public class GrpcServerImpl implements GrpcServer {
       return new GrpcMethodCall(request.path());
     }
 
-    if (GrpcProtocol.HTTP_1.mediaType().equals(request.headers().get(CONTENT_TYPE)) && pathMatcherLookupResult != null) {
+    if (GrpcProtocol.TRANSCODING.mediaType().equals(request.headers().get(CONTENT_TYPE)) && pathMatcherLookupResult != null) {
       return new GrpcMethodCall("/" + pathMatcherLookupResult.getMethod());
     }
 
@@ -173,13 +197,13 @@ public class GrpcServerImpl implements GrpcServer {
 
   private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest request, GrpcMethodCall methodCall, PathMatcherLookupResult pathMatcherLookupResult) {
     String contentType = request.getHeader(CONTENT_TYPE);
-    if (!contentType.equals(GrpcProtocol.HTTP_1.mediaType())) {
+    if (!contentType.equals(GrpcProtocol.TRANSCODING.mediaType())) {
       request.response().setStatusCode(415).end();
       return;
     }
 
     List<HttpVariableBinding> bindings = new ArrayList<>();
-    if (request.version() != HttpVersion.HTTP_2 && GrpcProtocol.HTTP_1.mediaType().equals(request.getHeader(CONTENT_TYPE))) {
+    if (request.version() != HttpVersion.HTTP_2 && GrpcProtocol.TRANSCODING.mediaType().equals(request.getHeader(CONTENT_TYPE))) {
       bindings.addAll(pathMatcherLookupResult.getVariableBindings());
     }
 
@@ -189,7 +213,7 @@ public class GrpcServerImpl implements GrpcServer {
       return;
     }
 
-    handle(request, methodCall, GrpcProtocol.HTTP_1, WireFormat.JSON, transcodingOptions, bindings, method.messageDecoder, method.messageEncoder, method);
+    handle(request, methodCall, GrpcProtocol.TRANSCODING, WireFormat.JSON, transcodingOptions, bindings, method.messageDecoder, method.messageEncoder, method);
   }
 
   private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall, GrpcProtocol protocol, WireFormat format) {
@@ -244,7 +268,7 @@ public class GrpcServerImpl implements GrpcServer {
           httpRequest.response(),
           messageEncoder);
         break;
-      case HTTP_1:
+      case TRANSCODING:
         grpcRequest = new TranscodingGrpcServerRequest<>(
           context,
           options.getScheduleDeadlineAutomatically(),

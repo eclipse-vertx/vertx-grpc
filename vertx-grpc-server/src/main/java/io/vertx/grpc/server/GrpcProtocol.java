@@ -1,34 +1,52 @@
 package io.vertx.grpc.server;
 
+import io.vertx.core.http.HttpVersion;
+
+import java.util.EnumSet;
+
+/**
+ * Describe the underlying gRPC protocol.
+ */
 public enum GrpcProtocol {
 
-  HTTP_2("application/grpc", false),
-  HTTP_1("application/json", false, true),
-  WEB("application/grpc-web", true),
-  WEB_TEXT("application/grpc-web-text", true);
+  /**
+   * gRPC over HTTP/2
+   */
+  HTTP_2("application/grpc", EnumSet.of(HttpVersion.HTTP_2)),
+
+  /**
+   * gRPC transcoding HTTP/1
+   */
+  TRANSCODING("application/json", EnumSet.allOf(HttpVersion.class)),
+
+  /**
+   * gRPC Web
+   */
+  WEB("application/grpc-web", EnumSet.allOf(HttpVersion.class)),
+
+  /**
+   * gRPC Web text
+   */
+  WEB_TEXT("application/grpc-web-text", EnumSet.allOf(HttpVersion.class));
 
   private final String mediaType;
-  private final boolean web;
-  private final boolean text;
+  private final EnumSet<HttpVersion> acceptedVersions;
 
-  GrpcProtocol(String mediaType, boolean web) {
-    this(mediaType, web, false);
-  }
-
-  GrpcProtocol(String mediaType, boolean web, boolean text) {
+  GrpcProtocol(String mediaType, EnumSet<HttpVersion> acceptedVersions) {
     this.mediaType = mediaType;
-    this.web = web;
-    this.text = text;
+    this.acceptedVersions = acceptedVersions;
   }
 
-  public boolean isWeb() {
-    return web;
+  /**
+   * @return whether the protocol accepts the HTTP {@code version}
+   */
+  public boolean accepts(HttpVersion version) {
+    return acceptedVersions.contains(version);
   }
 
-  public boolean isText() {
-    return text;
-  }
-
+  /**
+   * @return the HTTP media type
+   */
   public String mediaType() {
     return mediaType;
   }

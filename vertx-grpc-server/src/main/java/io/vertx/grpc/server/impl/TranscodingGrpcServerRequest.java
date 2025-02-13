@@ -38,7 +38,7 @@ public class TranscodingGrpcServerRequest<Req, Resp> extends GrpcServerRequestIm
 
     return (httpRequest.version() == HttpVersion.HTTP_1_0 ||
             httpRequest.version() == HttpVersion.HTTP_1_1) &&
-            GrpcProtocol.HTTP_1.mediaType().equals(httpRequest.getHeader(CONTENT_TYPE));
+            GrpcProtocol.TRANSCODING.mediaType().equals(httpRequest.getHeader(CONTENT_TYPE));
   }
 
   final String transcodingRequestBody;
