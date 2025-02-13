@@ -158,7 +158,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected void sendHeaders(String contentType, MultiMap headers, boolean end) {
+  protected void setHeaders(String contentType, MultiMap headers, boolean isEnd) {
     ServiceName serviceName = this.serviceName;
     String methodName = this.methodName;
     if (serviceName == null) {
@@ -195,7 +195,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected void sendTrailers(MultiMap trailers) {
+  protected void setTrailers(MultiMap trailers) {
   }
 
   @Override

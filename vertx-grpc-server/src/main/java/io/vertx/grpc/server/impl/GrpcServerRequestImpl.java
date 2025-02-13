@@ -167,5 +167,4 @@ public abstract class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBas
   public Timer deadline() {
     return deadline;
   }
-
 }

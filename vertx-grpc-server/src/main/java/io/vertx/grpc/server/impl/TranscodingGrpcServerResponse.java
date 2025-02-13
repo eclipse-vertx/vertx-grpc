@@ -11,12 +11,15 @@
 package io.vertx.grpc.server.impl;
 
 import io.vertx.core.Future;
+import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcProtocol;
+import io.vertx.grpc.transcoding.GrpcTranscodingError;
 import io.vertx.grpc.transcoding.MessageWeaver;
 
 public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req,Resp> {
@@ -33,7 +36,8 @@ public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponse
     this.transcodingResponseBody = transcodingResponseBody;
   }
 
-  private Future<Void> sendTranscodedMessage(Buffer message) {
+  @Override
+  protected Future<Void> sendMessage(Buffer message, boolean compressed) {
     try {
       BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(message, transcodingResponseBody);
       httpResponse.putHeader("content-length", Integer.toString(message.length()));
@@ -46,8 +50,16 @@ public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponse
   }
 
   @Override
-  protected Future<Void> sendMessage(Buffer message, boolean compressed) {
-    return sendTranscodedMessage(message);
+  protected void encodeGrpcHeaders(MultiMap grpcHeaders, MultiMap httpHeaders) {
+  }
+
+  @Override
+  protected Future<Void> sendEnd() {
+    GrpcStatus status = status();
+    if (status != GrpcStatus.OK) {
+      httpResponse.setStatusCode(GrpcTranscodingError.fromHttp2Code(status.code).getHttpStatusCode());
+    }
+    return super.sendEnd();
   }
 
   @Override

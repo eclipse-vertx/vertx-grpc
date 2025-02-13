@@ -10,14 +10,11 @@
  */
 package io.vertx.grpc.server.impl;
 
-import io.netty.handler.codec.base64.Base64;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
@@ -26,7 +23,6 @@ import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
-import io.vertx.grpc.transcoding.GrpcTranscodingError;
 
 import java.util.Map;
 import java.util.Objects;
@@ -41,7 +37,6 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
   private final GrpcProtocol protocol;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
-  private MultiMap httpResponseTrailers;
   private boolean trailersOnly;
   private boolean cancelled;
 
@@ -97,67 +92,55 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     }
   }
 
+  public boolean isTrailersOnly() {
+    return trailersOnly;
+  }
+
+  public GrpcStatus status() {
+    return status;
+  }
+
   protected void sendCancel() {
     httpResponse
       .reset(GrpcError.CANCELLED.http2ResetCode)
       .onSuccess(v -> handleError(GrpcError.CANCELLED));
   }
 
-  protected void sendHeaders(String contentType, MultiMap headers, boolean end) {
-    MultiMap responseHeaders = httpResponse.headers();
-    trailersOnly = status != GrpcStatus.OK && end;
-    httpResponse.setChunked(protocol.isWeb() && !trailersOnly);
-    if (headers != null && !headers.isEmpty()) {
-      for (Map.Entry<String, String> header : headers) {
-        responseHeaders.add(header.getKey(), header.getValue());
+  protected void setHeaders(String contentType, MultiMap grpcHeaders, boolean isEnd) {
+    trailersOnly = status != GrpcStatus.OK && isEnd;
+    MultiMap httpHeaders = httpResponse.headers();
+    httpHeaders.set("content-type", contentType);
+    encodeGrpcHeaders(grpcHeaders, httpHeaders);
+  }
+
+  protected void encodeGrpcHeaders(MultiMap grpcHeaders, MultiMap httpHeaders) {
+    if (grpcHeaders != null && !grpcHeaders.isEmpty()) {
+      for (Map.Entry<String, String> header : grpcHeaders) {
+        httpHeaders.add(header.getKey(), header.getValue());
       }
-    }
-    responseHeaders.set("content-type", contentType);
-    if (!protocol.isWeb()) {
-      responseHeaders.set("grpc-encoding", encoding);
-      responseHeaders.set("grpc-accept-encoding", "gzip");
     }
   }
 
-  protected void sendTrailers(MultiMap trailers) {
-    if (trailersOnly) {
-      httpResponseTrailers = httpResponse.headers();
-    } else if (!protocol.isWeb()) {
-      httpResponseTrailers = httpResponse.trailers();
-    } else {
-      httpResponseTrailers = HttpHeaders.headers();
-    }
+  protected void setTrailers(MultiMap grpcTrailers) {
+  }
 
-    MultiMap responseHeaders = httpResponse.headers();
-    if (trailers != null && !trailers.isEmpty()) {
-      for (Map.Entry<String, String> trailer : trailers) {
-        httpResponseTrailers.add(trailer.getKey(), trailer.getValue());
+  protected void encodeGrpcTrailers(MultiMap grpcTrailers, MultiMap httpTrailers) {
+    MultiMap httpHeaders = httpResponse.headers();
+    if (grpcTrailers != null && !grpcTrailers.isEmpty()) {
+      for (Map.Entry<String, String> trailer : grpcTrailers) {
+        httpTrailers.add(trailer.getKey(), trailer.getValue());
       }
     }
-    if (!responseHeaders.contains("grpc-status")) {
-      httpResponseTrailers.set("grpc-status", status.toString());
+    if (!httpHeaders.contains("grpc-status")) {
+      httpTrailers.set("grpc-status", status.toString());
     }
     if (status != GrpcStatus.OK) {
       String msg = statusMessage;
-      if (msg != null && !responseHeaders.contains("grpc-message")) {
-        httpResponseTrailers.set("grpc-message", Utils.utf8PercentEncode(msg));
-      }
-
-      if (TranscodingGrpcServerRequest.isTranscodable(request.httpRequest)) {
-        httpResponse.setStatusCode(GrpcTranscodingError.fromHttp2Code(status.code).getHttpStatusCode());
+      if (msg != null && !httpHeaders.contains("grpc-message")) {
+        httpTrailers.set("grpc-message", Utils.utf8PercentEncode(msg));
       }
     } else {
-      httpResponseTrailers.remove("grpc-message");
-    }
-    if (protocol.isWeb() && !trailersOnly) {
-      Buffer buffer = Buffer.buffer();
-      for (Map.Entry<String, String> trailer : httpResponseTrailers) {
-        buffer.appendString(trailer.getKey())
-          .appendByte((byte) ':')
-          .appendString(trailer.getValue())
-          .appendString("\r\n");
-      }
-      httpResponse.write(encodeMessage(buffer, false, true));
+      httpTrailers.remove("grpc-message");
     }
   }
 
