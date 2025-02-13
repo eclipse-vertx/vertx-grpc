@@ -55,7 +55,7 @@ public class TranscodingGrpcServerRequest<Req, Resp> extends GrpcServerRequestIm
         } catch (DecodeException e) {
           throw new CodecException(e);
         }
-        return messageDecoder.decode(GrpcMessage.message("identity", transcoded));
+        return messageDecoder.decode(GrpcMessage.message("identity", WireFormat.JSON, transcoded));
       }
       @Override
       public WireFormat format() {
