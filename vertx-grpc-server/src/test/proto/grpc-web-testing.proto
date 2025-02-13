@@ -6,6 +6,7 @@ service TestService {
   rpc EmptyCall(Empty) returns (Empty);
   rpc UnaryCall(EchoRequest) returns (EchoResponse);
   rpc UnaryCallBody(EchoRequestBody) returns (EchoResponse);
+  rpc UnaryCallResponseBody(EchoRequest) returns (EchoResponseBody);
   rpc StreamingCall(StreamingRequest) returns (stream StreamingResponse);
 }
 
@@ -25,6 +26,10 @@ message EchoRequestBody {
 
 message EchoResponse {
   string payload = 1;
+}
+
+message EchoResponseBody {
+  EchoResponse response = 1;
 }
 
 message StreamingRequest {

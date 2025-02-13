@@ -29,6 +29,9 @@ import io.vertx.grpcweb.GrpcWebTesting.*;
 import io.vertx.tests.common.GrpcTestBase;
 import org.junit.Test;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import static org.junit.Assert.*;
 
 /**
@@ -41,6 +44,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static GrpcMessageDecoder<EchoRequest> ECHO_REQUEST_DECODER = GrpcMessageDecoder.json(EchoRequest::newBuilder);
   public static GrpcMessageDecoder<EchoRequestBody> ECHO_REQUEST_BODY_DECODER = GrpcMessageDecoder.json(EchoRequestBody::newBuilder);
   public static GrpcMessageEncoder<EchoResponse> ECHO_RESPONSE_ENCODER = GrpcMessageEncoder.json();
+  public static GrpcMessageEncoder<EchoResponseBody> ECHO_RESPONSE_BODY_ENCODER = GrpcMessageEncoder.json();
 
   public static final ServiceName TEST_SERVICE_NAME = ServiceName.create("io.vertx.grpcweb.TestService");
   public static final ServiceMethod<Empty, Empty> EMPTY_CALL = ServiceMethod.server(TEST_SERVICE_NAME, "EmptyCall", EMPTY_ENCODER, EMPTY_DECODER);
@@ -54,13 +58,15 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static final ServiceMethod<EchoRequestBody, EchoResponse> UNARY_CALL_WITH_BODY = ServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithBody", ECHO_RESPONSE_ENCODER,
     ECHO_REQUEST_BODY_DECODER);
 
+  public static final ServiceMethod<EchoRequest, EchoResponseBody> UNARY_CALL_WITH_RESPONSE_BODY = ServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithResponseBody",
+    ECHO_RESPONSE_BODY_ENCODER, ECHO_REQUEST_DECODER);
+
   public static final MethodTranscodingOptions EMPTY_TRANSCODING = new MethodTranscodingOptions("", HttpMethod.valueOf("POST"), "/hello", "", "", null);
   public static final MethodTranscodingOptions UNARY_TRANSCODING = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello", "", "", null);
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_PARAM = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello/{payload}", "", "", null);
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_CUSTOM_METHOD = new MethodTranscodingOptions("", HttpMethod.valueOf("ACL"), "/hello", "", "", null);
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_BODY = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/body", "request", "", null);
-
-  private static final String TEST_SERVICE = "/io.vertx.grpcweb.TestService";
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_RESPONSE_BODY = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/response", "", "response", null);
 
   private static final CharSequence USER_AGENT = HttpHeaders.createOptimized("X-User-Agent");
   private static final String CONTENT_TYPE = "application/json";
@@ -153,6 +159,26 @@ public class ServerTranscodingTest extends GrpcTestBase {
         }
       });
     }, UNARY_TRANSCODING_WITH_BODY);
+    grpcServer.callHandlerWithTranscoding(UNARY_CALL_WITH_RESPONSE_BODY, request -> {
+      request.handler(requestMsg -> {
+        GrpcServerResponse<EchoRequest, EchoResponseBody> response = request.response();
+        copyHeaders(request.headers(), response.headers());
+        copyTrailers(request.headers(), response.trailers());
+        String payload = requestMsg.getPayload();
+        if ("boom".equals(payload)) {
+          response.trailers().set("x-error-trailer", "boom");
+          response.status(GrpcStatus.INTERNAL).end();
+        } else {
+          EchoResponse responseMsg = EchoResponse.newBuilder()
+            .setPayload(payload)
+            .build();
+          EchoResponseBody responseBody = EchoResponseBody.newBuilder()
+            .setResponse(responseMsg)
+            .build();
+          response.end(responseBody);
+        }
+      });
+    }, UNARY_TRANSCODING_WITH_RESPONSE_BODY);
     httpServer = vertx.createHttpServer(new HttpServerOptions().setPort(port)).requestHandler(grpcServer);
     httpServer.listen().onComplete(should.asyncAssertSuccess());
   }
@@ -271,7 +297,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
     }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
       assertEquals(400, response.statusCode());
       MultiMap headers = response.headers();
-//      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      //      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
     })));
   }
 
@@ -330,7 +356,23 @@ public class ServerTranscodingTest extends GrpcTestBase {
     }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
       assertEquals(400, response.statusCode());
       MultiMap headers = response.headers();
-//      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      //      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+    })));
+  }
+
+  @Test
+  public void testMethodWithResponseBody(TestContext should) {
+    String payload = "foobar";
+    httpClient.request(HttpMethod.GET, "/response").compose(req -> {
+      String body = encode(EchoRequest.newBuilder().setPayload(payload).build()).toString();
+      req.headers().addAll(HEADERS);
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      MultiMap headers = response.headers();
+      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonObject body = decodeBody(response.body().result());
+      assertEquals(payload, body.getString("payload"));
     })));
   }
 
