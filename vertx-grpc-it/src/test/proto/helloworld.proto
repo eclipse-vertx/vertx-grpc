@@ -69,6 +69,22 @@ service Greeter {
       }
     };
   }
+
+  // Sends a greeting with a body
+  rpc SayHelloWithBody (HelloBodyRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      post: "/v1/hello/body"
+      body: "request"
+    };
+  }
+
+  // Sends a greeting with a body and a custom verb
+  rpc SayHelloWithResponseBOdy (HelloRequest) returns (HelloBodyResponse) {
+    option (google.api.http) = {
+      post: "/v1/hello/body/response"
+      response_body: "response"
+    };
+  }
 }
 
 // The request message containing the user's name.
@@ -79,4 +95,14 @@ message HelloRequest {
 // The response message containing the greetings
 message HelloReply {
   string message = 1;
+}
+
+// The request message wrapping HelloRequest
+message HelloBodyRequest {
+  HelloRequest request = 1;
+}
+
+// The response message wrapping HelloReply
+message HelloBodyResponse {
+  HelloReply response = 1;
 }
