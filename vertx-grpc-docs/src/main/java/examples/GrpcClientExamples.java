@@ -283,11 +283,11 @@ public class GrpcClientExamples {
   }
 
   public void createClientStub(GrpcClient grpcClient, String host, int port) {
-    VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, host));
+    VertxGreeterGrpcClient client = VertxGreeterGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, host));
   }
 
   public void createClientStubJson(GrpcClient grpcClient, int port, String host) {
-    VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, host), WireFormat.JSON);
+    VertxGreeterGrpcClient client = VertxGreeterGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, host), WireFormat.JSON);
   }
 
   public void unaryStub(VertxGreeterGrpcClient client) {

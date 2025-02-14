@@ -16,7 +16,8 @@ import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
-public class {{className}} {
+@io.vertx.codegen.annotations.VertxGen
+public interface {{className}} {
 
 {{#allMethods}}
   public static final ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}} = ServiceMethod.client(
@@ -31,15 +32,27 @@ public class {{className}} {
     GrpcMessageDecoder.json(() -> {{outputType}}.newBuilder()));
 {{/allMethods}}
 
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  static {{className}} create(GrpcClient client, SocketAddress socketAddress) {
+    return new {{className}}Impl(client, socketAddress);
+  }
+
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  static {{className}} create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new {{className}}Impl(client, socketAddress, wireFormat);
+  }
+
+static class {{className}}Impl implements {{className}} {
+
   private final GrpcClient client;
   private final SocketAddress socketAddress;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  public {{className}}(GrpcClient client, SocketAddress socketAddress) {
+  private {{className}}Impl(GrpcClient client, SocketAddress socketAddress) {
     this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  public {{className}}(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  private {{className}}Impl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
@@ -137,4 +150,23 @@ public class {{className}} {
   }
 
 {{/manyManyMethods}}
+  }
+
+{{#unaryMethods}}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
+{{/unaryMethods}}
+{{#unaryManyMethods}}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);
+{{/unaryManyMethods}}
+{{#manyUnaryMethods}}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<{{outputType}}> {{vertxMethodName}}(Handler<GrpcWriteStream<{{inputType}}>> request);
+{{/manyUnaryMethods}}
+{{#manyManyMethods}}
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}(Handler<GrpcWriteStream<{{inputType}}>> request);
+{{/manyManyMethods}}
+
 }

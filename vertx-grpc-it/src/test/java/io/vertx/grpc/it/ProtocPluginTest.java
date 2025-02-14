@@ -60,7 +60,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxGreeterGrpcClient client = new VertxGreeterGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxGreeterGrpcClient client = VertxGreeterGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.sayHello(HelloRequest.newBuilder()
@@ -91,7 +91,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.unaryCall(Messages.SimpleRequest.newBuilder()
@@ -122,7 +122,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.unaryCall(Messages.SimpleRequest.newBuilder()
@@ -151,7 +151,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.unaryCall(Messages.SimpleRequest.newBuilder()
@@ -189,7 +189,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.streamingInputCall(req -> {
@@ -233,7 +233,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.streamingInputCall(req -> {
@@ -268,7 +268,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.streamingInputCall(req -> {
@@ -311,7 +311,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     Messages.StreamingOutputCallRequest request = Messages.StreamingOutputCallRequest.newBuilder()
@@ -355,7 +355,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     Messages.StreamingOutputCallRequest request = Messages.StreamingOutputCallRequest.newBuilder()
@@ -390,7 +390,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     Messages.StreamingOutputCallRequest request = Messages.StreamingOutputCallRequest.newBuilder()
@@ -428,7 +428,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.fullDuplexCall(req -> {
@@ -478,7 +478,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.fullDuplexCall(req -> {
@@ -518,7 +518,7 @@ public class ProtocPluginTest extends ProxyTestBase {
 
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
-    VertxTestServiceGrpcClient client = new VertxTestServiceGrpcClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    VertxTestServiceGrpcClient client = VertxTestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
     client.fullDuplexCall(req -> {

@@ -86,7 +86,7 @@ public class JsonWireFormatTest extends ProxyTestBase {
       .requestHandler(grpcServer)
       .listen(8080, "localhost");
 
-    VertxGreeterGrpcClient stub = new VertxGreeterGrpcClient(client, SocketAddress.inetSocketAddress(8080, "localhost"), WireFormat.JSON);
+    VertxGreeterGrpcClient stub = VertxGreeterGrpcClient.create(client, SocketAddress.inetSocketAddress(8080, "localhost"), WireFormat.JSON);
 
     Async test = should.async();
     server.onComplete(should.asyncAssertSuccess(v -> {
