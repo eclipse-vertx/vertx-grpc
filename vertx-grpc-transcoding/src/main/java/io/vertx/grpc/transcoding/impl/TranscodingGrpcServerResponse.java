@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.grpc.server.impl;
+package io.vertx.grpc.transcoding.impl;
 
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
@@ -19,6 +19,8 @@ import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcProtocol;
+import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
+import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import io.vertx.grpc.transcoding.GrpcTranscodingError;
 import io.vertx.grpc.transcoding.MessageWeaver;
 

@@ -23,7 +23,6 @@ import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.GrpcServerResponse;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -64,14 +63,12 @@ public abstract class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBas
 
   final HttpServerRequest httpRequest;
   final long timeout;
-  final boolean scheduleDeadline;
   final GrpcProtocol protocol;
   private GrpcServerResponseImpl<Req, Resp> response;
   private final GrpcMethodCall methodCall;
   private Timer deadline;
 
   public GrpcServerRequestImpl(ContextInternal context,
-                               boolean scheduleDeadline,
                                GrpcProtocol protocol,
                                WireFormat format,
                                HttpServerRequest httpRequest,
@@ -86,15 +83,13 @@ public abstract class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBas
     this.timeout = timeout;
     this.httpRequest = httpRequest;
     this.methodCall = methodCall;
-    this.scheduleDeadline = scheduleDeadline;
   }
 
   ContextInternal context() {
     return context;
   }
 
-  @Override
-  public void init(GrpcWriteStreamBase ws) {
+  public void init(GrpcWriteStreamBase ws, boolean scheduleDeadline) {
     this.response = (GrpcServerResponseImpl<Req, Resp>) ws;
     super.init(ws);
     if (timeout > 0L) {

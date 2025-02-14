@@ -14,7 +14,6 @@ import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServer;
 
@@ -33,6 +32,7 @@ public class VertxGreeterGrpcServer  {
     "SayHello",
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()));
+
 
 
   public static class GreeterApi {
@@ -90,10 +90,6 @@ public class VertxGreeterGrpcServer  {
     }
 
     public final GreeterApi bindAllWithTranscoding(GrpcServer server) {
-      return this;
-    }
-
-    public final GreeterApi bindAllWithTranscoding(GrpcServer server, io.vertx.grpc.common.WireFormat format) {
       return this;
     }
   }

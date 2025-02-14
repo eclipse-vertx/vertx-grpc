@@ -2,9 +2,8 @@ package io.vertx.grpc.server.impl;
 
 import io.vertx.core.http.HttpServerRequest;
 
-public interface MountPoint {
+public interface MountPoint<I, O> {
 
-  GrpcInvocation<?, ?> accept(HttpServerRequest request);
-
+  GrpcInvocation<I, O> accept(HttpServerRequest request);
 
 }

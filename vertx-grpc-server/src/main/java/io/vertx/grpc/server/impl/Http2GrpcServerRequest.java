@@ -20,7 +20,7 @@ import io.vertx.grpc.server.GrpcProtocol;
 
 public class Http2GrpcServerRequest<Req, Resp> extends GrpcServerRequestImpl<Req, Resp> {
 
-    public Http2GrpcServerRequest(ContextInternal context, boolean scheduleDeadline, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
-        super(context, scheduleDeadline, protocol, format, httpRequest, new Http2GrpcMessageDeframer(maxMessageSize, httpRequest.headers().get("grpc-encoding"), format), messageDecoder, methodCall);
+    public Http2GrpcServerRequest(ContextInternal context, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
+        super(context, protocol, format, httpRequest, new Http2GrpcMessageDeframer(maxMessageSize, httpRequest.headers().get("grpc-encoding"), format), messageDecoder, methodCall);
     }
 }

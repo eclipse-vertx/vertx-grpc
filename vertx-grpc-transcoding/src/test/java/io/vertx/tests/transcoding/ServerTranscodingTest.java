@@ -9,7 +9,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
 
-package io.vertx.tests.server;
+package io.vertx.tests.transcoding;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
@@ -25,6 +25,7 @@ import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.transcoding.MethodTranscodingOptions;
+import io.vertx.grpc.transcoding.TranscodingServiceMethod;
 import io.vertx.grpcweb.GrpcWebTesting.*;
 import io.vertx.tests.common.GrpcTestBase;
 import org.junit.Test;
@@ -44,19 +45,6 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static GrpcMessageEncoder<EchoResponseBody> ECHO_RESPONSE_BODY_ENCODER = GrpcMessageEncoder.json();
 
   public static final ServiceName TEST_SERVICE_NAME = ServiceName.create("io.vertx.grpcweb.TestService");
-  public static final ServiceMethod<Empty, Empty> EMPTY_CALL = ServiceMethod.server(TEST_SERVICE_NAME, "EmptyCall", EMPTY_ENCODER, EMPTY_DECODER);
-  public static final ServiceMethod<EchoRequest, EchoResponse> UNARY_CALL = ServiceMethod.server(TEST_SERVICE_NAME, "UnaryCall", ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER);
-  public static final ServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_PARAM = ServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithParam", ECHO_RESPONSE_ENCODER,
-    ECHO_REQUEST_DECODER);
-  public static final ServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_CUSTOM_METHOD = ServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithCustomMethod",
-    ECHO_RESPONSE_ENCODER,
-    ECHO_REQUEST_DECODER);
-
-  public static final ServiceMethod<EchoRequestBody, EchoResponse> UNARY_CALL_WITH_BODY = ServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithBody", ECHO_RESPONSE_ENCODER,
-    ECHO_REQUEST_BODY_DECODER);
-
-  public static final ServiceMethod<EchoRequest, EchoResponseBody> UNARY_CALL_WITH_RESPONSE_BODY = ServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithResponseBody",
-    ECHO_RESPONSE_BODY_ENCODER, ECHO_REQUEST_DECODER);
 
   public static final MethodTranscodingOptions EMPTY_TRANSCODING = new MethodTranscodingOptions("", HttpMethod.valueOf("POST"), "/hello", "", "", null);
   public static final MethodTranscodingOptions UNARY_TRANSCODING = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello", "", "", null);
@@ -64,6 +52,20 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_CUSTOM_METHOD = new MethodTranscodingOptions("", HttpMethod.valueOf("ACL"), "/hello", "", "", null);
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_BODY = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/body", "request", "", null);
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_RESPONSE_BODY = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/response", "", "response", null);
+
+  public static final TranscodingServiceMethod<Empty, Empty> EMPTY_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "EmptyCall", EMPTY_ENCODER, EMPTY_DECODER, EMPTY_TRANSCODING);
+  public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCall", ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING);
+  public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_PARAM = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithParam", ECHO_RESPONSE_ENCODER,
+    ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_PARAM);
+  public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_CUSTOM_METHOD = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithCustomMethod",
+    ECHO_RESPONSE_ENCODER,
+    ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_CUSTOM_METHOD);
+
+  public static final TranscodingServiceMethod<EchoRequestBody, EchoResponse> UNARY_CALL_WITH_BODY = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithBody", ECHO_RESPONSE_ENCODER,
+    ECHO_REQUEST_BODY_DECODER, UNARY_TRANSCODING_WITH_BODY);
+
+  public static final TranscodingServiceMethod<EchoRequest, EchoResponseBody> UNARY_CALL_WITH_RESPONSE_BODY = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithResponseBody",
+    ECHO_RESPONSE_BODY_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_RESPONSE_BODY);
 
   private static final CharSequence USER_AGENT = HttpHeaders.createOptimized("X-User-Agent");
   private static final String CONTENT_TYPE = "application/json";
@@ -83,12 +85,12 @@ public class ServerTranscodingTest extends GrpcTestBase {
     super.setUp(should);
     httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultPort(port));
     GrpcServer grpcServer = GrpcServer.server(vertx, new GrpcServerOptions().setGrpcTranscodingEnabled(true));
-    grpcServer.callHandlerWithTranscoding(EMPTY_CALL, request -> {
+    grpcServer.callHandler(EMPTY_CALL, request -> {
       copyHeaders(request.headers(), request.response().headers());
       copyTrailers(request.headers(), request.response().trailers());
       request.response().end(Empty.newBuilder().build());
-    }, EMPTY_TRANSCODING);
-    grpcServer.callHandlerWithTranscoding(UNARY_CALL, request -> {
+    });
+    grpcServer.callHandler(UNARY_CALL, request -> {
       request.handler(requestMsg -> {
         GrpcServerResponse<EchoRequest, EchoResponse> response = request.response();
         copyHeaders(request.headers(), response.headers());
@@ -104,8 +106,8 @@ public class ServerTranscodingTest extends GrpcTestBase {
           response.end(responseMsg);
         }
       });
-    }, UNARY_TRANSCODING);
-    grpcServer.callHandlerWithTranscoding(UNARY_CALL_WITH_PARAM, request -> {
+    });
+    grpcServer.callHandler(UNARY_CALL_WITH_PARAM, request -> {
       request.handler(requestMsg -> {
         GrpcServerResponse<EchoRequest, EchoResponse> response = request.response();
         copyHeaders(request.headers(), response.headers());
@@ -121,8 +123,8 @@ public class ServerTranscodingTest extends GrpcTestBase {
           response.end(responseMsg);
         }
       });
-    }, UNARY_TRANSCODING_WITH_PARAM);
-    grpcServer.callHandlerWithTranscoding(UNARY_CALL_WITH_CUSTOM_METHOD, request -> {
+    });
+    grpcServer.callHandler(UNARY_CALL_WITH_CUSTOM_METHOD, request -> {
       request.handler(requestMsg -> {
         GrpcServerResponse<EchoRequest, EchoResponse> response = request.response();
         copyHeaders(request.headers(), response.headers());
@@ -138,8 +140,8 @@ public class ServerTranscodingTest extends GrpcTestBase {
           response.end(responseMsg);
         }
       });
-    }, UNARY_TRANSCODING_WITH_CUSTOM_METHOD);
-    grpcServer.callHandlerWithTranscoding(UNARY_CALL_WITH_BODY, request -> {
+    });
+    grpcServer.callHandler(UNARY_CALL_WITH_BODY, request -> {
       request.handler(requestMsg -> {
         GrpcServerResponse<EchoRequestBody, EchoResponse> response = request.response();
         copyHeaders(request.headers(), response.headers());
@@ -155,8 +157,8 @@ public class ServerTranscodingTest extends GrpcTestBase {
           response.end(responseMsg);
         }
       });
-    }, UNARY_TRANSCODING_WITH_BODY);
-    grpcServer.callHandlerWithTranscoding(UNARY_CALL_WITH_RESPONSE_BODY, request -> {
+    });
+    grpcServer.callHandler(UNARY_CALL_WITH_RESPONSE_BODY, request -> {
       request.handler(requestMsg -> {
         GrpcServerResponse<EchoRequest, EchoResponseBody> response = request.response();
         copyHeaders(request.headers(), response.headers());
@@ -175,7 +177,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
           response.end(responseBody);
         }
       });
-    }, UNARY_TRANSCODING_WITH_RESPONSE_BODY);
+    });
     httpServer = vertx.createHttpServer(new HttpServerOptions().setPort(port)).requestHandler(grpcServer);
     httpServer.listen().onComplete(should.asyncAssertSuccess());
   }

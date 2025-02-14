@@ -8,11 +8,10 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.grpc.server.impl;
+package io.vertx.grpc.transcoding.impl;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpVersion;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.json.DecodeException;
 import io.vertx.grpc.common.CodecException;
@@ -20,33 +19,20 @@ import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
-import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
+import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.transcoding.HttpVariableBinding;
 import io.vertx.grpc.transcoding.MessageWeaver;
 
 import java.util.List;
 
-import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
-
 public class TranscodingGrpcServerRequest<Req, Resp> extends GrpcServerRequestImpl<Req, Resp> {
-
-  public static boolean isTranscodable(HttpServerRequest httpRequest) {
-    if (httpRequest == null) {
-      return false;
-    }
-
-    return (httpRequest.version() == HttpVersion.HTTP_1_0 ||
-            httpRequest.version() == HttpVersion.HTTP_1_1) &&
-            GrpcProtocol.TRANSCODING.mediaType().equals(httpRequest.getHeader(CONTENT_TYPE));
-  }
 
   final String transcodingRequestBody;
   final List<HttpVariableBinding> bindings;
-  private TranscodingGrpcServerResponse<Req, Resp> response;
 
-  public TranscodingGrpcServerRequest(ContextInternal context, boolean scheduleDeadline, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, String transcodingRequestBody, List<HttpVariableBinding> bindings, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
-    super(context, scheduleDeadline, protocol, format, httpRequest, new TranscodingMessageDeframer(), new GrpcMessageDecoder<>() {
+  public TranscodingGrpcServerRequest(ContextInternal context, HttpServerRequest httpRequest, String transcodingRequestBody, List<HttpVariableBinding> bindings, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
+    super(context, GrpcProtocol.TRANSCODING, WireFormat.JSON, httpRequest, new TranscodingMessageDeframer(), new GrpcMessageDecoder<>() {
       @Override
       public Req decode(GrpcMessage msg) throws CodecException {
         Buffer transcoded;
@@ -65,11 +51,5 @@ public class TranscodingGrpcServerRequest<Req, Resp> extends GrpcServerRequestIm
 
     this.transcodingRequestBody = transcodingRequestBody;
     this.bindings = bindings;
-  }
-
-  @Override
-  public void init(GrpcWriteStreamBase ws) {
-    this.response = (TranscodingGrpcServerResponse<Req, Resp>) ws;
-    super.init(ws);
   }
 }
