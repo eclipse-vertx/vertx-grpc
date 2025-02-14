@@ -34,22 +34,10 @@
       <groupId>io.vertx</groupId>
       <artifactId>vertx-grpc-common</artifactId>
     </dependency>
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpc-transcoding</artifactId>
-      <version>${project.version}</version>
-    </dependency>
 
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-grpc-common</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpc-transcoding</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

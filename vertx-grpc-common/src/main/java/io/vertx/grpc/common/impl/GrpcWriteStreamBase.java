@@ -175,8 +175,8 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return writeMessage(null, true);
   }
 
-  protected abstract void sendHeaders(String contentType, MultiMap headers, boolean end);
-  protected abstract void sendTrailers(MultiMap trailers);
+  protected abstract void setHeaders(String contentType, MultiMap headers, boolean isEnd);
+  protected abstract void setTrailers(MultiMap trailers);
   protected abstract Future<Void> sendMessage(Buffer message, boolean compressed);
   protected abstract Future<Void> sendEnd();
 
@@ -256,7 +256,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
             break;
         }
       }
-      sendHeaders(contentType, headers, end);
+      setHeaders(contentType, headers, end);
     }
     if (end) {
       if (!trailersSent) {
@@ -265,7 +265,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
       if (payload != null) {
         sendMessage(payload, compressed);
       }
-      sendTrailers(trailers);
+      setTrailers(trailers);
       return sendEnd();
     } else {
       return sendMessage(payload, compressed);

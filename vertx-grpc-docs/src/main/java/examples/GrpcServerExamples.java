@@ -4,6 +4,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
@@ -12,6 +13,8 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.*;
+import io.vertx.grpc.transcoding.MethodTranscodingOptions;
+import io.vertx.grpc.transcoding.TranscodingServiceMethod;
 
 @Source
 public class GrpcServerExamples {
@@ -163,6 +166,27 @@ public class GrpcServerExamples {
     response.write(Item.newBuilder().setValue("item-1").build());
     response.write(Item.newBuilder().setValue("item-2").build());
     response.write(Item.newBuilder().setValue("item-3").build());
+  }
+
+  public GrpcServer transcodingRequestResponse(GrpcServer server) {
+    // Define the service method
+    TranscodingServiceMethod<HelloRequest, HelloReply> serviceMethod = VertxGreeterGrpcServer.SayHello_TRANSCODING;
+
+    // Register the handler with transcoding options
+    server.callHandler(serviceMethod, request -> {
+
+        request.handler(hello -> {
+
+          GrpcServerResponse<HelloRequest, HelloReply> response = request.response();
+
+          HelloReply reply = HelloReply.newBuilder().setMessage("Hello " + hello.getName()).build();
+
+          response.end(reply);
+        });
+      }
+    );
+
+    return server;
   }
 
   public void protobufLevelAPI(GrpcServer server) {

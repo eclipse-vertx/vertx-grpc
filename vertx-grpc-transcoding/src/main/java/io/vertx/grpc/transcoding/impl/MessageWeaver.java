@@ -1,14 +1,12 @@
-package io.vertx.grpc.transcoding;
+package io.vertx.grpc.transcoding.impl;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
+import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
 
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 public class MessageWeaver {
 
@@ -16,8 +14,14 @@ public class MessageWeaver {
     if (bindings.isEmpty() && transcodingRequestBody == null) {
       return message;
     }
-
+    JsonObject result = weaveRequestMessage2(message, bindings, transcodingRequestBody);
     BufferInternal buffer = BufferInternal.buffer();
+    buffer.appendString(result.encode());
+    return buffer;
+  }
+
+  public static JsonObject weaveRequestMessage2(Buffer message, List<HttpVariableBinding> bindings, String transcodingRequestBody) throws DecodeException {
+
     JsonObject result = new JsonObject();
 
     // First handle the bindings
@@ -69,8 +73,7 @@ public class MessageWeaver {
       }
     }
 
-    buffer.appendString(result.encode());
-    return buffer;
+    return result;
   }
 
   public static Buffer weaveResponseMessage(Buffer message, String transcodingResponseBody) {

@@ -19,7 +19,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
-import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 
 /**
  * <p>A gRPC server based on Vert.x HTTP server.</p>
@@ -74,7 +73,9 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
 
-  /**
+/*
+  */
+/**
    * Set a service method call handler that handles any call made to the server for the {@code fullMethodName } service method.
    * You can use this method to bind a service method and pass the transcoding options.
    *
@@ -82,7 +83,9 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    * @param serviceMethod the service method
    * @param transcodingOptions the transcoding options
    * @return a reference to this, so the API can be used fluently
-   */
+   *//*
+
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcServer callHandlerWithTranscoding(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler, MethodTranscodingOptions transcodingOptions);
+*/
 }

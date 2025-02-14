@@ -2,6 +2,11 @@ package io.vertx.tests.transcoding;
 
 import io.vertx.core.http.HttpMethod;
 import io.vertx.grpc.transcoding.*;
+import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
+import io.vertx.grpc.transcoding.impl.PathMatcher;
+import io.vertx.grpc.transcoding.impl.PathMatcherBuilder;
+import io.vertx.grpc.transcoding.impl.PathMatcherLookupResult;
+import io.vertx.grpc.transcoding.impl.PercentEncoding;
 import org.junit.Test;
 
 import java.util.*;
@@ -16,7 +21,7 @@ public class PathMatcherTest {
 
   private String addPathWithBodyFieldPath(String httpMethod, String httpTemplate, String bodyFieldPath) {
     String method = "method_" + storedMethods.size();
-    MethodTranscodingOptions transcodingOptions = new MethodTranscodingOptions("selector", HttpMethod.valueOf(httpMethod), httpTemplate, bodyFieldPath, "response", List.of());
+    MethodTranscodingOptions transcodingOptions = ServerTranscodingTest.create("selector", HttpMethod.valueOf(httpMethod), httpTemplate, bodyFieldPath, "response");
     assertTrue(builder.register(transcodingOptions, method));
     storedMethods.add(method);
     return method;
@@ -24,7 +29,7 @@ public class PathMatcherTest {
 
   private String addPathWithSystemParams(String httpMethod, String httpTemplate, Set<String> systemParams) {
     String method = "method_" + storedMethods.size();
-    MethodTranscodingOptions transcodingOptions = new MethodTranscodingOptions("selector", HttpMethod.valueOf(httpMethod), httpTemplate, "", "response", List.of());
+    MethodTranscodingOptions transcodingOptions = ServerTranscodingTest.create("selector", HttpMethod.valueOf(httpMethod), httpTemplate, "", "response");
     assertTrue(builder.register(transcodingOptions, systemParams, method));
     storedMethods.add(method);
     return method;
