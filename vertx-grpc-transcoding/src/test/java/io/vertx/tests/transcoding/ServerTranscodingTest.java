@@ -30,12 +30,26 @@ import io.vertx.grpcweb.GrpcWebTesting.*;
 import io.vertx.tests.common.GrpcTestBase;
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.List;
+
 import static org.junit.Assert.*;
 
 /**
  * A test class for grpc transcoding.
  */
 public class ServerTranscodingTest extends GrpcTestBase {
+
+  public static MethodTranscodingOptions create(String selector, HttpMethod httpMethod, String path, String body, String responseBody, MethodTranscodingOptions... additionalBindings) {
+    MethodTranscodingOptions ret = new MethodTranscodingOptions()
+      .setSelector(selector)
+      .setHttpMethod(httpMethod)
+      .setPath(path).setBody(body).setResponseBody(responseBody);
+    if (additionalBindings != null) {
+      ret.getAdditionalBindings().addAll(Arrays.asList(additionalBindings));
+    }
+    return ret;
+  }
 
   public static GrpcMessageDecoder<Empty> EMPTY_DECODER = GrpcMessageDecoder.json(Empty::newBuilder);
   public static GrpcMessageEncoder<Empty> EMPTY_ENCODER = GrpcMessageEncoder.json();
@@ -46,12 +60,12 @@ public class ServerTranscodingTest extends GrpcTestBase {
 
   public static final ServiceName TEST_SERVICE_NAME = ServiceName.create("io.vertx.grpcweb.TestService");
 
-  public static final MethodTranscodingOptions EMPTY_TRANSCODING = new MethodTranscodingOptions("", HttpMethod.valueOf("POST"), "/hello", "", "", null);
-  public static final MethodTranscodingOptions UNARY_TRANSCODING = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello", "", "", null);
-  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_PARAM = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/hello/{payload}", "", "", null);
-  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_CUSTOM_METHOD = new MethodTranscodingOptions("", HttpMethod.valueOf("ACL"), "/hello", "", "", null);
-  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_BODY = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/body", "request", "", null);
-  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_RESPONSE_BODY = new MethodTranscodingOptions("", HttpMethod.valueOf("GET"), "/response", "", "response", null);
+  public static final MethodTranscodingOptions EMPTY_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/hello");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING = new MethodTranscodingOptions().setPath("/hello");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_PARAM = new MethodTranscodingOptions().setPath("/hello/{payload}");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_CUSTOM_METHOD = new MethodTranscodingOptions().setHttpMethod(HttpMethod.valueOf("ACL")).setPath("/hello");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_BODY = new MethodTranscodingOptions().setPath("/body").setBody("request");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_RESPONSE_BODY = new MethodTranscodingOptions().setPath("/response").setResponseBody("response");
 
   public static final TranscodingServiceMethod<Empty, Empty> EMPTY_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "EmptyCall", EMPTY_ENCODER, EMPTY_DECODER, EMPTY_TRANSCODING);
   public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCall", ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING);

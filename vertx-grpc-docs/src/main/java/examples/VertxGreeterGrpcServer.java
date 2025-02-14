@@ -33,14 +33,13 @@ public class VertxGreeterGrpcServer  {
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()));
 
-  private static final io.vertx.grpc.transcoding.MethodTranscodingOptions SayHello_TRANSCODING_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions(
-    "",
-    HttpMethod.valueOf("GET"),
-    "/v1/hello/{name}",
-    "",
-    "",
-    List.of(
-  ));
+  private static final io.vertx.grpc.transcoding.MethodTranscodingOptions SayHello_TRANSCODING_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
+    .setSelector("")
+    .setHttpMethod(HttpMethod.valueOf("GET"))
+    .setPath("/v1/hello/{name}")
+    .setBody("")
+    .setResponseBody("")
+  ;
 
   public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello_TRANSCODING = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
     ServiceName.create("helloworld", "Greeter"),

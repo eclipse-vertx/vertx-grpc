@@ -38,17 +38,21 @@ public class {{className}}  {
 {{/allMethods}}
 
 {{#transcodingMethods}}
-  private static final io.vertx.grpc.transcoding.MethodTranscodingOptions {{methodName}}_TRANSCODING_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions(
-    "{{transcodingContext.selector}}",
-    HttpMethod.valueOf("{{transcodingContext.method}}"),
-    "{{transcodingContext.path}}",
-    "{{transcodingContext.body}}",
-    "{{transcodingContext.responseBody}}",
-    List.of(
+  private static final io.vertx.grpc.transcoding.MethodTranscodingOptions {{methodName}}_TRANSCODING_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
+    .setSelector("{{transcodingContext.selector}}")
+    .setHttpMethod(HttpMethod.valueOf("{{transcodingContext.method}}"))
+    .setPath("{{transcodingContext.path}}")
+    .setBody("{{transcodingContext.body}}")
+    .setResponseBody("{{transcodingContext.responseBody}}")
     {{#transcodingContext.additionalBindings}}
-      new io.vertx.grpc.transcoding.MethodTranscodingOptions("{{selector}}", HttpMethod.valueOf("{{method}}"), "{{path}}", "{{body}}", "{{responseBody}}", null){{,}}
+    .addAdditionalBinding(new io.vertx.grpc.transcoding.MethodTranscodingOptions()
+      .setSelector("{{selector}}")
+      .setHttpMethod(HttpMethod.valueOf("{{method}}"))
+      .setPath("{{path}}")
+      .setBody("{{body}}")
+      .setResponseBody("{{responseBody}}"))
     {{/transcodingContext.additionalBindings}}
-  ));
+  ;
 {{/transcodingMethods}}
 
 {{#transcodingMethods}}

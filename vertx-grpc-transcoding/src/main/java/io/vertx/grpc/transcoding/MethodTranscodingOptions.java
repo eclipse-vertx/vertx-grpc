@@ -3,6 +3,7 @@ package io.vertx.grpc.transcoding;
 import io.vertx.codegen.annotations.DataObject;
 import io.vertx.core.http.HttpMethod;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -20,22 +21,24 @@ import java.util.List;
 @DataObject
 public class MethodTranscodingOptions {
 
-  private final String selector;
-  private final HttpMethod httpMethod;
-  private final String path;
-  private final String body;
-  private final String responseBody;
-  private final List<MethodTranscodingOptions> additionalBindings = new LinkedList<>();
+  private String selector;
+  private HttpMethod httpMethod;
+  private String path;
+  private String body;
+  private String responseBody;
+  private List<MethodTranscodingOptions> additionalBindings = new LinkedList<>();
 
-  public MethodTranscodingOptions(String selector, HttpMethod httpMethod, String path, String body, String responseBody, List<MethodTranscodingOptions> additionalBindings) {
-    this.selector = selector;
-    this.httpMethod = httpMethod;
-    this.path = path;
-    this.body = body;
-    this.responseBody = responseBody;
-    if (additionalBindings != null) {
-      this.additionalBindings.addAll(additionalBindings);
-    }
+  public MethodTranscodingOptions() {
+    this.httpMethod = HttpMethod.GET;
+  }
+
+  public MethodTranscodingOptions(MethodTranscodingOptions that) {
+    this.selector = that.selector;
+    this.httpMethod = that.httpMethod;
+    this.path = that.path;
+    this.body = that.body;
+    this.responseBody = that.responseBody;
+    this.additionalBindings = new ArrayList<>(that.additionalBindings);
   }
 
   /**
@@ -48,12 +51,34 @@ public class MethodTranscodingOptions {
   }
 
   /**
+   * Set the fully-qualified name of the gRPC method to be called.
+   *
+   * @param selector the gRPC method
+   * @return this instance
+   */
+  public MethodTranscodingOptions setSelector(String selector) {
+    this.selector = selector;
+    return this;
+  }
+
+  /**
    * Gets the HTTP method that this binding should match.
    *
    * @return The HTTP method (GET, POST, etc.)
    */
   public HttpMethod getHttpMethod() {
     return httpMethod;
+  }
+
+  /**
+   * Sets the HTTP method that this binding should match.
+   *
+   * @param httpMethod the HTTP method
+   * @return this instance
+   */
+  public MethodTranscodingOptions setHttpMethod(HttpMethod httpMethod) {
+    this.httpMethod = httpMethod;
+    return this;
   }
 
   /**
@@ -66,12 +91,34 @@ public class MethodTranscodingOptions {
   }
 
   /**
+   * Sets the URL path template for this binding.
+   *
+   * @param path the path
+   * @return this instance
+   */
+  public MethodTranscodingOptions setPath(String path) {
+    this.path = path;
+    return this;
+  }
+
+  /**
    * Gets the field path where the HTTP request body should be mapped in the gRPC request message.
    *
    * @return The body field path or null if no body mapping is needed
    */
   public String getBody() {
     return body;
+  }
+
+  /**
+   * Sets the field path where the HTTP request body should be mapped in the gRPC request message.
+   *
+   * @param body the body
+   * @return this instance
+   */
+  public MethodTranscodingOptions setBody(String body) {
+    this.body = body;
+    return this;
   }
 
   /**
@@ -84,11 +131,33 @@ public class MethodTranscodingOptions {
   }
 
   /**
+   * Sets the field path in the gRPC response message to use as the HTTP response body.
+   *
+   * @param responseBody the response doby
+   * @return this instance
+   */
+  public MethodTranscodingOptions setResponseBody(String responseBody) {
+    this.responseBody = responseBody;
+    return this;
+  }
+
+  /**
    * Gets additional HTTP bindings for the same gRPC method. This allows a single gRPC method to be exposed through multiple HTTP endpoints.
    *
    * @return A list of additional bindings, or an empty list if none exist
    */
   public List<MethodTranscodingOptions> getAdditionalBindings() {
     return additionalBindings;
+  }
+
+  /**
+   * Adds an additional binding.
+   *
+   * @param binding the binding.
+   * @return this instance
+   */
+  public MethodTranscodingOptions addAdditionalBinding(MethodTranscodingOptions binding) {
+    additionalBindings.add(binding);
+    return this;
   }
 }
