@@ -1,4 +1,4 @@
-package io.vertx.grpc.transcoding;
+package io.vertx.grpc.transcoding.impl.config;
 
 import java.util.ArrayList;
 import java.util.List;

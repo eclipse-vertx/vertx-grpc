@@ -84,7 +84,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public void setUp(TestContext should) {
     super.setUp(should);
     httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultPort(port));
-    GrpcServer grpcServer = GrpcServer.server(vertx, new GrpcServerOptions().setGrpcTranscodingEnabled(true));
+    GrpcServer grpcServer = GrpcServer.server(vertx);
     grpcServer.callHandler(EMPTY_CALL, request -> {
       copyHeaders(request.headers(), request.response().headers());
       copyTrailers(request.headers(), request.response().trailers());

@@ -1,4 +1,4 @@
-package io.vertx.grpc.transcoding;
+package io.vertx.grpc.transcoding.impl;
 
 import java.util.regex.Pattern;
 

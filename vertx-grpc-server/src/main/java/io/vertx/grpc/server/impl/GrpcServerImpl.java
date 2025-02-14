@@ -133,16 +133,7 @@ public class GrpcServerImpl implements GrpcServer {
       return;
     }
 
-    if (details.protocol == GrpcProtocol.TRANSCODING) {
-      for (Mount<?, ?> mount : mounts) {
-        if (mount.invoke(httpRequest)) {
-          return;
-        }
-      }
-      httpRequest.response().setStatusCode(500).end();
-      return;
-    }
-
+    // Exact service lookup first
     GrpcMethodCall methodCall = new GrpcMethodCall(httpRequest.path());
     MethodCallHandler<?, ?> mch = findMethodCallHandler(methodCall, details.format);
     if (mch != null) {
@@ -150,6 +141,14 @@ public class GrpcServerImpl implements GrpcServer {
       return;
     }
 
+    // Look at mounts (transcoding)
+    for (Mount<?, ?> mount : mounts) {
+      if (mount.invoke(httpRequest)) {
+        return;
+      }
+    }
+
+    // Generic handling
     Handler<GrpcServerRequest<Buffer, Buffer>> handler = requestHandler;
     if (handler != null) {
       handle(new MethodCallHandler<>(GrpcMessageDecoder.IDENTITY, GrpcMessageEncoder.IDENTITY, handler), httpRequest, methodCall, details.protocol, details.format);
@@ -171,12 +170,6 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   private int validate(HttpVersion version, GrpcProtocol protocol, WireFormat format) {
-    if (version != HttpVersion.HTTP_2) {
-      if (!options.isGrpcWebEnabled() && !options.isGrpcTranscodingEnabled()) {
-        log.trace("The server is not configured to handle HTTP/1.1 requests, sending error 505");
-        return 505;
-      }
-    }
     // Check HTTP version compatibility
     if (!protocol.accepts(version)) {
       log.trace(protocol.name() + " not supported on " + version + ", sending error 415");
@@ -188,12 +181,6 @@ public class GrpcServerImpl implements GrpcServer {
       case WEB_TEXT:
         if (!options.isGrpcWebEnabled()) {
           log.trace("gRPC-Web is not supported on HTTP/1.1, sending error 415");
-          return 415;
-        }
-        break;
-      case TRANSCODING:
-        if (!options.isGrpcTranscodingEnabled()) {
-          log.trace("gRPC transcoding is not supported on HTTP/1.1, sending error 415");
           return 415;
         }
         break;

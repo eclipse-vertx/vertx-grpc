@@ -1,7 +1,7 @@
 package io.vertx.tests.transcoding;
 
-import io.vertx.grpc.transcoding.HttpTemplate;
-import io.vertx.grpc.transcoding.HttpTemplateVariable;
+import io.vertx.grpc.transcoding.impl.config.HttpTemplate;
+import io.vertx.grpc.transcoding.impl.config.HttpTemplateVariable;
 import org.junit.Test;
 
 import java.util.Arrays;

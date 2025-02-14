@@ -21,8 +21,7 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
-import io.vertx.grpc.transcoding.HttpVariableBinding;
-import io.vertx.grpc.transcoding.MessageWeaver;
+import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
 
 import java.util.List;
 

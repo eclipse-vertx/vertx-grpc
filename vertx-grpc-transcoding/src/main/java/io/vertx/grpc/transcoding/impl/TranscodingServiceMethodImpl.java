@@ -5,7 +5,6 @@ import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.GrpcInvocation;
@@ -13,6 +12,7 @@ import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import io.vertx.grpc.server.impl.MountPoint;
 import io.vertx.grpc.transcoding.*;
+import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,8 +40,6 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
     PathMatcherUtility.registerByHttpRule(pmb, options, fullMethodName());
 
     this.pathMatcher = pmb.build();
-
-
   }
 
   @Override

@@ -22,10 +22,9 @@ public class TranscodingTest extends ProxyTestBase {
   @Test
   public void testUnaryBasic(TestContext should) {
     HttpClient client = vertx.createHttpClient();
-    GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(VertxGreeterGrpcServer.SayHello_TRANSCODING, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(VertxGreeterGrpcServer.SayHello_TRANSCODING, call -> {
         call.handler(helloRequest -> {
           io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
             .build();
@@ -58,10 +57,9 @@ public class TranscodingTest extends ProxyTestBase {
   @Test
   public void testUnaryBasicReversed(TestContext should) {
     HttpClient client = vertx.createHttpClient();
-    GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(VertxGreeterGrpcServer.SayHelloAgain_TRANSCODING, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(VertxGreeterGrpcServer.SayHelloAgain_TRANSCODING, call -> {
         call.handler(helloRequest -> {
           io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
             .build();
@@ -94,10 +92,9 @@ public class TranscodingTest extends ProxyTestBase {
   @Test
   public void testUnaryBasicUnknownPath(TestContext should) {
     HttpClient client = vertx.createHttpClient();
-    GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(VertxGreeterGrpcServer.SayHello_TRANSCODING, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(VertxGreeterGrpcServer.SayHello_TRANSCODING, call -> {
         call.handler(helloRequest -> {
           io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
             .build();
@@ -128,10 +125,9 @@ public class TranscodingTest extends ProxyTestBase {
   @Test
   public void testUnaryAdditionalBindings(TestContext should) {
     HttpClient client = vertx.createHttpClient();
-    GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(VertxGreeterGrpcServer.SayHello_TRANSCODING, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(VertxGreeterGrpcServer.SayHello_TRANSCODING, call -> {
         call.handler(helloRequest -> {
           io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
             .build();
@@ -164,10 +160,9 @@ public class TranscodingTest extends ProxyTestBase {
   @Test
   public void testUnaryAdditionalBindingsUnknownPath(TestContext should) {
     HttpClient client = vertx.createHttpClient();
-    GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(VertxGreeterGrpcServer.SayHello_TRANSCODING, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(VertxGreeterGrpcServer.SayHello_TRANSCODING, call -> {
         call.handler(helloRequest -> {
           io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
             .build();
@@ -198,10 +193,9 @@ public class TranscodingTest extends ProxyTestBase {
   @Test
   public void testUnaryInvalidBody(TestContext should) {
     HttpClient client = vertx.createHttpClient();
-    GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(VertxGreeterGrpcServer.SayHello_TRANSCODING, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(VertxGreeterGrpcServer.SayHello_TRANSCODING, call -> {
         call.handler(helloRequest -> {
           io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
             .build();
@@ -232,10 +226,9 @@ public class TranscodingTest extends ProxyTestBase {
   @Test
   public void testUnaryCustomMethod(TestContext should) {
     HttpClient client = vertx.createHttpClient();
-    GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(VertxGreeterGrpcServer.SayHelloCustom_TRANSCODING, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(VertxGreeterGrpcServer.SayHelloCustom_TRANSCODING, call -> {
         call.handler(helloRequest -> {
           io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
             .build();
@@ -268,10 +261,9 @@ public class TranscodingTest extends ProxyTestBase {
   @Test
   public void testUnaryWithRequestBody(TestContext should) {
     HttpClient client = vertx.createHttpClient();
-    GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(VertxGreeterGrpcServer.SayHelloWithBody_TRANSCODING, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(VertxGreeterGrpcServer.SayHelloWithBody_TRANSCODING, call -> {
         call.handler(helloRequest -> {
           io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getRequest().getName())
             .build();
@@ -304,10 +296,9 @@ public class TranscodingTest extends ProxyTestBase {
   @Test
   public void testUnaryWithResponseBody(TestContext should) {
     HttpClient client = vertx.createHttpClient();
-    GrpcServerOptions serverOptions = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(VertxGreeterGrpcServer.SayHelloWithResponseBOdy_TRANSCODING, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(VertxGreeterGrpcServer.SayHelloWithResponseBOdy_TRANSCODING, call -> {
         call.handler(helloRequest -> {
           io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
             .build();

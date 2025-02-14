@@ -1,14 +1,12 @@
-package io.vertx.grpc.transcoding;
+package io.vertx.grpc.transcoding.impl;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
+import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
 
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 public class MessageWeaver {
 

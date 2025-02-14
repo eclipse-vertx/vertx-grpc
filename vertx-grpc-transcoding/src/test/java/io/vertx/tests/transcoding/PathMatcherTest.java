@@ -2,6 +2,11 @@ package io.vertx.tests.transcoding;
 
 import io.vertx.core.http.HttpMethod;
 import io.vertx.grpc.transcoding.*;
+import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
+import io.vertx.grpc.transcoding.impl.PathMatcher;
+import io.vertx.grpc.transcoding.impl.PathMatcherBuilder;
+import io.vertx.grpc.transcoding.impl.PathMatcherLookupResult;
+import io.vertx.grpc.transcoding.impl.PercentEncoding;
 import org.junit.Test;
 
 import java.util.*;

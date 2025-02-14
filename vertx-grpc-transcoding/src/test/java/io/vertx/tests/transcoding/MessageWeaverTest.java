@@ -3,8 +3,8 @@ package io.vertx.tests.transcoding;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
-import io.vertx.grpc.transcoding.HttpVariableBinding;
-import io.vertx.grpc.transcoding.MessageWeaver;
+import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
+import io.vertx.grpc.transcoding.impl.MessageWeaver;
 import org.junit.Before;
 import org.junit.Test;
 

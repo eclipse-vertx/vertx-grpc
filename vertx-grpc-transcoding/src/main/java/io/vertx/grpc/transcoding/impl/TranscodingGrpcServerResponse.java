@@ -21,8 +21,6 @@ import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
-import io.vertx.grpc.transcoding.GrpcTranscodingError;
-import io.vertx.grpc.transcoding.MessageWeaver;
 
 public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req,Resp> {
 

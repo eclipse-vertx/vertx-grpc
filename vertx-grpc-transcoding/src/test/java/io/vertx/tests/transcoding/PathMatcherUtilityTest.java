@@ -2,9 +2,9 @@ package io.vertx.tests.transcoding;
 
 import io.vertx.core.http.HttpMethod;
 import io.vertx.grpc.transcoding.MethodTranscodingOptions;
-import io.vertx.grpc.transcoding.PathMatcher;
-import io.vertx.grpc.transcoding.PathMatcherBuilder;
-import io.vertx.grpc.transcoding.PathMatcherUtility;
+import io.vertx.grpc.transcoding.impl.PathMatcher;
+import io.vertx.grpc.transcoding.impl.PathMatcherBuilder;
+import io.vertx.grpc.transcoding.impl.PathMatcherUtility;
 import org.junit.Test;
 
 import java.util.*;

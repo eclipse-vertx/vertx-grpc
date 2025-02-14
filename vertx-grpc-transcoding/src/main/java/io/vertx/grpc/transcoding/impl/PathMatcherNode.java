@@ -1,4 +1,6 @@
-package io.vertx.grpc.transcoding;
+package io.vertx.grpc.transcoding.impl;
+
+import io.vertx.grpc.transcoding.impl.config.HttpTemplateParser;
 
 import java.util.ArrayList;
 import java.util.HashMap;

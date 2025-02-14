@@ -68,11 +68,9 @@ router.route("/com.mycompany.MyService/*").handler(corsHandler);
 ----
 ====
 
-=== gRPC Transcoding
+==== gRPC Transcoding
 
 gRPC transcoding is a feature that enables mapping between HTTP/JSON requests and gRPC services.
-
-==== What is gRPC Transcoding?
 
 gRPC transcoding allows your services to accept both gRPC and HTTP/JSON requests, providing greater flexibility. This feature is particularly useful when:
 
@@ -80,79 +78,10 @@ gRPC transcoding allows your services to accept both gRPC and HTTP/JSON requests
 * You need to support both traditional REST APIs and gRPC endpoints
 * You want to leverage gRPC's efficiency while maintaining HTTP/JSON compatibility
 
-==== Configuration
+You do not need specific configuration for gRPC transcoding since it is serves HTTP protocol. However, services must
+be deployed with additional configuration such as the mount path to have transcoding operational.
 
-==== Enabling Transcoding
-
-By default, gRPC transcoding is disabled in Vert.x. To enable it:
-
-[source,java]
-----
-GrpcServerOptions options = new GrpcServerOptions().setGrpcTranscodingEnabled(true);
-
-GrpcServer server = GrpcServer.server(vertx, options);
-----
-
-==== Creating Bindings
-
-To create HTTP/gRPC bindings:
-
-1. Create a `MethodTranscodingOptions` instance
-2. Configure the binding options
-3. Pass the options when registering the handler
-
-[source,java]
-----
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerOptions;
-import io.vertx.grpc.transcoding.MethodTranscodingOptions;
-import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.core.http.HttpMethod;
-
-public class GrpcServerExamples {
-
-  // The encoder and decoder for the service method. Must be provided by the user and must be able to decode/encode the from wire format.
-  public static GrpcMessageDecoder<GetUserRequest> DECODER = GrpcMessageDecoder.json(GetUserRequest::newBuilder);
-  public static GrpcMessageEncoder<GetUserResponse> ENCODER = GrpcMessageEncoder.json();
-
-  public GrpcServer createTranscodingServer() {
-    // Create a new gRPC server with transcoding enabled
-    GrpcServer server = GrpcServer.server(vertx, new GrpcServerOptions().setGrpcTranscodingEnabled(true));
-
-    // Define the service method
-    ServiceMethod<GetUserRequest, GetUserResponse> getUser = ServiceMethod.server("UserService", "GetUser", ENCODER, DECODER);
-
-    // Define the transcoding options
-    MethodTranscodingOptions transcodingOptions = new MethodTranscodingOptions(null, HttpMethod.GET, "/v1/users/{id}", "*", null, null);
-
-    // Register the handler with transcoding options
-    server.callHandlerWithTranscoding(
-        getUser,
-        request -> {
-            // Handle the request
-        },
-        transcodingOptions
-    );
-
-    return server;
-  }
-}
-----
-
-==== Testing Transcoding
-
-To test gRPC transcoding, you can use a tool like `curl` to send HTTP requests to your gRPC service.
-
-For example, to send a `GET` request to the `/v1/users/123` endpoint:
-
-[source]
-----
-curl -X GET http://localhost:8080/v1/users/123
-----
-
-==== Error Handling
+==== Transcoding error handling
 
 If an error occurs during transcoding, the server will return an HTTP error response with the appropriate status code.
 Most grpc status codes are mapped to the corresponding HTTP status codes on best effort basis. If the status code is not mapped,
@@ -311,6 +240,30 @@ NOTE: Compression is not supported over the gRPC-Web protocol.
 Decompression is done transparently by the server when the client send encoded requests.
 
 NOTE: Decompression is not supported over the gRPC-Web protocol.
+
+=== Transcoding
+
+To create HTTP/gRPC bindings for a given service method.
+
+1. Create a `MethodTranscodingOptions` instance
+2. Create a transcoding service method
+3. Register the call handler as usual
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#transcodingRequestResponse}
+----
+
+NOTE: the service method must use the JSON wire format
+
+To test gRPC transcoding, you can use a tool like `curl` to send HTTP requests to your gRPC service.
+
+For example, to send a `GET` request to the `/v1/hello/Steve` endpoint:
+
+[source]
+----
+curl -X GET http://localhost:8080/v1/hello/Steve
+----
 
 === Message level API
 
