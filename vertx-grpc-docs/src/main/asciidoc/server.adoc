@@ -87,6 +87,8 @@ gRPC transcoding allows your services to accept both gRPC and HTTP/JSON requests
 You do not need specific configuration for gRPC transcoding since it is serves HTTP protocol. However, services must
 be deployed with additional configuration such as the mount path to have transcoding operational.
 
+NOTE: transcoding is in tech preview in Vert.x 5.0 until the API becomes stable.
+
 ==== Transcoding error handling
 
 If an error occurs during transcoding, the server will return an HTTP error response with the appropriate status code.

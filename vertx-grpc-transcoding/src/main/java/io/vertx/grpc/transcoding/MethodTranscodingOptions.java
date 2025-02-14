@@ -1,6 +1,7 @@
 package io.vertx.grpc.transcoding;
 
 import io.vertx.codegen.annotations.DataObject;
+import io.vertx.codegen.annotations.Unstable;
 import io.vertx.core.http.HttpMethod;
 
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ import java.util.List;
  * </ul>
  */
 @DataObject
+@Unstable("Transcoding is in tech preview")
 public class MethodTranscodingOptions {
 
   private String selector;

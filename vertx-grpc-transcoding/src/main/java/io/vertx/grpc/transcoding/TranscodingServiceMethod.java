@@ -1,5 +1,6 @@
 package io.vertx.grpc.transcoding;
 
+import io.vertx.codegen.annotations.Unstable;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
@@ -8,6 +9,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.transcoding.impl.TranscodingServiceMethodImpl;
 
 @VertxGen
+@Unstable("Transcoding is in tech preview")
 public interface TranscodingServiceMethod<I, O> extends ServiceMethod<I, O> {
 
   static <Req, Resp> TranscodingServiceMethod<Req, Resp> server(ServiceName serviceName,
