@@ -188,7 +188,7 @@ They can be used to bind services or interact with a remote server.
 === Generate transcoding definitions
 
 The plugin can also generate transcoding definitions for the gRPC services. For more information see the
- xref:server.adoc#_grpc_transcoding[Transcoding] section.
+xref:server.adoc#_grpc_transcoding[Transcoding] section.
 
 ==== Generate transcoding definitions
 
@@ -238,5 +238,112 @@ And for the `SayHelloAgain` method:
 [source]
 ----
 curl -X POST -H "Content-Type: application/json" http://localhost:8080/v1/hello/vert.x
+----
+
+==== HTTP Transcoding Options
+
+The protoc plugin automatically generates transcoding options for service methods that use the `google.api.http` annotation.
+
+==== Overview
+
+The `google.api.http` annotation allows you to map gRPC methods to HTTP endpoints, enabling your service to handle both gRPC and HTTP/REST requests. The plugin supports various HTTP methods (GET, POST) and custom methods.
+
+==== Examples
+
+===== Basic HTTP Mappings
+
+[source,proto]
+----
+service Greeter {
+  // Maps a GET endpoint with a URL parameter
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      get: "/v1/hello/{name}"
+      additional_bindings {
+        post: "/v1/hello"  // Alternative POST endpoint
+      }
+    };
+  }
+
+  // Maps a POST endpoint with an alternative GET binding
+  rpc SayHelloAgain (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      post: "/v2/hello"
+      additional_bindings {
+        get: "/v2/hello/{name}"
+      }
+    };
+  }
+}
+----
+
+==== Advanced Configurations
+
+===== Custom Methods
+[source,proto]
+----
+service Greeter {
+  // Define custom HTTP methods
+  rpc SayHelloCustom (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      custom: {
+        kind: "ACL"
+        path: "/v1/hello/custom/{name}"
+      }
+    };
+  }
+}
+----
+
+===== Request Body Handling
+[source,proto]
+----
+service Greeter {
+  // Specify which field should be mapped to the HTTP request body
+  rpc SayHelloWithBody (HelloBodyRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      post: "/v1/hello/body"
+      body: "request"  // Maps the "request" field to the request body
+    };
+  }
+}
+
+message HelloBodyRequest {
+  HelloRequest request = 1;
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloReply {
+  string reply = 1;
+}
+----
+
+===== Response Body Mapping
+[source,proto]
+----
+service Greeter {
+  // Configure which field should be used as the HTTP response body
+  rpc SayHelloWithResponseBody (HelloRequest) returns (HelloBodyResponse) {
+    option (google.api.http) = {
+      post: "/v1/hello/body/response"
+      response_body: "response"  // Maps the "response" field to the response body
+    };
+  }
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloBodyResponse {
+  HelloResponse response = 1;
+}
+
+message HelloResponse {
+  string reply = 1;
+}
 ----
 
