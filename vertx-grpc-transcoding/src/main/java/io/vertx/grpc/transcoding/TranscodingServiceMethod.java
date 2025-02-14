@@ -11,10 +11,10 @@ import io.vertx.grpc.transcoding.impl.TranscodingServiceMethodImpl;
 public interface TranscodingServiceMethod<I, O> extends ServiceMethod<I, O> {
 
   static <Req, Resp> TranscodingServiceMethod<Req, Resp> server(ServiceName serviceName,
-                                                     String methodName,
-                                                     GrpcMessageEncoder<Resp> encoder,
-                                                     GrpcMessageDecoder<Req> decoder,
-                                                     MethodTranscodingOptions options) {
+                                                                String methodName,
+                                                                GrpcMessageEncoder<Resp> encoder,
+                                                                GrpcMessageDecoder<Req> decoder,
+                                                                MethodTranscodingOptions options) {
     return new TranscodingServiceMethodImpl<>(serviceName, methodName, encoder, decoder, options);
   }
 
