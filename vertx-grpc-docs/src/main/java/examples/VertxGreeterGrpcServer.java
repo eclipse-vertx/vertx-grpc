@@ -33,7 +33,21 @@ public class VertxGreeterGrpcServer  {
     GrpcMessageEncoder.json(),
     GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()));
 
+  private static final io.vertx.grpc.transcoding.MethodTranscodingOptions SayHello_TRANSCODING_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions(
+    "",
+    HttpMethod.valueOf("GET"),
+    "/v1/hello/{name}",
+    "",
+    "",
+    List.of(
+  ));
 
+  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello_TRANSCODING = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+    ServiceName.create("helloworld", "Greeter"),
+    "SayHello",
+    GrpcMessageEncoder.json(),
+    GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()),
+    SayHello_TRANSCODING_OPTIONS);
 
   public static class GreeterApi {
 
@@ -78,6 +92,10 @@ public class VertxGreeterGrpcServer  {
       return this;
     }
 
+    public GreeterApi bind_sayHello_with_transcoding(GrpcServer server) {
+      server.callHandler(SayHello_TRANSCODING, this::handle_sayHello);
+      return this;
+    }
 
     public final GreeterApi bindAll(GrpcServer server) {
       bind_sayHello(server);
@@ -90,6 +108,7 @@ public class VertxGreeterGrpcServer  {
     }
 
     public final GreeterApi bindAllWithTranscoding(GrpcServer server) {
+      bind_sayHello_with_transcoding(server);
       return this;
     }
   }

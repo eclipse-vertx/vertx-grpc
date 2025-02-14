@@ -168,22 +168,12 @@ public class GrpcServerExamples {
     response.write(Item.newBuilder().setValue("item-3").build());
   }
 
-  public GrpcServer transcodingRequestResponse(Vertx vertx, GrpcServer server) {
-    // Define the transcoding options
-    MethodTranscodingOptions transcodingOptions = new MethodTranscodingOptions(
-      null,
-      HttpMethod.GET,
-      "/v1/hello/{name}",
-      "*",
-      null,
-      null);
-
+  public GrpcServer transcodingRequestResponse(GrpcServer server) {
     // Define the service method
-    TranscodingServiceMethod<HelloRequest, HelloReply> transcodingServiceMethod = TranscodingServiceMethod
-      .server(VertxGreeterGrpcServer.SayHello_JSON, transcodingOptions);
+    TranscodingServiceMethod<HelloRequest, HelloReply> serviceMethod = VertxGreeterGrpcServer.SayHello_TRANSCODING;
 
     // Register the handler with transcoding options
-    server.callHandler(transcodingServiceMethod, request -> {
+    server.callHandler(serviceMethod, request -> {
 
         request.handler(hello -> {
 
