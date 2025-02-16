@@ -206,6 +206,18 @@ public class PathMatcherTest {
   }
 
   @Test
+  public void testNestedVariableBindings() {
+    String pathAlphaBetaTheta = addGetPath("/alpha/{x=beta/*/theta/*}");
+
+    build();
+
+    PathMatcherLookupResult result = lookup("GET", "/alpha/beta/one/theta/three");
+
+    assertEquals(pathAlphaBetaTheta, result.getMethod());
+    assertVariableList(Collections.singletonList(new HttpVariableBinding(Collections.singletonList("x"), "beta/one/theta/three")), result.getVariableBindings());
+  }
+
+  @Test
   public void testPercentEscapesUnescapedForSingleSegment() {
     String path = addGetPath("/a/{x}/c");
 
