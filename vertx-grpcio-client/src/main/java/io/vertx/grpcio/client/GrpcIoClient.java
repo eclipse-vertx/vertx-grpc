@@ -10,7 +10,6 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.Address;
 import io.vertx.grpc.client.*;
-import io.vertx.grpc.client.impl.GrpcClientBuilderImpl;
 import io.vertx.grpcio.client.impl.GrpcIoClientBuilder;
 import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 

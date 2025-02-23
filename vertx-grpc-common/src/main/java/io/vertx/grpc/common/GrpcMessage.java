@@ -10,6 +10,7 @@
  */
 package io.vertx.grpc.common;
 
+import io.vertx.codegen.annotations.DataObject;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
@@ -19,7 +20,7 @@ import io.vertx.grpc.common.impl.GrpcMessageImpl;
  *
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-@VertxGen
+@DataObject
 public interface GrpcMessage {
 
   /**

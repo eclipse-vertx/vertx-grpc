@@ -14,8 +14,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
 import com.google.protobuf.util.JsonFormat;
-import io.vertx.codegen.annotations.GenIgnore;
-import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.Json;
@@ -25,7 +23,6 @@ import io.vertx.core.json.JsonArray;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
 
-@VertxGen
 public interface GrpcMessageDecoder<T> {
 
   /**
@@ -33,7 +30,6 @@ public interface GrpcMessageDecoder<T> {
    * @param parser the parser that returns decoded messages of type {@code <T>}
    * @return the message decoder
    */
-  @GenIgnore
   static <T> GrpcMessageDecoder<T> decoder(Parser<T> parser) {
     return new GrpcMessageDecoder<T>() {
       @Override
@@ -67,7 +63,6 @@ public interface GrpcMessageDecoder<T> {
    * @param builder the supplier of a message builder
    * @return the message decoder
    */
-  @GenIgnore
   static <T> GrpcMessageDecoder<T> json(Supplier<Message.Builder> builder) {
     return new GrpcMessageDecoder<>() {
       @Override

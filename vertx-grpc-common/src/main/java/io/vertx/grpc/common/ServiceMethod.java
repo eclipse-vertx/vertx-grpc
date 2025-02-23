@@ -10,12 +10,12 @@
  */
 package io.vertx.grpc.common;
 
-import io.vertx.codegen.annotations.VertxGen;
+import io.vertx.codegen.annotations.GenIgnore;
 
 /**
  * Bundle all the bits required to call or bind a grpc service method.
  */
-@VertxGen
+@GenIgnore(GenIgnore.PERMITTED_TYPE)
 public interface ServiceMethod<I, O> {
 
   static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
