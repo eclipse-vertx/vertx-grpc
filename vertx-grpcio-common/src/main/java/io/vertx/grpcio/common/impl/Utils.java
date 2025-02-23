@@ -18,7 +18,6 @@ import io.grpc.InternalMetadata;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.netty.util.AsciiString;
-import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.core.MultiMap;
 import io.vertx.core.VertxException;
 import io.vertx.core.buffer.Buffer;
@@ -72,7 +71,6 @@ public class Utils {
     return InternalMetadata.newMetadata(array);
   }
 
-  @GenIgnore(GenIgnore.PERMITTED_TYPE)
   public static <T> GrpcMessageDecoder<T> unmarshaller(MethodDescriptor.Marshaller<T> desc) {
     return new GrpcMessageDecoder<T>() {
       @Override
@@ -94,7 +92,6 @@ public class Utils {
     };
   }
 
-  @GenIgnore(GenIgnore.PERMITTED_TYPE)
   public static <T> GrpcMessageEncoder<T> marshaller(MethodDescriptor.Marshaller<T> desc) {
     return new GrpcMessageEncoder<T>() {
       @Override
