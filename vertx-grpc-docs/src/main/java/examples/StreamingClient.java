@@ -14,40 +14,69 @@ import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
+/**
+ * <p>A client for invoking the Streaming gRPC service.</p>
+ */
 @io.vertx.codegen.annotations.VertxGen
 public interface StreamingClient {
 
+  /**
+   * Source protobuf RPC client service method.
+   */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  public static final ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
+  ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
     ServiceName.create("streaming", "Streaming"),
     "Source",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
+
+  /**
+   * Sink protobuf RPC client service method.
+   */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  public static final ServiceMethod<examples.Empty, examples.Item> Sink = ServiceMethod.client(
+  ServiceMethod<examples.Empty, examples.Item> Sink = ServiceMethod.client(
     ServiceName.create("streaming", "Streaming"),
     "Sink",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Empty.parser()));
+
+  /**
+   * Pipe protobuf RPC client service method.
+   */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.client(
+  ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.client(
     ServiceName.create("streaming", "Streaming"),
     "Pipe",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
 
+  /**
+   * Json client service methods.
+   */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  public final class Json {
+  final class Json {
+
+    /**
+     * Source json RPC client service method.
+     */
     public static final ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
       ServiceName.create("streaming", "Streaming"),
       "Source",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
+
+    /**
+     * Sink json RPC client service method.
+     */
     public static final ServiceMethod<examples.Empty, examples.Item> Sink = ServiceMethod.client(
       ServiceName.create("streaming", "Streaming"),
       "Sink",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
+
+    /**
+     * Pipe json RPC client service method.
+     */
     public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.client(
       ServiceName.create("streaming", "Streaming"),
       "Pipe",
@@ -55,23 +84,60 @@ public interface StreamingClient {
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
   }
 
-  static StreamingClient create(GrpcClient client, SocketAddress socketAddress) {
-    return new StreamingClientImpl(client, socketAddress);
+  /**
+   * Create and return a Streaming gRPC service client. The assumed wire format is Protobuf.
+   *
+   * @param client the gRPC client
+   * @param host   the host providing the service
+   * @return the configured client
+   */
+  static StreamingClient create(GrpcClient client, SocketAddress host) {
+    return new StreamingClientImpl(client, host);
   }
 
-  static StreamingClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new StreamingClientImpl(client, socketAddress, wireFormat);
+  /**
+   * Create and return a Streaming gRPC service client.
+   *
+   * @param client     the gRPC client
+   * @param host       the host providing the service
+   * @param wireFormat the wire format
+   * @return the configured client
+   */
+  static StreamingClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new StreamingClientImpl(client, host, wireFormat);
   }
 
+  /**
+   * Calls the Source RPC service method.
+   *
+   * @param request the examples.Empty request message
+   * @return a future of the examples.Item response messages
+   */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<GrpcReadStream<examples.Item>> source(examples.Empty request);
+
+  /**
+   * Calls the Sink RPC service method.
+   *
+   * @param a handler that will be passed a stream to which the examples.Item request messages can be written to.
+   * @return a future of the examples.Empty response message
+   */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<examples.Empty> sink(Handler<GrpcWriteStream<examples.Item>> request);
+  Future<examples.Empty> sink(Handler<GrpcWriteStream<examples.Item>> handler);
+
+  /**
+   * Calls the Pipe RPC service method.
+   *
+   * @param a handler that will be passed a stream to which the examples.Item request messages can be written to.
+   * @return a future of the examples.Item response messages
+   */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<GrpcReadStream<examples.Item>> pipe(Handler<GrpcWriteStream<examples.Item>> request);
-
 }
 
+/**
+ * The proxy implementation.
+ */
 class StreamingClientImpl implements StreamingClient {
 
   private final GrpcClient client;
@@ -89,8 +155,8 @@ class StreamingClientImpl implements StreamingClient {
   }
 
   public Future<GrpcReadStream<examples.Item>> source(examples.Empty request) {
-    ServiceMethod<examples.Item,examples.Empty> serviceMethod;
-    switch(wireFormat) {
+    ServiceMethod<examples.Item, examples.Empty> serviceMethod;
+    switch (wireFormat) {
       case PROTOBUF:
         serviceMethod = Source;
         break;
@@ -113,8 +179,8 @@ class StreamingClientImpl implements StreamingClient {
   }
 
   public Future<examples.Empty> sink(Handler<GrpcWriteStream<examples.Item>> request) {
-    ServiceMethod<examples.Empty,examples.Item> serviceMethod;
-    switch(wireFormat) {
+    ServiceMethod<examples.Empty, examples.Item> serviceMethod;
+    switch (wireFormat) {
       case PROTOBUF:
         serviceMethod = Sink;
         break;
@@ -131,8 +197,8 @@ class StreamingClientImpl implements StreamingClient {
   }
 
   public Future<GrpcReadStream<examples.Item>> pipe(Handler<GrpcWriteStream<examples.Item>> request) {
-    ServiceMethod<examples.Item,examples.Item> serviceMethod;
-    switch(wireFormat) {
+    ServiceMethod<examples.Item, examples.Item> serviceMethod;
+    switch (wireFormat) {
       case PROTOBUF:
         serviceMethod = Pipe;
         break;
