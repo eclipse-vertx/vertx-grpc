@@ -14,18 +14,31 @@ import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
+/**
+ * <p>A client for invoking the Greeter gRPC service.</p>
+ */
 @io.vertx.codegen.annotations.VertxGen
 public interface GreeterClient {
 
+  /**
+   * SayHello protobuf RPC client service method.
+   */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
+  ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
     ServiceName.create("helloworld", "Greeter"),
     "SayHello",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.HelloReply.parser()));
 
+  /**
+   * Json client service methods.
+   */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  public final class Json {
+  final class Json {
+
+    /**
+     * SayHello json RPC client service method.
+     */
     public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
       ServiceName.create("helloworld", "Greeter"),
       "SayHello",
@@ -33,19 +46,42 @@ public interface GreeterClient {
       GrpcMessageDecoder.json(() -> examples.HelloReply.newBuilder()));
   }
 
-  static GreeterClient create(GrpcClient client, SocketAddress socketAddress) {
-    return new GreeterClientImpl(client, socketAddress);
+  /**
+   * Create and return a Greeter gRPC service client. The assumed wire format is Protobuf.
+   *
+   * @param client the gRPC client
+   * @param host   the host providing the service
+   * @return the configured client
+   */
+  static GreeterClient create(GrpcClient client, SocketAddress host) {
+    return new GreeterClientImpl(client, host);
   }
 
-  static GreeterClient create(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new GreeterClientImpl(client, socketAddress, wireFormat);
+  /**
+   * Create and return a Greeter gRPC service client.
+   *
+   * @param client     the gRPC client
+   * @param host       the host providing the service
+   * @param wireFormat the wire format
+   * @return the configured client
+   */
+  static GreeterClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new GreeterClientImpl(client, host, wireFormat);
   }
 
+  /**
+   * Calls the SayHello RPC service method.
+   *
+   * @param request the examples.HelloRequest request message
+   * @return a future of the examples.HelloReply response message
+   */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<examples.HelloReply> sayHello(examples.HelloRequest request);
-
 }
 
+/**
+ * The proxy implementation.
+ */
 class GreeterClientImpl implements GreeterClient {
 
   private final GrpcClient client;
@@ -63,8 +99,8 @@ class GreeterClientImpl implements GreeterClient {
   }
 
   public Future<examples.HelloReply> sayHello(examples.HelloRequest request) {
-    ServiceMethod<examples.HelloReply,examples.HelloRequest> serviceMethod;
-    switch(wireFormat) {
+    ServiceMethod<examples.HelloReply, examples.HelloRequest> serviceMethod;
+    switch (wireFormat) {
       case PROTOBUF:
         serviceMethod = SayHello;
         break;

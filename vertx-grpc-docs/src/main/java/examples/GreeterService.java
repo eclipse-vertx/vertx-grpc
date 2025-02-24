@@ -4,7 +4,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -14,41 +13,65 @@ import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServer;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class GreeterService  {
+/**
+ * <p>Provides support for RPC methods implementations of the Greeter gRPC service.</p>
+ *
+ * <p>The following methods of this class should be overridden to provide an implementation of the service:</p>
+ * <ul>
+ *   <li>SayHello</li>
+ * </ul>
+ */
+public class GreeterService {
 
+  /**
+   * SayHello protobuf RPC server service method.
+   */
   public static final ServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = ServiceMethod.server(
     ServiceName.create("helloworld", "Greeter"),
     "SayHello",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.HelloRequest.parser()));
 
-  public static final java.util.List<ServiceMethod<?, ?>> all() {
+  /**
+   * @return a mutable list of the known protobuf RPC server service methods.
+   */
+  public static java.util.List<ServiceMethod<?, ?>> all() {
     java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
     all.add(SayHello);
     return all;
   }
 
+  /**
+   * Json server service methods.
+   */
   public static final class Json {
 
+    /**
+     * SayHello json RPC server service method.
+     */
     public static final ServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = ServiceMethod.server(
       ServiceName.create("helloworld", "Greeter"),
       "SayHello",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()));
 
-    public static final java.util.List<ServiceMethod<?, ?>> all() {
+    /**
+     * @return a mutable list of the known json RPC server service methods.
+     */
+    public static java.util.List<ServiceMethod<?, ?>> all() {
       java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
       all.add(SayHello);
       return all;
     }
   }
 
+  /**
+   * Transcoded server service methods.
+   */
   public static final class Transcoding {
 
     private static final io.vertx.grpc.transcoding.MethodTranscodingOptions SayHello_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
@@ -59,34 +82,51 @@ public class GreeterService  {
       .setResponseBody("")
     ;
 
-  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
-    ServiceName.create("helloworld", "Greeter"),
-    "SayHello",
-    GrpcMessageEncoder.json(),
-    GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()),
-    SayHello_OPTIONS);
+    /**
+     * SayHello transcoded RPC server service method.
+     */
+    public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+      ServiceName.create("helloworld", "Greeter"),
+      "SayHello",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()),
+      SayHello_OPTIONS);
 
-  public static final java.util.List<ServiceMethod<?, ?>> all() {
+    /**
+     * @return a mutable list of the known transcoded RPC server service methods.
+     */
+    public static java.util.List<ServiceMethod<?, ?>> all() {
       java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
       all.add(SayHello);
       return all;
     }
   }
 
-    public Future<examples.HelloReply> sayHello(examples.HelloRequest request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    public void sayHello(examples.HelloRequest request, Promise<examples.HelloReply> response) {
-      sayHello(request)
-        .onSuccess(msg -> response.complete(msg))
-        .onFailure(error -> response.fail(error));
-    }
 
+  /**
+   * Override this method to implement the SayHello RPC.
+   */
+  protected Future<examples.HelloReply> sayHello(examples.HelloRequest request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void sayHello(examples.HelloRequest request, Promise<examples.HelloReply> response) {
+    sayHello(request)
+      .onSuccess(msg -> response.complete(msg))
+      .onFailure(error -> response.fail(error));
+  }
+
+  /**
+   * Service method to RPC method binder.
+   */
   public class Binder {
+
     private final List<ServiceMethod<?, ?>> serviceMethods;
+
     private Binder(List<ServiceMethod<?, ?>> serviceMethods) {
       this.serviceMethods = serviceMethods;
     }
+
     private void validate() {
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
         if (resolveHandler(serviceMethod) == null) {
@@ -94,6 +134,7 @@ public class GreeterService  {
         }
       }
     }
+
     private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
       if (SayHello == serviceMethod || Json.SayHello == serviceMethod) {
         Handler<io.vertx.grpc.server.GrpcServerRequest<examples.HelloRequest, examples.HelloReply>> handler = GreeterService.this::handle_sayHello;
@@ -102,10 +143,15 @@ public class GreeterService  {
       }
       return null;
     }
+
     private <Req, Resp> void bindHandler(GrpcServer server, ServiceMethod<Req, Resp> serviceMethod) {
       Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
       server.callHandler(serviceMethod, handler);
     }
+
+    /**
+     * Bind the contained service methods to the {@code server}.
+     */
     public void to(GrpcServer server) {
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
         bindHandler(server, serviceMethod);
@@ -113,14 +159,20 @@ public class GreeterService  {
     }
   }
 
-  public Binder bind(List<ServiceMethod<?, ?>> serviceMethods) {
-    Binder binder = new Binder(serviceMethods);
+  /**
+   * @return a binder for the list of {@code methods}
+   */
+  public Binder bind(List<ServiceMethod<?, ?>> methods) {
+    Binder binder = new Binder(methods);
     binder.validate();
     return binder;
   }
 
-  public Binder bind(ServiceMethod<?, ?>... serviceMethods) {
-    return bind(java.util.Arrays.asList(serviceMethods));
+  /**
+   * @return a binder for the {@code methods}
+   */
+  public Binder bind(ServiceMethod<?, ?>... methods) {
+    return bind(java.util.Arrays.asList(methods));
   }
 
   private void handle_sayHello(io.vertx.grpc.server.GrpcServerRequest<examples.HelloRequest, examples.HelloReply> request) {

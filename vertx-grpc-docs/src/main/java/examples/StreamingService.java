@@ -4,7 +4,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -14,33 +13,53 @@ import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServer;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class StreamingService  {
+/**
+ * <p>Provides support for RPC methods implementations of the Streaming gRPC service.</p>
+ *
+ * <p>The following methods of this class should be overridden to provide an implementation of the service:</p>
+ * <ul>
+ *   <li>Source</li>
+ *   <li>Sink</li>
+ *   <li>Pipe</li>
+ * </ul>
+ */
+public class StreamingService {
 
+  /**
+   * Source protobuf RPC server service method.
+   */
   public static final ServiceMethod<examples.Empty, examples.Item> Source = ServiceMethod.server(
     ServiceName.create("streaming", "Streaming"),
     "Source",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Empty.parser()));
 
+  /**
+   * Sink protobuf RPC server service method.
+   */
   public static final ServiceMethod<examples.Item, examples.Empty> Sink = ServiceMethod.server(
     ServiceName.create("streaming", "Streaming"),
     "Sink",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
 
+  /**
+   * Pipe protobuf RPC server service method.
+   */
   public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.server(
     ServiceName.create("streaming", "Streaming"),
     "Pipe",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
 
-  public static final java.util.List<ServiceMethod<?, ?>> all() {
+  /**
+   * @return a mutable list of the known protobuf RPC server service methods.
+   */
+  public static java.util.List<ServiceMethod<?, ?>> all() {
     java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
     all.add(Source);
     all.add(Sink);
@@ -48,27 +67,42 @@ public class StreamingService  {
     return all;
   }
 
+  /**
+   * Json server service methods.
+   */
   public static final class Json {
 
+    /**
+     * Source json RPC server service method.
+     */
     public static final ServiceMethod<examples.Empty, examples.Item> Source = ServiceMethod.server(
       ServiceName.create("streaming", "Streaming"),
       "Source",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
 
+    /**
+     * Sink json RPC server service method.
+     */
     public static final ServiceMethod<examples.Item, examples.Empty> Sink = ServiceMethod.server(
       ServiceName.create("streaming", "Streaming"),
       "Sink",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
 
+    /**
+     * Pipe json RPC server service method.
+     */
     public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.server(
       ServiceName.create("streaming", "Streaming"),
       "Pipe",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
 
-    public static final java.util.List<ServiceMethod<?, ?>> all() {
+    /**
+     * @return a mutable list of the known json RPC server service methods.
+     */
+    public static java.util.List<ServiceMethod<?, ?>> all() {
       java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
       all.add(Source);
       all.add(Sink);
@@ -77,46 +111,73 @@ public class StreamingService  {
     }
   }
 
+  /**
+   * Transcoded server service methods.
+   */
   public static final class Transcoding {
 
-  public static final java.util.List<ServiceMethod<?, ?>> all() {
+    /**
+     * @return a mutable list of the known transcoded RPC server service methods.
+     */
+    public static java.util.List<ServiceMethod<?, ?>> all() {
       java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
       return all;
     }
   }
 
-    public ReadStream<examples.Item> source(examples.Empty request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    public void source(examples.Empty request, GrpcWriteStream<examples.Item> response) {
-      source(request)
-        .handler(msg -> response.write(msg))
-        .endHandler(msg -> response.end())
-        .resume();
-    }
-    public Future<examples.Empty> sink(GrpcReadStream<examples.Item> request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    public void sink(GrpcReadStream<examples.Item> request, Promise<examples.Empty> response) {
-      sink(request)
-        .onSuccess(msg -> response.complete(msg))
-        .onFailure(error -> response.fail(error));
-    }
-    public ReadStream<examples.Item> pipe(GrpcReadStream<examples.Item> request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    public void pipe(GrpcReadStream<examples.Item> request, GrpcWriteStream<examples.Item> response) {
-      pipe(request)
-        .handler(msg -> response.write(msg))
-        .endHandler(msg -> response.end())
-        .resume();
-    }
 
+  /**
+   * Override this method to implement the Source RPC.
+   */
+  protected ReadStream<examples.Item> source(examples.Empty request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void source(examples.Empty request, GrpcWriteStream<examples.Item> response) {
+    source(request)
+      .handler(msg -> response.write(msg))
+      .endHandler(msg -> response.end())
+      .resume();
+  }
+
+  /**
+   * Override this method to implement the Sink RPC.
+   */
+  protected Future<examples.Empty> sink(GrpcReadStream<examples.Item> request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void sink(GrpcReadStream<examples.Item> request, Promise<examples.Empty> response) {
+    sink(request)
+      .onSuccess(msg -> response.complete(msg))
+      .onFailure(error -> response.fail(error));
+  }
+
+  /**
+   * Override this method to implement the Pipe RPC.
+   */
+  protected ReadStream<examples.Item> pipe(GrpcReadStream<examples.Item> request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void pipe(GrpcReadStream<examples.Item> request, GrpcWriteStream<examples.Item> response) {
+    pipe(request)
+      .handler(msg -> response.write(msg))
+      .endHandler(msg -> response.end())
+      .resume();
+  }
+
+  /**
+   * Service method to RPC method binder.
+   */
   public class Binder {
+
     private final List<ServiceMethod<?, ?>> serviceMethods;
+
     private Binder(List<ServiceMethod<?, ?>> serviceMethods) {
       this.serviceMethods = serviceMethods;
     }
+
     private void validate() {
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
         if (resolveHandler(serviceMethod) == null) {
@@ -124,6 +185,7 @@ public class StreamingService  {
         }
       }
     }
+
     private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
       if (Source == serviceMethod || Json.Source == serviceMethod) {
         Handler<io.vertx.grpc.server.GrpcServerRequest<examples.Empty, examples.Item>> handler = StreamingService.this::handle_source;
@@ -142,10 +204,15 @@ public class StreamingService  {
       }
       return null;
     }
+
     private <Req, Resp> void bindHandler(GrpcServer server, ServiceMethod<Req, Resp> serviceMethod) {
       Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
       server.callHandler(serviceMethod, handler);
     }
+
+    /**
+     * Bind the contained service methods to the {@code server}.
+     */
     public void to(GrpcServer server) {
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
         bindHandler(server, serviceMethod);
@@ -153,14 +220,20 @@ public class StreamingService  {
     }
   }
 
-  public Binder bind(List<ServiceMethod<?, ?>> serviceMethods) {
-    Binder binder = new Binder(serviceMethods);
+  /**
+   * @return a binder for the list of {@code methods}
+   */
+  public Binder bind(List<ServiceMethod<?, ?>> methods) {
+    Binder binder = new Binder(methods);
     binder.validate();
     return binder;
   }
 
-  public Binder bind(ServiceMethod<?, ?>... serviceMethods) {
-    return bind(java.util.Arrays.asList(serviceMethods));
+  /**
+   * @return a binder for the {@code methods}
+   */
+  public Binder bind(ServiceMethod<?, ?>... methods) {
+    return bind(java.util.Arrays.asList(methods));
   }
 
   private void handle_source(io.vertx.grpc.server.GrpcServerRequest<examples.Empty, examples.Item> request) {
@@ -172,6 +245,7 @@ public class StreamingService  {
       }
     });
   }
+
   private void handle_sink(io.vertx.grpc.server.GrpcServerRequest<examples.Item, examples.Empty> request) {
     Promise<examples.Empty> promise = Promise.promise();
     promise.future()
@@ -183,6 +257,7 @@ public class StreamingService  {
       promise.tryFail(err);
     }
   }
+
   private void handle_pipe(io.vertx.grpc.server.GrpcServerRequest<examples.Item, examples.Item> request) {
     try {
       pipe(request, request.response());

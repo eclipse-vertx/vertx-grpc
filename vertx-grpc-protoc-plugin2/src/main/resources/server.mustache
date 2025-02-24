@@ -6,7 +6,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -16,15 +15,26 @@ import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.GrpcServer;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class {{className}}  {
+/**
+ * <p>Provides support for RPC methods implementations of the {{serviceName}} gRPC service.</p>
+ *
+ * <p>The following methods of this class should be overridden to provide an implementation of the service:</p>
+ * <ul>
+{{#allMethods}}
+ *   <li>{{methodName}}</li>
+{{/allMethods}}
+ * </ul>
+ */
+public class {{className}} {
 {{#allMethods}}
 
+  /**
+   * {{methodName}} protobuf RPC server service method.
+   */
   public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = ServiceMethod.server(
     ServiceName.create("{{packageName}}", "{{serviceName}}"),
     "{{methodName}}",
@@ -32,7 +42,10 @@ public class {{className}}  {
     GrpcMessageDecoder.decoder({{inputType}}.parser()));
 {{/allMethods}}
 
-  public static final java.util.List<ServiceMethod<?, ?>> all() {
+  /**
+   * @return a mutable list of the known protobuf RPC server service methods.
+   */
+  public static java.util.List<ServiceMethod<?, ?>> all() {
     java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
 {{#allMethods}}
     all.add({{methodName}});
@@ -40,9 +53,15 @@ public class {{className}}  {
     return all;
   }
 
+  /**
+   * Json server service methods.
+   */
   public static final class Json {
 {{#allMethods}}
 
+    /**
+     * {{methodName}} json RPC server service method.
+     */
     public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = ServiceMethod.server(
       ServiceName.create("{{packageName}}", "{{serviceName}}"),
       "{{methodName}}",
@@ -50,7 +69,10 @@ public class {{className}}  {
       GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()));
 {{/allMethods}}
 
-    public static final java.util.List<ServiceMethod<?, ?>> all() {
+    /**
+     * @return a mutable list of the known json RPC server service methods.
+     */
+    public static java.util.List<ServiceMethod<?, ?>> all() {
       java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
 {{#allMethods}}
       all.add({{methodName}});
@@ -59,6 +81,9 @@ public class {{className}}  {
     }
   }
 
+  /**
+   * Transcoded server service methods.
+   */
   public static final class Transcoding {
 {{#transcodingMethods}}
 
@@ -80,15 +105,21 @@ public class {{className}}  {
 {{/transcodingMethods}}
 {{#transcodingMethods}}
 
-  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
-    ServiceName.create("{{packageName}}", "{{serviceName}}"),
-    "{{methodName}}",
-    GrpcMessageEncoder.json(),
-    GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()),
-    {{methodName}}_OPTIONS);
+    /**
+     * {{methodName}} transcoded RPC server service method.
+     */
+    public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+      ServiceName.create("{{packageName}}", "{{serviceName}}"),
+      "{{methodName}}",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()),
+      {{methodName}}_OPTIONS);
 {{/transcodingMethods}}
 
-  public static final java.util.List<ServiceMethod<?, ?>> all() {
+    /**
+     * @return a mutable list of the known transcoded RPC server service methods.
+     */
+    public static java.util.List<ServiceMethod<?, ?>> all() {
       java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
 {{#transcodingMethods}}
       all.add({{methodName}});
@@ -98,53 +129,79 @@ public class {{className}}  {
   }
 
 {{#unaryMethods}}
-    public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    public void {{vertxMethodName}}({{inputType}} request, Promise<{{outputType}}> response) {
-      {{vertxMethodName}}(request)
-        .onSuccess(msg -> response.complete(msg))
-        .onFailure(error -> response.fail(error));
-    }
+
+  /**
+   * Override this method to implement the {{methodName}} RPC.
+   */
+  protected Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void {{vertxMethodName}}({{inputType}} request, Promise<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .onSuccess(msg -> response.complete(msg))
+      .onFailure(error -> response.fail(error));
+  }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
-    public ReadStream<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    public void {{vertxMethodName}}({{inputType}} request, GrpcWriteStream<{{outputType}}> response) {
-      {{vertxMethodName}}(request)
-        .handler(msg -> response.write(msg))
-        .endHandler(msg -> response.end())
-        .resume();
-    }
+
+  /**
+   * Override this method to implement the {{methodName}} RPC.
+   */
+  protected ReadStream<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void {{vertxMethodName}}({{inputType}} request, GrpcWriteStream<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .handler(msg -> response.write(msg))
+      .endHandler(msg -> response.end())
+      .resume();
+  }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
-    public Future<{{outputType}}> {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    public void {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
-      {{vertxMethodName}}(request)
-        .onSuccess(msg -> response.complete(msg))
-        .onFailure(error -> response.fail(error));
-    }
+
+  /**
+   * Override this method to implement the {{methodName}} RPC.
+   */
+  protected Future<{{outputType}}> {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .onSuccess(msg -> response.complete(msg))
+      .onFailure(error -> response.fail(error));
+  }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
-    public ReadStream<{{outputType}}> {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request) {
-      throw new UnsupportedOperationException("Not implemented");
-    }
-    public void {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request, GrpcWriteStream<{{outputType}}> response) {
-      {{vertxMethodName}}(request)
-        .handler(msg -> response.write(msg))
-        .endHandler(msg -> response.end())
-        .resume();
-    }
+
+  /**
+   * Override this method to implement the {{methodName}} RPC.
+   */
+  protected ReadStream<{{outputType}}> {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void {{vertxMethodName}}(GrpcReadStream<{{inputType}}> request, GrpcWriteStream<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .handler(msg -> response.write(msg))
+      .endHandler(msg -> response.end())
+      .resume();
+  }
 {{/manyManyMethods}}
 
+  /**
+   * Service method to RPC method binder.
+   */
   public class Binder {
+
     private final List<ServiceMethod<?, ?>> serviceMethods;
+
     private Binder(List<ServiceMethod<?, ?>> serviceMethods) {
       this.serviceMethods = serviceMethods;
     }
+
     private void validate() {
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
         if (resolveHandler(serviceMethod) == null) {
@@ -152,6 +209,7 @@ public class {{className}}  {
         }
       }
     }
+
     private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
 {{#methods}}
       if ({{methodName}} == serviceMethod || Json.{{methodName}} == serviceMethod) {
@@ -162,10 +220,15 @@ public class {{className}}  {
 {{/methods}}
       return null;
     }
+
     private <Req, Resp> void bindHandler(GrpcServer server, ServiceMethod<Req, Resp> serviceMethod) {
       Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
       server.callHandler(serviceMethod, handler);
     }
+
+    /**
+     * Bind the contained service methods to the {@code server}.
+     */
     public void to(GrpcServer server) {
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
         bindHandler(server, serviceMethod);
@@ -173,17 +236,23 @@ public class {{className}}  {
     }
   }
 
-  public Binder bind(List<ServiceMethod<?, ?>> serviceMethods) {
-    Binder binder = new Binder(serviceMethods);
+  /**
+   * @return a binder for the list of {@code methods}
+   */
+  public Binder bind(List<ServiceMethod<?, ?>> methods) {
+    Binder binder = new Binder(methods);
     binder.validate();
     return binder;
   }
 
-  public Binder bind(ServiceMethod<?, ?>... serviceMethods) {
-    return bind(java.util.Arrays.asList(serviceMethods));
+  /**
+   * @return a binder for the {@code methods}
+   */
+  public Binder bind(ServiceMethod<?, ?>... methods) {
+    return bind(java.util.Arrays.asList(methods));
   }
-
 {{#unaryMethods}}
+
   private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
     Promise<{{outputType}}> promise = Promise.promise();
     request.handler(msg -> {
@@ -199,6 +268,7 @@ public class {{className}}  {
   }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
+
   private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
     request.handler(msg -> {
       try {
@@ -210,6 +280,7 @@ public class {{className}}  {
   }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
+
   private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
     Promise<{{outputType}}> promise = Promise.promise();
     promise.future()
@@ -223,6 +294,7 @@ public class {{className}}  {
   }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
+
   private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
     try {
       {{vertxMethodName}}(request, request.response());
