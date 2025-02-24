@@ -299,7 +299,7 @@ public class GrpcClientExamples {
   }
 
   public void streamingRequestStub(StreamingClient client) {
-    Future<Empty> response = client.sink(stream -> {
+    Future<Empty> response = client.sink((stream, err) -> {
       stream.write(Item.newBuilder().setValue("Value 1").build());
       stream.write(Item.newBuilder().setValue("Value 2").build());
       stream.end(Item.newBuilder().setValue("Value 3").build());

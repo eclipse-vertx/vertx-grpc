@@ -1,6 +1,7 @@
 package examples;
 
 import io.vertx.core.Future;
+import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
@@ -24,11 +25,7 @@ public interface GreeterClient {
    * SayHello protobuf RPC client service method.
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
-    ServiceName.create("helloworld", "Greeter"),
-    "SayHello",
-    GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.HelloReply.parser()));
+  ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(ServiceName.create("helloworld", "Greeter"), "SayHello", GrpcMessageEncoder.encoder(), GrpcMessageDecoder.decoder(examples.HelloReply.parser()));
 
   /**
    * Json client service methods.
@@ -39,11 +36,7 @@ public interface GreeterClient {
     /**
      * SayHello json RPC client service method.
      */
-    public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
-      ServiceName.create("helloworld", "Greeter"),
-      "SayHello",
-      GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.HelloReply.newBuilder()));
+    public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(ServiceName.create("helloworld", "Greeter"), "SayHello", GrpcMessageEncoder.json(), GrpcMessageDecoder.json(() -> examples.HelloReply.newBuilder()));
   }
 
   /**
@@ -98,6 +91,7 @@ class GreeterClientImpl implements GreeterClient {
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
 
+
   public Future<examples.HelloReply> sayHello(examples.HelloRequest request) {
     ServiceMethod<examples.HelloReply, examples.HelloRequest> serviceMethod;
     switch (wireFormat) {
@@ -115,5 +109,4 @@ class GreeterClientImpl implements GreeterClient {
       return req.response().compose(resp -> resp.last());
     });
   }
-
 }

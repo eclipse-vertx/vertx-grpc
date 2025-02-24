@@ -1,6 +1,7 @@
 package examples;
 
 import io.vertx.core.Future;
+import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
@@ -119,20 +120,38 @@ public interface StreamingClient {
   /**
    * Calls the Sink RPC service method.
    *
-   * @param a handler that will be passed a stream to which the examples.Item request messages can be written to.
+   * @param completable a completable that will be passed a stream to which the examples.Item request messages can be written to.
+   * @return a future of the examples.Empty response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  Future<examples.Empty> sink(Completable<GrpcWriteStream<examples.Item>> compltable);
+
+  /**
+   * Calls the Sink RPC service method.
+   *
+   * @param streamOfMessages a stream of messages to be sent to the service
    * @return a future of the examples.Empty response message
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<examples.Empty> sink(Handler<GrpcWriteStream<examples.Item>> handler);
+  Future<examples.Empty> sink(ReadStream<examples.Item> streamOfMessages);
 
   /**
    * Calls the Pipe RPC service method.
    *
-   * @param a handler that will be passed a stream to which the examples.Item request messages can be written to.
+   * @param compltable a completable that will be passed a stream to which the examples.Item request messages can be written to.
+   * @return a future of the examples.Item response messages
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  Future<GrpcReadStream<examples.Item>> pipe(Completable<GrpcWriteStream<examples.Item>> completable);
+
+  /**
+   * Calls the Pipe RPC service method.
+   *
+    * @param streamOfMessages a stream of messages to be sent to the service
    * @return a future of the examples.Item response messages
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<GrpcReadStream<examples.Item>> pipe(Handler<GrpcWriteStream<examples.Item>> request);
+  Future<GrpcReadStream<examples.Item>> pipe(ReadStream<examples.Item> streamOfMessages);
 }
 
 /**
@@ -153,6 +172,7 @@ class StreamingClientImpl implements StreamingClient {
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
+
 
   public Future<GrpcReadStream<examples.Item>> source(examples.Empty request) {
     ServiceMethod<examples.Item, examples.Empty> serviceMethod;
@@ -178,7 +198,7 @@ class StreamingClientImpl implements StreamingClient {
     });
   }
 
-  public Future<examples.Empty> sink(Handler<GrpcWriteStream<examples.Item>> request) {
+  public Future<examples.Empty> sink(Completable<GrpcWriteStream<examples.Item>> completable) {
     ServiceMethod<examples.Empty, examples.Item> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -190,13 +210,25 @@ class StreamingClientImpl implements StreamingClient {
       default:
         throw new AssertionError();
     }
-    return client.request(socketAddress, serviceMethod).compose(req -> {
-      request.handle(req);
-      return req.response().compose(resp -> resp.last());
+    return client.request(socketAddress, serviceMethod)
+      .andThen(completable)
+      .compose(request -> {
+      return request.response().compose(response -> response.last());
     });
   }
 
-  public Future<GrpcReadStream<examples.Item>> pipe(Handler<GrpcWriteStream<examples.Item>> request) {
+  public Future<examples.Empty> sink(ReadStream<examples.Item> request) {
+    io.vertx.core.streams.Pipe<examples.Item> pipe = request.pipe();
+    return sink((result, error) -> {
+        if (error == null) {
+          pipe.to(result);
+        } else {
+          pipe.close();
+        }
+    });
+  }
+
+  public Future<GrpcReadStream<examples.Item>> pipe(Completable<GrpcWriteStream<examples.Item>> completable) {
     ServiceMethod<examples.Item, examples.Item> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -208,16 +240,27 @@ class StreamingClientImpl implements StreamingClient {
       default:
         throw new AssertionError();
     }
-    return client.request(socketAddress, serviceMethod).compose(req -> {
-      request.handle(req);
-      return req.response().flatMap(resp -> {
-        if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-          return Future.failedFuture("Invalid gRPC status " + resp.status());
-        } else {
-          return Future.succeededFuture(resp);
-        }
-      });
+    return client.request(socketAddress, serviceMethod)
+      .andThen(completable)
+      .compose(req -> {
+        return req.response().flatMap(resp -> {
+          if (resp.status() != null && resp.status() != GrpcStatus.OK) {
+            return Future.failedFuture("Invalid gRPC status " + resp.status());
+          } else {
+            return Future.succeededFuture(resp);
+          }
+        });
     });
   }
 
+  public Future<GrpcReadStream<examples.Item>> pipe(ReadStream<examples.Item> request) {
+    io.vertx.core.streams.Pipe<examples.Item> pipe = request.pipe();
+    return pipe((result, error) -> {
+        if (error == null) {
+          pipe.to(result);
+        } else {
+          pipe.close();
+        }
+    });
+  }
 }
