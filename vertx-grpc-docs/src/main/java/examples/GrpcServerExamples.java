@@ -4,7 +4,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
@@ -13,7 +12,6 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.*;
-import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 import io.vertx.grpc.transcoding.TranscodingServiceMethod;
 
 @Source
@@ -285,7 +283,7 @@ public class GrpcServerExamples {
   public void streamingRequestStub(GrpcServer server) {
     StreamingService stub = new StreamingService() {
       @Override
-      public void sink(GrpcReadStream<Item> stream, Promise<Empty> response) {
+      public void sink(ReadStream<Item> stream, Promise<Empty> response) {
         stream.handler(item -> {
           System.out.println("Process item " + item.getValue());
         });
@@ -312,7 +310,7 @@ public class GrpcServerExamples {
   public void streamingResponseStub2() {
     StreamingService stub = new StreamingService() {
       @Override
-      public void source(Empty request, GrpcWriteStream<Item> response) {
+      public void source(Empty request, WriteStream<Item> response) {
         response.write(Item.newBuilder().setValue("value-1").build());
         response.end(Item.newBuilder().setValue("value-2").build());
       }

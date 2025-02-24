@@ -10,8 +10,6 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.GrpcReadStream;
-import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
@@ -25,7 +23,11 @@ public interface GreeterClient {
    * SayHello protobuf RPC client service method.
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(ServiceName.create("helloworld", "Greeter"), "SayHello", GrpcMessageEncoder.encoder(), GrpcMessageDecoder.decoder(examples.HelloReply.parser()));
+  ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
+    ServiceName.create("helloworld", "Greeter"),
+    "SayHello",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.HelloReply.parser()));
 
   /**
    * Json client service methods.
@@ -36,7 +38,11 @@ public interface GreeterClient {
     /**
      * SayHello json RPC client service method.
      */
-    public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(ServiceName.create("helloworld", "Greeter"), "SayHello", GrpcMessageEncoder.json(), GrpcMessageDecoder.json(() -> examples.HelloReply.newBuilder()));
+    public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
+      ServiceName.create("helloworld", "Greeter"),
+      "SayHello",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> examples.HelloReply.newBuilder()));
   }
 
   /**
@@ -90,7 +96,6 @@ class GreeterClientImpl implements GreeterClient {
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
-
 
   public Future<examples.HelloReply> sayHello(examples.HelloRequest request) {
     ServiceMethod<examples.HelloReply, examples.HelloRequest> serviceMethod;
