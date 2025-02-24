@@ -10,8 +10,6 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.GrpcReadStream;
-import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
@@ -115,7 +113,7 @@ public interface StreamingClient {
    * @return a future of the examples.Item response messages
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<GrpcReadStream<examples.Item>> source(examples.Empty request);
+  Future<ReadStream<examples.Item>> source(examples.Empty request);
 
   /**
    * Calls the Sink RPC service method.
@@ -124,7 +122,7 @@ public interface StreamingClient {
    * @return a future of the examples.Empty response message
    */
   @io.vertx.codegen.annotations.GenIgnore
-  Future<examples.Empty> sink(Completable<GrpcWriteStream<examples.Item>> compltable);
+  Future<examples.Empty> sink(Completable<WriteStream<examples.Item>> completable);
 
   /**
    * Calls the Sink RPC service method.
@@ -142,7 +140,7 @@ public interface StreamingClient {
    * @return a future of the examples.Item response messages
    */
   @io.vertx.codegen.annotations.GenIgnore
-  Future<GrpcReadStream<examples.Item>> pipe(Completable<GrpcWriteStream<examples.Item>> completable);
+  Future<ReadStream<examples.Item>> pipe(Completable<WriteStream<examples.Item>> completable);
 
   /**
    * Calls the Pipe RPC service method.
@@ -151,7 +149,7 @@ public interface StreamingClient {
    * @return a future of the examples.Item response messages
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<GrpcReadStream<examples.Item>> pipe(ReadStream<examples.Item> streamOfMessages);
+  Future<ReadStream<examples.Item>> pipe(ReadStream<examples.Item> streamOfMessages);
 }
 
 /**
@@ -173,8 +171,7 @@ class StreamingClientImpl implements StreamingClient {
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
 
-
-  public Future<GrpcReadStream<examples.Item>> source(examples.Empty request) {
+  public Future<ReadStream<examples.Item>> source(examples.Empty request) {
     ServiceMethod<examples.Item, examples.Empty> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -198,7 +195,7 @@ class StreamingClientImpl implements StreamingClient {
     });
   }
 
-  public Future<examples.Empty> sink(Completable<GrpcWriteStream<examples.Item>> completable) {
+  public Future<examples.Empty> sink(Completable<WriteStream<examples.Item>> completable) {
     ServiceMethod<examples.Empty, examples.Item> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -228,7 +225,7 @@ class StreamingClientImpl implements StreamingClient {
     });
   }
 
-  public Future<GrpcReadStream<examples.Item>> pipe(Completable<GrpcWriteStream<examples.Item>> completable) {
+  public Future<ReadStream<examples.Item>> pipe(Completable<WriteStream<examples.Item>> completable) {
     ServiceMethod<examples.Item, examples.Item> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -253,7 +250,7 @@ class StreamingClientImpl implements StreamingClient {
     });
   }
 
-  public Future<GrpcReadStream<examples.Item>> pipe(ReadStream<examples.Item> request) {
+  public Future<ReadStream<examples.Item>> pipe(ReadStream<examples.Item> request) {
     io.vertx.core.streams.Pipe<examples.Item> pipe = request.pipe();
     return pipe((result, error) -> {
         if (error == null) {

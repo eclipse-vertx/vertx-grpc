@@ -9,8 +9,6 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.GrpcReadStream;
-import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServer;
@@ -133,7 +131,7 @@ public class StreamingService {
     throw new UnsupportedOperationException("Not implemented");
   }
 
-  protected void source(examples.Empty request, GrpcWriteStream<examples.Item> response) {
+  protected void source(examples.Empty request, WriteStream<examples.Item> response) {
     source(request)
       .handler(msg -> response.write(msg))
       .endHandler(msg -> response.end())
@@ -143,11 +141,11 @@ public class StreamingService {
   /**
    * Override this method to implement the Sink RPC.
    */
-  protected Future<examples.Empty> sink(GrpcReadStream<examples.Item> request) {
+  protected Future<examples.Empty> sink(ReadStream<examples.Item> request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
-  protected void sink(GrpcReadStream<examples.Item> request, Promise<examples.Empty> response) {
+  protected void sink(ReadStream<examples.Item> request, Promise<examples.Empty> response) {
     sink(request)
       .onSuccess(msg -> response.complete(msg))
       .onFailure(error -> response.fail(error));
@@ -156,11 +154,11 @@ public class StreamingService {
   /**
    * Override this method to implement the Pipe RPC.
    */
-  protected ReadStream<examples.Item> pipe(GrpcReadStream<examples.Item> request) {
+  protected ReadStream<examples.Item> pipe(ReadStream<examples.Item> request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
-  protected void pipe(GrpcReadStream<examples.Item> request, GrpcWriteStream<examples.Item> response) {
+  protected void pipe(ReadStream<examples.Item> request, WriteStream<examples.Item> response) {
     pipe(request)
       .handler(msg -> response.write(msg))
       .endHandler(msg -> response.end())

@@ -12,8 +12,6 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.GrpcReadStream;
-import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
@@ -95,7 +93,7 @@ public interface {{className}} {
    * @return a future of the {{outputType}} response messages
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);
+  Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
 
@@ -106,7 +104,7 @@ public interface {{className}} {
    * @return a future of the {{outputType}} response message
    */
   @io.vertx.codegen.annotations.GenIgnore
-  Future<{{outputType}}> {{vertxMethodName}}(Completable<GrpcWriteStream<{{inputType}}>> completable);
+  Future<{{outputType}}> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable);
 
   /**
    * Calls the {{methodName}} RPC service method.
@@ -126,7 +124,7 @@ public interface {{className}} {
    * @return a future of the {{outputType}} response messages
    */
   @io.vertx.codegen.annotations.GenIgnore
-  Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}(Completable<GrpcWriteStream<{{inputType}}>> completable);
+  Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable);
 
   /**
    * Calls the {{methodName}} RPC service method.
@@ -135,7 +133,7 @@ public interface {{className}} {
    * @return a future of the {{outputType}} response messages
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages);
+  Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages);
 {{/manyManyMethods}}
 }
 
@@ -179,7 +177,7 @@ class {{className}}Impl implements {{className}} {
 {{/unaryMethods}}
 {{#unaryManyMethods}}
 
-  public Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
+  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
     ServiceMethod<{{outputType}}, {{inputType}}> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -205,7 +203,7 @@ class {{className}}Impl implements {{className}} {
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
 
-  public Future<{{outputType}}> {{vertxMethodName}}(Completable<GrpcWriteStream<{{inputType}}>> completable) {
+  public Future<{{outputType}}> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable) {
     ServiceMethod<{{outputType}}, {{inputType}}> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -237,7 +235,7 @@ class {{className}}Impl implements {{className}} {
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
 
-  public Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}(Completable<GrpcWriteStream<{{inputType}}>> completable) {
+  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable) {
     ServiceMethod<{{outputType}}, {{inputType}}> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -262,7 +260,7 @@ class {{className}}Impl implements {{className}} {
     });
   }
 
-  public Future<GrpcReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
+  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
     io.vertx.core.streams.Pipe<{{inputType}}> pipe = request.pipe();
     return {{vertxMethodName}}((result, error) -> {
         if (error == null) {
