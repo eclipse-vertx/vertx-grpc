@@ -194,7 +194,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     TestServiceClient client = TestServiceClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
-    client.streamingInputCall(req -> {
+    client.streamingInputCall((req, err) -> {
         req.write(Messages.StreamingInputCallRequest.newBuilder()
           .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingInputRequest-1", StandardCharsets.UTF_8)).build())
           .build());
@@ -238,7 +238,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     TestServiceClient client = TestServiceClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
-    client.streamingInputCall(req -> {
+    client.streamingInputCall((req, err) -> {
         req.write(Messages.StreamingInputCallRequest.newBuilder()
           .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingInputRequest-1", StandardCharsets.UTF_8)).build())
           .build());
@@ -273,7 +273,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     TestServiceClient client = TestServiceClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
-    client.streamingInputCall(req -> {
+    client.streamingInputCall((req, err) -> {
         req.write(Messages.StreamingInputCallRequest.newBuilder()
           .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingInputRequest-1", StandardCharsets.UTF_8)).build())
           .build());
@@ -433,7 +433,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     TestServiceClient client = TestServiceClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
-    client.fullDuplexCall(req -> {
+    client.fullDuplexCall((req, err) -> {
         req.write(Messages.StreamingOutputCallRequest.newBuilder()
           .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest-1", StandardCharsets.UTF_8)).build())
           .build());
@@ -483,7 +483,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     TestServiceClient client = TestServiceClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
-    client.fullDuplexCall(req -> {
+    client.fullDuplexCall((req, err) -> {
         req.write(Messages.StreamingOutputCallRequest.newBuilder()
           .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest-1", StandardCharsets.UTF_8)).build())
           .build());
@@ -523,7 +523,7 @@ public class ProtocPluginTest extends ProxyTestBase {
     TestServiceClient client = TestServiceClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
-    client.fullDuplexCall(req -> {
+    client.fullDuplexCall((req, err) -> {
         req.write(Messages.StreamingOutputCallRequest.newBuilder()
           .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest-1", StandardCharsets.UTF_8)).build())
           .build());
