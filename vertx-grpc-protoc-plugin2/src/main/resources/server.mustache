@@ -88,16 +88,16 @@ public class {{className}} {
     private static final io.vertx.grpc.transcoding.MethodTranscodingOptions {{methodName}}_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
       .setSelector("{{transcodingContext.selector}}")
       .setHttpMethod(HttpMethod.valueOf("{{transcodingContext.method}}"))
-      .setPath("{{transcodingContext.path}}")
-      .setBody("{{transcodingContext.body}}")
-      .setResponseBody("{{transcodingContext.responseBody}}")
+      .setPath("{{{transcodingContext.path}}}")
+      .setBody("{{{transcodingContext.body}}}")
+      .setResponseBody("{{{transcodingContext.responseBody}}}")
       {{#transcodingContext.additionalBindings}}
       .addAdditionalBinding(new io.vertx.grpc.transcoding.MethodTranscodingOptions()
         .setSelector("{{selector}}")
         .setHttpMethod(HttpMethod.valueOf("{{method}}"))
-        .setPath("{{path}}")
-        .setBody("{{body}}")
-        .setResponseBody("{{responseBody}}"))
+        .setPath("{{{path}}}")
+        .setBody("{{{body}}}")
+        .setResponseBody("{{{responseBody}}}"))
       {{/transcodingContext.additionalBindings}}
     ;
 {{/transcodingMethods}}

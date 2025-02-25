@@ -295,6 +295,44 @@ public class TranscodingTest extends ProxyTestBase {
   }
 
   @Test
+  public void testUnaryWithNestedPath(TestContext should) {
+    HttpClient client = vertx.createHttpClient();
+
+    Future<HttpServer> server = vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterService.Transcoding.SayHelloNested, call -> {
+        call.handler(helloRequest -> {
+          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
+            .build();
+          call.response().end(helloReply);
+        });
+      })).listen(8080, "localhost");
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/rooms/test/messages/Julien").setMethod(HttpMethod.POST);
+
+    Async test = should.async();
+
+    server.onComplete(should.asyncAssertSuccess(v -> {
+      client.request(options).compose(req -> {
+        req.putHeader("Content-Type", "application/json");
+        req.putHeader("Accept", "application/json");
+        return req.send();
+      }).compose(resp -> {
+        should.assertEquals(200, resp.statusCode());
+        should.assertEquals("application/json", resp.getHeader("Content-Type"));
+        return resp.body();
+      }).onComplete(should.asyncAssertSuccess(body -> {
+        String[] path = getMessage(body.toString()).split("/");
+        should.assertEquals(4, path.length);
+        String name = path[3];
+        should.assertEquals("Hello Julien", "Hello " + name);
+        test.complete();
+      }));
+    }));
+
+    test.awaitSuccess();
+  }
+
+  @Test
   public void testUnaryWithResponseBody(TestContext should) {
     HttpClient client = vertx.createHttpClient();
 

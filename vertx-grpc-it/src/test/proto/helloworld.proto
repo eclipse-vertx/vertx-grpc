@@ -70,6 +70,13 @@ service Greeter {
     };
   }
 
+  // Sand hello nested
+  rpc SayHelloNested (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      post: "/v1/{name=rooms/*/messages/*}"
+    };
+  }
+
   // Sends a greeting with a body
   rpc SayHelloWithBody (HelloBodyRequest) returns (HelloReply) {
     option (google.api.http) = {
