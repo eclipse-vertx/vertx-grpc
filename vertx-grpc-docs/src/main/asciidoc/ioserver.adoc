@@ -38,3 +38,23 @@ The Vert.x gRPC Server can bridge a gRPC service to use with _grpc-java_ generat
 ----
 
 The bridge supports deadline automatic cancellation: when a gRPC request carrying a timeout is received, a deadline is associated with the `io.grpc.Context` an can be obtained from the current context. This deadline automatically cancels the request in progress when its associated timeout fires.
+
+=== gRPC Reflection APIs
+
+Support for the https://grpc.io/docs/guides/reflection/[gRPC reflection APIs] can be added to your Vert.x gRPC Server.
+
+[source,java]
+----
+{@link examples.GrpcIoServerExamples#reflectionExample}
+----
+
+You can then use tools like https://github.com/fullstorydev/grpcurl[gRPCurl] to explore and invoke your gRPC APIs.
+
+[source,bash]
+----
+grpcurl -plaintext localhost:50051 list
+
+grpcurl -plaintext localhost:50051 describe .helloworld.HelloRequest
+
+grpcurl -plaintext -d '{"name": "Vert.x"}' localhost:50051 helloworld.Greeter
+----
