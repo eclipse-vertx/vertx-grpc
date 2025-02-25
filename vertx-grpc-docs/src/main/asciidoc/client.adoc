@@ -242,11 +242,11 @@ handle the message encoding:
 - when the message uses the response encoding, the message is sent as is
 - when the message uses a different encoding, it will be encoded, e.g. compressed or uncompressed
 
-=== Client stub API
+=== Generated client API
 
-In addition to the request/response API, the Vert.x gRPC protoc plugin idiomatic service clients.
+In addition to the request/response API, the <<vertx-grpc-protoc-plugin,Vert.x gRPC protoc plugin>> generates idiomatic service clients.
 
-A client wraps a `GrpcClient` and provides Vert.x idiomatic API to interact with the service
+A client wraps a `GrpcClient` and provides a Vert.x idiomatic API to interact with the service
 
 [source,java]
 ----
