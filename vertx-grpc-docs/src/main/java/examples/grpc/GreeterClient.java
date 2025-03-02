@@ -5,6 +5,7 @@ import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -76,6 +77,9 @@ public interface GreeterClient extends Greeter {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request);
+
+  @io.vertx.codegen.annotations.GenIgnore
+  examples.grpc.HelloReply sayHello_sync(examples.grpc.HelloRequest request);
 }
 
 /**
@@ -113,5 +117,9 @@ class GreeterClientImpl implements GreeterClient {
       req.end(request);
       return req.response().compose(resp -> resp.last());
     });
+  }
+
+  public examples.grpc.HelloReply sayHello_sync(examples.grpc.HelloRequest request) {
+    return sayHello(request).await();
   }
 }
