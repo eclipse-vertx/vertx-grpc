@@ -39,6 +39,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
+
 public class ProtocPluginTest extends ProxyTestBase {
 
   @Test
@@ -371,6 +373,45 @@ public class ProtocPluginTest extends ProxyTestBase {
         response.exceptionHandler(should::fail);
       }));
     test.awaitSuccess();
+  }
+
+  @Test
+  public void testUnaryMany_ReadStreamReturn_Sync(TestContext should) throws Exception {
+    // Create gRPC Server
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    grpcServer.addService(new TestServiceService() {
+      @Override
+      public ReadStream<Messages.StreamingOutputCallResponse> streamingOutputCall(Messages.StreamingOutputCallRequest request) {
+        FakeStream<Messages.StreamingOutputCallResponse> response = new FakeStream<>();
+        response.pause();
+        response.write(Messages.StreamingOutputCallResponse.newBuilder()
+          .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
+          .build());
+        response.write(Messages.StreamingOutputCallResponse.newBuilder()
+          .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-2", StandardCharsets.UTF_8)).build())
+          .build());
+        response.end();
+        return response;
+      }
+    });
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer)
+      .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    TestServiceClient client = TestServiceClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    Messages.StreamingOutputCallRequest request = Messages.StreamingOutputCallRequest.newBuilder()
+      .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest", StandardCharsets.UTF_8)).build())
+      .build();
+    Iterable<Messages.StreamingOutputCallResponse> res = client.streamingOutputCall_sync(request);
+    Thread.sleep(100);
+    List<Messages.StreamingOutputCallResponse> list = new ArrayList<>();
+    for (Messages.StreamingOutputCallResponse msg : res) {
+      list.add(msg);
+    }
+    assertEquals(2, list.size());
   }
 
   @Test
