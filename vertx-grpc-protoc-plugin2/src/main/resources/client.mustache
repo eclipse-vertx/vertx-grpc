@@ -121,6 +121,26 @@ public interface {{className}} {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages);
+
+  /**
+   * Calls the {{methodName}} RPC service method.
+   *
+   * @param streamOfMessages a stream of messages to be sent to the service
+   * @return a future of the {{outputType}} response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  default {{outputType}} {{vertxMethodName}}_sync(java.util.List<{{inputType}}> streamOfMessages) {
+    return {{vertxMethodName}}_sync(streamOfMessages.iterator());
+  }
+
+  /**
+   * Calls the {{methodName}} RPC service method.
+   *
+   * @param streamOfMessages a stream of messages to be sent to the service
+   * @return a future of the {{outputType}} response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  {{outputType}} {{vertxMethodName}}_sync(java.util.Iterator<{{inputType}}> streamOfMessages);
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
 
@@ -270,6 +290,10 @@ class {{className}}Impl implements {{className}} {
           pipe.close();
         }
     });
+  }
+
+  public {{outputType}} {{vertxMethodName}}_sync(java.util.Iterator<{{inputType}}> request) {
+    throw new UnsupportedOperationException();
   }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
