@@ -138,6 +138,26 @@ public interface StreamingClient extends Streaming {
   Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> streamOfMessages);
 
   /**
+   * Calls the Sink RPC service method.
+   *
+   * @param streamOfMessages a stream of messages to be sent to the service
+   * @return a future of the examples.grpc.Empty response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  default examples.grpc.Empty sink_sync(java.util.List<examples.grpc.Item> streamOfMessages) {
+    return sink_sync(streamOfMessages.iterator());
+  }
+
+  /**
+   * Calls the Sink RPC service method.
+   *
+   * @param streamOfMessages a stream of messages to be sent to the service
+   * @return a future of the examples.grpc.Empty response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  examples.grpc.Empty sink_sync(java.util.Iterator<examples.grpc.Item> streamOfMessages);
+
+  /**
    * Calls the Pipe RPC service method.
    *
    * @param compltable a completable that will be passed a stream to which the examples.grpc.Item request messages can be written to.
@@ -255,6 +275,10 @@ class StreamingClientImpl implements StreamingClient {
           pipe.close();
         }
     });
+  }
+
+  public examples.grpc.Empty sink_sync(java.util.Iterator<examples.grpc.Item> request) {
+    throw new UnsupportedOperationException();
   }
 
   public Future<ReadStream<examples.grpc.Item>> pipe(Completable<WriteStream<examples.grpc.Item>> completable) {
