@@ -11,7 +11,11 @@
 package io.vertx.grpc.common.impl;
 
 import io.grpc.Decompressor;
+import io.grpc.KnownLength;
 import io.grpc.MethodDescriptor;
+import io.netty.buffer.ByteBufInputStream;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 
@@ -29,15 +33,31 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
     this.decompressor = decompressor;
   }
 
+  private static class KnownLengthStream extends ByteBufInputStream implements KnownLength {
+    public KnownLengthStream(Buffer buffer) {
+      super(((BufferImpl)buffer).getByteBuf(), buffer.length());
+    }
+
+    @Override
+    public void close() {
+      try {
+        super.close();
+      } catch (IOException ignore) {
+      }
+    }
+  }
+
   @Override
   public T decode(GrpcMessage msg) {
-    if (msg.encoding().equals("identity")) {
-      return marshaller.parse(new ByteArrayInputStream(msg.payload().getBytes()));
-    } else {
-      try (InputStream in = decompressor.decompress(new ByteArrayInputStream(msg.payload().getBytes()))) {
-        return marshaller.parse(in);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+    try (KnownLengthStream kls = new KnownLengthStream(msg.payload())) {
+      if (msg.encoding().equals("identity")) {
+        return marshaller.parse(kls);
+      } else {
+        try (InputStream in = decompressor.decompress(kls)) {
+          return marshaller.parse(in);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
   }
