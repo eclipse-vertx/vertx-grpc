@@ -6,6 +6,7 @@ module io.vertx.grpc.server {
   requires io.vertx.codegen.api;
   requires io.netty.codec;
   requires io.netty.buffer;
+  requires com.google.protobuf;
   exports io.vertx.grpc.server;
   exports io.vertx.grpc.server.impl to io.vertx.grpc.transcoding;
 }
