@@ -11,9 +11,6 @@
 package io.vertx.grpc.server;
 
 import com.google.protobuf.Descriptors;
-import io.grpc.ServerServiceDefinition;
-import io.grpc.ServiceDescriptor;
-import io.grpc.protobuf.ProtoFileDescriptorSupplier;
 
 import java.util.*;
 import java.util.function.Function;
@@ -26,7 +23,7 @@ public class GrpcServerIndex {
   private final Map<String, Descriptors.FileDescriptor> descriptorsBySymbol;
   private final Map<String, Map<Integer, Descriptors.FileDescriptor>> descriptorsByExtensionAndNumber;
 
-  public GrpcServerIndex(List<ServerServiceDefinition> definitions) {
+  public GrpcServerIndex(List<Descriptors.ServiceDescriptor> descriptors) {
     Queue<Descriptors.FileDescriptor> fileDescriptorsToProcess = new ArrayDeque<>();
     Set<String> files = new HashSet<>();
     Set<String> names = new HashSet<>();
@@ -35,13 +32,9 @@ public class GrpcServerIndex {
     Map<String, Map<Integer, Descriptors.FileDescriptor>> descriptorsByExtensionAndNumber = new LinkedHashMap<>();
 
     // Collect the services
-    for (ServerServiceDefinition definition : definitions) {
-      ServiceDescriptor serviceDescriptor = definition.getServiceDescriptor();
-      if (serviceDescriptor.getSchemaDescriptor() instanceof ProtoFileDescriptorSupplier) {
-        ProtoFileDescriptorSupplier supplier = (ProtoFileDescriptorSupplier) serviceDescriptor
-          .getSchemaDescriptor();
-        Descriptors.FileDescriptor fd = supplier.getFileDescriptor();
-        String serviceName = serviceDescriptor.getName();
+    for (Descriptors.ServiceDescriptor descriptor : descriptors) {
+        Descriptors.FileDescriptor fd = descriptor.getFile();
+        String serviceName = descriptor.getName();
         if (names.contains(serviceName)) {
           throw new IllegalStateException("Duplicated gRPC service: " + serviceName);
         }
@@ -51,7 +44,6 @@ public class GrpcServerIndex {
           files.add(fd.getName());
           fileDescriptorsToProcess.add(fd);
         }
-      }
     }
 
     // Traverse the set of service and add dependencies
