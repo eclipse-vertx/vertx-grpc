@@ -78,12 +78,27 @@ public class VertxGrpcGeneratorImpl extends Generator {
         );
         serviceContext.protoName = fileProto.getName();
         serviceContext.packageName = fileProto.getPackage();
+        serviceContext.outerClassName = ProtoTypeMap.getJavaOuterClassname(fileProto);
         serviceContext.vertxPackageName = extractPackageName(fileProto);
         contexts.add(serviceContext);
       }
     });
 
     return contexts;
+  }
+
+  private String extractClassName(DescriptorProtos.FileDescriptorProto proto) {
+    if(proto.hasOptions() && proto.getOptions().getJavaOuterClassname() != null && !proto.getOptions().getJavaOuterClassname().isEmpty()) {
+      return proto.getOptions().getJavaOuterClassname();
+    } else {
+      String protoFileName = proto.getName();
+      String baseName = protoFileName.substring(
+        protoFileName.lastIndexOf('/') + 1,
+        protoFileName.lastIndexOf('.')
+      );
+
+      return baseName.substring(0, 1).toUpperCase() + baseName.substring(1);
+    }
   }
 
   private String extractPackageName(DescriptorProtos.FileDescriptorProto proto) {
@@ -392,6 +407,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String vertxPackageName;
     public String className;
     public String serviceName;
+    public String outerClassName;
     public boolean deprecated;
     public String javaDoc;
     public final List<MethodContext> methods = new ArrayList<>();

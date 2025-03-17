@@ -9,9 +9,12 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.ServiceMetadata;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServer;
+
+import com.google.protobuf.Descriptors;
 
 import java.util.List;
 
@@ -63,6 +66,21 @@ public class StreamingService {
     all.add(Sink);
     all.add(Pipe);
     return all;
+  }
+
+  /**
+  * Service metadata.
+  */
+  public static final class Metadata implements ServiceMetadata {
+    @Override
+    public ServiceName getServiceName() {
+      return ServiceName.create("streaming", "Streaming");
+    }
+
+    @Override
+    public Descriptors.ServiceDescriptor getServiceDescriptor() {
+      return StreamingProto.getDescriptor().findServiceByName("Streaming");
+    }
   }
 
   /**
