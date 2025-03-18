@@ -10,57 +10,56 @@
  */
 package io.vertx.tests.server;
 
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.*;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
+import io.grpc.examples.helloworld.HelloWorldProto;
 import io.grpc.reflection.test.ListServiceResponse;
 import io.grpc.reflection.test.ServerReflectionGrpc;
 import io.grpc.reflection.test.ServerReflectionRequest;
 import io.grpc.reflection.test.ServerReflectionResponse;
+import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.StreamObserver;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.common.ServiceMetadata;
+import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerIndex;
 import io.vertx.grpc.server.GrpcServerOptions;
-import io.vertx.grpcio.server.GrpcIoServer;
-import io.vertx.grpcio.server.GrpcIoServiceBridge;
+import io.vertx.grpc.server.GrpcServerResponse;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-public class ReflectionServiceV1Test extends ServerTestBase {
+public class ServerReflectionTest extends ServerTestBase {
+
+  private static final ServiceMetadata SERVICE_METADATA = ServiceMetadata.metadata(GREETER, HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
 
   @Test
-  public void testReflection(TestContext should) {
-    // server stub
-    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
-      @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
-        responseObserver.onCompleted();
-      }
-    };
+  public void testReflection(TestContext should) throws StatusException, InterruptedException, TimeoutException {
+    startServer(GrpcServer
+      .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
+      .serviceMetadata(SERVICE_METADATA)
+      .callHandler(GREETER_SAY_HELLO, call -> {
+        call.handler(helloRequest -> {
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+          GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+          response
+            .encoding("identity")
+            .end(helloReply);
+        });
+      }));
 
-    // create grpc server handler
-    GrpcIoServer grpcServer = GrpcIoServer.server(vertx, new GrpcServerOptions().setReflectionEnabled(true));
-    grpcServer.serviceMetadata(impl.bindService());
-
-    // bind server stub
-    GrpcIoServiceBridge bridge = GrpcIoServiceBridge.bridge(impl);
-    bridge.bind(grpcServer);
-
-    // start server
-    startServer(grpcServer);
-
-    // set up client stub
-    channel = ManagedChannelBuilder.forAddress("localhost", port)
+    channel = ManagedChannelBuilder.forAddress( "localhost", port)
       .usePlaintext()
       .build();
 
-    ServerReflectionGrpc.ServerReflectionStub stub = ServerReflectionGrpc.newStub(channel);
-
-    // set up response observer
     Async test = should.async();
+    ServerReflectionGrpc.ServerReflectionStub stub = ServerReflectionGrpc.newStub(channel);
     StreamObserver<ServerReflectionRequest> streamObserver = stub.serverReflectionInfo(new StreamObserver<>() {
       @Override
       public void onNext(ServerReflectionResponse serverReflectionResponse) {

@@ -73,12 +73,12 @@ public class StreamingService {
   */
   public static final class Metadata implements ServiceMetadata {
     @Override
-    public ServiceName getServiceName() {
+    public ServiceName serviceName() {
       return ServiceName.create("streaming", "Streaming");
     }
 
     @Override
-    public Descriptors.ServiceDescriptor getServiceDescriptor() {
+    public Descriptors.ServiceDescriptor serviceDescriptor() {
       return StreamingProto.getDescriptor().findServiceByName("Streaming");
     }
   }

@@ -51,12 +51,12 @@ public class GreeterService {
   */
   public static final class Metadata implements ServiceMetadata {
     @Override
-    public ServiceName getServiceName() {
+    public ServiceName serviceName() {
       return ServiceName.create("helloworld", "Greeter");
     }
 
     @Override
-    public Descriptors.ServiceDescriptor getServiceDescriptor() {
+    public Descriptors.ServiceDescriptor serviceDescriptor() {
       return HelloWorldProto.getDescriptor().findServiceByName("Greeter");
     }
   }

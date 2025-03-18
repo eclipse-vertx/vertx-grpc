@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2024 Contributors to the Eclipse Foundation
+ * Copyright (c) 2011-2025 Contributors to the Eclipse Foundation
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
@@ -8,30 +8,31 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.grpcio.server;
+package io.vertx.grpc.server;
 
 import com.google.protobuf.Descriptors;
-import io.grpc.Status;
 import io.grpc.reflection.v1.*;
 import io.vertx.core.Handler;
-import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.common.*;
 
 import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 // Copied from https://github.com/quarkusio/quarkus/blob/main/extensions/grpc/reflection/src/main/java/io/quarkus/grpc/reflection/service/ReflectionServiceV1.java
 // And adapted for Vertx
-public class ReflectionServiceV1Handler implements Handler<GrpcServerRequest<ServerReflectionRequest, ServerReflectionResponse>> {
+public class ServerReflection implements Handler<GrpcServerRequest<ServerReflectionRequest, ServerReflectionResponse>> {
+
+  public static final ServiceMethod<ServerReflectionRequest, ServerReflectionResponse> SERVICE_METHOD = ServiceMethod.server(
+    ServiceName.create("grpc.reflection.v1.ServerReflection"),
+    "ServerReflectionInfo",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(ServerReflectionRequest.parser()));
 
   private final GrpcServerIndex index;
 
-  public ReflectionServiceV1Handler(GrpcServerIndex index) {
+  public ServerReflection(GrpcServerIndex index) {
     this.index = index;
   }
 
@@ -56,7 +57,7 @@ public class ReflectionServiceV1Handler implements Handler<GrpcServerRequest<Ser
           response.end(getAllExtensions(serverReflectionRequest));
           break;
         default:
-          response.end(getErrorResponse(serverReflectionRequest, Status.Code.UNIMPLEMENTED,
+          response.end(getErrorResponse(serverReflectionRequest, GrpcStatus.UNIMPLEMENTED,
             "not implemented " + serverReflectionRequest.getMessageRequestCase()));
       }
     });
@@ -64,31 +65,8 @@ public class ReflectionServiceV1Handler implements Handler<GrpcServerRequest<Ser
 
   private ServerReflectionResponse getServiceList(ServerReflectionRequest request) {
     ListServiceResponse response = index.getServiceNames().stream()
-      .map(new Function<String, ServiceResponse>() { // NOSONAR
-        @Override
-        public ServiceResponse apply(String s) {
-          return ServiceResponse.newBuilder().setName(s).build();
-        }
-      })
-      .collect(new Supplier<ListServiceResponse.Builder>() {
-                 @Override
-                 public ListServiceResponse.Builder get() {
-                   return ListServiceResponse.newBuilder();
-                 }
-               },
-        new BiConsumer<ListServiceResponse.Builder, ServiceResponse>() {
-          @Override
-          public void accept(ListServiceResponse.Builder builder, ServiceResponse value) {
-            builder.addService(value);
-          }
-        },
-        new BiConsumer<ListServiceResponse.Builder, ListServiceResponse.Builder>() { // NOSONAR
-          @Override
-          public void accept(ListServiceResponse.Builder b1,
-                             ListServiceResponse.Builder b2) {
-            b1.addAllService(b2.getServiceList());
-          }
-        })
+      .map(s -> ServiceResponse.newBuilder().setName(s).build())
+      .collect(ListServiceResponse::newBuilder, ListServiceResponse.Builder::addService, (b1, b2) -> b1.addAllService(b2.getServiceList()))
       .build();
 
     return ServerReflectionResponse.newBuilder()
@@ -104,7 +82,7 @@ public class ReflectionServiceV1Handler implements Handler<GrpcServerRequest<Ser
     if (fd != null) {
       return getServerReflectionResponse(request, fd);
     } else {
-      return getErrorResponse(request, Status.Code.NOT_FOUND, "File not found (" + name + ")");
+      return getErrorResponse(request, GrpcStatus.NOT_FOUND, "File not found (" + name + ")");
     }
   }
 
@@ -114,7 +92,7 @@ public class ReflectionServiceV1Handler implements Handler<GrpcServerRequest<Ser
     if (fd != null) {
       return getServerReflectionResponse(request, fd);
     } else {
-      return getErrorResponse(request, Status.Code.NOT_FOUND, "Symbol not found (" + symbol + ")");
+      return getErrorResponse(request, GrpcStatus.NOT_FOUND, "Symbol not found (" + symbol + ")");
     }
   }
 
@@ -126,7 +104,7 @@ public class ReflectionServiceV1Handler implements Handler<GrpcServerRequest<Ser
     if (fd != null) {
       return getServerReflectionResponse(request, fd);
     } else {
-      return getErrorResponse(request, Status.Code.NOT_FOUND,
+      return getErrorResponse(request, GrpcStatus.NOT_FOUND,
         "Extension not found (" + type + ", " + extension + ")");
     }
   }
@@ -144,7 +122,7 @@ public class ReflectionServiceV1Handler implements Handler<GrpcServerRequest<Ser
         .setAllExtensionNumbersResponse(builder)
         .build();
     } else {
-      return getErrorResponse(request, Status.Code.NOT_FOUND, "Type not found.");
+      return getErrorResponse(request, GrpcStatus.NOT_FOUND, "Type not found.");
     }
   }
 
@@ -175,13 +153,13 @@ public class ReflectionServiceV1Handler implements Handler<GrpcServerRequest<Ser
   }
 
   private ServerReflectionResponse getErrorResponse(
-    ServerReflectionRequest request, Status.Code code, String message) {
+    ServerReflectionRequest request, GrpcStatus code, String message) {
     return ServerReflectionResponse.newBuilder()
       .setValidHost(request.getHost())
       .setOriginalRequest(request)
       .setErrorResponse(
         ErrorResponse.newBuilder()
-          .setErrorCode(code.value())
+          .setErrorCode(code.code)
           .setErrorMessage(message))
       .build();
   }

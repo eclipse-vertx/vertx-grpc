@@ -21,14 +21,12 @@ import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
-import io.vertx.grpc.server.GrpcProtocol;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerOptions;
-import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.*;
 
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 
@@ -43,11 +41,18 @@ public class GrpcServerImpl implements GrpcServer {
 
   private final GrpcServerOptions options;
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
+
+  private final List<ServiceMetadata> serviceMetadata = new ArrayList<>();
   private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
   private final List<Mount> mounts = new ArrayList<>();
+  private final GrpcServerIndex index = new GrpcServerIndex();
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
+
+    if(this.options.isReflectionEnabled()) {
+      this.callHandler(ServerReflection.SERVICE_METHOD, new ServerReflection(this.index));
+    }
   }
 
   // Internal pojo, the name does not matter much at the moment
@@ -302,6 +307,20 @@ public class GrpcServerImpl implements GrpcServer {
         return prev;
       });
     }
+    return this;
+  }
+
+  @Override
+  public GrpcServer serviceMetadata(ServiceMetadata serviceMetadata) {
+    for (ServiceMetadata metadata : this.serviceMetadata) {
+      if (metadata.serviceName().equals(serviceMetadata.serviceName())) {
+        throw new IllegalStateException("Duplicated service: " + serviceMetadata.serviceName().name());
+      }
+    }
+
+    this.serviceMetadata.add(serviceMetadata);
+    this.index.registerService(serviceMetadata.serviceDescriptor());
+
     return this;
   }
 

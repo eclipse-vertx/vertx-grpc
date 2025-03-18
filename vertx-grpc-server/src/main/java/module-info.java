@@ -9,4 +9,5 @@ module io.vertx.grpc.server {
   requires com.google.protobuf;
   exports io.vertx.grpc.server;
   exports io.vertx.grpc.server.impl to io.vertx.grpc.transcoding;
+  exports io.grpc.reflection.v1;
 }

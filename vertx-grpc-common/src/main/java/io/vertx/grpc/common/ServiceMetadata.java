@@ -1,6 +1,7 @@
 package io.vertx.grpc.common;
 
 import com.google.protobuf.Descriptors;
+import io.vertx.codegen.annotations.GenIgnore;
 
 import java.util.List;
 import java.util.Map;
@@ -14,29 +15,44 @@ import java.util.stream.Collectors;
  * which contains detailed information about the service's methods, input and output types,
  * and other metadata defined in the protobuf service definition.
  */
+@GenIgnore(GenIgnore.PERMITTED_TYPE)
 public interface ServiceMetadata {
+
+  static ServiceMetadata metadata(ServiceName serviceName, Descriptors.ServiceDescriptor serviceDescriptor) {
+    return new ServiceMetadata() {
+      @Override
+      public ServiceName serviceName() {
+        return serviceName;
+      }
+
+      @Override
+      public Descriptors.ServiceDescriptor serviceDescriptor() {
+        return serviceDescriptor;
+      }
+    };
+  }
 
   /**
    * Get the name of the service.
    *
    * @return the service name
    */
-  ServiceName getServiceName();
+  ServiceName serviceName();
 
   /**
    * Get the service descriptor that contains detailed information about the service.
    *
    * @return the service descriptor
    */
-  Descriptors.ServiceDescriptor getServiceDescriptor();
+  Descriptors.ServiceDescriptor serviceDescriptor();
 
   /**
    * Get a list of all method descriptors for this service.
    *
    * @return list of method descriptors
    */
-  default List<Descriptors.MethodDescriptor> getMethods() {
-    return getServiceDescriptor().getMethods();
+  default List<Descriptors.MethodDescriptor> methodDescriptors() {
+    return serviceDescriptor().getMethods();
   }
 
   /**
@@ -45,8 +61,8 @@ public interface ServiceMetadata {
    * @param methodName the name of the method
    * @return an Optional containing the method descriptor if found, or empty if not found
    */
-  default Optional<Descriptors.MethodDescriptor> getMethod(String methodName) {
-    return getMethods().stream()
+  default Optional<Descriptors.MethodDescriptor> methodDescriptor(String methodName) {
+    return methodDescriptors().stream()
       .filter(method -> method.getName().equals(methodName))
       .findFirst();
   }
@@ -58,7 +74,7 @@ public interface ServiceMetadata {
    * @return true if the method exists, false otherwise
    */
   default boolean hasMethod(String methodName) {
-    return getMethod(methodName).isPresent();
+    return methodDescriptor(methodName).isPresent();
   }
 
   /**
@@ -69,23 +85,10 @@ public interface ServiceMetadata {
    * @return the full path for the method
    * @throws IllegalArgumentException if the method does not exist
    */
-  default String getMethodPath(String methodName) {
+  default String pathOfMethod(String methodName) {
     if (!hasMethod(methodName)) {
       throw new IllegalArgumentException("Method not found: " + methodName);
     }
-    return getServiceName().pathOf(methodName);
-  }
-
-  /**
-   * Get a map of all methods in this service, with method names as keys and method descriptors as values.
-   *
-   * @return a map of method names to method descriptors
-   */
-  default Map<String, Descriptors.MethodDescriptor> getMethodsMap() {
-    return getMethods().stream()
-      .collect(Collectors.toMap(
-        Descriptors.MethodDescriptor::getName,
-        method -> method
-      ));
+    return serviceName().pathOf(methodName);
   }
 }

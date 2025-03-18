@@ -11,15 +11,15 @@
 package io.vertx.grpcio.server.impl;
 
 import io.grpc.MethodDescriptor;
+import io.grpc.ServerServiceDefinition;
+import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
+import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
@@ -51,5 +51,22 @@ public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
       Utils.unmarshaller(methodDesc.getRequestMarshaller())
     );
     return (GrpcIoServerImpl) callHandler(serviceMethod, handler);
+  }
+
+  @Override
+  public GrpcIoServer serviceMetadata(ServerServiceDefinition definition) {
+    if(!(definition.getServiceDescriptor().getSchemaDescriptor() instanceof ProtoServiceDescriptorSupplier)) {
+      throw new IllegalArgumentException("Service definition must be a ProtoMethodDescriptorSupplier");
+    }
+
+    ProtoServiceDescriptorSupplier supplier = (ProtoServiceDescriptorSupplier) definition.getServiceDescriptor().getSchemaDescriptor();
+
+    if(supplier.getFileDescriptor() == null) {
+      throw new IllegalArgumentException("Service definition must have a FileDescriptor");
+    }
+
+    ServiceMetadata metadata = ServiceMetadata.metadata(ServiceName.create(definition.getServiceDescriptor().getName()), supplier.getServiceDescriptor());
+    super.serviceMetadata(metadata);
+    return this;
   }
 }

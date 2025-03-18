@@ -59,12 +59,12 @@ public class {{className}} {
   */
   public static final class Metadata implements ServiceMetadata {
     @Override
-    public ServiceName getServiceName() {
+    public ServiceName serviceName() {
       return ServiceName.create("{{packageName}}", "{{serviceName}}");
     }
 
     @Override
-    public Descriptors.ServiceDescriptor getServiceDescriptor() {
+    public Descriptors.ServiceDescriptor serviceDescriptor() {
       return {{outerClassName}}.getDescriptor().findServiceByName("{{serviceName}}");
     }
   }
