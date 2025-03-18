@@ -1,5 +1,6 @@
 package examples;
 
+import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
@@ -13,6 +14,8 @@ import io.vertx.docgen.Source;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.*;
 import io.vertx.grpc.transcoding.TranscodingServiceMethod;
+import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpcio.server.GrpcIoServiceBridge;
 
 @Source
 public class GrpcServerExamples {
@@ -315,5 +318,17 @@ public class GrpcServerExamples {
         response.end(Item.newBuilder().setValue("value-2").build());
       }
     };
+  }
+
+  public void reflectionExample(GrpcServer server) {
+    GreeterService stub = new GreeterService() {
+      @Override
+      public Future<HelloReply> sayHello(HelloRequest request) {
+        return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+      }
+    };
+
+    stub.bind(GreeterService.SayHello).to(server);
+    server.serviceMetadata(new GreeterService.Metadata());
   }
 }

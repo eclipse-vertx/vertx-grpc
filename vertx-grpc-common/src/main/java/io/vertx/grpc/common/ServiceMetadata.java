@@ -18,6 +18,13 @@ import java.util.stream.Collectors;
 @GenIgnore(GenIgnore.PERMITTED_TYPE)
 public interface ServiceMetadata {
 
+  /**
+   * Creates a new ServiceMetadata instance with the specified service name and descriptor.
+   *
+   * @param serviceName the name of the gRPC service
+   * @param serviceDescriptor the descriptor containing detailed information about the service
+   * @return a new ServiceMetadata instance
+   */
   static ServiceMetadata metadata(ServiceName serviceName, Descriptors.ServiceDescriptor serviceDescriptor) {
     return new ServiceMetadata() {
       @Override
