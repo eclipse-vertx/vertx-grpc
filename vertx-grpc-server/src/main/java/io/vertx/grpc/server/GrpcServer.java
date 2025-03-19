@@ -20,6 +20,8 @@ import io.vertx.grpc.common.ServiceMetadata;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 
+import java.util.List;
+
 /**
  * <p>A gRPC server based on Vert.x HTTP server.</p>
  *
@@ -89,4 +91,6 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
 */
 
   GrpcServer serviceMetadata(ServiceMetadata serviceMetadata);
+
+  List<ServiceMetadata> serviceMetadata();
 }

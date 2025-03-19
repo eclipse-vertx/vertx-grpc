@@ -26,7 +26,6 @@ import io.vertx.grpc.server.*;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 
@@ -45,13 +44,12 @@ public class GrpcServerImpl implements GrpcServer {
   private final List<ServiceMetadata> serviceMetadata = new ArrayList<>();
   private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
   private final List<Mount> mounts = new ArrayList<>();
-  private final GrpcServerIndex index = new GrpcServerIndex();
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
 
     if(this.options.isReflectionEnabled()) {
-      this.callHandler(ServerReflection.SERVICE_METHOD, new ServerReflection(this.index));
+      this.callHandler(GrpcServerReflectionHandler.SERVICE_METHOD, new GrpcServerReflectionHandler(this));
     }
   }
 
@@ -319,9 +317,13 @@ public class GrpcServerImpl implements GrpcServer {
     }
 
     this.serviceMetadata.add(serviceMetadata);
-    this.index.registerService(serviceMetadata.serviceDescriptor());
 
     return this;
+  }
+
+  @Override
+  public List<ServiceMetadata> serviceMetadata() {
+    return Collections.unmodifiableList(serviceMetadata);
   }
 
   private static class MethodCallHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
