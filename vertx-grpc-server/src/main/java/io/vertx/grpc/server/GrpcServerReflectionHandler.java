@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<ServerReflectionRequest, ServerReflectionResponse>> {
 
   public static final ServiceMethod<ServerReflectionRequest, ServerReflectionResponse> SERVICE_METHOD = ServiceMethod.server(
-    ServiceName.create("grpc.reflection.v1.GrpcServerReflectionHandler"),
+    ServiceName.create("grpc.reflection.v1.ServerReflection"),
     "ServerReflectionInfo",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(ServerReflectionRequest.parser()));
