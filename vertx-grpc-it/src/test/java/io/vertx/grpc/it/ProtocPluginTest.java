@@ -38,6 +38,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 
@@ -405,12 +406,10 @@ public class ProtocPluginTest extends ProxyTestBase {
     Messages.StreamingOutputCallRequest request = Messages.StreamingOutputCallRequest.newBuilder()
       .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest", StandardCharsets.UTF_8)).build())
       .build();
-    Iterable<Messages.StreamingOutputCallResponse> res = client.streamingOutputCall_sync(request);
+    Stream<Messages.StreamingOutputCallResponse> res = client.streamingOutputCall_sync(request);
     Thread.sleep(100);
     List<Messages.StreamingOutputCallResponse> list = new ArrayList<>();
-    for (Messages.StreamingOutputCallResponse msg : res) {
-      list.add(msg);
-    }
+    res.forEach(msg -> list.add(msg));
     assertEquals(2, list.size());
   }
 

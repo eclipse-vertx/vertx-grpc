@@ -13,6 +13,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import java.util.stream.Stream;
 
 /**
  * <p>A client for invoking the Streaming gRPC service.</p>
@@ -117,7 +118,7 @@ public interface StreamingClient {
   Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request);
 
   @io.vertx.codegen.annotations.GenIgnore
-  Iterable<examples.grpc.Item> source_sync(examples.grpc.Empty request);
+  Stream<examples.grpc.Item> source_sync(examples.grpc.Empty request);
 
   /**
    * Calls the Sink RPC service method.
@@ -208,28 +209,19 @@ class StreamingClientImpl implements StreamingClient {
     });
   }
 
-  public Iterable<examples.grpc.Item> source_sync(examples.grpc.Empty request) {
-    java.util.Iterator<examples.grpc.Item> iterator = source_(request)
+  public Stream<examples.grpc.Item> source_sync(examples.grpc.Empty request) {
+    Stream<examples.grpc.Item> iterator = source_(request)
       .compose(req -> {
         req.end(request);
         return req.response().compose(resp -> {
           if (resp.status() != null && resp.status() != GrpcStatus.OK) {
             return Future.failedFuture("Invalid gRPC status " + resp.status());
           } else {
-            return Future.succeededFuture(io.vertx.core.internal.streams.ReadStreamIterator.iterator(resp));
+            return Future.succeededFuture(resp.blockingStream());
           }
         });
       }).await();
-    return new Iterable<>() {
-      boolean consumed = false;
-      public java.util.Iterator<examples.grpc.Item> iterator() {
-        if (consumed) {
-          throw new IllegalStateException();
-        }
-        consumed = true;
-        return iterator;
-      }
-    };
+    return iterator;
   }
 
   public Future<GrpcClientRequest<examples.grpc.Empty, examples.grpc.Item>> source_(examples.grpc.Empty request) {
