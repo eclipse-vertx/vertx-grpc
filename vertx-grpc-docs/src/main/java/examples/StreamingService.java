@@ -9,7 +9,7 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.ServiceMetadata;
+import io.vertx.grpc.common.Service;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServer;
@@ -19,7 +19,7 @@ import com.google.protobuf.Descriptors;
 import java.util.List;
 
 /**
- * <p>Provides support for RPC methods implementations of the Streaming gRPC service.</p>
+ * <p>Provides support for RPC methods implementations of the  gRPC service.</p>
  *
  * <p>The following methods of this class should be overridden to provide an implementation of the service:</p>
  * <ul>
@@ -34,7 +34,7 @@ public class StreamingService {
    * Source protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.Empty, examples.Item> Source = ServiceMethod.server(
-    ServiceName.create("streaming", "Streaming"),
+    ServiceName.create("streaming", ""),
     "Source",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Empty.parser()));
@@ -43,7 +43,7 @@ public class StreamingService {
    * Sink protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.Item, examples.Empty> Sink = ServiceMethod.server(
-    ServiceName.create("streaming", "Streaming"),
+    ServiceName.create("streaming", ""),
     "Sink",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
@@ -52,7 +52,7 @@ public class StreamingService {
    * Pipe protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.server(
-    ServiceName.create("streaming", "Streaming"),
+    ServiceName.create("streaming", ""),
     "Pipe",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
@@ -71,15 +71,15 @@ public class StreamingService {
   /**
   * Service metadata.
   */
-  public static final class Metadata implements ServiceMetadata {
+  public static final class Metadata implements Service {
     @Override
-    public ServiceName serviceName() {
-      return ServiceName.create("streaming", "Streaming");
+    public ServiceName service() {
+      return ServiceName.create("streaming", "");
     }
 
     @Override
     public Descriptors.ServiceDescriptor serviceDescriptor() {
-      return StreamingProto.getDescriptor().findServiceByName("Streaming");
+      return StreamingProto.getDescriptor().findServiceByName("");
     }
   }
 
@@ -92,7 +92,7 @@ public class StreamingService {
      * Source json RPC server service method.
      */
     public static final ServiceMethod<examples.Empty, examples.Item> Source = ServiceMethod.server(
-      ServiceName.create("streaming", "Streaming"),
+      ServiceName.create("streaming", ""),
       "Source",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
@@ -101,7 +101,7 @@ public class StreamingService {
      * Sink json RPC server service method.
      */
     public static final ServiceMethod<examples.Item, examples.Empty> Sink = ServiceMethod.server(
-      ServiceName.create("streaming", "Streaming"),
+      ServiceName.create("streaming", ""),
       "Sink",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
@@ -110,7 +110,7 @@ public class StreamingService {
      * Pipe json RPC server service method.
      */
     public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.server(
-      ServiceName.create("streaming", "Streaming"),
+      ServiceName.create("streaming", ""),
       "Pipe",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));

@@ -16,7 +16,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.grpc.common.ServiceMetadata;
+import io.vertx.grpc.common.Service;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 
@@ -90,7 +90,7 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   <Req, Resp> GrpcServer callHandlerWithTranscoding(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler, MethodTranscodingOptions transcodingOptions);
 */
 
-  GrpcServer serviceMetadata(ServiceMetadata serviceMetadata);
+  GrpcServer serviceMetadata(Service service);
 
-  List<ServiceMetadata> serviceMetadata();
+  List<Service> serviceMetadata();
 }

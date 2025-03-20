@@ -12,7 +12,6 @@ package io.vertx.grpcio.server.impl;
 
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
-import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
 import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -65,7 +64,7 @@ public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
       throw new IllegalArgumentException("Service definition must have a FileDescriptor");
     }
 
-    ServiceMetadata metadata = ServiceMetadata.metadata(ServiceName.create(definition.getServiceDescriptor().getName()), supplier.getServiceDescriptor());
+    Service metadata = Service.metadata(ServiceName.create(definition.getServiceDescriptor().getName()), supplier.getServiceDescriptor());
     super.serviceMetadata(metadata);
     return this;
   }

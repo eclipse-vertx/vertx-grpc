@@ -4,9 +4,7 @@ import com.google.protobuf.Descriptors;
 import io.vertx.codegen.annotations.GenIgnore;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Provides metadata about a gRPC service.
@@ -16,19 +14,19 @@ import java.util.stream.Collectors;
  * and other metadata defined in the protobuf service definition.
  */
 @GenIgnore(GenIgnore.PERMITTED_TYPE)
-public interface ServiceMetadata {
+public interface Service {
 
   /**
-   * Creates a new ServiceMetadata instance with the specified service name and descriptor.
+   * Creates a new Service instance with the specified service name and descriptor.
    *
    * @param serviceName the name of the gRPC service
    * @param serviceDescriptor the descriptor containing detailed information about the service
-   * @return a new ServiceMetadata instance
+   * @return a new Service instance
    */
-  static ServiceMetadata metadata(ServiceName serviceName, Descriptors.ServiceDescriptor serviceDescriptor) {
-    return new ServiceMetadata() {
+  static Service metadata(ServiceName serviceName, Descriptors.ServiceDescriptor serviceDescriptor) {
+    return new Service() {
       @Override
-      public ServiceName serviceName() {
+      public ServiceName service() {
         return serviceName;
       }
 
@@ -44,7 +42,7 @@ public interface ServiceMetadata {
    *
    * @return the service name
    */
-  ServiceName serviceName();
+  ServiceName service();
 
   /**
    * Get the service descriptor that contains detailed information about the service.
@@ -96,6 +94,6 @@ public interface ServiceMetadata {
     if (!hasMethod(methodName)) {
       throw new IllegalArgumentException("Method not found: " + methodName);
     }
-    return serviceName().pathOf(methodName);
+    return service().pathOf(methodName);
   }
 }

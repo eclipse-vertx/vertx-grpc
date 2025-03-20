@@ -22,7 +22,7 @@ import io.grpc.reflection.test.*;
 import io.grpc.stub.StreamObserver;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.common.ServiceMetadata;
+import io.vertx.grpc.common.Service;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -38,8 +38,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class ServerReflectionTest extends ServerTestBase {
 
-  private static final ServiceMetadata GREETER_SERVICE_METADATA = ServiceMetadata.metadata(GREETER, HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
-  private static final ServiceMetadata STREAMING_SERVICE_METADATA = ServiceMetadata.metadata(STREAMING, StreamingProto.getDescriptor().findServiceByName("Streaming"));
+  private static final Service GREETER_SERVICE_METADATA = Service.metadata(GREETER, HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
+  private static final Service STREAMING_SERVICE_METADATA = Service.metadata(STREAMING, StreamingProto.getDescriptor().findServiceByName("Streaming"));
 
   @Test
   public void testBasicReflection(TestContext should) throws StatusException, InterruptedException, TimeoutException {

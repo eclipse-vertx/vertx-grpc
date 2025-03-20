@@ -41,7 +41,7 @@ public class GrpcServerImpl implements GrpcServer {
   private final GrpcServerOptions options;
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
 
-  private final List<ServiceMetadata> serviceMetadata = new ArrayList<>();
+  private final List<Service> serviceMetadata = new ArrayList<>();
   private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
   private final List<Mount> mounts = new ArrayList<>();
 
@@ -309,20 +309,20 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   @Override
-  public GrpcServer serviceMetadata(ServiceMetadata serviceMetadata) {
-    for (ServiceMetadata metadata : this.serviceMetadata) {
-      if (metadata.serviceName().equals(serviceMetadata.serviceName())) {
-        throw new IllegalStateException("Duplicated service: " + serviceMetadata.serviceName().name());
+  public GrpcServer serviceMetadata(Service service) {
+    for (Service metadata : this.serviceMetadata) {
+      if (metadata.service().equals(service.service())) {
+        throw new IllegalStateException("Duplicated service: " + service.service().name());
       }
     }
 
-    this.serviceMetadata.add(serviceMetadata);
+    this.serviceMetadata.add(service);
 
     return this;
   }
 
   @Override
-  public List<ServiceMetadata> serviceMetadata() {
+  public List<Service> serviceMetadata() {
     return Collections.unmodifiableList(serviceMetadata);
   }
 

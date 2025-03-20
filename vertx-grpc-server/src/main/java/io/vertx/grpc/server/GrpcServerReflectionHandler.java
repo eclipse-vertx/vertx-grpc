@@ -62,7 +62,7 @@ public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<Se
   private ServerReflectionResponse getServiceList(ServerReflectionRequest request) {
     // Get service names directly from server metadata
     List<String> serviceNames = server.serviceMetadata().stream()
-      .map(metadata -> metadata.serviceName().fullyQualifiedName())
+      .map(metadata -> metadata.service().fullyQualifiedName())
       .collect(Collectors.toList());
 
     ListServiceResponse response = serviceNames.stream()
@@ -82,7 +82,7 @@ public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<Se
 
     // Find file descriptor by name on the fly
     Descriptors.FileDescriptor fd = null;
-    for (ServiceMetadata metadata : server.serviceMetadata()) {
+    for (Service metadata : server.serviceMetadata()) {
       if (metadata.serviceDescriptor() != null) {
         Descriptors.FileDescriptor serviceFile = metadata.serviceDescriptor().getFile();
         if (serviceFile.getName().equals(name)) {
@@ -127,7 +127,7 @@ public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<Se
 
     // Find file descriptor containing the symbol on the fly
     Descriptors.FileDescriptor fd = null;
-    for (ServiceMetadata metadata : server.serviceMetadata()) {
+    for (Service metadata : server.serviceMetadata()) {
       if (metadata.serviceDescriptor() != null) {
         fd = findFileDescriptorBySymbol(metadata.serviceDescriptor().getFile(), symbol);
         if (fd != null) {
@@ -201,7 +201,7 @@ public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<Se
 
     // Find file descriptor containing extension on the fly
     Descriptors.FileDescriptor fd = null;
-    for (ServiceMetadata metadata : server.serviceMetadata()) {
+    for (Service metadata : server.serviceMetadata()) {
       if (metadata.serviceDescriptor() != null) {
         fd = findFileDescriptorByExtension(metadata.serviceDescriptor().getFile(), type, extension);
         if (fd != null) {
@@ -269,7 +269,7 @@ public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<Se
     Set<Integer> extensions = new HashSet<>();
 
     // Find all extensions on the fly
-    for (ServiceMetadata metadata : server.serviceMetadata()) {
+    for (Service metadata : server.serviceMetadata()) {
       if (metadata.serviceDescriptor() != null) {
         collectExtensionNumbers(metadata.serviceDescriptor().getFile(), type, extensions);
       }

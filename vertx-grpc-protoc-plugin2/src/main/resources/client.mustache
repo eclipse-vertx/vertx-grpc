@@ -16,7 +16,7 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
 /**
- * <p>A client for invoking the {{serviceName}} gRPC service.</p>
+ * <p>A client for invoking the {{service}} gRPC service.</p>
  */
 @io.vertx.codegen.annotations.VertxGen
 public interface {{className}} {
@@ -27,7 +27,7 @@ public interface {{className}} {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}} = ServiceMethod.client(
-    ServiceName.create("{{packageName}}", "{{serviceName}}"),
+    ServiceName.create("{{packageName}}", "{{service}}"),
     "{{methodName}}",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder({{outputType}}.parser()));
@@ -44,7 +44,7 @@ public interface {{className}} {
      * {{methodName}} json RPC client service method.
      */
     public static final ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}} = ServiceMethod.client(
-      ServiceName.create("{{packageName}}", "{{serviceName}}"),
+      ServiceName.create("{{packageName}}", "{{service}}"),
       "{{methodName}}",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> {{outputType}}.newBuilder()));
@@ -52,7 +52,7 @@ public interface {{className}} {
   }
 
   /**
-   * Create and return a {{serviceName}} gRPC service client. The assumed wire format is Protobuf.
+   * Create and return a {{service}} gRPC service client. The assumed wire format is Protobuf.
    *
    * @param client the gRPC client
    * @param host   the host providing the service
@@ -63,7 +63,7 @@ public interface {{className}} {
   }
 
   /**
-   * Create and return a {{serviceName}} gRPC service client.
+   * Create and return a {{service}} gRPC service client.
    *
    * @param client     the gRPC client
    * @param host       the host providing the service
