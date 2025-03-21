@@ -17,7 +17,6 @@ import io.vertx.core.Future;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.Service;
@@ -29,6 +28,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This test requires grpcurl to be installed on the system.
+ * It is excluded from the default test run and can be enabled by activating the "grpcurl"
+ * <p>
+ * Maven profile: mvn test -Pgrpcurl
+ */
 public class ReflectionTest extends GrpcTestBase {
 
   private HttpServer server;
@@ -37,9 +42,7 @@ public class ReflectionTest extends GrpcTestBase {
   public void setUp(TestContext should) {
     super.setUp(should);
 
-    Service greeterService = Service.service(ServiceName.create("helloworld", "Greeter"))
-      .descriptor(HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
-
+    Service greeterService = Service.service(GreeterService.SERVICE_NAME).descriptor(HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
     GrpcServer grpcServer = GrpcServer.server(vertx, new GrpcServerOptions().setReflectionEnabled(true));
 
     grpcServer.addService(greeterService);
@@ -119,7 +122,7 @@ public class ReflectionTest extends GrpcTestBase {
           "sh", "-c", "grpcurl -plaintext localhost:" + port + " " + args
         };
 
-        System.out.println("[DEBUG_LOG] Executing command: " + String.join(" ", cmdArray));
+        System.out.println("[grpcurl] Executing command: " + String.join(" ", cmdArray));
 
         // Create the process
         Process process = Runtime.getRuntime().exec(cmdArray);
