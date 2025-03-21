@@ -73,9 +73,8 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    */
   <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
 
-/*
-  */
-/**
+
+  /**
    * Set a service method call handler that handles any call made to the server for the {@code fullMethodName } service method.
    * You can use this method to bind a service method and pass the transcoding options.
    *
@@ -83,13 +82,28 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    * @param serviceMethod the service method
    * @param transcodingOptions the transcoding options
    * @return a reference to this, so the API can be used fluently
-   *//*
+   */
+  /*
+   *@GenIgnore(GenIgnore.PERMITTED_TYPE)
+   *<Req, Resp> GrpcServer callHandlerWithTranscoding(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler, MethodTranscodingOptions transcodingOptions);
+   */
 
-  @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  <Req, Resp> GrpcServer callHandlerWithTranscoding(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler, MethodTranscodingOptions transcodingOptions);
-*/
-
+  /**
+   * Add a service to this gRPC server.
+   * <p>
+   * This method registers a service with the server, allowing it to handle requests for that service.
+   * Each service must have a unique name.
+   *
+   * @param service the service to add
+   * @return a reference to this, so the API can be used fluently
+   * @throws IllegalStateException if a service with the same name is already registered
+   */
   GrpcServer addService(Service service);
 
+  /**
+   * Get a list of all services registered with this gRPC server.
+   *
+   * @return an unmodifiable list of all registered services
+   */
   List<Service> getServices();
 }

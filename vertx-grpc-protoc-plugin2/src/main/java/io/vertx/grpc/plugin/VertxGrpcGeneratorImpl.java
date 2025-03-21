@@ -87,20 +87,6 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return contexts;
   }
 
-  private String extractClassName(DescriptorProtos.FileDescriptorProto proto) {
-    if(proto.hasOptions() && proto.getOptions().getJavaOuterClassname() != null && !proto.getOptions().getJavaOuterClassname().isEmpty()) {
-      return proto.getOptions().getJavaOuterClassname();
-    } else {
-      String protoFileName = proto.getName();
-      String baseName = protoFileName.substring(
-        protoFileName.lastIndexOf('/') + 1,
-        protoFileName.lastIndexOf('.')
-      );
-
-      return baseName.substring(0, 1).toUpperCase() + baseName.substring(1);
-    }
-  }
-
   private String extractPackageName(DescriptorProtos.FileDescriptorProto proto) {
     DescriptorProtos.FileOptions options = proto.getOptions();
     if (options != null) {

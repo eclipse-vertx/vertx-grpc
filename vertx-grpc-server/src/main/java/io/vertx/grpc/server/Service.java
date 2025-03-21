@@ -60,6 +60,13 @@ public interface Service {
    */
   <Req, Resp> Service callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
 
+  /**
+   * Binds this service and all its registered method handlers to the specified gRPC server.
+   * This allows the server to handle requests for this service.
+   *
+   * @param server the gRPC server to bind this service to
+   * @return a reference to this, so the API can be used fluently
+   */
   Service bind(GrpcServer server);
 
   /**
