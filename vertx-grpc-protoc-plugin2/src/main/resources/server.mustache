@@ -21,7 +21,7 @@ import com.google.protobuf.Descriptors;
 import java.util.List;
 
 /**
- * <p>Provides support for RPC methods implementations of the {{service}} gRPC service.</p>
+ * <p>Provides support for RPC methods implementations of the {{serviceName}} gRPC service.</p>
  *
  * <p>The following methods of this class should be overridden to provide an implementation of the service:</p>
  * <ul>
@@ -32,7 +32,7 @@ import java.util.List;
  */
 public class {{className}} {
 
-  public static final ServiceName SERVICE_NAME = ServiceName.create("{{packageName}}", "{{service}}");
+  public static final ServiceName SERVICE_NAME = ServiceName.create("{{packageName}}", "{{serviceName}}");
 
 {{#allMethods}}
 
@@ -235,7 +235,7 @@ public class {{className}} {
      */
     public void to(GrpcServer server) {
       Service service = Service.service(SERVICE_NAME);
-      service.descriptor({{outerClassName}}.getDescriptor().findServiceByName("{{service}}"));
+      service.descriptor({{outerClassName}}.getDescriptor().findServiceByName("{{serviceName}}"));
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
           bindHandler(service, serviceMethod);
       }

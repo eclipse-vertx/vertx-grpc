@@ -19,7 +19,7 @@ import com.google.protobuf.Descriptors;
 import java.util.List;
 
 /**
- * <p>Provides support for RPC methods implementations of the  gRPC service.</p>
+ * <p>Provides support for RPC methods implementations of the Streaming gRPC service.</p>
  *
  * <p>The following methods of this class should be overridden to provide an implementation of the service:</p>
  * <ul>
@@ -30,7 +30,7 @@ import java.util.List;
  */
 public class StreamingService {
 
-  public static final ServiceName SERVICE_NAME = ServiceName.create("streaming", "");
+  public static final ServiceName SERVICE_NAME = ServiceName.create("streaming", "Streaming");
 
 
   /**
@@ -219,7 +219,7 @@ public class StreamingService {
      */
     public void to(GrpcServer server) {
       Service service = Service.service(SERVICE_NAME);
-      service.descriptor(StreamingProto.getDescriptor().findServiceByName(""));
+      service.descriptor(StreamingProto.getDescriptor().findServiceByName("Streaming"));
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
           bindHandler(service, serviceMethod);
       }

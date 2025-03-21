@@ -14,7 +14,7 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
 /**
- * <p>A client for invoking the  gRPC service.</p>
+ * <p>A client for invoking the Streaming gRPC service.</p>
  */
 @io.vertx.codegen.annotations.VertxGen
 public interface StreamingClient {
@@ -24,7 +24,7 @@ public interface StreamingClient {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
-    ServiceName.create("streaming", ""),
+    ServiceName.create("streaming", "Streaming"),
     "Source",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
@@ -34,7 +34,7 @@ public interface StreamingClient {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   ServiceMethod<examples.Empty, examples.Item> Sink = ServiceMethod.client(
-    ServiceName.create("streaming", ""),
+    ServiceName.create("streaming", "Streaming"),
     "Sink",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Empty.parser()));
@@ -44,7 +44,7 @@ public interface StreamingClient {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.client(
-    ServiceName.create("streaming", ""),
+    ServiceName.create("streaming", "Streaming"),
     "Pipe",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
@@ -59,7 +59,7 @@ public interface StreamingClient {
      * Source json RPC client service method.
      */
     public static final ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
-      ServiceName.create("streaming", ""),
+      ServiceName.create("streaming", "Streaming"),
       "Source",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
@@ -68,7 +68,7 @@ public interface StreamingClient {
      * Sink json RPC client service method.
      */
     public static final ServiceMethod<examples.Empty, examples.Item> Sink = ServiceMethod.client(
-      ServiceName.create("streaming", ""),
+      ServiceName.create("streaming", "Streaming"),
       "Sink",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
@@ -77,14 +77,14 @@ public interface StreamingClient {
      * Pipe json RPC client service method.
      */
     public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.client(
-      ServiceName.create("streaming", ""),
+      ServiceName.create("streaming", "Streaming"),
       "Pipe",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
   }
 
   /**
-   * Create and return a  gRPC service client. The assumed wire format is Protobuf.
+   * Create and return a Streaming gRPC service client. The assumed wire format is Protobuf.
    *
    * @param client the gRPC client
    * @param host   the host providing the service
@@ -95,7 +95,7 @@ public interface StreamingClient {
   }
 
   /**
-   * Create and return a  gRPC service client.
+   * Create and return a Streaming gRPC service client.
    *
    * @param client     the gRPC client
    * @param host       the host providing the service

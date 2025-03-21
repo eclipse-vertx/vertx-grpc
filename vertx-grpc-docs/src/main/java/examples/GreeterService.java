@@ -19,7 +19,7 @@ import com.google.protobuf.Descriptors;
 import java.util.List;
 
 /**
- * <p>Provides support for RPC methods implementations of the  gRPC service.</p>
+ * <p>Provides support for RPC methods implementations of the Greeter gRPC service.</p>
  *
  * <p>The following methods of this class should be overridden to provide an implementation of the service:</p>
  * <ul>
@@ -28,7 +28,7 @@ import java.util.List;
  */
 public class GreeterService {
 
-  public static final ServiceName SERVICE_NAME = ServiceName.create("helloworld", "");
+  public static final ServiceName SERVICE_NAME = ServiceName.create("helloworld", "Greeter");
 
 
   /**
@@ -158,7 +158,7 @@ public class GreeterService {
      */
     public void to(GrpcServer server) {
       Service service = Service.service(SERVICE_NAME);
-      service.descriptor(HelloWorldProto.getDescriptor().findServiceByName(""));
+      service.descriptor(HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
           bindHandler(service, serviceMethod);
       }
