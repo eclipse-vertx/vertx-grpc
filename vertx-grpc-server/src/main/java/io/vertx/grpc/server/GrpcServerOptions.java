@@ -134,7 +134,7 @@ public class GrpcServerOptions {
    * will be created to cancel the request when the response has not been timely sent. The deadline can be obtained
    * with {@link GrpcServerRequest#deadline()}.</li>
    * <li>When the deadline is not set and a request carrying a timeout is received, the timeout is available with {@link GrpcServerRequest#timeout()}
-   * and it is the responsibility of the name to eventually cancel the request. Note: the client might cancel the request as well when its local
+   * and it is the responsibility of the service to eventually cancel the request. Note: the client might cancel the request as well when its local
    * deadline is met.</li>
    * </ul>
    *

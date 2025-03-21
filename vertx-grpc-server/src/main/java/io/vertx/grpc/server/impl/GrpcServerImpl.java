@@ -57,7 +57,6 @@ public class GrpcServerImpl implements GrpcServer {
   private static class Details {
     final GrpcProtocol protocol;
     final WireFormat format;
-
     Details(GrpcProtocol protocol, WireFormat format) {
       this.protocol = protocol;
       this.format = format;
@@ -67,12 +66,10 @@ public class GrpcServerImpl implements GrpcServer {
   private class Mount<Req, Resp> {
     final MountPoint<Req, Resp> mountPoint;
     final Handler<GrpcServerRequest<Req, Resp>> handler;
-
     Mount(MountPoint<Req, Resp> mountPoint, Handler<GrpcServerRequest<Req, Resp>> handler) {
       this.mountPoint = mountPoint;
       this.handler = handler;
     }
-
     boolean invoke(HttpServerRequest httpRequest) {
       GrpcInvocation<Req, Resp> invocation = mountPoint.accept(httpRequest);
       if (invocation != null) {
@@ -139,7 +136,7 @@ public class GrpcServerImpl implements GrpcServer {
       return;
     }
 
-    // Exact name lookup first
+    // Exact service lookup first
     GrpcMethodCall methodCall = new GrpcMethodCall(httpRequest.path());
     MethodCallHandler<?, ?> mch = findMethodCallHandler(methodCall, details.format);
     if (mch != null) {
@@ -243,8 +240,8 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   private <Req, Resp> void handle(GrpcServerRequestImpl<Req, Resp> grpcRequest,
-    GrpcServerResponseImpl<Req, Resp> grpcResponse,
-    Handler<GrpcServerRequest<Req, Resp>> handler) {
+                                  GrpcServerResponseImpl<Req, Resp> grpcResponse,
+                                  Handler<GrpcServerRequest<Req, Resp>> handler) {
     if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
       long deadline = System.currentTimeMillis() + grpcRequest.timeout;
       grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
@@ -281,7 +278,7 @@ public class GrpcServerImpl implements GrpcServer {
         if (prev == null) {
           prev = new ArrayList<>();
         }
-        for (int i = 0; i < prev.size(); i++) {
+        for (int i = 0;i < prev.size();i++) {
           MethodCallHandler<?, ?> a = prev.get(i);
           if (a.messageDecoder.format() == serviceMethod.decoder().format() && a.messageEncoder.format() == serviceMethod.encoder().format()) {
             prev.set(i, p);
@@ -294,7 +291,7 @@ public class GrpcServerImpl implements GrpcServer {
     } else {
       methodCallHandlers.compute(serviceMethod.fullMethodName(), (key, prev) -> {
         if (prev != null) {
-          for (int i = 0; i < prev.size(); i++) {
+          for (int i = 0;i < prev.size();i++) {
             MethodCallHandler<?, ?> a = prev.get(i);
             if (a.messageDecoder.format() == serviceMethod.decoder().format() && a.messageEncoder.format() == serviceMethod.encoder().format()) {
               prev.remove(i);

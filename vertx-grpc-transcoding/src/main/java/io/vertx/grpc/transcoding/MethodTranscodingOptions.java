@@ -9,12 +9,12 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Defines configuration options for transcoding HTTP requests to gRPC name calls. This interface provides the necessary mapping information to translate between HTTP and gRPC,
+ * Defines configuration options for transcoding HTTP requests to gRPC service calls. This interface provides the necessary mapping information to translate between HTTP and gRPC,
  * including path templates, HTTP methods, body mappings, and additional bindings.
  *
  * The transcoding options define how incoming HTTP requests should be mapped to gRPC method calls, including:
  * <ul>
- *   <li>Which gRPC name/method to call (selector)</li>
+ *   <li>Which gRPC service/method to call (selector)</li>
  *   <li>What HTTP method and path pattern to match</li>
  *   <li>How to map the HTTP request/response bodies to gRPC messages</li>
  * </ul>

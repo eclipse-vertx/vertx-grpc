@@ -26,9 +26,9 @@ public class PathMatcherBuilder {
   private boolean failRegistrationOnDuplicate = true;
 
   /**
-   * Registers a name transcoding configuration with specific query parameter names.
+   * Registers a service transcoding configuration with specific query parameter names.
    *
-   * @param transcoding the name transcoding options
+   * @param transcoding the service transcoding options
    * @param queryParameterNames set of query parameter names to handle
    * @param method the gRPC method name to associate with this pattern
    * @return true if registration was successful, false otherwise
@@ -61,9 +61,9 @@ public class PathMatcherBuilder {
   }
 
   /**
-   * Registers a name transcoding configuration with default query parameter handling.
+   * Registers a service transcoding configuration with default query parameter handling.
    *
-   * @param transcodingOptions the name transcoding options
+   * @param transcodingOptions the service transcoding options
    * @param method the gRPC method name to associate with this pattern
    * @return true if registration was successful, false otherwise
    */

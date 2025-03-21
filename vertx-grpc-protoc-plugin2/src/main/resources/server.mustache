@@ -237,7 +237,7 @@ public class {{className}} {
       Service service = Service.service(SERVICE_NAME);
       service.descriptor({{outerClassName}}.getDescriptor().findServiceByName("{{serviceName}}"));
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-          bindHandler(service, serviceMethod);
+        bindHandler(service, serviceMethod);
       }
 
       server.addService(service);

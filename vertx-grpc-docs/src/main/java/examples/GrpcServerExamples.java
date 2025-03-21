@@ -167,7 +167,7 @@ public class GrpcServerExamples {
   }
 
   public GrpcServer transcodingRequestResponse(GrpcServer server) {
-    // Define the name method
+    // Define the service method
     TranscodingServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterService.Transcoding.SayHello;
 
     // Register the handler with transcoding options

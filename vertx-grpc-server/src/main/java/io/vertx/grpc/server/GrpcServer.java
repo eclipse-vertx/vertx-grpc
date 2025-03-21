@@ -26,9 +26,9 @@ import java.util.List;
  *
  * <p>The server can be used as a {@link io.vertx.core.http.HttpServer} handler or mounted as a Vert.x Web handler.</p>
  *
- * <p>Unlike traditional gRPC servers, this server does not rely on a generated RPC interface to interact with the name.</p>
+ * <p>Unlike traditional gRPC servers, this server does not rely on a generated RPC interface to interact with the service.</p>
  *
- * <p>Instead, you can interact with the name with a request/response interfaces and gRPC messages, very much like
+ * <p>Instead, you can interact with the service with a request/response interfaces and gRPC messages, very much like
  * a traditional client.</p>
  *
  * <p>The server handles only the gRPC protocol and does not encode/decode protobuf messages.</p>
@@ -58,17 +58,17 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
   /**
    * Set a call handler that handles any call made to the server.
    *
-   * @param handler the name method call handler
+   * @param handler the service method call handler
    * @return a reference to this, so the API can be used fluently
    */
   @Fluent
   GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler);
 
   /**
-   * Set a name method call handler that handles any call made to the server for the {@code fullMethodName } name method.
+   * Set a service method call handler that handles any call made to the server for the {@code fullMethodName } service method.
    *
-   * @param handler the name method call handler
-   * @param serviceMethod the name method
+   * @param handler the service method call handler
+   * @param serviceMethod the service method
    * @return a reference to this, so the API can be used fluently
    */
   <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
@@ -76,11 +76,11 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
 /*
   */
 /**
-   * Set a name method call handler that handles any call made to the server for the {@code fullMethodName } name method.
-   * You can use this method to bind a name method and pass the transcoding options.
+   * Set a service method call handler that handles any call made to the server for the {@code fullMethodName } service method.
+   * You can use this method to bind a service method and pass the transcoding options.
    *
-   * @param handler the name method call handler
-   * @param serviceMethod the name method
+   * @param handler the service method call handler
+   * @param serviceMethod the service method
    * @param transcodingOptions the transcoding options
    * @return a reference to this, so the API can be used fluently
    *//*

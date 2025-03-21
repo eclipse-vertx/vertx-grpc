@@ -16,14 +16,14 @@ import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpcio.server.impl.GrpcIoServiceBridgeImpl;
 
 /**
- * Bridge a gRPC name with a {@link GrpcServer}.
+ * Bridge a gRPC service with a {@link GrpcServer}.
  */
 public interface GrpcIoServiceBridge {
 
   /**
-   * Create a stub for a given {@code name}.
+   * Create a stub for a given {@code service}.
    *
-   * @param service the name
+   * @param service the service
    * @return the stub
    */
   static GrpcIoServiceBridge bridge(ServerServiceDefinition service) {
@@ -31,9 +31,9 @@ public interface GrpcIoServiceBridge {
   }
 
   /**
-   * Create a stub for a given {@code name}.
+   * Create a stub for a given {@code service}.
    *
-   * @param service the name
+   * @param service the service
    * @return the stub
    */
   static GrpcIoServiceBridge bridge(BindableService service) {
@@ -41,14 +41,14 @@ public interface GrpcIoServiceBridge {
   }
 
   /**
-   * Bind all name methods to the @{code server}.
+   * Bind all service methods to the @{code server}.
    *
    * @param server the server to bind to
    */
   void bind(GrpcIoServer server);
 
   /**
-   * Unbind all name methods from the @{code server}.
+   * Unbind all service methods from the @{code server}.
    *
    * @param server the server to unbind from
    */
