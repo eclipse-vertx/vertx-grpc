@@ -1,6 +1,5 @@
 package examples;
 
-import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
@@ -14,8 +13,6 @@ import io.vertx.docgen.Source;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.*;
 import io.vertx.grpc.transcoding.TranscodingServiceMethod;
-import io.vertx.grpcio.server.GrpcIoServer;
-import io.vertx.grpcio.server.GrpcIoServiceBridge;
 
 @Source
 public class GrpcServerExamples {
@@ -170,7 +167,7 @@ public class GrpcServerExamples {
   }
 
   public GrpcServer transcodingRequestResponse(GrpcServer server) {
-    // Define the service method
+    // Define the name method
     TranscodingServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterService.Transcoding.SayHello;
 
     // Register the handler with transcoding options
@@ -329,6 +326,6 @@ public class GrpcServerExamples {
     };
 
     stub.bind(GreeterService.SayHello).to(server);
-    server.serviceMetadata(new GreeterService.Metadata());
+    server.addService(Service.service(GreeterService.SERVICE_NAME).descriptor(HelloWorldProto.getDescriptor().findServiceByName("Greeter")));
   }
 }

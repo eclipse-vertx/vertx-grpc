@@ -60,9 +60,9 @@ public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<Se
   }
 
   private ServerReflectionResponse getServiceList(ServerReflectionRequest request) {
-    // Get service names directly from server metadata
-    List<String> serviceNames = server.serviceMetadata().stream()
-      .map(metadata -> metadata.service().fullyQualifiedName())
+    // Get name names directly from server metadata
+    List<String> serviceNames = server.getServices().stream()
+      .map(metadata -> metadata.name().fullyQualifiedName())
       .collect(Collectors.toList());
 
     ListServiceResponse response = serviceNames.stream()
@@ -82,9 +82,9 @@ public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<Se
 
     // Find file descriptor by name on the fly
     Descriptors.FileDescriptor fd = null;
-    for (Service metadata : server.serviceMetadata()) {
-      if (metadata.serviceDescriptor() != null) {
-        Descriptors.FileDescriptor serviceFile = metadata.serviceDescriptor().getFile();
+    for (Service metadata : server.getServices()) {
+      if (metadata.descriptor() != null) {
+        Descriptors.FileDescriptor serviceFile = metadata.descriptor().getFile();
         if (serviceFile.getName().equals(name)) {
           fd = serviceFile;
           break;
@@ -127,9 +127,9 @@ public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<Se
 
     // Find file descriptor containing the symbol on the fly
     Descriptors.FileDescriptor fd = null;
-    for (Service metadata : server.serviceMetadata()) {
-      if (metadata.serviceDescriptor() != null) {
-        fd = findFileDescriptorBySymbol(metadata.serviceDescriptor().getFile(), symbol);
+    for (Service metadata : server.getServices()) {
+      if (metadata.descriptor() != null) {
+        fd = findFileDescriptorBySymbol(metadata.descriptor().getFile(), symbol);
         if (fd != null) {
           break;
         }
@@ -144,7 +144,7 @@ public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<Se
   }
 
   private Descriptors.FileDescriptor findFileDescriptorBySymbol(Descriptors.FileDescriptor fd, String symbol) {
-    // Check service symbols in this file
+    // Check name symbols in this file
     for (Descriptors.ServiceDescriptor service : fd.getServices()) {
       if (service.getFullName().equals(symbol)) {
         return fd;
@@ -201,9 +201,9 @@ public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<Se
 
     // Find file descriptor containing extension on the fly
     Descriptors.FileDescriptor fd = null;
-    for (Service metadata : server.serviceMetadata()) {
-      if (metadata.serviceDescriptor() != null) {
-        fd = findFileDescriptorByExtension(metadata.serviceDescriptor().getFile(), type, extension);
+    for (Service metadata : server.getServices()) {
+      if (metadata.descriptor() != null) {
+        fd = findFileDescriptorByExtension(metadata.descriptor().getFile(), type, extension);
         if (fd != null) {
           break;
         }
@@ -269,9 +269,9 @@ public class GrpcServerReflectionHandler implements Handler<GrpcServerRequest<Se
     Set<Integer> extensions = new HashSet<>();
 
     // Find all extensions on the fly
-    for (Service metadata : server.serviceMetadata()) {
-      if (metadata.serviceDescriptor() != null) {
-        collectExtensionNumbers(metadata.serviceDescriptor().getFile(), type, extensions);
+    for (Service metadata : server.getServices()) {
+      if (metadata.descriptor() != null) {
+        collectExtensionNumbers(metadata.descriptor().getFile(), type, extensions);
       }
     }
 

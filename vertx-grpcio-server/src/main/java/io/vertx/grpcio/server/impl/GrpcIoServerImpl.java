@@ -22,6 +22,7 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 import io.vertx.grpcio.common.impl.Utils;
 import io.vertx.grpcio.server.GrpcIoServer;
@@ -53,7 +54,7 @@ public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
   }
 
   @Override
-  public GrpcIoServer serviceMetadata(ServerServiceDefinition definition) {
+  public GrpcIoServer addService(ServerServiceDefinition definition) {
     if(!(definition.getServiceDescriptor().getSchemaDescriptor() instanceof ProtoServiceDescriptorSupplier)) {
       throw new IllegalArgumentException("Service definition must be a ProtoMethodDescriptorSupplier");
     }
@@ -64,8 +65,8 @@ public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
       throw new IllegalArgumentException("Service definition must have a FileDescriptor");
     }
 
-    Service metadata = Service.metadata(ServiceName.create(definition.getServiceDescriptor().getName()), supplier.getServiceDescriptor());
-    super.serviceMetadata(metadata);
+    Service metadata = Service.service(ServiceName.create(definition.getServiceDescriptor().getName())).descriptor(supplier.getServiceDescriptor());
+    super.addService(metadata);
     return this;
   }
 }

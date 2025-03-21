@@ -11,7 +11,7 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.Service;
+import io.vertx.grpc.server.Service;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServer;
@@ -31,13 +31,16 @@ import java.util.List;
  * </ul>
  */
 public class {{className}} {
+
+  public static final ServiceName SERVICE_NAME = ServiceName.create("{{packageName}}", "{{service}}");
+
 {{#allMethods}}
 
   /**
    * {{methodName}} protobuf RPC server service method.
    */
   public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = ServiceMethod.server(
-    ServiceName.create("{{packageName}}", "{{service}}"),
+    SERVICE_NAME,
     "{{methodName}}",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder({{inputType}}.parser()));
@@ -55,21 +58,6 @@ public class {{className}} {
   }
 
   /**
-  * Service metadata.
-  */
-  public static final class Metadata implements Service {
-    @Override
-    public ServiceName service() {
-      return ServiceName.create("{{packageName}}", "{{service}}");
-    }
-
-    @Override
-    public Descriptors.ServiceDescriptor serviceDescriptor() {
-      return {{outerClassName}}.getDescriptor().findServiceByName("{{service}}");
-    }
-  }
-
-  /**
    * Json server service methods.
    */
   public static final class Json {
@@ -79,7 +67,7 @@ public class {{className}} {
      * {{methodName}} json RPC server service method.
      */
     public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = ServiceMethod.server(
-      ServiceName.create("{{packageName}}", "{{service}}"),
+      SERVICE_NAME,
       "{{methodName}}",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()));
@@ -125,7 +113,7 @@ public class {{className}} {
      * {{methodName}} transcoded RPC server service method.
      */
     public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
-      ServiceName.create("{{packageName}}", "{{service}}"),
+      SERVICE_NAME,
       "{{methodName}}",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()),
@@ -237,18 +225,22 @@ public class {{className}} {
       return null;
     }
 
-    private <Req, Resp> void bindHandler(GrpcServer server, ServiceMethod<Req, Resp> serviceMethod) {
+    private <Req, Resp> void bindHandler(Service service, ServiceMethod<Req, Resp> serviceMethod) {
       Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
-      server.callHandler(serviceMethod, handler);
+      service.callHandler(serviceMethod, handler);
     }
 
     /**
      * Bind the contained service methods to the {@code server}.
      */
     public void to(GrpcServer server) {
+      Service service = Service.service(SERVICE_NAME);
+      service.descriptor({{outerClassName}}.getDescriptor().findServiceByName("{{service}}"));
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-        bindHandler(server, serviceMethod);
+          bindHandler(service, serviceMethod);
       }
+
+      server.addService(service);
     }
   }
 

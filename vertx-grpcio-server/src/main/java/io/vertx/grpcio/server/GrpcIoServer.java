@@ -22,7 +22,7 @@ import io.vertx.grpcio.server.impl.GrpcIoServerImpl;
  *
  * <ul>
  *   <li>a Protobuf message {@link #callHandler(Handler) handler}: {@link GrpcServerRequest}/{@link GrpcServerResponse} with Protobuf message that handles any method call in a generic way</li>
- *   <li>a gRPC message {@link #callHandler(MethodDescriptor, Handler) handler}: {@link GrpcServerRequest}/{@link GrpcServerRequest} with gRPC messages that handles specific service method calls</li>
+ *   <li>a gRPC message {@link #callHandler(MethodDescriptor, Handler) handler}: {@link GrpcServerRequest}/{@link GrpcServerRequest} with gRPC messages that handles specific name method calls</li>
  * </ul>
  */
 @VertxGen
@@ -51,14 +51,14 @@ public interface GrpcIoServer extends GrpcServer {
   GrpcIoServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler);
 
   /**
-   * Set a service method call handler that handles any call made to the server for the {@link MethodDescriptor} service method.
+   * Set a name method call handler that handles any call made to the server for the {@link MethodDescriptor} name method.
    *
-   * @param handler the service method call handler
+   * @param handler the name method call handler
    * @return a reference to this, so the API can be used fluently
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcIoServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
 
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  GrpcIoServer serviceMetadata(ServerServiceDefinition definition);
+  GrpcIoServer addService(ServerServiceDefinition definition);
 }

@@ -22,7 +22,7 @@ import io.grpc.reflection.test.*;
 import io.grpc.stub.StreamObserver;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.common.Service;
+import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -38,14 +38,14 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class ServerReflectionTest extends ServerTestBase {
 
-  private static final Service GREETER_SERVICE_METADATA = Service.metadata(GREETER, HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
-  private static final Service STREAMING_SERVICE_METADATA = Service.metadata(STREAMING, StreamingProto.getDescriptor().findServiceByName("Streaming"));
+  private static final Service GREETER_SERVICE_METADATA = Service.service(GREETER).descriptor(HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
+  private static final Service STREAMING_SERVICE_METADATA = Service.service(STREAMING).descriptor(StreamingProto.getDescriptor().findServiceByName("Streaming"));
 
   @Test
   public void testBasicReflection(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
-      .serviceMetadata(GREETER_SERVICE_METADATA)
+      .addService(GREETER_SERVICE_METADATA)
       .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
@@ -89,7 +89,7 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testReflectionDisabled(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx, new GrpcServerOptions().setReflectionEnabled(false))
-      .serviceMetadata(GREETER_SERVICE_METADATA)
+      .addService(GREETER_SERVICE_METADATA)
       .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
@@ -136,7 +136,7 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testFileByFilename(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
-      .serviceMetadata(GREETER_SERVICE_METADATA)
+      .addService(GREETER_SERVICE_METADATA)
       .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
@@ -187,7 +187,7 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testFileContainingSymbol(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
-      .serviceMetadata(GREETER_SERVICE_METADATA)
+      .addService(GREETER_SERVICE_METADATA)
       .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
@@ -234,7 +234,7 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testFileContainingExtension(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
-      .serviceMetadata(GREETER_SERVICE_METADATA)
+      .addService(GREETER_SERVICE_METADATA)
       .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
@@ -292,7 +292,7 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testAllExtensionNumbersOfType(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
-      .serviceMetadata(GREETER_SERVICE_METADATA)
+      .addService(GREETER_SERVICE_METADATA)
       .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
@@ -345,7 +345,7 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testAdvancedReflection(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
-      .serviceMetadata(GREETER_SERVICE_METADATA)
+      .addService(GREETER_SERVICE_METADATA)
       .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
@@ -401,9 +401,9 @@ public class ServerReflectionTest extends ServerTestBase {
         @Override
         public void onNext(ServerReflectionResponse response) {
           should.assertTrue(response.hasFileDescriptorResponse(),
-            "Response for service " + serviceName + " should contain file descriptor");
+            "Response for name " + serviceName + " should contain file descriptor");
           should.assertTrue(response.getFileDescriptorResponse().getFileDescriptorProtoCount() > 0,
-            "File descriptor for service " + serviceName + " should not be empty");
+            "File descriptor for name " + serviceName + " should not be empty");
         }
 
         @Override
@@ -431,7 +431,7 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testServiceMethodReflection(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
-      .serviceMetadata(GREETER_SERVICE_METADATA)
+      .addService(GREETER_SERVICE_METADATA)
       .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
@@ -482,8 +482,8 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testReflectionWithMultipleServices(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
-      .serviceMetadata(GREETER_SERVICE_METADATA)
-      .serviceMetadata(STREAMING_SERVICE_METADATA)
+      .addService(GREETER_SERVICE_METADATA)
+      .addService(STREAMING_SERVICE_METADATA)
       .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
@@ -523,8 +523,8 @@ public class ServerReflectionTest extends ServerTestBase {
           }
         }
 
-        should.assertTrue(foundService1, "First service should be listed");
-        should.assertTrue(foundService2, "Second service should be listed");
+        should.assertTrue(foundService1, "First name should be listed");
+        should.assertTrue(foundService2, "Second name should be listed");
       }
 
       @Override

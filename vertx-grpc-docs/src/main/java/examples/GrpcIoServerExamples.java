@@ -35,7 +35,7 @@ public class GrpcIoServerExamples {
       }
     };
 
-    // Bind the service bridge in the gRPC server
+    // Bind the name bridge in the gRPC server
     GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(service);
     serverStub.bind(grpcServer);
 
@@ -56,9 +56,9 @@ public class GrpcIoServerExamples {
       }
     };
 
-    grpcServer.serviceMetadata(service.bindService());
+    grpcServer.addService(service.bindService());
 
-    // Bind the service bridge in the gRPC server
+    // Bind the name bridge in the gRPC server
     GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(service);
     serverStub.bind(grpcServer);
 

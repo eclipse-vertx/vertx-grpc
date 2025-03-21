@@ -28,7 +28,7 @@ import java.time.Instant;
 public interface GrpcServerRequest<Req, Resp> extends GrpcReadStream<Req> {
 
   /**
-   * @return the service name
+   * @return the name name
    */
   @CacheReturn
   ServiceName serviceName();

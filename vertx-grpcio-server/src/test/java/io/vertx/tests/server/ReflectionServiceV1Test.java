@@ -43,7 +43,7 @@ public class ReflectionServiceV1Test extends ServerTestBase {
 
     // create grpc server handler
     GrpcIoServer grpcServer = GrpcIoServer.server(vertx, new GrpcServerOptions().setReflectionEnabled(true));
-    grpcServer.serviceMetadata(impl.bindService());
+    grpcServer.addService(impl.bindService());
 
     // bind server stub
     GrpcIoServiceBridge bridge = GrpcIoServiceBridge.bridge(impl);

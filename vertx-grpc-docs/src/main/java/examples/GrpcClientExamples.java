@@ -30,7 +30,7 @@ public class GrpcClientExamples {
     ServiceMethod<HelloReply, HelloRequest> sayHelloMethod = GreeterClient.SayHello;
     Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, sayHelloMethod);
     fut.onSuccess(request -> {
-      // The end method calls the service
+      // The end method calls the name
       request.end(HelloRequest.newBuilder().setName("Bob").build());
     });
   }
@@ -214,7 +214,7 @@ public class GrpcClientExamples {
 
   public void requestWithDeadline(Vertx vertx) {
 
-    // Set a 10 seconds timeout that will be sent to the gRPC service
+    // Set a 10 seconds timeout that will be sent to the gRPC name
     // Let the client schedule a deadline
     GrpcClient client = GrpcClient.client(vertx, new GrpcClientOptions()
       .setTimeout(10)
@@ -228,7 +228,7 @@ public class GrpcClientExamples {
     fut.onSuccess(request -> {
 
       request
-        // Given this request, set a 10 seconds timeout that will be sent to the gRPC service
+        // Given this request, set a 10 seconds timeout that will be sent to the gRPC name
         .timeout(10, TimeUnit.SECONDS);
 
       request.end(HelloRequest.newBuilder().setName("Bob").build());
@@ -242,7 +242,7 @@ public class GrpcClientExamples {
 
     requestFut.onSuccess(request -> {
 
-      // Set the service name and the method to call
+      // Set the name name and the method to call
       request.serviceName(ServiceName.create("helloworld", "Greeter"));
       request.methodName("SayHello");
 
@@ -265,7 +265,7 @@ public class GrpcClientExamples {
 
     requestFut.onSuccess(request -> {
 
-      // Set the service name and the method to call
+      // Set the name name and the method to call
       request.serviceName(ServiceName.create("helloworld", "Greeter"));
       request.methodName("SayHello");
 

@@ -9,7 +9,7 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.Service;
+import io.vertx.grpc.server.Service;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServer;
@@ -30,11 +30,14 @@ import java.util.List;
  */
 public class StreamingService {
 
+  public static final ServiceName SERVICE_NAME = ServiceName.create("streaming", "");
+
+
   /**
    * Source protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.Empty, examples.Item> Source = ServiceMethod.server(
-    ServiceName.create("streaming", ""),
+    SERVICE_NAME,
     "Source",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Empty.parser()));
@@ -43,7 +46,7 @@ public class StreamingService {
    * Sink protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.Item, examples.Empty> Sink = ServiceMethod.server(
-    ServiceName.create("streaming", ""),
+    SERVICE_NAME,
     "Sink",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
@@ -52,7 +55,7 @@ public class StreamingService {
    * Pipe protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.server(
-    ServiceName.create("streaming", ""),
+    SERVICE_NAME,
     "Pipe",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
@@ -69,21 +72,6 @@ public class StreamingService {
   }
 
   /**
-  * Service metadata.
-  */
-  public static final class Metadata implements Service {
-    @Override
-    public ServiceName service() {
-      return ServiceName.create("streaming", "");
-    }
-
-    @Override
-    public Descriptors.ServiceDescriptor serviceDescriptor() {
-      return StreamingProto.getDescriptor().findServiceByName("");
-    }
-  }
-
-  /**
    * Json server service methods.
    */
   public static final class Json {
@@ -92,7 +80,7 @@ public class StreamingService {
      * Source json RPC server service method.
      */
     public static final ServiceMethod<examples.Empty, examples.Item> Source = ServiceMethod.server(
-      ServiceName.create("streaming", ""),
+      SERVICE_NAME,
       "Source",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
@@ -101,7 +89,7 @@ public class StreamingService {
      * Sink json RPC server service method.
      */
     public static final ServiceMethod<examples.Item, examples.Empty> Sink = ServiceMethod.server(
-      ServiceName.create("streaming", ""),
+      SERVICE_NAME,
       "Sink",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
@@ -110,7 +98,7 @@ public class StreamingService {
      * Pipe json RPC server service method.
      */
     public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.server(
-      ServiceName.create("streaming", ""),
+      SERVICE_NAME,
       "Pipe",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
@@ -221,18 +209,22 @@ public class StreamingService {
       return null;
     }
 
-    private <Req, Resp> void bindHandler(GrpcServer server, ServiceMethod<Req, Resp> serviceMethod) {
+    private <Req, Resp> void bindHandler(Service service, ServiceMethod<Req, Resp> serviceMethod) {
       Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
-      server.callHandler(serviceMethod, handler);
+      service.callHandler(serviceMethod, handler);
     }
 
     /**
      * Bind the contained service methods to the {@code server}.
      */
     public void to(GrpcServer server) {
+      Service service = Service.service(SERVICE_NAME);
+      service.descriptor(StreamingProto.getDescriptor().findServiceByName(""));
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-        bindHandler(server, serviceMethod);
+          bindHandler(service, serviceMethod);
       }
+
+      server.addService(service);
     }
   }
 

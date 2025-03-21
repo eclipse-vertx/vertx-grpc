@@ -41,14 +41,14 @@ public class GrpcServerImpl implements GrpcServer {
   private final GrpcServerOptions options;
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
 
-  private final List<Service> serviceMetadata = new ArrayList<>();
+  private final List<Service> services = new ArrayList<>();
   private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
   private final List<Mount> mounts = new ArrayList<>();
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
 
-    if(this.options.isReflectionEnabled()) {
+    if (this.options.isReflectionEnabled()) {
       this.callHandler(GrpcServerReflectionHandler.SERVICE_METHOD, new GrpcServerReflectionHandler(this));
     }
   }
@@ -57,6 +57,7 @@ public class GrpcServerImpl implements GrpcServer {
   private static class Details {
     final GrpcProtocol protocol;
     final WireFormat format;
+
     Details(GrpcProtocol protocol, WireFormat format) {
       this.protocol = protocol;
       this.format = format;
@@ -66,10 +67,12 @@ public class GrpcServerImpl implements GrpcServer {
   private class Mount<Req, Resp> {
     final MountPoint<Req, Resp> mountPoint;
     final Handler<GrpcServerRequest<Req, Resp>> handler;
+
     Mount(MountPoint<Req, Resp> mountPoint, Handler<GrpcServerRequest<Req, Resp>> handler) {
       this.mountPoint = mountPoint;
       this.handler = handler;
     }
+
     boolean invoke(HttpServerRequest httpRequest) {
       GrpcInvocation<Req, Resp> invocation = mountPoint.accept(httpRequest);
       if (invocation != null) {
@@ -136,7 +139,7 @@ public class GrpcServerImpl implements GrpcServer {
       return;
     }
 
-    // Exact service lookup first
+    // Exact name lookup first
     GrpcMethodCall methodCall = new GrpcMethodCall(httpRequest.path());
     MethodCallHandler<?, ?> mch = findMethodCallHandler(methodCall, details.format);
     if (mch != null) {
@@ -240,8 +243,8 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   private <Req, Resp> void handle(GrpcServerRequestImpl<Req, Resp> grpcRequest,
-                                  GrpcServerResponseImpl<Req, Resp> grpcResponse,
-                                  Handler<GrpcServerRequest<Req, Resp>> handler) {
+    GrpcServerResponseImpl<Req, Resp> grpcResponse,
+    Handler<GrpcServerRequest<Req, Resp>> handler) {
     if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
       long deadline = System.currentTimeMillis() + grpcRequest.timeout;
       grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
@@ -278,7 +281,7 @@ public class GrpcServerImpl implements GrpcServer {
         if (prev == null) {
           prev = new ArrayList<>();
         }
-        for (int i = 0;i < prev.size();i++) {
+        for (int i = 0; i < prev.size(); i++) {
           MethodCallHandler<?, ?> a = prev.get(i);
           if (a.messageDecoder.format() == serviceMethod.decoder().format() && a.messageEncoder.format() == serviceMethod.encoder().format()) {
             prev.set(i, p);
@@ -291,7 +294,7 @@ public class GrpcServerImpl implements GrpcServer {
     } else {
       methodCallHandlers.compute(serviceMethod.fullMethodName(), (key, prev) -> {
         if (prev != null) {
-          for (int i = 0;i < prev.size();i++) {
+          for (int i = 0; i < prev.size(); i++) {
             MethodCallHandler<?, ?> a = prev.get(i);
             if (a.messageDecoder.format() == serviceMethod.decoder().format() && a.messageEncoder.format() == serviceMethod.encoder().format()) {
               prev.remove(i);
@@ -309,21 +312,22 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   @Override
-  public GrpcServer serviceMetadata(Service service) {
-    for (Service metadata : this.serviceMetadata) {
-      if (metadata.service().equals(service.service())) {
-        throw new IllegalStateException("Duplicated service: " + service.service().name());
+  public GrpcServer addService(Service service) {
+    for (Service s : this.services) {
+      if (s.name().equals(service.name())) {
+        throw new IllegalStateException("Duplicated name: " + service.name().name());
       }
     }
 
-    this.serviceMetadata.add(service);
+    this.services.add(service);
+    service.bind(this);
 
     return this;
   }
 
   @Override
-  public List<Service> serviceMetadata() {
-    return Collections.unmodifiableList(serviceMetadata);
+  public List<Service> getServices() {
+    return Collections.unmodifiableList(services);
   }
 
   private static class MethodCallHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {

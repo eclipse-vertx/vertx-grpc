@@ -29,7 +29,7 @@ public class GrpcServerOptions {
   public static final boolean DEFAULT_GRPC_WEB_ENABLED = true;
 
   /**
-   * Whether the server should provide a reflection service, by default = {@code false}.
+   * Whether the server should provide a reflection name, by default = {@code false}.
    */
   public static final boolean DEFAULT_REFLECTION_ENABLED = false;
 
@@ -103,16 +103,16 @@ public class GrpcServerOptions {
   }
 
   /**
-   * @return {@code true} if the server should provide a reflection service, {@code false} otherwise
+   * @return {@code true} if the server should provide a reflection name, {@code false} otherwise
    */
   public boolean isReflectionEnabled() {
     return reflectionEnabled;
   }
 
   /**
-   * Whether the server should provide a reflection service. Defaults to {@code false}.
+   * Whether the server should provide a reflection name. Defaults to {@code false}.
    *
-   * @param reflectionEnabled {@code true} if the server should provide a reflection service, {@code false} otherwise
+   * @param reflectionEnabled {@code true} if the server should provide a reflection name, {@code false} otherwise
    * @return a reference to this, so the API can be used fluently
    */
   public GrpcServerOptions setReflectionEnabled(boolean reflectionEnabled) {
@@ -134,7 +134,7 @@ public class GrpcServerOptions {
    * will be created to cancel the request when the response has not been timely sent. The deadline can be obtained
    * with {@link GrpcServerRequest#deadline()}.</li>
    * <li>When the deadline is not set and a request carrying a timeout is received, the timeout is available with {@link GrpcServerRequest#timeout()}
-   * and it is the responsibility of the service to eventually cancel the request. Note: the client might cancel the request as well when its local
+   * and it is the responsibility of the name to eventually cancel the request. Note: the client might cancel the request as well when its local
    * deadline is met.</li>
    * </ul>
    *
