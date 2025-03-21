@@ -63,9 +63,10 @@ public class ServerReflectionTest extends ServerTestBase {
     StreamObserver<ServerReflectionRequest> streamObserver = stub.serverReflectionInfo(new StreamObserver<>() {
       @Override
       public void onNext(ServerReflectionResponse serverReflectionResponse) {
-        ListServiceResponse listServicesResponse = serverReflectionResponse.getListServicesResponse();
-        should.assertEquals(1, listServicesResponse.getServiceCount());
-        should.assertEquals("helloworld.Greeter", listServicesResponse.getService(0).getName());
+        ListServiceResponse response = serverReflectionResponse.getListServicesResponse();
+        should.assertEquals(2, response.getServiceCount());
+        response.getServiceList().stream().filter(service -> service.getName().equals("helloworld.Greeter")).findFirst().orElseThrow();
+        response.getServiceList().stream().filter(service -> service.getName().equals("grpc.reflection.v1.ServerReflection")).findFirst().orElseThrow();
       }
 
       @Override
@@ -510,7 +511,7 @@ public class ServerReflectionTest extends ServerTestBase {
       @Override
       public void onNext(ServerReflectionResponse response) {
         ListServiceResponse listServicesResponse = response.getListServicesResponse();
-        should.assertEquals(2, listServicesResponse.getServiceCount(), "Should have two services");
+        should.assertEquals(3, listServicesResponse.getServiceCount(), "Should have two services");
 
         boolean foundService1 = false;
         boolean foundService2 = false;

@@ -10,6 +10,7 @@
  */
 package io.vertx.grpc.server.impl;
 
+import io.grpc.reflection.v1.ServerReflectionProto;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -35,6 +36,7 @@ import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 public class GrpcServerImpl implements GrpcServer {
 
   private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("application/grpc(-web(-text)?)?(\\+(json|proto))?");
+  private static final Service REFLECTION_SERVICE = Service.service(ServiceName.create("grpc.reflection.v1.ServerReflection")).descriptor(ServerReflectionProto.getDescriptor().findServiceByName("ServerReflection"));
 
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
@@ -50,6 +52,7 @@ public class GrpcServerImpl implements GrpcServer {
 
     if (this.options.isReflectionEnabled()) {
       this.callHandler(GrpcServerReflectionHandler.SERVICE_METHOD, new GrpcServerReflectionHandler(this));
+      this.addService(REFLECTION_SERVICE);
     }
   }
 
