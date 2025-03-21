@@ -160,7 +160,7 @@ public class GreeterService {
       Service service = Service.service(SERVICE_NAME);
       service.descriptor(HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-          bindHandler(service, serviceMethod);
+        bindHandler(service, serviceMethod);
       }
 
       server.addService(service);
