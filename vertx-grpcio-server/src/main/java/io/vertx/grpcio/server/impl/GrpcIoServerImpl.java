@@ -65,7 +65,7 @@ public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
       throw new IllegalArgumentException("Service definition must have a FileDescriptor");
     }
 
-    Service metadata = Service.service(ServiceName.create(definition.getServiceDescriptor().getName())).descriptor(supplier.getServiceDescriptor());
+    Service metadata = Service.service(ServiceName.create(definition.getServiceDescriptor().getName()), supplier.getServiceDescriptor());
     super.addService(metadata);
     return this;
   }

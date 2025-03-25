@@ -38,8 +38,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class ServerReflectionTest extends ServerTestBase {
 
-  private static final Service GREETER_SERVICE_METADATA = Service.service(GREETER).descriptor(HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
-  private static final Service STREAMING_SERVICE_METADATA = Service.service(STREAMING).descriptor(StreamingProto.getDescriptor().findServiceByName("Streaming"));
+  private static final Service GREETER_SERVICE_METADATA = Service.service(GREETER, HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
+  private static final Service STREAMING_SERVICE_METADATA = Service.service(STREAMING,StreamingProto.getDescriptor().findServiceByName("Streaming"));
 
   @Test
   public void testBasicReflection(TestContext should) throws StatusException, InterruptedException, TimeoutException {

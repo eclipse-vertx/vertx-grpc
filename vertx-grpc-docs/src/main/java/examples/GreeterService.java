@@ -9,13 +9,15 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.server.Service;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.Service;
 
 import com.google.protobuf.Descriptors;
 
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -26,7 +28,7 @@ import java.util.List;
  *   <li>SayHello</li>
  * </ul>
  */
-public class GreeterService {
+public class GreeterService implements Service {
 
   public static final ServiceName SERVICE_NAME = ServiceName.create("helloworld", "Greeter");
 
@@ -47,6 +49,30 @@ public class GreeterService {
     java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
     all.add(SayHello);
     return all;
+  }
+
+  private final List<ServiceMethodData<?, ?>> handlers = new LinkedList<>();
+
+  @Override
+  public ServiceName name() {
+    return SERVICE_NAME;
+  }
+
+  @Override
+  public Descriptors.ServiceDescriptor descriptor() {
+    return HelloWorldProto.getDescriptor().findServiceByName("Greeter");
+  }
+
+  @Override
+  public <Req, Resp> Service callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    handlers.add(new Service.ServiceMethodData<>(serviceMethod, handler));
+    return this;
+  }
+
+  @Override
+  public Service bind(GrpcServer server) {
+    handlers.forEach(h -> h.bind(server));
+    return this;
   }
 
   /**
@@ -148,22 +174,20 @@ public class GreeterService {
       return null;
     }
 
-    private <Req, Resp> void bindHandler(Service service, ServiceMethod<Req, Resp> serviceMethod) {
+    private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod) {
       Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
-      service.callHandler(serviceMethod, handler);
+      GreeterService.this.callHandler(serviceMethod, handler);
     }
 
     /**
      * Bind the contained service methods to the {@code server}.
      */
     public void to(GrpcServer server) {
-      Service service = Service.service(SERVICE_NAME);
-      service.descriptor(HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-        bindHandler(service, serviceMethod);
+        bindHandler(serviceMethod);
       }
 
-      server.addService(service);
+      server.addService(GreeterService.this);
     }
   }
 

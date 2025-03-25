@@ -9,13 +9,15 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.server.Service;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.Service;
 
 import com.google.protobuf.Descriptors;
 
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -28,7 +30,7 @@ import java.util.List;
  *   <li>Pipe</li>
  * </ul>
  */
-public class StreamingService {
+public class StreamingService implements Service {
 
   public static final ServiceName SERVICE_NAME = ServiceName.create("streaming", "Streaming");
 
@@ -69,6 +71,30 @@ public class StreamingService {
     all.add(Sink);
     all.add(Pipe);
     return all;
+  }
+
+  private final List<ServiceMethodData<?, ?>> handlers = new LinkedList<>();
+
+  @Override
+  public ServiceName name() {
+    return SERVICE_NAME;
+  }
+
+  @Override
+  public Descriptors.ServiceDescriptor descriptor() {
+    return StreamingProto.getDescriptor().findServiceByName("Streaming");
+  }
+
+  @Override
+  public <Req, Resp> Service callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    handlers.add(new Service.ServiceMethodData<>(serviceMethod, handler));
+    return this;
+  }
+
+  @Override
+  public Service bind(GrpcServer server) {
+    handlers.forEach(h -> h.bind(server));
+    return this;
   }
 
   /**
@@ -209,22 +235,20 @@ public class StreamingService {
       return null;
     }
 
-    private <Req, Resp> void bindHandler(Service service, ServiceMethod<Req, Resp> serviceMethod) {
+    private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod) {
       Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
-      service.callHandler(serviceMethod, handler);
+      StreamingService.this.callHandler(serviceMethod, handler);
     }
 
     /**
      * Bind the contained service methods to the {@code server}.
      */
     public void to(GrpcServer server) {
-      Service service = Service.service(SERVICE_NAME);
-      service.descriptor(StreamingProto.getDescriptor().findServiceByName("Streaming"));
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-        bindHandler(service, serviceMethod);
+        bindHandler(serviceMethod);
       }
 
-      server.addService(service);
+      server.addService(StreamingService.this);
     }
   }
 

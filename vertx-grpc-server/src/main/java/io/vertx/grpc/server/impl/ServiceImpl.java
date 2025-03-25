@@ -15,11 +15,12 @@ public class ServiceImpl implements Service {
 
   private final ServiceName serviceName;
 
-  private Descriptors.ServiceDescriptor descriptor;
-  private final List<ServiceMethodData<?, ?>> handlers = new LinkedList<>();
+  private final Descriptors.ServiceDescriptor descriptor;
+  private final List<Service.ServiceMethodData<?, ?>> handlers = new LinkedList<>();
 
-  public ServiceImpl(ServiceName serviceName) {
+  public ServiceImpl(ServiceName serviceName, Descriptors.ServiceDescriptor descriptor) {
     this.serviceName = serviceName;
+    this.descriptor = descriptor;
   }
 
   @Override
@@ -33,14 +34,8 @@ public class ServiceImpl implements Service {
   }
 
   @Override
-  public Service descriptor(Descriptors.ServiceDescriptor serviceDescriptor) {
-    this.descriptor = serviceDescriptor;
-    return this;
-  }
-
-  @Override
   public <Req, Resp> Service callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-    handlers.add(new ServiceMethodData<>(serviceMethod, handler));
+    handlers.add(new Service.ServiceMethodData<>(serviceMethod, handler));
     return this;
   }
 
@@ -48,27 +43,5 @@ public class ServiceImpl implements Service {
   public Service bind(GrpcServer server) {
     handlers.forEach(h -> h.bind(server));
     return this;
-  }
-
-  private static final class ServiceMethodData<Req, Resp> {
-    private final ServiceMethod<Req, Resp> serviceMethod;
-    private final Handler<GrpcServerRequest<Req, Resp>> handler;
-
-    private ServiceMethodData(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-      this.serviceMethod = serviceMethod;
-      this.handler = handler;
-    }
-
-    private ServiceMethod<Req, Resp> serviceMethod() {
-      return serviceMethod;
-    }
-
-    private Handler<GrpcServerRequest<Req, Resp>> handler() {
-      return handler;
-    }
-
-    private void bind(GrpcServer server) {
-      server.callHandler(serviceMethod, handler);
-    }
   }
 }

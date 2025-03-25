@@ -23,10 +23,11 @@ public interface Service {
    * Creates a new Service instance with the specified service name and descriptor.
    *
    * @param serviceName the name of the gRPC service
+   * @param descriptor the service descriptor
    * @return a new Service instance
    */
-  static Service service(ServiceName serviceName) {
-    return new ServiceImpl(serviceName);
+  static Service service(ServiceName serviceName, Descriptors.ServiceDescriptor descriptor) {
+    return new ServiceImpl(serviceName, descriptor);
   }
 
   /**
@@ -42,14 +43,6 @@ public interface Service {
    * @return the service descriptor
    */
   Descriptors.ServiceDescriptor descriptor();
-
-  /**
-   * Set the {@link Descriptors.ServiceDescriptor} for this service.
-   *
-   * @param descriptor the service descriptor
-   * @return a reference to this, so the API can be used fluently
-   */
-  Service descriptor(Descriptors.ServiceDescriptor descriptor);
 
   /**
    * Set a service method call handler that handles any call made to the server for the {@code fullMethodName } name method.
@@ -112,5 +105,52 @@ public interface Service {
       throw new IllegalArgumentException("Method not found: " + methodName);
     }
     return name().pathOf(methodName);
+  }
+
+  /**
+   * Contains data about a service method and its associated request handler.
+   * This class is used internally to store the mapping between a gRPC service method
+   * and the handler that processes requests for that method.
+   *
+   * @param <Req> the request type for the service method
+   * @param <Resp> the response type for the service method
+   */
+  final class ServiceMethodData<Req, Resp> {
+    private final ServiceMethod<Req, Resp> serviceMethod;
+    private final Handler<GrpcServerRequest<Req, Resp>> handler;
+
+    public ServiceMethodData(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+      this.serviceMethod = serviceMethod;
+      this.handler = handler;
+    }
+
+    /**
+     * Gets the service method.
+     *
+     * @return the service method
+     */
+    private ServiceMethod<Req, Resp> serviceMethod() {
+      return serviceMethod;
+    }
+
+    /**
+     * Gets the handler for the service method.
+     *
+     * @return the handler that processes requests for the service method
+     */
+    private Handler<GrpcServerRequest<Req, Resp>> handler() {
+      return handler;
+    }
+
+    /**
+     * Binds this service method and its handler to the specified gRPC server.
+     * This registers the handler with the server so that it can process requests
+     * for the service method.
+     *
+     * @param server the gRPC server to bind to
+     */
+    public void bind(GrpcServer server) {
+      server.callHandler(serviceMethod, handler);
+    }
   }
 }
