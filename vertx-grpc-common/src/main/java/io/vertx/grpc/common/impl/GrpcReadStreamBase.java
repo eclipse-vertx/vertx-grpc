@@ -72,7 +72,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     this.encoding = encoding;
     this.stream = stream;
     this.format = format;
-    this.queue = new InboundMessageChannel<>(ctx.eventLoop(), ctx.executor(), 8, 16) {
+    this.queue = new InboundMessageChannel<>(ctx.executor(), ctx.executor(), 8, 16) {
       @Override
       protected void handleResume() {
         stream.resume();

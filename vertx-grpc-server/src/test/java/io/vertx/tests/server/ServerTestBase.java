@@ -15,6 +15,7 @@ import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.examples.streaming.Empty;
 import io.grpc.examples.streaming.Item;
+import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
@@ -25,8 +26,6 @@ import io.vertx.tests.common.GrpcTestBase;
 import junit.framework.AssertionFailedError;
 import org.junit.runner.RunWith;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -67,31 +66,26 @@ public abstract class ServerTestBase extends GrpcTestBase {
     super.tearDown(should);
   }
 
+  protected HttpServer createServer(HttpServerOptions options, GrpcServer server) {
+    return vertx.createHttpServer(options)
+      .requestHandler(server);
+  }
+
+  protected HttpServer createServer(GrpcServer server) {
+    return vertx.createHttpServer(new HttpServerOptions().setPort(8080).setHost("localhost"))
+      .requestHandler(server);
+  }
+
   protected void startServer(GrpcServer server) {
     startServer(new HttpServerOptions().setPort(8080).setHost("localhost"), server);
   }
 
   protected void startServer(HttpServerOptions options, GrpcServer server) {
-    CompletableFuture<Void> res = new CompletableFuture<>();
-    vertx.createHttpServer(options).requestHandler(server).listen()
-      .onComplete(ar -> {
-        if (ar.succeeded()) {
-          res.complete(null);
-        } else {
-          res.completeExceptionally(ar.cause());
-        }
-      });
+    HttpServer httpServer = createServer(options, server);
     try {
-      res.get(20, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      AssertionFailedError afe = new AssertionFailedError();
-      afe.initCause(e);
-      throw afe;
-    } catch (ExecutionException e) {
-      AssertionFailedError afe = new AssertionFailedError();
-      afe.initCause(e.getCause());
-      throw afe;
+      httpServer
+        .listen()
+        .await(20, TimeUnit.SECONDS);
     } catch (TimeoutException e) {
       AssertionFailedError afe = new AssertionFailedError();
       afe.initCause(e);
