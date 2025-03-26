@@ -25,8 +25,8 @@ import java.io.InputStream;
 
 public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
 
-  private MethodDescriptor.Marshaller<T> marshaller;
-  private Decompressor decompressor;
+  private final MethodDescriptor.Marshaller<T> marshaller;
+  private final Decompressor decompressor;
 
   public BridgeMessageDecoder(MethodDescriptor.Marshaller<T> marshaller, Decompressor decompressor) {
     this.marshaller = marshaller;

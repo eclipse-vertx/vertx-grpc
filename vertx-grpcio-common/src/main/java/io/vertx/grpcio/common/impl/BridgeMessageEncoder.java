@@ -25,8 +25,8 @@ import java.io.OutputStream;
 
 public class BridgeMessageEncoder<T> implements GrpcMessageEncoder<T> {
 
-  private MethodDescriptor.Marshaller<T> marshaller;
-  private Compressor compressor;
+  private final MethodDescriptor.Marshaller<T> marshaller;
+  private final Compressor compressor;
 
   public BridgeMessageEncoder(MethodDescriptor.Marshaller<T> marshaller, Compressor compressor) {
     this.marshaller = marshaller;
