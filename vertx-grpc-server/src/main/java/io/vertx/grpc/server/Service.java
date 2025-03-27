@@ -2,10 +2,8 @@ package io.vertx.grpc.server;
 
 import com.google.protobuf.Descriptors;
 import io.vertx.codegen.annotations.GenIgnore;
-import io.vertx.core.Handler;
-import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.server.impl.ServiceImpl;
+import io.vertx.grpc.server.impl.ServiceBuilderImpl;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,8 +24,8 @@ public interface Service {
    * @param descriptor the service descriptor
    * @return a new Service instance
    */
-  static Service service(ServiceName serviceName, Descriptors.ServiceDescriptor descriptor) {
-    return new ServiceImpl(serviceName, descriptor);
+  static ServiceBuilder service(ServiceName serviceName, Descriptors.ServiceDescriptor descriptor) {
+    return new ServiceBuilderImpl(serviceName, descriptor);
   }
 
   /**
@@ -45,22 +43,13 @@ public interface Service {
   Descriptors.ServiceDescriptor descriptor();
 
   /**
-   * Set a service method call handler that handles any call made to the server for the {@code fullMethodName } name method.
-   *
-   * @param handler the service method call handler
-   * @param serviceMethod the service method
-   * @return a reference to this, so the API can be used fluently
-   */
-  <Req, Resp> Service callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
-
-  /**
    * Binds this service and all its registered method handlers to the specified gRPC server.
    * This allows the server to handle requests for this service.
    *
    * @param server the gRPC server to bind this service to
    * @return a reference to this, so the API can be used fluently
    */
-  Service bind(GrpcServer server);
+  void bind(GrpcServer server);
 
   /**
    * Get a list of all method descriptors for this service.
@@ -105,52 +94,5 @@ public interface Service {
       throw new IllegalArgumentException("Method not found: " + methodName);
     }
     return name().pathOf(methodName);
-  }
-
-  /**
-   * Contains data about a service method and its associated request handler.
-   * This class is used internally to store the mapping between a gRPC service method
-   * and the handler that processes requests for that method.
-   *
-   * @param <Req> the request type for the service method
-   * @param <Resp> the response type for the service method
-   */
-  final class ServiceMethodData<Req, Resp> {
-    private final ServiceMethod<Req, Resp> serviceMethod;
-    private final Handler<GrpcServerRequest<Req, Resp>> handler;
-
-    public ServiceMethodData(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-      this.serviceMethod = serviceMethod;
-      this.handler = handler;
-    }
-
-    /**
-     * Gets the service method.
-     *
-     * @return the service method
-     */
-    private ServiceMethod<Req, Resp> serviceMethod() {
-      return serviceMethod;
-    }
-
-    /**
-     * Gets the handler for the service method.
-     *
-     * @return the handler that processes requests for the service method
-     */
-    private Handler<GrpcServerRequest<Req, Resp>> handler() {
-      return handler;
-    }
-
-    /**
-     * Binds this service method and its handler to the specified gRPC server.
-     * This registers the handler with the server so that it can process requests
-     * for the service method.
-     *
-     * @param server the gRPC server to bind to
-     */
-    public void bind(GrpcServer server) {
-      server.callHandler(serviceMethod, handler);
-    }
   }
 }

@@ -8,12 +8,16 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.grpc.server;
+package io.vertx.grpc.reflection;
 
 import com.google.protobuf.Descriptors;
 import io.grpc.reflection.v1.*;
 import io.vertx.core.Handler;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.Service;
 
 import java.util.*;
 import java.util.stream.Collectors;

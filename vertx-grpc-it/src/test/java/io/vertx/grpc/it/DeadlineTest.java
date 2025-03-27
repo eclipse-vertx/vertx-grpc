@@ -74,7 +74,7 @@ public class DeadlineTest extends ProxyTestBase {
       }
     };
     GrpcServer proxy = GrpcServer.server(vertx, serverOptions);
-    service.bind(SayHello).to(proxy);
+    proxy.addService(service);
     HttpServer proxyServer = vertx.createHttpServer().requestHandler(proxy);
     server.flatMap(v -> proxyServer.listen(8081, "localhost")).onComplete(should.asyncAssertSuccess(v -> {
       client.request(SocketAddress.inetSocketAddress(8081, "localhost"), GreeterClient.SayHello)

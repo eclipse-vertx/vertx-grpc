@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.tests.server;
+package io.vertx.tests.reflection;
 
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannelBuilder;
@@ -22,10 +22,11 @@ import io.grpc.reflection.test.*;
 import io.grpc.stub.StreamObserver;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.tests.server.ServerTestBase;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -38,15 +39,21 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class ServerReflectionTest extends ServerTestBase {
 
-  private static final Service GREETER_SERVICE_METADATA = Service.service(GREETER, HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
-  private static final Service STREAMING_SERVICE_METADATA = Service.service(STREAMING,StreamingProto.getDescriptor().findServiceByName("Streaming"));
+  private static final Service GREETER_SERVICE_METADATA = Service
+    .service(GREETER, HelloWorldProto.getDescriptor().findServiceByName("Greeter"))
+    .build();
+
+  private static final Service STREAMING_SERVICE_METADATA = Service
+    .service(STREAMING,StreamingProto.getDescriptor().findServiceByName("Streaming"))
+    .build();
 
   @Test
   public void testBasicReflection(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
-      .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
+      .server(vertx)
       .addService(GREETER_SERVICE_METADATA)
-      .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
+      .addService(new ReflectionService())
+      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
         response
@@ -87,58 +94,12 @@ public class ServerReflectionTest extends ServerTestBase {
   }
 
   @Test
-  public void testReflectionDisabled(TestContext should) throws StatusException, InterruptedException, TimeoutException {
-    startServer(GrpcServer
-      .server(vertx, new GrpcServerOptions().setReflectionEnabled(false))
-      .addService(GREETER_SERVICE_METADATA)
-      .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
-        response
-          .encoding("identity")
-          .end(helloReply);
-      })));
-
-    channel = ManagedChannelBuilder.forAddress("localhost", port)
-      .usePlaintext()
-      .build();
-
-    Async test = should.async();
-    AtomicBoolean errorReceived = new AtomicBoolean(false);
-
-    ServerReflectionGrpc.ServerReflectionStub stub = ServerReflectionGrpc.newStub(channel);
-    StreamObserver<ServerReflectionRequest> streamObserver = stub.serverReflectionInfo(new StreamObserver<>() {
-      @Override
-      public void onNext(ServerReflectionResponse serverReflectionResponse) {
-        should.fail("Should not receive response when reflection is disabled");
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-        errorReceived.set(true);
-        test.complete();
-      }
-
-      @Override
-      public void onCompleted() {
-        if (!errorReceived.get()) {
-          should.fail("Expected error but received completion");
-        }
-      }
-    });
-
-    ServerReflectionRequest request = ServerReflectionRequest.newBuilder().setListServices("").build();
-    streamObserver.onNext(request);
-
-    test.await();
-  }
-
-  @Test
   public void testFileByFilename(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
-      .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
+      .server(vertx)
+      .addService(new ReflectionService())
       .addService(GREETER_SERVICE_METADATA)
-      .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
+      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
         response
@@ -187,9 +148,10 @@ public class ServerReflectionTest extends ServerTestBase {
   @Test
   public void testFileContainingSymbol(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
-      .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
+      .server(vertx)
+      .addService(new ReflectionService())
       .addService(GREETER_SERVICE_METADATA)
-      .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
+      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
         response
@@ -234,9 +196,10 @@ public class ServerReflectionTest extends ServerTestBase {
   @Test
   public void testFileContainingExtension(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
-      .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
+      .server(vertx)
+      .addService(new ReflectionService())
       .addService(GREETER_SERVICE_METADATA)
-      .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
+      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
         response
@@ -292,9 +255,10 @@ public class ServerReflectionTest extends ServerTestBase {
   @Test
   public void testAllExtensionNumbersOfType(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
-      .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
+      .server(vertx)
+      .addService(new ReflectionService())
       .addService(GREETER_SERVICE_METADATA)
-      .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
+      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
         response
@@ -345,9 +309,10 @@ public class ServerReflectionTest extends ServerTestBase {
   @Test
   public void testAdvancedReflection(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
-      .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
+      .server(vertx)
+      .addService(new ReflectionService())
       .addService(GREETER_SERVICE_METADATA)
-      .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
+      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
         response
@@ -431,9 +396,10 @@ public class ServerReflectionTest extends ServerTestBase {
   @Test
   public void testServiceMethodReflection(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
-      .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
+      .server(vertx)
+      .addService(new ReflectionService())
       .addService(GREETER_SERVICE_METADATA)
-      .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
+      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
         response
@@ -482,10 +448,11 @@ public class ServerReflectionTest extends ServerTestBase {
   @Test
   public void testReflectionWithMultipleServices(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
-      .server(vertx, new GrpcServerOptions().setReflectionEnabled(true))
+      .server(vertx)
+      .addService(new ReflectionService())
       .addService(GREETER_SERVICE_METADATA)
       .addService(STREAMING_SERVICE_METADATA)
-      .callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
+      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
         response

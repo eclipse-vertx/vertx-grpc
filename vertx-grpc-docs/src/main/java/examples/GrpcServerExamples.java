@@ -11,6 +11,7 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpc.server.*;
 import io.vertx.grpc.transcoding.TranscodingServiceMethod;
 
@@ -259,7 +260,6 @@ public class GrpcServerExamples {
         return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
       }
     };
-    stub.bind(GreeterService.SayHello).to(server);
   }
 
   public void unaryStub2(GrpcServer server) {
@@ -269,15 +269,17 @@ public class GrpcServerExamples {
         response.complete(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
       }
     };
-    stub.bind(GreeterService.SayHello).to(server);
   }
 
   public void unaryStub3(GreeterService stub, GrpcServer server) {
-    stub.bind(GreeterService.all()).to(server);
+    server.addService(stub);
   }
 
   public void unaryStub4(GreeterService stub, GrpcServer server) {
-    stub.bind(GreeterService.Json.all()).to(server);
+    server.addService(stub
+      .builder()
+      .bind(GreeterService.Json.all())
+      .build());
   }
 
   public void streamingRequestStub(GrpcServer server) {
@@ -291,7 +293,7 @@ public class GrpcServerExamples {
         stream.endHandler(v -> response.complete(Empty.getDefaultInstance()));
       }
     };
-    stub.bind(StreamingService.Sink).to(server);
+    server.addService(stub);
   }
 
   private ReadStream<Item> streamOfItems() {
@@ -317,15 +319,24 @@ public class GrpcServerExamples {
     };
   }
 
-  public void reflectionExample(GrpcServer server) {
-    GreeterService stub = new GreeterService() {
+  public void reflectionExample(Vertx vertx, HttpServerOptions options) {
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+
+    // Add reflection service
+    grpcServer.addService(new ReflectionService());
+
+    GreeterService greeterService = new GreeterService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
         return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
       }
     };
 
-    stub.bind(GreeterService.SayHello).to(server);
-    server.addService(Service.service(GreeterService.SERVICE_NAME,HelloWorldProto.getDescriptor().findServiceByName("Greeter")));
+    grpcServer.addService(greeterService);
+
+    // Start the HTTP/2 server
+    vertx.createHttpServer(options)
+      .requestHandler(grpcServer)
+      .listen();
   }
 }

@@ -79,7 +79,7 @@ public class JsonWireFormatTest extends ProxyTestBase {
 
     GrpcServer grpcServer = GrpcServer.server(vertx);
 
-    greeter.bind(GreeterService.Json.SayHello).to(grpcServer);
+    grpcServer.addService(greeter.builder().bind(GreeterService.Json.SayHello).build());
 
     Future<HttpServer> server = vertx
       .createHttpServer()

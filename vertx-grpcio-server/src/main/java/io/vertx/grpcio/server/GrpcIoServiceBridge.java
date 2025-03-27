@@ -13,12 +13,13 @@ package io.vertx.grpcio.server;
 import io.grpc.BindableService;
 import io.grpc.ServerServiceDefinition;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.Service;
 import io.vertx.grpcio.server.impl.GrpcIoServiceBridgeImpl;
 
 /**
  * Bridge a gRPC service with a {@link GrpcServer}.
  */
-public interface GrpcIoServiceBridge {
+public interface GrpcIoServiceBridge extends Service {
 
   /**
    * Create a stub for a given {@code service}.
@@ -46,6 +47,11 @@ public interface GrpcIoServiceBridge {
    * @param server the server to bind to
    */
   void bind(GrpcIoServer server);
+
+  @Override
+  default void bind(GrpcServer server) {
+    bind((GrpcIoServer) server);
+  }
 
   /**
    * Unbind all service methods from the @{code server}.
