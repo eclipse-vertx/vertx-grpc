@@ -5,6 +5,7 @@ open module io.vertx.tests.transcoding {
   requires io.grpc.stub;
   requires io.grpc.util;
   requires io.grpc.protobuf;
+  requires io.vertx.core;
   requires io.vertx.grpc.transcoding;
   requires io.vertx.grpc.common;
   requires io.vertx.grpc.server;

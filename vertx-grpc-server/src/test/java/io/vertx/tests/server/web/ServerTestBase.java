@@ -23,7 +23,7 @@ import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.tests.common.GrpcTestBase;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.server.GrpcServerOptions;
-import io.vertx.grpcweb.GrpcWebTesting.*;
+import io.vertx.tests.server.grpc.web.*;
 import org.junit.Test;
 
 import java.util.Arrays;

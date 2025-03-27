@@ -6,14 +6,14 @@ open module io.vertx.tests.server {
   requires io.grpc.stub;
   requires io.grpc.util;
   requires io.grpc.protobuf;
+  requires io.vertx.core;
   requires io.vertx.grpc.common;
   requires io.vertx.grpc.server;
   requires io.vertx.testing.unit;
   requires io.vertx.tests.common;
   requires junit;
   requires testcontainers;
-  exports io.vertx.grpcweb;
+  exports io.vertx.tests.server.grpc.web;
   exports io.vertx.tests.server;
-  exports io.grpc.examples.helloworld;
-  exports io.grpc.examples.streaming;
 }
+

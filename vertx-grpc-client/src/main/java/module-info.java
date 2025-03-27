@@ -3,7 +3,8 @@ module io.vertx.grpc.client{
   requires io.netty.codec.http;
   requires io.netty.codec;
   requires io.vertx.core.logging;
-  requires transitive io.vertx.grpc.common;
+  requires io.vertx.core;
+  requires io.vertx.grpc.common;
   requires static io.vertx.docgen;
   requires static io.vertx.codegen.api;
   requires static io.vertx.codegen.json;

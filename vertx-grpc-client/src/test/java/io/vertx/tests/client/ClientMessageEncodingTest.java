@@ -10,7 +10,6 @@
  */
 package io.vertx.tests.client;
 
-import io.grpc.examples.helloworld.GreeterGrpc;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
@@ -25,6 +24,7 @@ import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -84,7 +84,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
     client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"))
       .onComplete(should.asyncAssertSuccess(callRequest -> {
-        callRequest.fullMethodName(GreeterGrpc.getSayHelloMethod().getFullMethodName());
+        callRequest.fullMethodName(TestServiceGrpc.getUnaryMethod().getFullMethodName());
         callRequest.encoding(requestEncoding);
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
           should.assertEquals(GrpcStatus.CANCELLED, callResponse.status());
@@ -107,7 +107,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
     client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"))
       .onComplete(should.asyncAssertSuccess(callRequest -> {
-        callRequest.fullMethodName(GreeterGrpc.getSayHelloMethod().getFullMethodName());
+        callRequest.fullMethodName(TestServiceGrpc.getUnaryMethod().getFullMethodName());
         callRequest.encoding("identity");
         List<GrpcMessage> messages = Arrays.asList(
           GrpcMessage.message("gzip", Buffer.buffer("Hello World")),
@@ -184,7 +184,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
     client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"))
       .onComplete(should.asyncAssertSuccess(callRequest -> {
-        callRequest.fullMethodName(GreeterGrpc.getSayHelloMethod().getFullMethodName());
+        callRequest.fullMethodName(TestServiceGrpc.getUnaryMethod().getFullMethodName());
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
           should.assertEquals("gzip", callResponse.encoding());
           impl.accept(callResponse);

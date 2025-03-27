@@ -323,7 +323,7 @@ public class GrpcServerExamples {
     GrpcServer grpcServer = GrpcServer.server(vertx);
 
     // Add reflection service
-    grpcServer.addService(new ReflectionService());
+    grpcServer.addService(ReflectionService.v1());
 
     GreeterService greeterService = new GreeterService() {
       @Override

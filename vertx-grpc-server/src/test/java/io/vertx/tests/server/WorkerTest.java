@@ -11,10 +11,6 @@
 package io.vertx.tests.server;
 
 import io.grpc.*;
-import io.grpc.examples.helloworld.GreeterGrpc;
-import io.grpc.examples.helloworld.HelloReply;
-import io.grpc.examples.helloworld.HelloRequest;
-import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.VertxInternal;
@@ -22,6 +18,9 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.tests.common.grpc.Reply;
+import io.vertx.tests.common.grpc.Request;
+import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Test;
 
 public class WorkerTest extends ServerTestBase {
@@ -33,10 +32,10 @@ public class WorkerTest extends ServerTestBase {
     worker.runOnContext(v -> {
       HttpServer httpServer = createServer(GrpcServer
         .server(vertx)
-        .callHandler(GREETER_SAY_HELLO, call -> {
+        .callHandler(UNARY, call -> {
         call.handler(helloRequest -> {
-          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-          GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+          Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+          GrpcServerResponse<Request, Reply> response = call.response();
           response.end(helloReply);
         });
       }));
@@ -48,10 +47,10 @@ public class WorkerTest extends ServerTestBase {
       .usePlaintext()
       .build();
 
-    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
 
-    HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
-    HelloReply res = stub.sayHello(request);
+    Request request = Request.newBuilder().setName("Julien").build();
+    Reply res = stub.unary(request);
     should.assertEquals("Hello Julien", res.getMessage());
   }
 }

@@ -11,10 +11,6 @@
 package io.vertx.tests.server;
 
 import io.grpc.ManagedChannel;
-import io.grpc.examples.helloworld.HelloReply;
-import io.grpc.examples.helloworld.HelloRequest;
-import io.grpc.examples.streaming.Empty;
-import io.grpc.examples.streaming.Item;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
@@ -23,14 +19,15 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.tests.common.GrpcTestBase;
+import io.vertx.tests.common.grpc.Empty;
+import io.vertx.tests.common.grpc.Reply;
+import io.vertx.tests.common.grpc.Request;
+import io.vertx.tests.common.grpc.TestConstants;
 import junit.framework.AssertionFailedError;
 import org.junit.runner.RunWith;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import static io.vertx.grpc.common.GrpcMessageDecoder.decoder;
-import static io.vertx.grpc.common.GrpcMessageEncoder.encoder;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -38,23 +35,11 @@ import static io.vertx.grpc.common.GrpcMessageEncoder.encoder;
 @RunWith(VertxUnitRunner.class)
 public abstract class ServerTestBase extends GrpcTestBase {
 
-  public static final ServiceName GREETER = ServiceName.create("helloworld.Greeter");
-  public static final ServiceName STREAMING = ServiceName.create("streaming.Streaming");
-
-  public static final GrpcMessageEncoder<Empty> EMPTY_ENC = encoder();
-  public static final GrpcMessageDecoder<Empty> EMPTY_DEC = decoder(Empty.parser());
-  public static final GrpcMessageEncoder<Item> ITEM_ENC = encoder();
-  public static final GrpcMessageDecoder<Item> ITEM_DEC = decoder(Item.parser());
-  public static final GrpcMessageEncoder<HelloRequest> HELLO_REQUEST_ENC = encoder();
-  public static final GrpcMessageDecoder<HelloRequest> HELLO_REQUEST_DEC = decoder(HelloRequest.parser());
-  public static final GrpcMessageEncoder<HelloReply> HELLO_REPLY_ENC = encoder();
-  public static final GrpcMessageDecoder<HelloReply> HELLO_REPLY_DEC = decoder(HelloReply.parser());
-
-  public static final ServiceMethod<HelloRequest, HelloReply> GREETER_SAY_HELLO = ServiceMethod.server(GREETER, "SayHello", HELLO_REPLY_ENC, HELLO_REQUEST_DEC);
-  public static final ServiceMethod<JsonObject, JsonObject> GREETER_SAY_HELLO_JSON = ServiceMethod.server(GREETER, "SayHello", GrpcMessageEncoder.JSON_OBJECT, GrpcMessageDecoder.JSON_OBJECT);
-  public static final ServiceMethod<Empty, Item> STREAMING_SOURCE = ServiceMethod.server(STREAMING, "Source", ITEM_ENC, EMPTY_DEC);
-  public static final ServiceMethod<Item, Empty> STREAMING_SINK = ServiceMethod.server(STREAMING, "Sink", EMPTY_ENC, ITEM_DEC);
-  public static final ServiceMethod<Item, Item> STREAMING_PIPE = ServiceMethod.server(STREAMING, "Pipe", ITEM_ENC, ITEM_DEC);
+  public static final ServiceMethod<Request, Reply> UNARY = ServiceMethod.server(TestConstants.TEST_SERVICE, "Unary", TestConstants.REPLY_ENC, TestConstants.REQUEST_DEC);
+  public static final ServiceMethod<JsonObject, JsonObject> UNARY_JSON = ServiceMethod.server(TestConstants.TEST_SERVICE, "Unary", GrpcMessageEncoder.JSON_OBJECT, GrpcMessageDecoder.JSON_OBJECT);
+  public static final ServiceMethod<Empty, Reply> SOURCE = ServiceMethod.server(TestConstants.TEST_SERVICE, "Source", TestConstants.REPLY_ENC, TestConstants.EMPTY_DEC);
+  public static final ServiceMethod<Request, Empty> SINK = ServiceMethod.server(TestConstants.TEST_SERVICE, "Sink", TestConstants.EMPTY_ENC, TestConstants.REQUEST_DEC);
+  public static final ServiceMethod<Request, Reply> PIPE = ServiceMethod.server(TestConstants.TEST_SERVICE, "Pipe", TestConstants.REPLY_ENC, TestConstants.REQUEST_DEC);
 
   protected volatile ManagedChannel channel;
 
