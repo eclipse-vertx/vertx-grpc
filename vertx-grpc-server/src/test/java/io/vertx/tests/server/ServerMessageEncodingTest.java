@@ -21,8 +21,6 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.StatusRuntimeException;
-import io.grpc.examples.helloworld.GreeterGrpc;
-import io.grpc.examples.helloworld.HelloRequest;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
@@ -34,6 +32,8 @@ import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.tests.common.GrpcTestBase;
+import io.vertx.tests.common.grpc.Request;
+import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -136,10 +136,10 @@ public class ServerMessageEncodingTest extends ServerTestBase {
       .usePlaintext()
       .build();
 
-    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
-    HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+    Request request = Request.newBuilder().setName("Julien").build();
     try {
-      stub.sayHello(request);
+      stub.unary(request);
     } catch (StatusRuntimeException ignore) {
     }
   }
@@ -243,7 +243,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
       .build();
 
     AtomicReference<String> responseGrpcEncoding = new AtomicReference<>();
-    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(ClientInterceptors.intercept(channel, new ClientInterceptor() {
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(ClientInterceptors.intercept(channel, new ClientInterceptor() {
         @Override
         public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
           return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(next.newCall(method, callOptions)) {
@@ -260,9 +260,9 @@ public class ServerMessageEncodingTest extends ServerTestBase {
           };
         }
       }));
-    HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
+    Request request = Request.newBuilder().setName("Julien").build();
     try {
-      stub.sayHello(request);
+      stub.unary(request);
     } catch (StatusRuntimeException ignore) {
     }
   }

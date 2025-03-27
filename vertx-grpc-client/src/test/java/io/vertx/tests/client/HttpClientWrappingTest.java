@@ -1,9 +1,6 @@
 package io.vertx.tests.client;
 
 import io.grpc.*;
-import io.grpc.examples.helloworld.GreeterGrpc;
-import io.grpc.examples.helloworld.HelloReply;
-import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.http.HttpClientAgent;
@@ -14,6 +11,9 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.common.GrpcReadStream;
+import io.vertx.tests.common.grpc.Reply;
+import io.vertx.tests.common.grpc.Request;
+import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -22,12 +22,12 @@ public class HttpClientWrappingTest extends ClientTestBase {
 
   @Test
   public void testUnary(TestContext should) throws IOException {
-    GreeterGrpc.GreeterImplBase called = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase called = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> plainResponseObserver) {
-        ServerCallStreamObserver<HelloReply> responseObserver =
-          (ServerCallStreamObserver<HelloReply>) plainResponseObserver;
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+      public void unary(Request request, StreamObserver<Reply> plainResponseObserver) {
+        ServerCallStreamObserver<Reply> responseObserver =
+          (ServerCallStreamObserver<Reply>) plainResponseObserver;
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
         responseObserver.onCompleted();
       }
     };
@@ -43,9 +43,9 @@ public class HttpClientWrappingTest extends ClientTestBase {
       .setHost("localhost")
     ).compose(conn -> {
       GrpcClient client = GrpcClient.client(vertx, conn);
-      return client.request(GREETER_SAY_HELLO)
+      return client.request(UNARY)
         .compose(req -> {
-          req.end(HelloRequest.newBuilder().setName("Julien").build());
+          req.end(Request.newBuilder().setName("Julien").build());
           return req.response().compose(GrpcReadStream::last);
         }).eventually(client::close);
     }).onComplete(should.asyncAssertSuccess(reply -> {

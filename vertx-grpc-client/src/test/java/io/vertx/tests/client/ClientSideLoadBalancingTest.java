@@ -11,9 +11,6 @@
 package io.vertx.tests.client;
 
 import io.grpc.*;
-import io.grpc.examples.helloworld.GreeterGrpc;
-import io.grpc.examples.helloworld.HelloReply;
-import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.net.AddressResolver;
@@ -21,6 +18,9 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.common.GrpcReadStream;
+import io.vertx.tests.common.grpc.Reply;
+import io.vertx.tests.common.grpc.Request;
+import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -41,12 +41,12 @@ public class ClientSideLoadBalancingTest extends ClientTestBase {
 
     for (int i = 0;i < numServers;i++) {
       int idx = i;
-      GreeterGrpc.GreeterImplBase called = new GreeterGrpc.GreeterImplBase() {
+      TestServiceGrpc.TestServiceImplBase called = new TestServiceGrpc.TestServiceImplBase() {
         @Override
-        public void sayHello(HelloRequest request, StreamObserver<HelloReply> plainResponseObserver) {
-          ServerCallStreamObserver<HelloReply> responseObserver =
-            (ServerCallStreamObserver<HelloReply>) plainResponseObserver;
-          responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName() + idx).build());
+        public void unary(Request request, StreamObserver<Reply> plainResponseObserver) {
+          ServerCallStreamObserver<Reply> responseObserver =
+            (ServerCallStreamObserver<Reply>) plainResponseObserver;
+          responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName() + idx).build());
           responseObserver.onCompleted();
         }
       };
@@ -62,9 +62,9 @@ public class ClientSideLoadBalancingTest extends ClientTestBase {
 
     List<String> replies = new ArrayList<>();
     for (int i = 0;i < numRequests;i++) {
-      HelloReply reply = client.request(SocketAddress.inetSocketAddress(port, "localhost"), GREETER_SAY_HELLO)
+      Reply reply = client.request(SocketAddress.inetSocketAddress(port, "localhost"), UNARY)
         .compose(req -> req
-          .send(HelloRequest.newBuilder().setName("Julien").build())
+          .send(Request.newBuilder().setName("Julien").build())
           .compose(GrpcReadStream::last)).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
       replies.add(reply.getMessage());
     }

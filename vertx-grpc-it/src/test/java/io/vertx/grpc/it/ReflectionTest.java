@@ -46,7 +46,7 @@ public class ReflectionTest extends GrpcTestBase {
     Service greeterService = Service.service(GreeterService.SERVICE_NAME, HelloWorldProto.getDescriptor().findServiceByName("Greeter")).build();
     GrpcServer grpcServer = GrpcServer.server(vertx);
 
-    grpcServer.addService(new ReflectionService());
+    grpcServer.addService(ReflectionService.v1());
     grpcServer.addService(greeterService);
 
     grpcServer.callHandler(GreeterService.SayHello, call -> {

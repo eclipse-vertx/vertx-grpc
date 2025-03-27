@@ -6,7 +6,6 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.reflection.ReflectionService;
-import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpcio.server.GrpcIoServer;
 import io.vertx.grpcio.server.GrpcIoServiceBridge;
 
@@ -50,7 +49,7 @@ public class GrpcIoServerExamples {
     GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
 
     // Add reflection service
-    grpcServer.addService(new ReflectionService());
+    grpcServer.addService(ReflectionService.v1());
 
     GreeterGrpc.GreeterImplBase greeterImpl = new GreeterGrpc.GreeterImplBase() {
       @Override

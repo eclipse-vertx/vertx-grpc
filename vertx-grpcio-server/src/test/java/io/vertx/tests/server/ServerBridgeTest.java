@@ -11,22 +11,15 @@
 package io.vertx.tests.server;
 
 import io.grpc.*;
-import io.grpc.examples.helloworld.GreeterGrpc;
-import io.grpc.examples.helloworld.HelloReply;
-import io.grpc.examples.helloworld.HelloRequest;
-import io.grpc.examples.streaming.Empty;
-import io.grpc.examples.streaming.Item;
-import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpcio.common.impl.Utils;
 import io.vertx.grpcio.server.GrpcIoServer;
 import io.vertx.grpcio.server.GrpcIoServiceBridge;
+import io.vertx.tests.common.grpc.*;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -39,16 +32,16 @@ public class ServerBridgeTest extends ServerTest {
 
   @Override
   protected void testUnary(TestContext should, String requestEncoding, String responseEncoding) {
-    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
         if (!responseEncoding.equals("identity")) {
           ((ServerCallStreamObserver<?>)responseObserver).setCompression("gzip");
         }
         if (!requestEncoding.equals("identity")) {
           // No way to check the request encoding with the API
         }
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
         responseObserver.onCompleted();
       }
     };
@@ -64,10 +57,10 @@ public class ServerBridgeTest extends ServerTest {
   @Test
   public void testUnaryInterceptor(TestContext should) {
 
-    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
         responseObserver.onCompleted();
       }
     };
@@ -132,9 +125,9 @@ public class ServerBridgeTest extends ServerTest {
   @Override
   public void testStatus(TestContext should) {
 
-    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
         responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
       }
     };
@@ -150,11 +143,11 @@ public class ServerBridgeTest extends ServerTest {
   @Override
   public void testServerStreaming(TestContext should) {
 
-    StreamingGrpc.StreamingImplBase impl = new StreamingGrpc.StreamingImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void source(Empty request, StreamObserver<Item> responseObserver) {
+      public void source(Empty request, StreamObserver<Reply> responseObserver) {
         for (int i = 0; i < NUM_ITEMS; i++) {
-          Item item = Item.newBuilder().setValue("the-value-" + i).build();
+          Reply item = Reply.newBuilder().setMessage("the-value-" + i).build();
           responseObserver.onNext(item);
         }
         responseObserver.onCompleted();
@@ -172,14 +165,14 @@ public class ServerBridgeTest extends ServerTest {
   @Override
   public void testClientStreaming(TestContext should) throws Exception {
 
-    StreamingGrpc.StreamingImplBase impl = new StreamingGrpc.StreamingImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public StreamObserver<Item> sink(StreamObserver<Empty> responseObserver) {
-        return new StreamObserver<Item>() {
+      public StreamObserver<Request> sink(StreamObserver<Empty> responseObserver) {
+        return new StreamObserver<Request>() {
           int seq = 0;
           @Override
-          public void onNext(Item value) {
-            should.assertEquals(value.getValue(), "the-value-" + seq++);
+          public void onNext(Request value) {
+            should.assertEquals(value.getName(), "the-value-" + seq++);
           }
           @Override
           public void onError(Throwable t) {
@@ -206,12 +199,12 @@ public class ServerBridgeTest extends ServerTest {
   @Override
   public void testClientStreamingCompletedBeforeHalfClose(TestContext should) {
 
-    StreamingGrpc.StreamingImplBase impl = new StreamingGrpc.StreamingImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public StreamObserver<Item> sink(StreamObserver<Empty> responseObserver) {
-        return new StreamObserver<Item>() {
+      public StreamObserver<Request> sink(StreamObserver<Empty> responseObserver) {
+        return new StreamObserver<Request>() {
           @Override
-          public void onNext(Item value) {
+          public void onNext(Request value) {
             responseObserver.onCompleted();
           }
           @Override
@@ -238,13 +231,13 @@ public class ServerBridgeTest extends ServerTest {
   @Override
   public void testBidiStreaming(TestContext should) throws Exception {
 
-    StreamingGrpc.StreamingImplBase impl = new StreamingGrpc.StreamingImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public StreamObserver<Item> pipe(StreamObserver<Item> responseObserver) {
-        return new StreamObserver<Item>() {
+      public StreamObserver<Request> pipe(StreamObserver<Reply> responseObserver) {
+        return new StreamObserver<Request>() {
           @Override
-          public void onNext(Item value) {
-            responseObserver.onNext(value);
+          public void onNext(Request value) {
+            responseObserver.onNext(Reply.newBuilder().setMessage(value.getName()).build());
           }
           @Override
           public void onError(Throwable t) {
@@ -269,12 +262,12 @@ public class ServerBridgeTest extends ServerTest {
   @Override
   public void testBidiStreamingCompletedBeforeHalfClose(TestContext should) throws Exception {
 
-    StreamingGrpc.StreamingImplBase impl = new StreamingGrpc.StreamingImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public StreamObserver<Item> pipe(StreamObserver<Item> responseObserver) {
-        return new StreamObserver<Item>() {
+      public StreamObserver<Request> pipe(StreamObserver<Reply> responseObserver) {
+        return new StreamObserver<Request>() {
           @Override
-          public void onNext(Item value) {
+          public void onNext(Request value) {
             responseObserver.onCompleted();
           }
           @Override
@@ -300,10 +293,10 @@ public class ServerBridgeTest extends ServerTest {
   @Override
   public void testMetadata(TestContext should) {
 
-    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
         responseObserver.onCompleted();
       }
     };
@@ -362,7 +355,7 @@ public class ServerBridgeTest extends ServerTest {
   @Override
   public void testTrailersOnly(TestContext should) {
 
-    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
       public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
         Metadata md = new Metadata();
@@ -393,13 +386,13 @@ public class ServerBridgeTest extends ServerTest {
   public void testHandleCancel(TestContext should) {
 
     Async test = should.async();
-    StreamingGrpc.StreamingImplBase impl = new StreamingGrpc.StreamingImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public StreamObserver<Item> pipe(StreamObserver<Item> responseObserver) {
-        return new StreamObserver<Item>() {
+      public StreamObserver<Request> pipe(StreamObserver<Reply> responseObserver) {
+        return new StreamObserver<Request>() {
           @Override
-          public void onNext(Item value) {
-            responseObserver.onNext(value);
+          public void onNext(Request value) {
+            responseObserver.onNext(Reply.newBuilder().setMessage(value.getName()).build());
           }
           @Override
           public void onError(Throwable t) {
@@ -425,9 +418,9 @@ public class ServerBridgeTest extends ServerTest {
   @Test
   public void testTimeoutOnServerBeforeSendingResponse(TestContext should) throws Exception {
     Async async = should.async();
-    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
         Context current = Context.current();
         should.assertNotNull(current.getDeadline());
         async.complete();
@@ -447,10 +440,10 @@ public class ServerBridgeTest extends ServerTest {
 
     AtomicInteger testAttributesStep = new AtomicInteger();
 
-    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
         responseObserver.onCompleted();
       }
     };
@@ -474,42 +467,42 @@ public class ServerBridgeTest extends ServerTest {
     channel = ManagedChannelBuilder.forAddress("localhost", port)
       .usePlaintext()
       .build();
-    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
-    HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
-    HelloReply res = stub.sayHello(request);
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+    Request request = Request.newBuilder().setName("Julien").build();
+    Reply res = stub.unary(request);
     should.assertEquals(1, testAttributesStep.get());
   }
 
   @Test
   public void testJsonMessageFormat(TestContext should) throws Exception {
 
-    MethodDescriptor<HelloRequest, HelloReply> sayHello =
+    MethodDescriptor<Request, Reply> sayHello =
       MethodDescriptor.newBuilder(
-          Utils.<HelloRequest>marshallerFor(HelloRequest::newBuilder),
-          Utils.<HelloReply>marshallerFor(HelloReply::newBuilder))
+          Utils.<Request>marshallerFor(Request::newBuilder),
+          Utils.<Reply>marshallerFor(Reply::newBuilder))
         .setFullMethodName(
-          MethodDescriptor.generateFullMethodName(GREETER.fullyQualifiedName(), "SayHello"))
+          MethodDescriptor.generateFullMethodName(TestConstants.TEST_SERVICE.fullyQualifiedName(), "Unary"))
         .setType(MethodDescriptor.MethodType.UNARY)
         .build();
 
-    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
         responseObserver.onCompleted();
       }
     };
 
     GrpcIoServer server = GrpcIoServer.server(vertx);
     GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(() -> {
-      ServiceDescriptor desc = GreeterGrpc.getServiceDescriptor();
+      ServiceDescriptor desc = TestServiceGrpc.getServiceDescriptor();
       return io.grpc.ServerServiceDefinition.builder(ServiceDescriptor.newBuilder(desc.getName())
           .setSchemaDescriptor(desc.getSchemaDescriptor())
           .addMethod(sayHello)
           .build())
         .addMethod(
           sayHello,
-          ServerCalls.asyncUnaryCall(impl::sayHello))
+          ServerCalls.asyncUnaryCall(impl::unary))
         .build();
     });
     serverStub.bind(server);

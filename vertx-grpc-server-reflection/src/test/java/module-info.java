@@ -6,6 +6,7 @@ open module io.vertx.tests.reflection {
   requires io.grpc.stub;
   requires io.grpc.util;
   requires io.grpc.protobuf;
+  requires io.vertx.core;
   requires io.vertx.grpc.common;
   requires io.vertx.grpc.server;
   requires io.vertx.grpc.reflection;

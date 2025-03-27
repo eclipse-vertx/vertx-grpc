@@ -10,7 +10,7 @@
 //     * Redistributions in binary form must reproduce the above
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
-// distribution.
+// distribution.fs
 //     * Neither the name of Google Inc. nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
@@ -30,24 +30,26 @@
 syntax = "proto3";
 
 option java_multiple_files = true;
-option java_package = "io.grpc.examples.helloworld";
-option java_outer_classname = "HelloWorldProto";
-option objc_class_prefix = "HLW";
+option java_package = "io.vertx.tests.common.grpc";
 
-package helloworld;
+// grpc.testing ?
+package io.vertx.tests.common.grpc.tests;
 
-// The greeting service definition.
-service Greeter {
-  // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {}
+// Interface exported by the server.
+service TestService {
+  rpc Unary (Request) returns (Reply) {}
+  rpc Source(Empty) returns (stream Reply) {}
+  rpc Sink(stream Request) returns (Empty) {}
+  rpc Pipe(stream Request) returns (stream Reply) {}
 }
 
-// The request message containing the user's name.
-message HelloRequest {
+message Empty {
+}
+
+message Request {
   string name = 1;
 }
 
-// The response message containing the greetings
-message HelloReply {
+message Reply {
   string message = 1;
 }

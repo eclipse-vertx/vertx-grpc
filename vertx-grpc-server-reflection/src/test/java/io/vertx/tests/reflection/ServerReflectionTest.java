@@ -13,11 +13,6 @@ package io.vertx.tests.reflection;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusException;
-import io.grpc.examples.helloworld.HelloReply;
-import io.grpc.examples.helloworld.HelloRequest;
-import io.grpc.examples.helloworld.HelloWorldProto;
-import io.grpc.examples.streaming.Item;
-import io.grpc.examples.streaming.StreamingProto;
 import io.grpc.reflection.test.*;
 import io.grpc.stub.StreamObserver;
 import io.vertx.ext.unit.Async;
@@ -26,7 +21,11 @@ import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.tests.common.grpc.TestConstants;
 import io.vertx.tests.server.ServerTestBase;
+import io.vertx.tests.common.grpc.Reply;
+import io.vertx.tests.common.grpc.Request;
+import io.vertx.tests.common.grpc.Tests;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -40,11 +39,11 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ServerReflectionTest extends ServerTestBase {
 
   private static final Service GREETER_SERVICE_METADATA = Service
-    .service(GREETER, HelloWorldProto.getDescriptor().findServiceByName("Greeter"))
+    .service(TestConstants.TEST_SERVICE, Tests.getDescriptor().findServiceByName("TestService"))
     .build();
 
   private static final Service STREAMING_SERVICE_METADATA = Service
-    .service(STREAMING,StreamingProto.getDescriptor().findServiceByName("Streaming"))
+    .service(TestConstants.TEST_SERVICE, Tests.getDescriptor().findServiceByName("TestService"))
     .build();
 
   @Test
@@ -52,10 +51,10 @@ public class ServerReflectionTest extends ServerTestBase {
     startServer(GrpcServer
       .server(vertx)
       .addService(GREETER_SERVICE_METADATA)
-      .addService(new ReflectionService())
-      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+      .addService(ReflectionService.v1())
+      .<Request, Reply>callHandler(UNARY, call -> call.handler(helloRequest -> {
+        Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response
           .encoding("identity")
           .end(helloReply);
@@ -72,7 +71,7 @@ public class ServerReflectionTest extends ServerTestBase {
       public void onNext(ServerReflectionResponse serverReflectionResponse) {
         ListServiceResponse response = serverReflectionResponse.getListServicesResponse();
         should.assertEquals(2, response.getServiceCount());
-        response.getServiceList().stream().filter(service -> service.getName().equals("helloworld.Greeter")).findFirst().orElseThrow();
+        response.getServiceList().stream().filter(service -> service.getName().equals(TestConstants.TEST_SERVICE.fullyQualifiedName())).findFirst().orElseThrow();
         response.getServiceList().stream().filter(service -> service.getName().equals("grpc.reflection.v1.ServerReflection")).findFirst().orElseThrow();
       }
 
@@ -97,11 +96,11 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testFileByFilename(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx)
-      .addService(new ReflectionService())
+      .addService(ReflectionService.v1())
       .addService(GREETER_SERVICE_METADATA)
-      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+      .<Request, Reply>callHandler(UNARY, call -> call.handler(helloRequest -> {
+        Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response
           .encoding("identity")
           .end(helloReply);
@@ -137,7 +136,7 @@ public class ServerReflectionTest extends ServerTestBase {
     });
 
     ServerReflectionRequest request = ServerReflectionRequest.newBuilder()
-      .setFileByFilename("helloworld.proto")
+      .setFileByFilename("tests.proto")
       .build();
     streamObserver.onNext(request);
     streamObserver.onCompleted();
@@ -149,11 +148,11 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testFileContainingSymbol(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx)
-      .addService(new ReflectionService())
+      .addService(ReflectionService.v1())
       .addService(GREETER_SERVICE_METADATA)
-      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+      .<Request, Reply>callHandler(UNARY, call -> call.handler(helloRequest -> {
+        Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response
           .encoding("identity")
           .end(helloReply);
@@ -185,7 +184,7 @@ public class ServerReflectionTest extends ServerTestBase {
     });
 
     ServerReflectionRequest request = ServerReflectionRequest.newBuilder()
-      .setFileContainingSymbol("helloworld.Greeter")
+      .setFileContainingSymbol(TestConstants.TEST_SERVICE.fullyQualifiedName())
       .build();
     streamObserver.onNext(request);
     streamObserver.onCompleted();
@@ -197,11 +196,11 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testFileContainingExtension(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx)
-      .addService(new ReflectionService())
+      .addService(ReflectionService.v1())
       .addService(GREETER_SERVICE_METADATA)
-      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+      .<Request, Reply>callHandler(UNARY, call -> call.handler(helloRequest -> {
+        Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response
           .encoding("identity")
           .end(helloReply);
@@ -241,7 +240,7 @@ public class ServerReflectionTest extends ServerTestBase {
 
     ServerReflectionRequest request = ServerReflectionRequest.newBuilder()
       .setFileContainingExtension(ExtensionRequest.newBuilder()
-        .setContainingType("helloworld.HelloRequest")
+        .setContainingType("helloworld.Request")
         .setExtensionNumber(100)
         .build())
       .build();
@@ -256,11 +255,11 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testAllExtensionNumbersOfType(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx)
-      .addService(new ReflectionService())
+      .addService(ReflectionService.v1())
       .addService(GREETER_SERVICE_METADATA)
-      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+      .<Request, Reply>callHandler(UNARY, call -> call.handler(helloRequest -> {
+        Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response
           .encoding("identity")
           .end(helloReply);
@@ -298,7 +297,7 @@ public class ServerReflectionTest extends ServerTestBase {
     });
 
     ServerReflectionRequest request = ServerReflectionRequest.newBuilder()
-      .setAllExtensionNumbersOfType("helloworld.HelloRequest")
+      .setAllExtensionNumbersOfType("helloworld.Request")
       .build();
     streamObserver.onNext(request);
     streamObserver.onCompleted();
@@ -310,11 +309,11 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testAdvancedReflection(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx)
-      .addService(new ReflectionService())
+      .addService(ReflectionService.v1())
       .addService(GREETER_SERVICE_METADATA)
-      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+      .<Request, Reply>callHandler(UNARY, call -> call.handler(helloRequest -> {
+        Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response
           .encoding("identity")
           .end(helloReply);
@@ -397,11 +396,11 @@ public class ServerReflectionTest extends ServerTestBase {
   public void testServiceMethodReflection(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     startServer(GrpcServer
       .server(vertx)
-      .addService(new ReflectionService())
+      .addService(ReflectionService.v1())
       .addService(GREETER_SERVICE_METADATA)
-      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+      .<Request, Reply>callHandler(UNARY, call -> call.handler(helloRequest -> {
+        Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response
           .encoding("identity")
           .end(helloReply);
@@ -437,76 +436,8 @@ public class ServerReflectionTest extends ServerTestBase {
     });
 
     ServerReflectionRequest request = ServerReflectionRequest.newBuilder()
-      .setFileContainingSymbol("helloworld.Greeter")
+      .setFileContainingSymbol(TestConstants.TEST_SERVICE.fullyQualifiedName())
       .build();
-    streamObserver.onNext(request);
-    streamObserver.onCompleted();
-
-    test.await();
-  }
-
-  @Test
-  public void testReflectionWithMultipleServices(TestContext should) throws StatusException, InterruptedException, TimeoutException {
-    startServer(GrpcServer
-      .server(vertx)
-      .addService(new ReflectionService())
-      .addService(GREETER_SERVICE_METADATA)
-      .addService(STREAMING_SERVICE_METADATA)
-      .<HelloRequest, HelloReply>callHandler(GREETER_SAY_HELLO, call -> call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
-        response
-          .encoding("identity")
-          .end(helloReply);
-      }))
-      .callHandler(STREAMING_PIPE, call -> call.handler(helloRequest -> {
-        Item helloReply = Item.newBuilder().setValue("Hello " + helloRequest.getValue()).build();
-        GrpcServerResponse<Item, Item> response = call.response();
-        response
-          .encoding("identity")
-          .end(helloReply);
-      })));
-
-    channel = ManagedChannelBuilder.forAddress("localhost", port)
-      .usePlaintext()
-      .build();
-
-    Async test = should.async();
-
-    ServerReflectionGrpc.ServerReflectionStub stub = ServerReflectionGrpc.newStub(channel);
-    StreamObserver<ServerReflectionRequest> streamObserver = stub.serverReflectionInfo(new StreamObserver<>() {
-      @Override
-      public void onNext(ServerReflectionResponse response) {
-        ListServiceResponse listServicesResponse = response.getListServicesResponse();
-        should.assertEquals(3, listServicesResponse.getServiceCount(), "Should have two services");
-
-        boolean foundService1 = false;
-        boolean foundService2 = false;
-
-        for (ServiceResponse service : listServicesResponse.getServiceList()) {
-          if ("helloworld.Greeter".equals(service.getName())) {
-            foundService1 = true;
-          } else if ("streaming.Streaming".equals(service.getName())) {
-            foundService2 = true;
-          }
-        }
-
-        should.assertTrue(foundService1, "First name should be listed");
-        should.assertTrue(foundService2, "Second name should be listed");
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-        should.fail(throwable);
-      }
-
-      @Override
-      public void onCompleted() {
-        test.complete();
-      }
-    });
-
-    ServerReflectionRequest request = ServerReflectionRequest.newBuilder().setListServices("").build();
     streamObserver.onNext(request);
     streamObserver.onCompleted();
 

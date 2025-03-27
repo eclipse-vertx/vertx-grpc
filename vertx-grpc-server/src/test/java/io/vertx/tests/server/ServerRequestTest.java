@@ -11,12 +11,6 @@
 package io.vertx.tests.server;
 
 import io.grpc.*;
-import io.grpc.examples.helloworld.GreeterGrpc;
-import io.grpc.examples.helloworld.HelloReply;
-import io.grpc.examples.helloworld.HelloRequest;
-import io.grpc.examples.streaming.Empty;
-import io.grpc.examples.streaming.Item;
-import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.MultiMap;
@@ -32,6 +26,10 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.tests.common.grpc.Empty;
+import io.vertx.tests.common.grpc.Reply;
+import io.vertx.tests.common.grpc.Request;
+import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Test;
 
 import java.io.File;
@@ -50,13 +48,13 @@ public class ServerRequestTest extends ServerTest {
 
   @Override
   protected void testUnary(TestContext should, String requestEncoding, String responseEncoding) {
-    startServer(GrpcServer.server(vertx).callHandler(GREETER_SAY_HELLO, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
       call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         if (!requestEncoding.equals("identity")) {
           should.assertEquals(requestEncoding, call.encoding());
         }
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response
           .encoding(responseEncoding)
           .end(helloReply);
@@ -76,10 +74,10 @@ public class ServerRequestTest extends ServerTest {
       .setUseAlpn(true)
       .setPort(8443)
       .setHost("localhost")
-      .setKeyCertOptions(cert.keyCertOptions()), GrpcServer.server(vertx).callHandler(GREETER_SAY_HELLO, call -> {
+      .setKeyCertOptions(cert.keyCertOptions()), GrpcServer.server(vertx).callHandler(UNARY, call -> {
       call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+        Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response
           .end(helloReply);
       });
@@ -87,18 +85,18 @@ public class ServerRequestTest extends ServerTest {
 
     ChannelCredentials creds = TlsChannelCredentials.newBuilder().trustManager(new File(cert.certificatePath())).build();
     channel = Grpc.newChannelBuilderForAddress("localhost", 8443, creds).build();
-    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
-    HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
-    HelloReply res = stub.sayHello(request);
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+    Request request = Request.newBuilder().setName("Julien").build();
+    Reply res = stub.unary(request);
     should.assertEquals("Hello Julien", res.getMessage());
   }
 
   @Override
   public void testStatus(TestContext should) {
 
-    startServer(GrpcServer.server(vertx).callHandler(GREETER_SAY_HELLO, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
       call.handler(helloRequest -> {
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response
           .status(GrpcStatus.UNAVAILABLE)
           .end();
@@ -111,9 +109,9 @@ public class ServerRequestTest extends ServerTest {
   @Override
   public void testServerStreaming(TestContext should) {
 
-    startServer(GrpcServer.server(vertx).callHandler(STREAMING_SOURCE, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(SOURCE, call -> {
       for (int i = 0; i < NUM_ITEMS; i++) {
-        Item item = Item.newBuilder().setValue("the-value-" + i).build();
+        Reply item = Reply.newBuilder().setMessage("the-value-" + i).build();
         call.response().write(item);
       }
       call.response().end();
@@ -125,7 +123,7 @@ public class ServerRequestTest extends ServerTest {
   @Override
   public void testClientStreaming(TestContext should) throws Exception {
 
-    startServer(GrpcServer.server(vertx).callHandler(STREAMING_SINK, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(SINK, call -> {
       call.handler(item -> {
         // Should assert item
       });
@@ -140,7 +138,7 @@ public class ServerRequestTest extends ServerTest {
   @Override
   public void testClientStreamingCompletedBeforeHalfClose(TestContext should) {
 
-    startServer(GrpcServer.server(vertx).callHandler(STREAMING_SINK, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(SINK, call -> {
       call.handler(item -> {
         call.response().status(GrpcStatus.CANCELLED).end();
       });
@@ -155,9 +153,9 @@ public class ServerRequestTest extends ServerTest {
   @Override
   public void testBidiStreaming(TestContext should) throws Exception {
 
-    startServer(GrpcServer.server(vertx).callHandler(STREAMING_PIPE, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(PIPE, call -> {
       call.handler(item -> {
-        call.response().write(item);
+        call.response().write(Reply.newBuilder().setMessage(item.getName()).build());
       });
       call.endHandler(v -> {
         call.response().end();
@@ -171,7 +169,7 @@ public class ServerRequestTest extends ServerTest {
   public void testBidiStreamingCompletedBeforeHalfClose(TestContext should) throws Exception {
 
     Async done = should.async();
-    startServer(GrpcServer.server(vertx).callHandler(STREAMING_PIPE, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(PIPE, call -> {
       call.handler(item -> {
         call.response().end();
         call.errorHandler(err -> {
@@ -187,7 +185,7 @@ public class ServerRequestTest extends ServerTest {
   @Test
   public void testMetadata(TestContext should) {
 
-    startServer(GrpcServer.server(vertx).callHandler(GREETER_SAY_HELLO, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
       should.assertEquals(0, testMetadataStep.getAndIncrement());
       MultiMap headers = call.headers();
       should.assertEquals("custom_request_header_value", headers.get("custom_request_header"));
@@ -196,8 +194,8 @@ public class ServerRequestTest extends ServerTest {
       assertEquals(should, new byte[] { 2,1,0 }, headers.get("grpc-custom_request_header-bin"));
       call.handler(helloRequest -> {
         should.assertEquals(1, testMetadataStep.getAndAdd(2));
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+        Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response.headers().set("custom_response_header", "custom_response_header_value");
         response.headers().set("custom_response_header-bin", Base64.getEncoder().encodeToString(new byte[]{0,1,2}));
         response.headers().set("grpc-custom_response_header", "grpc-custom_response_header_value");
@@ -225,10 +223,10 @@ public class ServerRequestTest extends ServerTest {
   }
 
   private void testFail(TestContext should, int numMsg) {
-    startServer(GrpcServer.server(vertx).callHandler(STREAMING_PIPE, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(PIPE, call -> {
       call.handler(item -> {
         for (int i = 0;i < numMsg;i++) {
-          call.response().write(item);
+          call.response().write(Reply.newBuilder().setMessage(item.getName()).build());
         }
         call.response().status(GrpcStatus.UNAVAILABLE).end();
       });
@@ -237,13 +235,13 @@ public class ServerRequestTest extends ServerTest {
     channel = ManagedChannelBuilder.forAddress("localhost", port)
       .usePlaintext()
       .build();
-    StreamingGrpc.StreamingStub stub = StreamingGrpc.newStub(channel);
+    TestServiceGrpc.TestServiceStub stub = TestServiceGrpc.newStub(channel);
 
     Async done = should.async();
-    ClientCallStreamObserver<Item> items = (ClientCallStreamObserver<Item>) stub.pipe(new StreamObserver<Item>() {
+    ClientCallStreamObserver<Request> items = (ClientCallStreamObserver<Request>) stub.pipe(new StreamObserver<Reply>() {
       AtomicInteger count = new AtomicInteger();
       @Override
-      public void onNext(Item value) {
+      public void onNext(Reply value) {
         count.getAndIncrement();
       }
       @Override
@@ -258,20 +256,20 @@ public class ServerRequestTest extends ServerTest {
       public void onCompleted() {
       }
     });
-    items.onNext(Item.newBuilder().setValue("the-value").build());
+    items.onNext(Request.newBuilder().setName("the-value").build());
   }
 
   @Test
   public void testHandleCancel(TestContext should) {
 
     Async test = should.async();
-    startServer(GrpcServer.server(vertx).callHandler(STREAMING_PIPE, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(PIPE, call -> {
       call.errorHandler(error -> {
         should.assertEquals(GrpcError.CANCELLED, error);
         test.complete();
       });
       call.handler(item -> {
-        call.response().write(item);
+        call.response().write(Reply.newBuilder().setMessage(item.getName()).build());
       });
     }));
 
@@ -281,9 +279,9 @@ public class ServerRequestTest extends ServerTest {
   @Override
   public void testTrailersOnly(TestContext should) {
 
-    startServer(GrpcServer.server(vertx).callHandler(GREETER_SAY_HELLO, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
       call.handler(helloRequest -> {
-        GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+        GrpcServerResponse<Request, Reply> response = call.response();
         response.statusMessage("grpc-status-message-value +*~");
         response.trailers().set("custom_response_trailer", "custom_response_trailer_value");
         response.trailers().set("custom_response_trailer-bin", Base64.getEncoder().encodeToString(new byte[] { 0,1,2 }));
@@ -303,11 +301,11 @@ public class ServerRequestTest extends ServerTest {
 
     Async test = should.async();
 
-    startServer(GrpcServer.server(vertx).callHandler(GREETER_SAY_HELLO, call -> {
-      GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      GrpcServerResponse<Request, Reply> response = call.response();
       response.cancel();
       try {
-        response.write(HelloReply.newBuilder().build());
+        response.write(Reply.newBuilder().build());
       } catch (IllegalStateException e) {
         test.complete();
       }
@@ -317,11 +315,11 @@ public class ServerRequestTest extends ServerTest {
       .usePlaintext()
       .build();
 
-    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
 
-    HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
+    Request request = Request.newBuilder().setName("Julien").build();
     try {
-      stub.sayHello(request);
+      stub.unary(request);
     } catch (StatusRuntimeException ignore) {
       should.assertEquals(Status.CANCELLED.getCode(), ignore.getStatus().getCode());
     }
@@ -329,15 +327,15 @@ public class ServerRequestTest extends ServerTest {
 
   @Test
   public void testTimeoutPropagation(TestContext should) {
-    startServer(GrpcServer.server(vertx).callHandler(GREETER_SAY_HELLO, call -> {
-      GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      GrpcServerResponse<Request, Reply> response = call.response();
       long timeout = call.timeout();
       long limit = TimeUnit.SECONDS.toMillis(7);
       should.assertTrue(limit <= timeout);
       call.messageHandler(hello -> {
       });
       call.endHandler(v -> {
-        response.end(HelloReply.newBuilder().build());
+        response.end(Reply.newBuilder().build());
       });
     }));
 
@@ -345,21 +343,21 @@ public class ServerRequestTest extends ServerTest {
       .usePlaintext()
       .build();
 
-    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
 
-    HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
-    HelloReply resp = stub.withDeadlineAfter(10, TimeUnit.SECONDS).sayHello(request);
+    Request request = Request.newBuilder().setName("Julien").build();
+    Reply resp = stub.withDeadlineAfter(10, TimeUnit.SECONDS).unary(request);
   }
 
   @Test
   public void testTimeoutOnServerBeforeSendingResponse(TestContext should) throws Exception {
     Async async = should.async();
-    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setScheduleDeadlineAutomatically(true)).callHandler(GREETER_SAY_HELLO, call -> {
+    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setScheduleDeadlineAutomatically(true)).callHandler(UNARY, call -> {
       should.assertTrue(call.timeout() > 0L);
       Timer deadline = call.deadline();
       should.assertNotNull(deadline);
       should.assertTrue(deadline.getDelay(TimeUnit.MILLISECONDS) > 0L);
-      GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+      GrpcServerResponse<Request, Reply> response = call.response();
       async.complete();
     }));
 
@@ -368,8 +366,8 @@ public class ServerRequestTest extends ServerTest {
 
   @Test
   public void testTimeoutOnServerAfterSendingResponse(TestContext should) throws Exception {
-    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setScheduleDeadlineAutomatically(true)).callHandler(GREETER_SAY_HELLO, call -> {
-      GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setScheduleDeadlineAutomatically(true)).callHandler(UNARY, call -> {
+      GrpcServerResponse<Request, Reply> response = call.response();
       response.end();
     }));
 
@@ -377,7 +375,7 @@ public class ServerRequestTest extends ServerTest {
       .setHttp2ClearTextUpgrade(false)
       .setProtocolVersion(HttpVersion.HTTP_2));
     Async async = should.async();
-    client.request(HttpMethod.POST, port, "localhost", "/helloworld.Greeter/SayHello")
+    client.request(HttpMethod.POST, port, "localhost", "/io.vertx.tests.common.grpc.tests.TestService/Unary")
       .onComplete(should.asyncAssertSuccess(req -> {
         req.putHeader("grpc-timeout", TimeUnit.SECONDS.toMillis(1) + "m");
         req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
@@ -396,8 +394,8 @@ public class ServerRequestTest extends ServerTest {
 
   @Test
   public void testTimeoutPropagationOnServer(TestContext should) throws Exception {
-    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setDeadlinePropagation(true)).callHandler(GREETER_SAY_HELLO, call -> {
-      GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setDeadlinePropagation(true)).callHandler(UNARY, call -> {
+      GrpcServerResponse<Request, Reply> response = call.response();
       GrpcLocal local = ((ContextInternal)vertx.getOrCreateContext()).getLocal(GrpcLocal.CONTEXT_LOCAL_KEY);
       should.assertNotNull(local);
       should.assertTrue(local.deadline().toEpochMilli() - System.currentTimeMillis() > 8000);
@@ -428,7 +426,7 @@ public class ServerRequestTest extends ServerTest {
     JsonObject helloReply = new JsonObject().put("message", "Hello Julien");
     JsonObject helloRequest = new JsonObject().put("name", "Julien");
 
-    startServer(GrpcServer.server(vertx).callHandler(GREETER_SAY_HELLO_JSON, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY_JSON, call -> {
       call.last().onComplete(should.asyncAssertSuccess(msg -> {
         should.assertEquals(helloRequest, msg);
         call.response().end(helloReply);
@@ -441,21 +439,21 @@ public class ServerRequestTest extends ServerTest {
   @Test
   public void testDefaultMessageSizeOverflow(TestContext should) {
 
-    HelloRequest request = HelloRequest.newBuilder().setName("Asmoranomardicadaistinaculdacar").build();
+    Request request = Request.newBuilder().setName("Asmoranomardicadaistinaculdacar").build();
     int requestLen = request.getSerializedSize();
 
     startServer(GrpcServer.server(vertx, new GrpcServerOptions().setMaxMessageSize(requestLen - 1))
-      .callHandler(GREETER_SAY_HELLO, call -> {
+      .callHandler(UNARY, call -> {
       }));
 
     channel = ManagedChannelBuilder.forAddress("localhost", port)
       .usePlaintext()
       .build();
 
-    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
 
     try {
-      stub.sayHello(request);
+      stub.unary(request);
       should.fail();
     } catch (StatusRuntimeException ignore) {
       should.assertEquals(Status.RESOURCE_EXHAUSTED.getCode(), ignore.getStatus().getCode());
@@ -465,11 +463,11 @@ public class ServerRequestTest extends ServerTest {
   @Test
   public void testInvalidMessageHandler(TestContext should) {
 
-    HelloRequest request = HelloRequest.newBuilder().setName("Asmoranomardicadaistinaculdacar").build();
+    Request request = Request.newBuilder().setName("Asmoranomardicadaistinaculdacar").build();
     int requestLen = request.getSerializedSize();
 
     startServer(GrpcServer.server(vertx, new GrpcServerOptions().setMaxMessageSize(requestLen - 1))
-      .callHandler(GREETER_SAY_HELLO, call -> {
+      .callHandler(UNARY, call -> {
         AtomicInteger invalid = new AtomicInteger();
         call.handler(msg -> {
           should.fail();
@@ -478,7 +476,7 @@ public class ServerRequestTest extends ServerTest {
           should.assertEquals(0, invalid.getAndIncrement());
         });
         call.endHandler(v -> {
-          call.response().end(HelloReply.newBuilder().setMessage("Hola").build());
+          call.response().end(Reply.newBuilder().setMessage("Hola").build());
         });
       }));
 
@@ -486,9 +484,9 @@ public class ServerRequestTest extends ServerTest {
       .usePlaintext()
       .build();
 
-    GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(channel);
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
 
-    HelloReply resp = stub.sayHello(request);
+    Reply resp = stub.unary(request);
     should.assertEquals("Hola", resp.getMessage());
   }
 
@@ -496,25 +494,25 @@ public class ServerRequestTest extends ServerTest {
   public void testInvalidMessageHandlerStream(TestContext should) {
 
     List<Buffer> messages = Arrays.asList(
-      Buffer.buffer(Item.newBuilder().setValue("msg1").build().toByteArray()),
-      Buffer.buffer(Item.newBuilder().setValue("msg2-invalid").build().toByteArray()),
-      Buffer.buffer(Item.newBuilder().setValue("msg3").build().toByteArray()),
+      Buffer.buffer(Request.newBuilder().setName("msg1").build().toByteArray()),
+      Buffer.buffer(Request.newBuilder().setName("msg2-invalid").build().toByteArray()),
+      Buffer.buffer(Request.newBuilder().setName("msg3").build().toByteArray()),
       Buffer.buffer(new byte[]{ 0,1,2,3,4,5,6,7 }),
-      Buffer.buffer(Item.newBuilder().setValue("msg5").build().toByteArray())
+      Buffer.buffer(Request.newBuilder().setName("msg5").build().toByteArray())
     );
 
     int invalidLen = messages.get(1).length() - 1;
 
-    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setMaxMessageSize(invalidLen - 1)).callHandler(STREAMING_SINK, call -> {
+    startServer(GrpcServer.server(vertx, new GrpcServerOptions().setMaxMessageSize(invalidLen - 1)).callHandler(SINK, call -> {
       List<Object> received = new ArrayList<>();
       call.invalidMessageHandler(received::add);
       call.handler(received::add);
       call.endHandler(v -> {
-        should.assertEquals(Item.class, received.get(0).getClass());
+        should.assertEquals(Request.class, received.get(0).getClass());
         should.assertEquals(MessageSizeOverflowException.class, received.get(1).getClass());
-        should.assertEquals(Item.class, received.get(2).getClass());
+        should.assertEquals(Request.class, received.get(2).getClass());
         should.assertEquals(InvalidMessagePayloadException.class, received.get(3).getClass());
-        should.assertEquals(Item.class, received.get(4).getClass());
+        should.assertEquals(Request.class, received.get(4).getClass());
         should.assertEquals(5, received.size());
         call.response().end(Empty.getDefaultInstance());
       });
@@ -527,7 +525,7 @@ public class ServerRequestTest extends ServerTest {
       .setHttp2ClearTextUpgrade(false)
     );
 
-    client.request(HttpMethod.POST, 8080, "localhost", "/" + StreamingGrpc.SERVICE_NAME + "/Sink")
+    client.request(HttpMethod.POST, 8080, "localhost", "/" + TestServiceGrpc.SERVICE_NAME + "/Sink")
       .onComplete(should.asyncAssertSuccess(request -> {
         request.putHeader("grpc-encoding", "gzip");
         request.setChunked(true);

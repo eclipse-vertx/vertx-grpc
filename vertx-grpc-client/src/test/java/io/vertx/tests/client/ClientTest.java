@@ -11,12 +11,6 @@
 package io.vertx.tests.client;
 
 import io.grpc.*;
-import io.grpc.examples.helloworld.GreeterGrpc;
-import io.grpc.examples.helloworld.HelloReply;
-import io.grpc.examples.helloworld.HelloRequest;
-import io.grpc.examples.streaming.Empty;
-import io.grpc.examples.streaming.Item;
-import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.buffer.Buffer;
@@ -25,14 +19,13 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.ServiceName;
+import io.vertx.tests.common.grpc.Empty;
+import io.vertx.tests.common.grpc.Reply;
+import io.vertx.tests.common.grpc.Request;
+import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -75,13 +68,13 @@ public abstract class ClientTest extends ClientTestBase {
   }
 
   protected void testUnary(TestContext should, String requestEncoding, String responseEncoding) throws IOException {
-    GreeterGrpc.GreeterImplBase called = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase called = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> plainResponseObserver) {
-        ServerCallStreamObserver<HelloReply> responseObserver =
-          (ServerCallStreamObserver<HelloReply>) plainResponseObserver;
+      public void unary(Request request, StreamObserver<Reply> plainResponseObserver) {
+        ServerCallStreamObserver<Reply> responseObserver =
+          (ServerCallStreamObserver<Reply>) plainResponseObserver;
         responseObserver.setCompression(responseEncoding);
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
         responseObserver.onCompleted();
       }
     };
@@ -97,11 +90,11 @@ public abstract class ClientTest extends ClientTestBase {
 
   @Test
   public void testServerStreaming(TestContext should) throws IOException {
-    startServer(new StreamingGrpc.StreamingImplBase() {
+    startServer(new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void source(Empty request, StreamObserver<Item> responseObserver) {
+      public void source(Empty request, StreamObserver<Reply> responseObserver) {
         for (int i = 0;i < NUM_ITEMS;i++) {
-          responseObserver.onNext(Item.newBuilder().setValue("the-value-" + i).build());
+          responseObserver.onNext(Reply.newBuilder().setMessage("the-value-" + i).build());
         }
         responseObserver.onCompleted();
       }
@@ -113,9 +106,9 @@ public abstract class ClientTest extends ClientTestBase {
   @Test
   public void testServerStreamingBackPressure(TestContext should) throws IOException {
     batchQueue.clear();
-    startServer(new StreamingGrpc.StreamingImplBase() {
+    startServer(new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void source(Empty request, StreamObserver<Item> responseObserver) {
+      public void source(Empty request, StreamObserver<Reply> responseObserver) {
         ServerCallStreamObserver obs = (ServerCallStreamObserver) responseObserver;
         AtomicInteger numRounds = new AtomicInteger(20);
         Runnable readyHandler = () -> {
@@ -123,7 +116,7 @@ public abstract class ClientTest extends ClientTestBase {
             int num = 0;
             while (obs.isReady()) {
               num++;
-              Item item = Item.newBuilder().setValue("the-value-" + num).build();
+              Reply item = Reply.newBuilder().setMessage("the-value-" + num).build();
               responseObserver.onNext(item);
             }
             batchQueue.add(num);
@@ -139,14 +132,14 @@ public abstract class ClientTest extends ClientTestBase {
 
   @Test
   public void testClientStreaming(TestContext should) throws Exception {
-    startServer(new StreamingGrpc.StreamingImplBase() {
+    startServer(new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public StreamObserver<Item> sink(StreamObserver<Empty> responseObserver) {
-        return new StreamObserver<Item>() {
+      public StreamObserver<Request> sink(StreamObserver<Empty> responseObserver) {
+        return new StreamObserver<Request>() {
           final List<String> items = new ArrayList<>();
           @Override
-          public void onNext(Item item) {
-            items.add(item.getValue());
+          public void onNext(Request item) {
+            items.add(item.getName());
           }
           @Override
           public void onError(Throwable t) {
@@ -166,9 +159,9 @@ public abstract class ClientTest extends ClientTestBase {
 
   @Test
   public void testClientStreamingBackPressure(TestContext should) throws Exception {
-    startServer(new StreamingGrpc.StreamingImplBase() {
+    startServer(new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public StreamObserver<Item> sink(StreamObserver<Empty> responseObserver) {
+      public StreamObserver<Request> sink(StreamObserver<Empty> responseObserver) {
         return sink((ServerCallStreamObserver<Empty>) responseObserver);
       }
       private AtomicBoolean completed = new AtomicBoolean();
@@ -194,13 +187,13 @@ public abstract class ClientTest extends ClientTestBase {
           responseObserver.onCompleted();
         }
       }
-      private StreamObserver<Item> sink(ServerCallStreamObserver<Empty> responseObserver) {
+      private StreamObserver<Request> sink(ServerCallStreamObserver<Empty> responseObserver) {
         responseObserver.disableAutoRequest();
         waitForBatch(responseObserver);
-        return new StreamObserver<Item>() {
+        return new StreamObserver<Request>() {
           @Override
-          public void onNext(Item item) {
-            should.assertEquals("the-value-" + (batchCount.get() - 1), item.getValue());
+          public void onNext(Request item) {
+            should.assertEquals("the-value-" + (batchCount.get() - 1), item.getName());
             if (toRead.decrementAndGet() == 0) {
               waitForBatch(responseObserver);
             }
@@ -225,12 +218,12 @@ public abstract class ClientTest extends ClientTestBase {
   @Test
   public void testClientStreamingCompletedBeforeHalfClose(TestContext should) throws Exception {
     Async latch = should.async();
-    startServer(new StreamingGrpc.StreamingImplBase() {
+    startServer(new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public StreamObserver<Item> sink(StreamObserver<Empty> responseObserver) {
+      public StreamObserver<Request> sink(StreamObserver<Empty> responseObserver) {
         return new StreamObserver<>() {
           @Override
-          public void onNext(Item item) {
+          public void onNext(Request item) {
             responseObserver.onCompleted();
           }
           @Override
@@ -248,22 +241,35 @@ public abstract class ClientTest extends ClientTestBase {
 
   @Test
   public void testBidiStreaming(TestContext should) throws Exception {
-    startServer(new StreamingGrpc.StreamingImplBase() {
+    startServer(new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public StreamObserver<Item> pipe(StreamObserver<Item> responseObserver) {
-        return responseObserver;
+      public StreamObserver<Request> pipe(StreamObserver<Reply> responseObserver) {
+        return new StreamObserver<Request>() {
+          @Override
+          public void onNext(Request value) {
+            responseObserver.onNext(Reply.newBuilder().setMessage(value.getName()).build());
+          }
+          @Override
+          public void onError(Throwable t) {
+            responseObserver.onError(t);
+          }
+          @Override
+          public void onCompleted() {
+            responseObserver.onCompleted();
+          }
+        };
       }
     });
   }
 
   @Test
   public void testBidiStreamingCompletedBeforeHalfClose(TestContext should) throws Exception {
-    startServer(new StreamingGrpc.StreamingImplBase() {
+    startServer(new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public StreamObserver<Item> pipe(StreamObserver<Item> responseObserver) {
-        return new StreamObserver<Item>() {
+      public StreamObserver<Request> pipe(StreamObserver<Reply> responseObserver) {
+        return new StreamObserver<Request>() {
           @Override
-          public void onNext(Item value) {
+          public void onNext(Request value) {
             responseObserver.onCompleted();
           }
           @Override
@@ -282,9 +288,9 @@ public abstract class ClientTest extends ClientTestBase {
   @Test
   public void testStatus(TestContext should) throws IOException {
 
-    GreeterGrpc.GreeterImplBase called = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase called = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
         responseObserver.onError(Status.UNAVAILABLE
           .withDescription("~Greeter temporarily unavailable...~").asRuntimeException());
       }
@@ -296,13 +302,13 @@ public abstract class ClientTest extends ClientTestBase {
   public void testFail(TestContext should) throws Exception {
 
     Async done = should.async();
-    startServer(new StreamingGrpc.StreamingImplBase() {
+    startServer(new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public StreamObserver<Item> pipe(StreamObserver<Item> responseObserver) {
-        return new StreamObserver<Item>() {
+      public StreamObserver<Request> pipe(StreamObserver<Reply> responseObserver) {
+        return new StreamObserver<Request>() {
           @Override
-          public void onNext(Item item) {
-            responseObserver.onNext(item);
+          public void onNext(Request item) {
+            responseObserver.onNext(Reply.newBuilder().setMessage(item.getName()).build());
           }
           @Override
           public void onError(Throwable t) {
@@ -357,13 +363,12 @@ public abstract class ClientTest extends ClientTestBase {
       }
     };
 
-    GreeterGrpc.GreeterImplBase called = new GreeterGrpc.GreeterImplBase() {
-
+    TestServiceGrpc.TestServiceImplBase called = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> plainResponseObserver) {
-        ServerCallStreamObserver<HelloReply> responseObserver =
-          (ServerCallStreamObserver<HelloReply>) plainResponseObserver;
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+      public void unary(Request request, StreamObserver<Reply> plainResponseObserver) {
+        ServerCallStreamObserver<Reply> responseObserver =
+          (ServerCallStreamObserver<Reply>) plainResponseObserver;
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
         responseObserver.onCompleted();
       }
     };
@@ -402,12 +407,12 @@ public abstract class ClientTest extends ClientTestBase {
   }
 
   public void testTimeoutPropagationToServer(CompletableFuture<Long> cf) throws Exception {
-    startServer(new GreeterGrpc.GreeterImplBase() {
+    startServer(new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
         long timeRemaining = Context.current().getDeadline().timeRemaining(TimeUnit.MILLISECONDS);
         cf.complete(timeRemaining);
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
         responseObserver.onCompleted();
       }
     });

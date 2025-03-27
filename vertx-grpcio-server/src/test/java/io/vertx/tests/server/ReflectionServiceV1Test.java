@@ -11,9 +11,6 @@
 package io.vertx.tests.server;
 
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.examples.helloworld.GreeterGrpc;
-import io.grpc.examples.helloworld.HelloReply;
-import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.reflection.test.ListServiceResponse;
 import io.grpc.reflection.test.ServerReflectionGrpc;
 import io.grpc.reflection.test.ServerReflectionRequest;
@@ -24,6 +21,10 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpcio.server.GrpcIoServer;
 import io.vertx.grpcio.server.GrpcIoServiceBridge;
+import io.vertx.tests.common.grpc.Reply;
+import io.vertx.tests.common.grpc.Request;
+import io.vertx.tests.common.grpc.TestConstants;
+import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Test;
 
 public class ReflectionServiceV1Test extends ServerTestBase {
@@ -31,17 +32,17 @@ public class ReflectionServiceV1Test extends ServerTestBase {
   @Test
   public void testReflection(TestContext should) {
     // server stub
-    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
         responseObserver.onCompleted();
       }
     };
 
     // create grpc server handler
     GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
-    grpcServer.addService(new ReflectionService());
+    grpcServer.addService(ReflectionService.v1());
 
     // bind server stub
     GrpcIoServiceBridge bridge = GrpcIoServiceBridge.bridge(impl);
@@ -64,7 +65,7 @@ public class ReflectionServiceV1Test extends ServerTestBase {
       public void onNext(ServerReflectionResponse serverReflectionResponse) {
         ListServiceResponse response = serverReflectionResponse.getListServicesResponse();
         should.assertEquals(2, response.getServiceCount());
-        response.getServiceList().stream().filter(service -> service.getName().equals("helloworld.Greeter")).findFirst().orElseThrow();
+        response.getServiceList().stream().filter(service -> service.getName().equals(TestConstants.TEST_SERVICE.fullyQualifiedName())).findFirst().orElseThrow();
         response.getServiceList().stream().filter(service -> service.getName().equals("grpc.reflection.v1.ServerReflection")).findFirst().orElseThrow();
       }
 
