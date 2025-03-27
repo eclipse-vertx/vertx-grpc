@@ -1,13 +1,15 @@
 module io.vertx.grpc.server {
-  requires io.vertx.core.logging;
-  requires transitive io.vertx.grpc.common;
+
   requires static io.vertx.docgen;
   requires static io.vertx.codegen.json;
+
+  requires io.vertx.core.logging;
+  requires io.vertx.grpc.common;
   requires io.vertx.codegen.api;
   requires io.netty.codec;
   requires io.netty.buffer;
   requires com.google.protobuf;
+
   exports io.vertx.grpc.server;
   exports io.vertx.grpc.server.impl to io.vertx.grpc.transcoding;
-  exports io.grpc.reflection.v1;
 }

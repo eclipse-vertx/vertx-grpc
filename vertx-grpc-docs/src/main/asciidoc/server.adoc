@@ -325,11 +325,11 @@ handle the message encoding:
 
 In addition to the request/response API, the Vert.x gRPC protoc plugin idiomatic service stubs.
 
-Each service comes in two flavors, you can override the method you like depending on the style.
+Each service method comes in two flavors, you can override the method you like depending on the style.
 
-==== Unary services
+==== Unary methods
 
-Unary services can return a Vert.x `Future`
+Unary methods can return a Vert.x `Future`
 
 [source,java]
 ----
@@ -349,6 +349,8 @@ In both case you need to bind the stub to an existing `GrpcServer`
 ----
 {@link examples.GrpcServerExamples#unaryStub3}
 ----
+
+By default, only Protobuf methods are bound in a server.
 
 You can also specify the JSON wire format when binding a stub.
 
@@ -392,5 +394,5 @@ Support for the https://grpc.io/docs/guides/reflection/[gRPC reflection APIs] ca
 
 [source,java]
 ----
-{@link examples.GrpcIoServerExamples#reflectionExample}
+{@link examples.GrpcServerExamples#reflectionExample}
 ----

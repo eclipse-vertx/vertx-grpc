@@ -5,6 +5,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.docgen.Source;
+import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpcio.server.GrpcIoServer;
 import io.vertx.grpcio.server.GrpcIoServiceBridge;
@@ -46,9 +47,12 @@ public class GrpcIoServerExamples {
   }
 
   public void reflectionExample(Vertx vertx, HttpServerOptions options) {
-    GrpcIoServer grpcServer = GrpcIoServer.server(vertx, new GrpcServerOptions().setReflectionEnabled(true));
+    GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
 
-    GreeterGrpc.GreeterImplBase service = new GreeterGrpc.GreeterImplBase() {
+    // Add reflection service
+    grpcServer.addService(new ReflectionService());
+
+    GreeterGrpc.GreeterImplBase greeterImpl = new GreeterGrpc.GreeterImplBase() {
       @Override
       public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
         responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
@@ -56,11 +60,10 @@ public class GrpcIoServerExamples {
       }
     };
 
-    grpcServer.addService(service.bindService());
+    // Bind the service in the gRPC server
+    GrpcIoServiceBridge greeterService = GrpcIoServiceBridge.bridge(greeterImpl);
 
-    // Bind the service bridge in the gRPC server
-    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(service);
-    serverStub.bind(grpcServer);
+    grpcServer.addService(greeterService);
 
     // Start the HTTP/2 server
     vertx.createHttpServer(options)

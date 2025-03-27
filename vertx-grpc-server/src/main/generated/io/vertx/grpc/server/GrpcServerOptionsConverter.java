@@ -19,11 +19,6 @@ public class GrpcServerOptionsConverter {
             obj.setGrpcWebEnabled((Boolean)member.getValue());
           }
           break;
-        case "reflectionEnabled":
-          if (member.getValue() instanceof Boolean) {
-            obj.setReflectionEnabled((Boolean)member.getValue());
-          }
-          break;
         case "scheduleDeadlineAutomatically":
           if (member.getValue() instanceof Boolean) {
             obj.setScheduleDeadlineAutomatically((Boolean)member.getValue());
@@ -49,7 +44,6 @@ public class GrpcServerOptionsConverter {
 
    static void toJson(GrpcServerOptions obj, java.util.Map<String, Object> json) {
     json.put("grpcWebEnabled", obj.isGrpcWebEnabled());
-    json.put("reflectionEnabled", obj.isReflectionEnabled());
     json.put("scheduleDeadlineAutomatically", obj.getScheduleDeadlineAutomatically());
     json.put("deadlinePropagation", obj.getDeadlinePropagation());
     json.put("maxMessageSize", obj.getMaxMessageSize());

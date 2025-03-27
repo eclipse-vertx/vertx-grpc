@@ -59,6 +59,4 @@ public interface GrpcIoServer extends GrpcServer {
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcIoServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
 
-  @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  GrpcIoServer addService(ServerServiceDefinition definition);
 }

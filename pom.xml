@@ -200,6 +200,7 @@
     <module>vertx-grpc-common</module>
     <module>vertx-grpc-transcoding</module>
     <module>vertx-grpc-server</module>
+    <module>vertx-grpc-server-reflection</module>
     <module>vertx-grpc-client</module>
     <module>vertx-grpcio-common</module>
     <module>vertx-grpcio-server</module>

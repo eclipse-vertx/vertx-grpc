@@ -21,12 +21,10 @@ import io.grpc.reflection.test.ServerReflectionResponse;
 import io.grpc.stub.StreamObserver;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.server.GrpcServerOptions;
+import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpcio.server.GrpcIoServer;
 import io.vertx.grpcio.server.GrpcIoServiceBridge;
 import org.junit.Test;
-
-import java.util.List;
 
 public class ReflectionServiceV1Test extends ServerTestBase {
 
@@ -42,12 +40,12 @@ public class ReflectionServiceV1Test extends ServerTestBase {
     };
 
     // create grpc server handler
-    GrpcIoServer grpcServer = GrpcIoServer.server(vertx, new GrpcServerOptions().setReflectionEnabled(true));
-    grpcServer.addService(impl.bindService());
+    GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
+    grpcServer.addService(new ReflectionService());
 
     // bind server stub
     GrpcIoServiceBridge bridge = GrpcIoServiceBridge.bridge(impl);
-    bridge.bind(grpcServer);
+    grpcServer.addService(bridge);
 
     // start server
     startServer(grpcServer);

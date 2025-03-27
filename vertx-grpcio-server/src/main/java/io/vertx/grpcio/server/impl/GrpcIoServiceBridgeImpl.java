@@ -10,6 +10,7 @@
  */
 package io.vertx.grpcio.server.impl;
 
+import com.google.protobuf.Descriptors;
 import io.grpc.Attributes;
 import io.grpc.Context;
 import io.grpc.Compressor;
@@ -24,10 +25,12 @@ import io.grpc.ServerCallHandler;
 import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.Status;
+import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
 import io.vertx.core.Vertx;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -46,10 +49,34 @@ import java.util.concurrent.TimeUnit;
 
 public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
 
+  private final ServiceName serviceName;
   private final ServerServiceDefinition serviceDef;
+  private final ProtoServiceDescriptorSupplier protoServiceDescriptorSupplier;
 
   public GrpcIoServiceBridgeImpl(ServerServiceDefinition serviceDef) {
+
+    Object schemaDesc = serviceDef.getServiceDescriptor().getSchemaDescriptor();
+    if (!(schemaDesc instanceof ProtoServiceDescriptorSupplier)) {
+      throw new IllegalArgumentException("Service definition must be a ProtoMethodDescriptorSupplier");
+    }
+    ProtoServiceDescriptorSupplier supplier = (ProtoServiceDescriptorSupplier) schemaDesc;
+    if(supplier.getFileDescriptor() == null) {
+      throw new IllegalArgumentException("Service definition must have a FileDescriptor");
+    }
+
+    this.protoServiceDescriptorSupplier = supplier;
+    this.serviceName = ServiceName.create(serviceDef.getServiceDescriptor().getName());
     this.serviceDef = serviceDef;
+  }
+
+  @Override
+  public ServiceName name() {
+    return serviceName;
+  }
+
+  @Override
+  public Descriptors.ServiceDescriptor descriptor() {
+    return protoServiceDescriptorSupplier.getServiceDescriptor();
   }
 
   @Override

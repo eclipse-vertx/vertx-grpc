@@ -17,6 +17,7 @@ import io.vertx.core.Future;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.Service;
@@ -42,9 +43,10 @@ public class ReflectionTest extends GrpcTestBase {
   public void setUp(TestContext should) {
     super.setUp(should);
 
-    Service greeterService = Service.service(GreeterService.SERVICE_NAME, HelloWorldProto.getDescriptor().findServiceByName("Greeter"));
-    GrpcServer grpcServer = GrpcServer.server(vertx, new GrpcServerOptions().setReflectionEnabled(true));
+    Service greeterService = Service.service(GreeterService.SERVICE_NAME, HelloWorldProto.getDescriptor().findServiceByName("Greeter")).build();
+    GrpcServer grpcServer = GrpcServer.server(vertx);
 
+    grpcServer.addService(new ReflectionService());
     grpcServer.addService(greeterService);
 
     grpcServer.callHandler(GreeterService.SayHello, call -> {
