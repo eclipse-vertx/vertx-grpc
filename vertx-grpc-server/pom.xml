@@ -88,6 +88,12 @@
               <goal>test-compile-custom</goal>
             </goals>
           </execution>
+          <execution>
+            <id>compile</id>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
         </executions>
       </plugin>
       <plugin>

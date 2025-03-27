@@ -78,6 +78,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
         );
         serviceContext.protoName = fileProto.getName();
         serviceContext.packageName = fileProto.getPackage();
+        serviceContext.outerClassName = ProtoTypeMap.getJavaOuterClassname(fileProto);
         serviceContext.vertxPackageName = extractPackageName(fileProto);
         contexts.add(serviceContext);
       }
@@ -392,6 +393,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String vertxPackageName;
     public String className;
     public String serviceName;
+    public String outerClassName;
     public boolean deprecated;
     public String javaDoc;
     public final List<MethodContext> methods = new ArrayList<>();

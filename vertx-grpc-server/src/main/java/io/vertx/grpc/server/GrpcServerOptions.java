@@ -29,6 +29,11 @@ public class GrpcServerOptions {
   public static final boolean DEFAULT_GRPC_WEB_ENABLED = true;
 
   /**
+   * Whether the server should provide a reflection name, by default = {@code false}.
+   */
+  public static final boolean DEFAULT_REFLECTION_ENABLED = false;
+
+  /**
    * Whether the server schedule deadline automatically when a request carrying a timeout is received, by default = {@code false}
    */
   public static final boolean DEFAULT_SCHEDULE_DEADLINE_AUTOMATICALLY = false;
@@ -44,6 +49,7 @@ public class GrpcServerOptions {
   public static final long DEFAULT_MAX_MESSAGE_SIZE = 256 * 1024;
 
   private boolean grpcWebEnabled;
+  private boolean reflectionEnabled;
   private boolean scheduleDeadlineAutomatically;
   private boolean deadlinePropagation;
   private long maxMessageSize;
@@ -53,6 +59,7 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions() {
     grpcWebEnabled = DEFAULT_GRPC_WEB_ENABLED;
+    reflectionEnabled = DEFAULT_REFLECTION_ENABLED;
     scheduleDeadlineAutomatically = DEFAULT_SCHEDULE_DEADLINE_AUTOMATICALLY;
     deadlinePropagation = DEFAULT_PROPAGATE_DEADLINE;
     maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
@@ -63,6 +70,7 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions(GrpcServerOptions other) {
     grpcWebEnabled = other.grpcWebEnabled;
+    reflectionEnabled = other.reflectionEnabled;
     scheduleDeadlineAutomatically = other.scheduleDeadlineAutomatically;
     deadlinePropagation = other.deadlinePropagation;
     maxMessageSize = other.maxMessageSize;
@@ -91,6 +99,24 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions setGrpcWebEnabled(boolean grpcWebEnabled) {
     this.grpcWebEnabled = grpcWebEnabled;
+    return this;
+  }
+
+  /**
+   * @return {@code true} if the server should provide a reflection name, {@code false} otherwise
+   */
+  public boolean isReflectionEnabled() {
+    return reflectionEnabled;
+  }
+
+  /**
+   * Whether the server should provide a reflection name. Defaults to {@code false}.
+   *
+   * @param reflectionEnabled {@code true} if the server should provide a reflection name, {@code false} otherwise
+   * @return a reference to this, so the API can be used fluently
+   */
+  public GrpcServerOptions setReflectionEnabled(boolean reflectionEnabled) {
+    this.reflectionEnabled = reflectionEnabled;
     return this;
   }
 

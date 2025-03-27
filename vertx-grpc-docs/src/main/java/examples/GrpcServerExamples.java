@@ -316,4 +316,16 @@ public class GrpcServerExamples {
       }
     };
   }
+
+  public void reflectionExample(GrpcServer server) {
+    GreeterService stub = new GreeterService() {
+      @Override
+      public Future<HelloReply> sayHello(HelloRequest request) {
+        return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+      }
+    };
+
+    stub.bind(GreeterService.SayHello).to(server);
+    server.addService(Service.service(GreeterService.SERVICE_NAME,HelloWorldProto.getDescriptor().findServiceByName("Greeter")));
+  }
 }

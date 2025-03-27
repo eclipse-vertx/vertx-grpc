@@ -11,8 +11,13 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.Service;
 
+import com.google.protobuf.Descriptors;
+
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -23,13 +28,16 @@ import java.util.List;
  *   <li>SayHello</li>
  * </ul>
  */
-public class GreeterService {
+public class GreeterService implements Service {
+
+  public static final ServiceName SERVICE_NAME = ServiceName.create("helloworld", "Greeter");
+
 
   /**
    * SayHello protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = ServiceMethod.server(
-    ServiceName.create("helloworld", "Greeter"),
+    SERVICE_NAME,
     "SayHello",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.HelloRequest.parser()));
@@ -43,6 +51,30 @@ public class GreeterService {
     return all;
   }
 
+  private final List<ServiceMethodData<?, ?>> handlers = new LinkedList<>();
+
+  @Override
+  public ServiceName name() {
+    return SERVICE_NAME;
+  }
+
+  @Override
+  public Descriptors.ServiceDescriptor descriptor() {
+    return HelloWorldProto.getDescriptor().findServiceByName("Greeter");
+  }
+
+  @Override
+  public <Req, Resp> Service callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    handlers.add(new Service.ServiceMethodData<>(serviceMethod, handler));
+    return this;
+  }
+
+  @Override
+  public Service bind(GrpcServer server) {
+    handlers.forEach(h -> h.bind(server));
+    return this;
+  }
+
   /**
    * Json server service methods.
    */
@@ -52,7 +84,7 @@ public class GreeterService {
      * SayHello json RPC server service method.
      */
     public static final ServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = ServiceMethod.server(
-      ServiceName.create("helloworld", "Greeter"),
+      SERVICE_NAME,
       "SayHello",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()));
@@ -84,7 +116,7 @@ public class GreeterService {
      * SayHello transcoded RPC server service method.
      */
     public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
-      ServiceName.create("helloworld", "Greeter"),
+      SERVICE_NAME,
       "SayHello",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()),
@@ -142,9 +174,9 @@ public class GreeterService {
       return null;
     }
 
-    private <Req, Resp> void bindHandler(GrpcServer server, ServiceMethod<Req, Resp> serviceMethod) {
+    private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod) {
       Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
-      server.callHandler(serviceMethod, handler);
+      GreeterService.this.callHandler(serviceMethod, handler);
     }
 
     /**
@@ -152,8 +184,10 @@ public class GreeterService {
      */
     public void to(GrpcServer server) {
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-        bindHandler(server, serviceMethod);
+        bindHandler(serviceMethod);
       }
+
+      server.addService(GreeterService.this);
     }
   }
 

@@ -385,3 +385,12 @@ or you can process a `WriteStream`:
 ----
 {@link examples.GrpcServerExamples#streamingResponseStub2}
 ----
+
+=== gRPC Reflection APIs
+
+Support for the https://grpc.io/docs/guides/reflection/[gRPC reflection APIs] can be added to your Vert.x gRPC Server.
+
+[source,java]
+----
+{@link examples.GrpcIoServerExamples#reflectionExample}
+----

@@ -1,6 +1,7 @@
 package io.vertx.grpcio.server;
 
 import io.grpc.MethodDescriptor;
+import io.grpc.ServerServiceDefinition;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Handler;
@@ -58,4 +59,6 @@ public interface GrpcIoServer extends GrpcServer {
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcIoServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
 
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
+  GrpcIoServer addService(ServerServiceDefinition definition);
 }

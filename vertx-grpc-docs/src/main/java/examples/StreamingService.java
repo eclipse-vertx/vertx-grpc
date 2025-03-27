@@ -11,8 +11,13 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.Service;
 
+import com.google.protobuf.Descriptors;
+
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -25,13 +30,16 @@ import java.util.List;
  *   <li>Pipe</li>
  * </ul>
  */
-public class StreamingService {
+public class StreamingService implements Service {
+
+  public static final ServiceName SERVICE_NAME = ServiceName.create("streaming", "Streaming");
+
 
   /**
    * Source protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.Empty, examples.Item> Source = ServiceMethod.server(
-    ServiceName.create("streaming", "Streaming"),
+    SERVICE_NAME,
     "Source",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Empty.parser()));
@@ -40,7 +48,7 @@ public class StreamingService {
    * Sink protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.Item, examples.Empty> Sink = ServiceMethod.server(
-    ServiceName.create("streaming", "Streaming"),
+    SERVICE_NAME,
     "Sink",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
@@ -49,7 +57,7 @@ public class StreamingService {
    * Pipe protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.server(
-    ServiceName.create("streaming", "Streaming"),
+    SERVICE_NAME,
     "Pipe",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.Item.parser()));
@@ -65,6 +73,30 @@ public class StreamingService {
     return all;
   }
 
+  private final List<ServiceMethodData<?, ?>> handlers = new LinkedList<>();
+
+  @Override
+  public ServiceName name() {
+    return SERVICE_NAME;
+  }
+
+  @Override
+  public Descriptors.ServiceDescriptor descriptor() {
+    return StreamingProto.getDescriptor().findServiceByName("Streaming");
+  }
+
+  @Override
+  public <Req, Resp> Service callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    handlers.add(new Service.ServiceMethodData<>(serviceMethod, handler));
+    return this;
+  }
+
+  @Override
+  public Service bind(GrpcServer server) {
+    handlers.forEach(h -> h.bind(server));
+    return this;
+  }
+
   /**
    * Json server service methods.
    */
@@ -74,7 +106,7 @@ public class StreamingService {
      * Source json RPC server service method.
      */
     public static final ServiceMethod<examples.Empty, examples.Item> Source = ServiceMethod.server(
-      ServiceName.create("streaming", "Streaming"),
+      SERVICE_NAME,
       "Source",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
@@ -83,7 +115,7 @@ public class StreamingService {
      * Sink json RPC server service method.
      */
     public static final ServiceMethod<examples.Item, examples.Empty> Sink = ServiceMethod.server(
-      ServiceName.create("streaming", "Streaming"),
+      SERVICE_NAME,
       "Sink",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
@@ -92,7 +124,7 @@ public class StreamingService {
      * Pipe json RPC server service method.
      */
     public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.server(
-      ServiceName.create("streaming", "Streaming"),
+      SERVICE_NAME,
       "Pipe",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
@@ -203,9 +235,9 @@ public class StreamingService {
       return null;
     }
 
-    private <Req, Resp> void bindHandler(GrpcServer server, ServiceMethod<Req, Resp> serviceMethod) {
+    private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod) {
       Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
-      server.callHandler(serviceMethod, handler);
+      StreamingService.this.callHandler(serviceMethod, handler);
     }
 
     /**
@@ -213,8 +245,10 @@ public class StreamingService {
      */
     public void to(GrpcServer server) {
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-        bindHandler(server, serviceMethod);
+        bindHandler(serviceMethod);
       }
+
+      server.addService(StreamingService.this);
     }
   }
 

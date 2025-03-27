@@ -10,6 +10,7 @@
  */
 package io.vertx.grpc.server.impl;
 
+import io.grpc.reflection.v1.ServerReflectionProto;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -21,10 +22,7 @@ import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
-import io.vertx.grpc.server.GrpcProtocol;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerOptions;
-import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.*;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -38,16 +36,24 @@ import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 public class GrpcServerImpl implements GrpcServer {
 
   private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("application/grpc(-web(-text)?)?(\\+(json|proto))?");
+  private static final Service REFLECTION_SERVICE = Service.service(ServiceName.create("grpc.reflection.v1.ServerReflection"), ServerReflectionProto.getDescriptor().findServiceByName("ServerReflection"));
 
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
   private final GrpcServerOptions options;
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
+
+  private final List<Service> services = new ArrayList<>();
   private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
   private final List<Mount> mounts = new ArrayList<>();
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
+
+    if (this.options.isReflectionEnabled()) {
+      this.callHandler(GrpcServerReflectionHandler.SERVICE_METHOD, new GrpcServerReflectionHandler(this));
+      this.addService(REFLECTION_SERVICE);
+    }
   }
 
   // Internal pojo, the name does not matter much at the moment
@@ -303,6 +309,25 @@ public class GrpcServerImpl implements GrpcServer {
       });
     }
     return this;
+  }
+
+  @Override
+  public GrpcServer addService(Service service) {
+    for (Service s : this.services) {
+      if (s.name().equals(service.name())) {
+        throw new IllegalStateException("Duplicated name: " + service.name().name());
+      }
+    }
+
+    this.services.add(service);
+    service.bind(this);
+
+    return this;
+  }
+
+  @Override
+  public List<Service> getServices() {
+    return Collections.unmodifiableList(services);
   }
 
   private static class MethodCallHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
