@@ -1,5 +1,6 @@
 package examples;
 
+import examples.grpc.*;
 import io.grpc.MethodDescriptor;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -13,7 +14,6 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.client.*;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.server.GrpcServer;
 
 import java.util.concurrent.TimeUnit;
 

@@ -1,4 +1,4 @@
-package examples;
+package examples.grpc;
 
 import io.vertx.core.Future;
 import io.vertx.core.Completable;
@@ -23,31 +23,31 @@ public interface StreamingClient {
    * Source protobuf RPC client service method.
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
-    ServiceName.create("streaming", "Streaming"),
+  ServiceMethod<examples.grpc.Item, examples.grpc.Empty> Source = ServiceMethod.client(
+    ServiceName.create("examples.grpc", "Streaming"),
     "Source",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.Item.parser()));
+    GrpcMessageDecoder.decoder(examples.grpc.Item.parser()));
 
   /**
    * Sink protobuf RPC client service method.
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  ServiceMethod<examples.Empty, examples.Item> Sink = ServiceMethod.client(
-    ServiceName.create("streaming", "Streaming"),
+  ServiceMethod<examples.grpc.Empty, examples.grpc.Item> Sink = ServiceMethod.client(
+    ServiceName.create("examples.grpc", "Streaming"),
     "Sink",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.Empty.parser()));
+    GrpcMessageDecoder.decoder(examples.grpc.Empty.parser()));
 
   /**
    * Pipe protobuf RPC client service method.
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.client(
-    ServiceName.create("streaming", "Streaming"),
+  ServiceMethod<examples.grpc.Item, examples.grpc.Item> Pipe = ServiceMethod.client(
+    ServiceName.create("examples.grpc", "Streaming"),
     "Pipe",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.Item.parser()));
+    GrpcMessageDecoder.decoder(examples.grpc.Item.parser()));
 
   /**
    * Json client service methods.
@@ -58,29 +58,29 @@ public interface StreamingClient {
     /**
      * Source json RPC client service method.
      */
-    public static final ServiceMethod<examples.Item, examples.Empty> Source = ServiceMethod.client(
-      ServiceName.create("streaming", "Streaming"),
+    public static final ServiceMethod<examples.grpc.Item, examples.grpc.Empty> Source = ServiceMethod.client(
+      ServiceName.create("examples.grpc", "Streaming"),
       "Source",
       GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
+      GrpcMessageDecoder.json(() -> examples.grpc.Item.newBuilder()));
 
     /**
      * Sink json RPC client service method.
      */
-    public static final ServiceMethod<examples.Empty, examples.Item> Sink = ServiceMethod.client(
-      ServiceName.create("streaming", "Streaming"),
+    public static final ServiceMethod<examples.grpc.Empty, examples.grpc.Item> Sink = ServiceMethod.client(
+      ServiceName.create("examples.grpc", "Streaming"),
       "Sink",
       GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.Empty.newBuilder()));
+      GrpcMessageDecoder.json(() -> examples.grpc.Empty.newBuilder()));
 
     /**
      * Pipe json RPC client service method.
      */
-    public static final ServiceMethod<examples.Item, examples.Item> Pipe = ServiceMethod.client(
-      ServiceName.create("streaming", "Streaming"),
+    public static final ServiceMethod<examples.grpc.Item, examples.grpc.Item> Pipe = ServiceMethod.client(
+      ServiceName.create("examples.grpc", "Streaming"),
       "Pipe",
       GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.Item.newBuilder()));
+      GrpcMessageDecoder.json(() -> examples.grpc.Item.newBuilder()));
   }
 
   /**
@@ -109,47 +109,47 @@ public interface StreamingClient {
   /**
    * Calls the Source RPC service method.
    *
-   * @param request the examples.Empty request message
-   * @return a future of the examples.Item response messages
+   * @param request the examples.grpc.Empty request message
+   * @return a future of the examples.grpc.Item response messages
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<ReadStream<examples.Item>> source(examples.Empty request);
+  Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request);
 
   /**
    * Calls the Sink RPC service method.
    *
-   * @param completable a completable that will be passed a stream to which the examples.Item request messages can be written to.
-   * @return a future of the examples.Empty response message
+   * @param completable a completable that will be passed a stream to which the examples.grpc.Item request messages can be written to.
+   * @return a future of the examples.grpc.Empty response message
    */
   @io.vertx.codegen.annotations.GenIgnore
-  Future<examples.Empty> sink(Completable<WriteStream<examples.Item>> completable);
+  Future<examples.grpc.Empty> sink(Completable<WriteStream<examples.grpc.Item>> completable);
 
   /**
    * Calls the Sink RPC service method.
    *
    * @param streamOfMessages a stream of messages to be sent to the service
-   * @return a future of the examples.Empty response message
+   * @return a future of the examples.grpc.Empty response message
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<examples.Empty> sink(ReadStream<examples.Item> streamOfMessages);
+  Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> streamOfMessages);
 
   /**
    * Calls the Pipe RPC service method.
    *
-   * @param compltable a completable that will be passed a stream to which the examples.Item request messages can be written to.
-   * @return a future of the examples.Item response messages
+   * @param compltable a completable that will be passed a stream to which the examples.grpc.Item request messages can be written to.
+   * @return a future of the examples.grpc.Item response messages
    */
   @io.vertx.codegen.annotations.GenIgnore
-  Future<ReadStream<examples.Item>> pipe(Completable<WriteStream<examples.Item>> completable);
+  Future<ReadStream<examples.grpc.Item>> pipe(Completable<WriteStream<examples.grpc.Item>> completable);
 
   /**
    * Calls the Pipe RPC service method.
    *
     * @param streamOfMessages a stream of messages to be sent to the service
-   * @return a future of the examples.Item response messages
+   * @return a future of the examples.grpc.Item response messages
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<ReadStream<examples.Item>> pipe(ReadStream<examples.Item> streamOfMessages);
+  Future<ReadStream<examples.grpc.Item>> pipe(ReadStream<examples.grpc.Item> streamOfMessages);
 }
 
 /**
@@ -171,8 +171,8 @@ class StreamingClientImpl implements StreamingClient {
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
 
-  public Future<ReadStream<examples.Item>> source(examples.Empty request) {
-    ServiceMethod<examples.Item, examples.Empty> serviceMethod;
+  public Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request) {
+    ServiceMethod<examples.grpc.Item, examples.grpc.Empty> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
         serviceMethod = Source;
@@ -195,8 +195,8 @@ class StreamingClientImpl implements StreamingClient {
     });
   }
 
-  public Future<examples.Empty> sink(Completable<WriteStream<examples.Item>> completable) {
-    ServiceMethod<examples.Empty, examples.Item> serviceMethod;
+  public Future<examples.grpc.Empty> sink(Completable<WriteStream<examples.grpc.Item>> completable) {
+    ServiceMethod<examples.grpc.Empty, examples.grpc.Item> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
         serviceMethod = Sink;
@@ -214,8 +214,8 @@ class StreamingClientImpl implements StreamingClient {
     });
   }
 
-  public Future<examples.Empty> sink(ReadStream<examples.Item> request) {
-    io.vertx.core.streams.Pipe<examples.Item> pipe = request.pipe();
+  public Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> request) {
+    io.vertx.core.streams.Pipe<examples.grpc.Item> pipe = request.pipe();
     return sink((result, error) -> {
         if (error == null) {
           pipe.to(result);
@@ -225,8 +225,8 @@ class StreamingClientImpl implements StreamingClient {
     });
   }
 
-  public Future<ReadStream<examples.Item>> pipe(Completable<WriteStream<examples.Item>> completable) {
-    ServiceMethod<examples.Item, examples.Item> serviceMethod;
+  public Future<ReadStream<examples.grpc.Item>> pipe(Completable<WriteStream<examples.grpc.Item>> completable) {
+    ServiceMethod<examples.grpc.Item, examples.grpc.Item> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
         serviceMethod = Pipe;
@@ -250,8 +250,8 @@ class StreamingClientImpl implements StreamingClient {
     });
   }
 
-  public Future<ReadStream<examples.Item>> pipe(ReadStream<examples.Item> request) {
-    io.vertx.core.streams.Pipe<examples.Item> pipe = request.pipe();
+  public Future<ReadStream<examples.grpc.Item>> pipe(ReadStream<examples.grpc.Item> request) {
+    io.vertx.core.streams.Pipe<examples.grpc.Item> pipe = request.pipe();
     return pipe((result, error) -> {
         if (error == null) {
           pipe.to(result);

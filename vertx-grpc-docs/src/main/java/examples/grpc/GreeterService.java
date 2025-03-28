@@ -1,4 +1,4 @@
-package examples;
+package examples.grpc;
 
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -35,12 +35,12 @@ public class GreeterService implements Service {
   /**
    * Greeter service name.
    */
-  public static final ServiceName SERVICE_NAME = ServiceName.create("helloworld", "Greeter");
+  public static final ServiceName SERVICE_NAME = ServiceName.create("examples.grpc", "Greeter");
 
   /**
    * Greeter service descriptor.
    */
-  public static final Descriptors.ServiceDescriptor SERVICE_DESCRIPTOR = HelloWorldProto.getDescriptor().findServiceByName("Greeter");
+  public static final Descriptors.ServiceDescriptor SERVICE_DESCRIPTOR = Docs.getDescriptor().findServiceByName("Greeter");
 
   @Override
   public ServiceName name() {
@@ -60,11 +60,11 @@ public class GreeterService implements Service {
   /**
    * SayHello protobuf RPC server service method.
    */
-  public static final ServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = ServiceMethod.server(
+  public static final ServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHello = ServiceMethod.server(
     SERVICE_NAME,
     "SayHello",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.HelloRequest.parser()));
+    GrpcMessageDecoder.decoder(examples.grpc.HelloRequest.parser()));
 
   /**
    * @return a mutable list of the known protobuf RPC server service methods.
@@ -83,11 +83,11 @@ public class GreeterService implements Service {
     /**
      * SayHello json RPC server service method.
      */
-    public static final ServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = ServiceMethod.server(
+    public static final ServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHello = ServiceMethod.server(
       SERVICE_NAME,
       "SayHello",
       GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()));
+      GrpcMessageDecoder.json(() -> examples.grpc.HelloRequest.newBuilder()));
 
     /**
      * @return a mutable list of the known json RPC server service methods.
@@ -115,11 +115,11 @@ public class GreeterService implements Service {
     /**
      * SayHello transcoded RPC server service method.
      */
-    public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.HelloRequest, examples.HelloReply> SayHello = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+    public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHello = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
       SERVICE_NAME,
       "SayHello",
       GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.HelloRequest.newBuilder()),
+      GrpcMessageDecoder.json(() -> examples.grpc.HelloRequest.newBuilder()),
       SayHello_OPTIONS);
 
     /**
@@ -136,11 +136,11 @@ public class GreeterService implements Service {
   /**
    * Override this method to implement the SayHello RPC.
    */
-  protected Future<examples.HelloReply> sayHello(examples.HelloRequest request) {
+  protected Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
-  protected void sayHello(examples.HelloRequest request, Promise<examples.HelloReply> response) {
+  protected void sayHello(examples.grpc.HelloRequest request, Promise<examples.grpc.HelloReply> response) {
     sayHello(request)
       .onSuccess(msg -> response.complete(msg))
       .onFailure(error -> response.fail(error));
@@ -148,7 +148,7 @@ public class GreeterService implements Service {
 
   private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
     if (SayHello == serviceMethod || Json.SayHello == serviceMethod) {
-      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.HelloRequest, examples.HelloReply>> handler = GreeterService.this::handle_sayHello;
+      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = GreeterService.this::handle_sayHello;
       Handler<?> handler2 = handler;
       return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
     }
@@ -179,7 +179,7 @@ public class GreeterService implements Service {
 
     private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
       if (SayHello == serviceMethod || Json.SayHello == serviceMethod) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.HelloRequest, examples.HelloReply>> handler = GreeterService.this::handle_sayHello;
+        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = GreeterService.this::handle_sayHello;
         Handler<?> handler2 = handler;
         return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
       }
@@ -234,8 +234,8 @@ public class GreeterService implements Service {
     }
   }
 
-  private void handle_sayHello(io.vertx.grpc.server.GrpcServerRequest<examples.HelloRequest, examples.HelloReply> request) {
-    Promise<examples.HelloReply> promise = Promise.promise();
+  private void handle_sayHello(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply> request) {
+    Promise<examples.grpc.HelloReply> promise = Promise.promise();
     request.handler(msg -> {
       try {
         sayHello(msg, promise);

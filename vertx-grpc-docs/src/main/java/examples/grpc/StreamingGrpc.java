@@ -1,43 +1,40 @@
-package examples;
+package examples.grpc;
 
 import static io.grpc.MethodDescriptor.generateFullMethodName;
 
 /**
- * <pre>
- * Interface exported by the server.
- * </pre>
  */
 @io.grpc.stub.annotations.GrpcGenerated
 public final class StreamingGrpc {
 
   private StreamingGrpc() {}
 
-  public static final java.lang.String SERVICE_NAME = "streaming.Streaming";
+  public static final java.lang.String SERVICE_NAME = "examples.grpc.Streaming";
 
   // Static method descriptors that strictly reflect the proto.
-  private static volatile io.grpc.MethodDescriptor<examples.Empty,
-      examples.Item> getSourceMethod;
+  private static volatile io.grpc.MethodDescriptor<examples.grpc.Empty,
+      examples.grpc.Item> getSourceMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "Source",
-      requestType = examples.Empty.class,
-      responseType = examples.Item.class,
+      requestType = examples.grpc.Empty.class,
+      responseType = examples.grpc.Item.class,
       methodType = io.grpc.MethodDescriptor.MethodType.SERVER_STREAMING)
-  public static io.grpc.MethodDescriptor<examples.Empty,
-      examples.Item> getSourceMethod() {
-    io.grpc.MethodDescriptor<examples.Empty, examples.Item> getSourceMethod;
+  public static io.grpc.MethodDescriptor<examples.grpc.Empty,
+      examples.grpc.Item> getSourceMethod() {
+    io.grpc.MethodDescriptor<examples.grpc.Empty, examples.grpc.Item> getSourceMethod;
     if ((getSourceMethod = StreamingGrpc.getSourceMethod) == null) {
       synchronized (StreamingGrpc.class) {
         if ((getSourceMethod = StreamingGrpc.getSourceMethod) == null) {
           StreamingGrpc.getSourceMethod = getSourceMethod =
-              io.grpc.MethodDescriptor.<examples.Empty, examples.Item>newBuilder()
+              io.grpc.MethodDescriptor.<examples.grpc.Empty, examples.grpc.Item>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.SERVER_STREAMING)
               .setFullMethodName(generateFullMethodName(SERVICE_NAME, "Source"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  examples.Empty.getDefaultInstance()))
+                  examples.grpc.Empty.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  examples.Item.getDefaultInstance()))
+                  examples.grpc.Item.getDefaultInstance()))
               .setSchemaDescriptor(new StreamingMethodDescriptorSupplier("Source"))
               .build();
         }
@@ -46,29 +43,29 @@ public final class StreamingGrpc {
     return getSourceMethod;
   }
 
-  private static volatile io.grpc.MethodDescriptor<examples.Item,
-      examples.Empty> getSinkMethod;
+  private static volatile io.grpc.MethodDescriptor<examples.grpc.Item,
+      examples.grpc.Empty> getSinkMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "Sink",
-      requestType = examples.Item.class,
-      responseType = examples.Empty.class,
+      requestType = examples.grpc.Item.class,
+      responseType = examples.grpc.Empty.class,
       methodType = io.grpc.MethodDescriptor.MethodType.CLIENT_STREAMING)
-  public static io.grpc.MethodDescriptor<examples.Item,
-      examples.Empty> getSinkMethod() {
-    io.grpc.MethodDescriptor<examples.Item, examples.Empty> getSinkMethod;
+  public static io.grpc.MethodDescriptor<examples.grpc.Item,
+      examples.grpc.Empty> getSinkMethod() {
+    io.grpc.MethodDescriptor<examples.grpc.Item, examples.grpc.Empty> getSinkMethod;
     if ((getSinkMethod = StreamingGrpc.getSinkMethod) == null) {
       synchronized (StreamingGrpc.class) {
         if ((getSinkMethod = StreamingGrpc.getSinkMethod) == null) {
           StreamingGrpc.getSinkMethod = getSinkMethod =
-              io.grpc.MethodDescriptor.<examples.Item, examples.Empty>newBuilder()
+              io.grpc.MethodDescriptor.<examples.grpc.Item, examples.grpc.Empty>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.CLIENT_STREAMING)
               .setFullMethodName(generateFullMethodName(SERVICE_NAME, "Sink"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  examples.Item.getDefaultInstance()))
+                  examples.grpc.Item.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  examples.Empty.getDefaultInstance()))
+                  examples.grpc.Empty.getDefaultInstance()))
               .setSchemaDescriptor(new StreamingMethodDescriptorSupplier("Sink"))
               .build();
         }
@@ -77,29 +74,29 @@ public final class StreamingGrpc {
     return getSinkMethod;
   }
 
-  private static volatile io.grpc.MethodDescriptor<examples.Item,
-      examples.Item> getPipeMethod;
+  private static volatile io.grpc.MethodDescriptor<examples.grpc.Item,
+      examples.grpc.Item> getPipeMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "Pipe",
-      requestType = examples.Item.class,
-      responseType = examples.Item.class,
+      requestType = examples.grpc.Item.class,
+      responseType = examples.grpc.Item.class,
       methodType = io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING)
-  public static io.grpc.MethodDescriptor<examples.Item,
-      examples.Item> getPipeMethod() {
-    io.grpc.MethodDescriptor<examples.Item, examples.Item> getPipeMethod;
+  public static io.grpc.MethodDescriptor<examples.grpc.Item,
+      examples.grpc.Item> getPipeMethod() {
+    io.grpc.MethodDescriptor<examples.grpc.Item, examples.grpc.Item> getPipeMethod;
     if ((getPipeMethod = StreamingGrpc.getPipeMethod) == null) {
       synchronized (StreamingGrpc.class) {
         if ((getPipeMethod = StreamingGrpc.getPipeMethod) == null) {
           StreamingGrpc.getPipeMethod = getPipeMethod =
-              io.grpc.MethodDescriptor.<examples.Item, examples.Item>newBuilder()
+              io.grpc.MethodDescriptor.<examples.grpc.Item, examples.grpc.Item>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING)
               .setFullMethodName(generateFullMethodName(SERVICE_NAME, "Pipe"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  examples.Item.getDefaultInstance()))
+                  examples.grpc.Item.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  examples.Item.getDefaultInstance()))
+                  examples.grpc.Item.getDefaultInstance()))
               .setSchemaDescriptor(new StreamingMethodDescriptorSupplier("Pipe"))
               .build();
         }
@@ -168,39 +165,33 @@ public final class StreamingGrpc {
   }
 
   /**
-   * <pre>
-   * Interface exported by the server.
-   * </pre>
    */
   public interface AsyncService {
 
     /**
      */
-    default void source(examples.Empty request,
-        io.grpc.stub.StreamObserver<examples.Item> responseObserver) {
+    default void source(examples.grpc.Empty request,
+        io.grpc.stub.StreamObserver<examples.grpc.Item> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getSourceMethod(), responseObserver);
     }
 
     /**
      */
-    default io.grpc.stub.StreamObserver<examples.Item> sink(
-        io.grpc.stub.StreamObserver<examples.Empty> responseObserver) {
+    default io.grpc.stub.StreamObserver<examples.grpc.Item> sink(
+        io.grpc.stub.StreamObserver<examples.grpc.Empty> responseObserver) {
       return io.grpc.stub.ServerCalls.asyncUnimplementedStreamingCall(getSinkMethod(), responseObserver);
     }
 
     /**
      */
-    default io.grpc.stub.StreamObserver<examples.Item> pipe(
-        io.grpc.stub.StreamObserver<examples.Item> responseObserver) {
+    default io.grpc.stub.StreamObserver<examples.grpc.Item> pipe(
+        io.grpc.stub.StreamObserver<examples.grpc.Item> responseObserver) {
       return io.grpc.stub.ServerCalls.asyncUnimplementedStreamingCall(getPipeMethod(), responseObserver);
     }
   }
 
   /**
    * Base class for the server implementation of the service Streaming.
-   * <pre>
-   * Interface exported by the server.
-   * </pre>
    */
   public static abstract class StreamingImplBase
       implements io.grpc.BindableService, AsyncService {
@@ -212,9 +203,6 @@ public final class StreamingGrpc {
 
   /**
    * A stub to allow clients to do asynchronous rpc calls to service Streaming.
-   * <pre>
-   * Interface exported by the server.
-   * </pre>
    */
   public static final class StreamingStub
       extends io.grpc.stub.AbstractAsyncStub<StreamingStub> {
@@ -231,24 +219,24 @@ public final class StreamingGrpc {
 
     /**
      */
-    public void source(examples.Empty request,
-        io.grpc.stub.StreamObserver<examples.Item> responseObserver) {
+    public void source(examples.grpc.Empty request,
+        io.grpc.stub.StreamObserver<examples.grpc.Item> responseObserver) {
       io.grpc.stub.ClientCalls.asyncServerStreamingCall(
           getChannel().newCall(getSourceMethod(), getCallOptions()), request, responseObserver);
     }
 
     /**
      */
-    public io.grpc.stub.StreamObserver<examples.Item> sink(
-        io.grpc.stub.StreamObserver<examples.Empty> responseObserver) {
+    public io.grpc.stub.StreamObserver<examples.grpc.Item> sink(
+        io.grpc.stub.StreamObserver<examples.grpc.Empty> responseObserver) {
       return io.grpc.stub.ClientCalls.asyncClientStreamingCall(
           getChannel().newCall(getSinkMethod(), getCallOptions()), responseObserver);
     }
 
     /**
      */
-    public io.grpc.stub.StreamObserver<examples.Item> pipe(
-        io.grpc.stub.StreamObserver<examples.Item> responseObserver) {
+    public io.grpc.stub.StreamObserver<examples.grpc.Item> pipe(
+        io.grpc.stub.StreamObserver<examples.grpc.Item> responseObserver) {
       return io.grpc.stub.ClientCalls.asyncBidiStreamingCall(
           getChannel().newCall(getPipeMethod(), getCallOptions()), responseObserver);
     }
@@ -256,9 +244,6 @@ public final class StreamingGrpc {
 
   /**
    * A stub to allow clients to do synchronous rpc calls to service Streaming.
-   * <pre>
-   * Interface exported by the server.
-   * </pre>
    */
   public static final class StreamingBlockingV2Stub
       extends io.grpc.stub.AbstractBlockingStub<StreamingBlockingV2Stub> {
@@ -276,8 +261,8 @@ public final class StreamingGrpc {
     /**
      */
     @io.grpc.ExperimentalApi("https://github.com/grpc/grpc-java/issues/10918")
-    public io.grpc.stub.BlockingClientCall<?, examples.Item>
-        source(examples.Empty request) {
+    public io.grpc.stub.BlockingClientCall<?, examples.grpc.Item>
+        source(examples.grpc.Empty request) {
       return io.grpc.stub.ClientCalls.blockingV2ServerStreamingCall(
           getChannel(), getSourceMethod(), getCallOptions(), request);
     }
@@ -285,7 +270,7 @@ public final class StreamingGrpc {
     /**
      */
     @io.grpc.ExperimentalApi("https://github.com/grpc/grpc-java/issues/10918")
-    public io.grpc.stub.BlockingClientCall<examples.Item, examples.Empty>
+    public io.grpc.stub.BlockingClientCall<examples.grpc.Item, examples.grpc.Empty>
         sink() {
       return io.grpc.stub.ClientCalls.blockingClientStreamingCall(
           getChannel(), getSinkMethod(), getCallOptions());
@@ -294,7 +279,7 @@ public final class StreamingGrpc {
     /**
      */
     @io.grpc.ExperimentalApi("https://github.com/grpc/grpc-java/issues/10918")
-    public io.grpc.stub.BlockingClientCall<examples.Item, examples.Item>
+    public io.grpc.stub.BlockingClientCall<examples.grpc.Item, examples.grpc.Item>
         pipe() {
       return io.grpc.stub.ClientCalls.blockingBidiStreamingCall(
           getChannel(), getPipeMethod(), getCallOptions());
@@ -303,9 +288,6 @@ public final class StreamingGrpc {
 
   /**
    * A stub to allow clients to do limited synchronous rpc calls to service Streaming.
-   * <pre>
-   * Interface exported by the server.
-   * </pre>
    */
   public static final class StreamingBlockingStub
       extends io.grpc.stub.AbstractBlockingStub<StreamingBlockingStub> {
@@ -322,8 +304,8 @@ public final class StreamingGrpc {
 
     /**
      */
-    public java.util.Iterator<examples.Item> source(
-        examples.Empty request) {
+    public java.util.Iterator<examples.grpc.Item> source(
+        examples.grpc.Empty request) {
       return io.grpc.stub.ClientCalls.blockingServerStreamingCall(
           getChannel(), getSourceMethod(), getCallOptions(), request);
     }
@@ -331,9 +313,6 @@ public final class StreamingGrpc {
 
   /**
    * A stub to allow clients to do ListenableFuture-style rpc calls to service Streaming.
-   * <pre>
-   * Interface exported by the server.
-   * </pre>
    */
   public static final class StreamingFutureStub
       extends io.grpc.stub.AbstractFutureStub<StreamingFutureStub> {
@@ -371,8 +350,8 @@ public final class StreamingGrpc {
     public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
         case METHODID_SOURCE:
-          serviceImpl.source((examples.Empty) request,
-              (io.grpc.stub.StreamObserver<examples.Item>) responseObserver);
+          serviceImpl.source((examples.grpc.Empty) request,
+              (io.grpc.stub.StreamObserver<examples.grpc.Item>) responseObserver);
           break;
         default:
           throw new AssertionError();
@@ -386,10 +365,10 @@ public final class StreamingGrpc {
       switch (methodId) {
         case METHODID_SINK:
           return (io.grpc.stub.StreamObserver<Req>) serviceImpl.sink(
-              (io.grpc.stub.StreamObserver<examples.Empty>) responseObserver);
+              (io.grpc.stub.StreamObserver<examples.grpc.Empty>) responseObserver);
         case METHODID_PIPE:
           return (io.grpc.stub.StreamObserver<Req>) serviceImpl.pipe(
-              (io.grpc.stub.StreamObserver<examples.Item>) responseObserver);
+              (io.grpc.stub.StreamObserver<examples.grpc.Item>) responseObserver);
         default:
           throw new AssertionError();
       }
@@ -402,22 +381,22 @@ public final class StreamingGrpc {
           getSourceMethod(),
           io.grpc.stub.ServerCalls.asyncServerStreamingCall(
             new MethodHandlers<
-              examples.Empty,
-              examples.Item>(
+              examples.grpc.Empty,
+              examples.grpc.Item>(
                 service, METHODID_SOURCE)))
         .addMethod(
           getSinkMethod(),
           io.grpc.stub.ServerCalls.asyncClientStreamingCall(
             new MethodHandlers<
-              examples.Item,
-              examples.Empty>(
+              examples.grpc.Item,
+              examples.grpc.Empty>(
                 service, METHODID_SINK)))
         .addMethod(
           getPipeMethod(),
           io.grpc.stub.ServerCalls.asyncBidiStreamingCall(
             new MethodHandlers<
-              examples.Item,
-              examples.Item>(
+              examples.grpc.Item,
+              examples.grpc.Item>(
                 service, METHODID_PIPE)))
         .build();
   }
@@ -428,7 +407,7 @@ public final class StreamingGrpc {
 
     @java.lang.Override
     public com.google.protobuf.Descriptors.FileDescriptor getFileDescriptor() {
-      return examples.StreamingProto.getDescriptor();
+      return examples.grpc.Docs.getDescriptor();
     }
 
     @java.lang.Override

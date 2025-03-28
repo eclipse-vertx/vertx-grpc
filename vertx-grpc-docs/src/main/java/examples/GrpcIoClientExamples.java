@@ -1,5 +1,8 @@
 package examples;
 
+import examples.grpc.GreeterGrpc;
+import examples.grpc.HelloReply;
+import examples.grpc.HelloRequest;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Vertx;
 import io.vertx.core.net.SocketAddress;

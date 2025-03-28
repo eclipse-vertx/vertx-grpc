@@ -1,4 +1,4 @@
-package examples;
+package examples.grpc;
 
 import io.vertx.core.Future;
 import io.vertx.core.Completable;
@@ -23,11 +23,11 @@ public interface GreeterClient {
    * SayHello protobuf RPC client service method.
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
-    ServiceName.create("helloworld", "Greeter"),
+  ServiceMethod<examples.grpc.HelloReply, examples.grpc.HelloRequest> SayHello = ServiceMethod.client(
+    ServiceName.create("examples.grpc", "Greeter"),
     "SayHello",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.HelloReply.parser()));
+    GrpcMessageDecoder.decoder(examples.grpc.HelloReply.parser()));
 
   /**
    * Json client service methods.
@@ -38,11 +38,11 @@ public interface GreeterClient {
     /**
      * SayHello json RPC client service method.
      */
-    public static final ServiceMethod<examples.HelloReply, examples.HelloRequest> SayHello = ServiceMethod.client(
-      ServiceName.create("helloworld", "Greeter"),
+    public static final ServiceMethod<examples.grpc.HelloReply, examples.grpc.HelloRequest> SayHello = ServiceMethod.client(
+      ServiceName.create("examples.grpc", "Greeter"),
       "SayHello",
       GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.HelloReply.newBuilder()));
+      GrpcMessageDecoder.json(() -> examples.grpc.HelloReply.newBuilder()));
   }
 
   /**
@@ -71,11 +71,11 @@ public interface GreeterClient {
   /**
    * Calls the SayHello RPC service method.
    *
-   * @param request the examples.HelloRequest request message
-   * @return a future of the examples.HelloReply response message
+   * @param request the examples.grpc.HelloRequest request message
+   * @return a future of the examples.grpc.HelloReply response message
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<examples.HelloReply> sayHello(examples.HelloRequest request);
+  Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request);
 }
 
 /**
@@ -97,8 +97,8 @@ class GreeterClientImpl implements GreeterClient {
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
 
-  public Future<examples.HelloReply> sayHello(examples.HelloRequest request) {
-    ServiceMethod<examples.HelloReply, examples.HelloRequest> serviceMethod;
+  public Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
+    ServiceMethod<examples.grpc.HelloReply, examples.grpc.HelloRequest> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
         serviceMethod = SayHello;

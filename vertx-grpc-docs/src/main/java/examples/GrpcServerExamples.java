@@ -1,5 +1,6 @@
 package examples;
 
+import examples.grpc.*;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
