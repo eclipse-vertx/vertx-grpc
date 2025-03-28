@@ -7,6 +7,7 @@ import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -14,6 +15,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import java.util.stream.Stream;
 
 /**
  * <p>A client for invoking the {{serviceName}} gRPC service.</p>
@@ -83,6 +85,9 @@ public interface {{className}} {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
+
+  @io.vertx.codegen.annotations.GenIgnore
+  {{outputType}} {{vertxMethodName}}_sync({{inputType}} request);
 {{/unaryMethods}}
 {{#unaryManyMethods}}
 
@@ -94,6 +99,9 @@ public interface {{className}} {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);
+
+  @io.vertx.codegen.annotations.GenIgnore
+  Stream<{{outputType}}> {{vertxMethodName}}_sync({{inputType}} request);
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
 
@@ -114,6 +122,26 @@ public interface {{className}} {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages);
+
+  /**
+   * Calls the {{methodName}} RPC service method.
+   *
+   * @param streamOfMessages a stream of messages to be sent to the service
+   * @return a future of the {{outputType}} response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  default {{outputType}} {{vertxMethodName}}_sync(java.util.List<{{inputType}}> streamOfMessages) {
+    return {{vertxMethodName}}_sync(streamOfMessages.iterator());
+  }
+
+  /**
+   * Calls the {{methodName}} RPC service method.
+   *
+   * @param streamOfMessages a stream of messages to be sent to the service
+   * @return a future of the {{outputType}} response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  {{outputType}} {{vertxMethodName}}_sync(java.util.Iterator<{{inputType}}> streamOfMessages);
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
 
@@ -174,10 +202,42 @@ class {{className}}Impl implements {{className}} {
       return req.response().compose(resp -> resp.last());
     });
   }
+
+  public {{outputType}} {{vertxMethodName}}_sync({{inputType}} request) {
+    return {{vertxMethodName}}(request).await();
+  }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
 
   public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
+    return {{vertxMethodName}}_(request).compose(req -> {
+      req.end(request);
+      return req.response().flatMap(resp -> {
+        if (resp.status() != null && resp.status() != GrpcStatus.OK) {
+          return Future.failedFuture("Invalid gRPC status " + resp.status());
+        } else {
+          return Future.succeededFuture(resp);
+        }
+      });
+    });
+  }
+
+  public Stream<{{outputType}}> {{vertxMethodName}}_sync({{inputType}} request) {
+    Stream<{{outputType}}> iterator = {{vertxMethodName}}_(request)
+      .compose(req -> {
+        req.end(request);
+        return req.response().compose(resp -> {
+          if (resp.status() != null && resp.status() != GrpcStatus.OK) {
+            return Future.failedFuture("Invalid gRPC status " + resp.status());
+          } else {
+            return Future.succeededFuture(resp.blockingStream());
+          }
+        });
+      }).await();
+    return iterator;
+  }
+
+  public Future<GrpcClientRequest<{{inputType}}, {{outputType}}>> {{vertxMethodName}}_({{inputType}} request) {
     ServiceMethod<{{outputType}}, {{inputType}}> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -189,16 +249,7 @@ class {{className}}Impl implements {{className}} {
       default:
         throw new AssertionError();
     }
-    return client.request(socketAddress, serviceMethod).compose(req -> {
-      req.end(request);
-      return req.response().flatMap(resp -> {
-        if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-          return Future.failedFuture("Invalid gRPC status " + resp.status());
-        } else {
-          return Future.succeededFuture(resp);
-        }
-      });
-    });
+    return client.request(socketAddress, serviceMethod);
   }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
@@ -231,6 +282,10 @@ class {{className}}Impl implements {{className}} {
           pipe.close();
         }
     });
+  }
+
+  public {{outputType}} {{vertxMethodName}}_sync(java.util.Iterator<{{inputType}}> request) {
+    throw new UnsupportedOperationException();
   }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
