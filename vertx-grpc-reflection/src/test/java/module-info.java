@@ -15,4 +15,5 @@ open module io.vertx.tests.reflection {
   requires io.vertx.tests.server;
   requires junit;
   requires testcontainers;
+  exports io.vertx.tests.reflection.grpc;
 }

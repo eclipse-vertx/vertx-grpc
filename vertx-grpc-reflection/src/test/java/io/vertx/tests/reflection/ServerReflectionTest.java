@@ -13,7 +13,6 @@ package io.vertx.tests.reflection;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusException;
-import io.grpc.reflection.test.*;
 import io.grpc.stub.StreamObserver;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -26,6 +25,7 @@ import io.vertx.tests.server.ServerTestBase;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
 import io.vertx.tests.common.grpc.Tests;
+import io.vertx.tests.reflection.grpc.*;
 import org.junit.Test;
 
 import java.util.ArrayList;

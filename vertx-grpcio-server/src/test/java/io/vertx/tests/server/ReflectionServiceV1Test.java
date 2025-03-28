@@ -11,10 +11,10 @@
 package io.vertx.tests.server;
 
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.reflection.test.ListServiceResponse;
-import io.grpc.reflection.test.ServerReflectionGrpc;
-import io.grpc.reflection.test.ServerReflectionRequest;
-import io.grpc.reflection.test.ServerReflectionResponse;
+import io.vertx.tests.reflection.grpc.ListServiceResponse;
+import io.vertx.tests.reflection.grpc.ServerReflectionGrpc;
+import io.vertx.tests.reflection.grpc.ServerReflectionRequest;
+import io.vertx.tests.reflection.grpc.ServerReflectionResponse;
 import io.grpc.stub.StreamObserver;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
