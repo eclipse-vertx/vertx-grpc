@@ -25,9 +25,9 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>vertx-grpc-server-reflection</artifactId>
+  <artifactId>vertx-grpc-reflection</artifactId>
 
-  <name>Vert.x gRPC Server Reflection</name>
+  <name>Vert.x gRPC Reflection</name>
 
   <dependencies>
     <dependency>
