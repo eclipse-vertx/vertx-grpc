@@ -62,9 +62,6 @@
         <groupId>io.github.ascopes</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
         <configuration>
-          <sourceDirectories>
-            <sourceDirectory>src/test/proto</sourceDirectory>
-          </sourceDirectories>
           <binaryMavenPlugins>
             <binaryMavenPlugin>
               <groupId>io.grpc</groupId>

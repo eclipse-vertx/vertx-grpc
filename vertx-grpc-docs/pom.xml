@@ -81,30 +81,36 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.xolstice.maven.plugins</groupId>
+        <groupId>io.github.ascopes</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
         <executions>
           <execution>
             <id>compile</id>
             <goals>
-              <goal>compile</goal>
-              <goal>compile-custom</goal>
+              <goal>generate</goal>
             </goals>
             <configuration>
-              <protocPlugins>
-                <protocPlugin>
-                  <id>vertx-grpc-protoc-plugin</id>
+              <binaryMavenPlugins>
+                <binaryMavenPlugin>
+                  <groupId>io.grpc</groupId>
+                  <artifactId>protoc-gen-grpc-java</artifactId>
+                  <version>${grpc.version}</version>
+                  <options>@generated=omit</options>
+                </binaryMavenPlugin>
+              </binaryMavenPlugins>
+              <jvmMavenPlugins>
+                <jvmMavenPlugin>
                   <groupId>io.vertx</groupId>
                   <artifactId>vertx-grpc-protoc-plugin2</artifactId>
                   <version>${project.version}</version>
                   <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
-                  <args>
-                    <arg>grpc-client</arg>
-                    <arg>grpc-service</arg>
-                    <arg>grpc-io</arg>
-                  </args>
-                </protocPlugin>
-              </protocPlugins>
+                  <jvmArgs>
+                    <jvmArg>grpc-client</jvmArg>
+                    <jvmArg>grpc-service</jvmArg>
+                    <jvmArg>grpc-io</jvmArg>
+                  </jvmArgs>
+                </jvmMavenPlugin>
+              </jvmMavenPlugins>
               <outputDirectory>${project.basedir}/src/main/java</outputDirectory>
               <clearOutputDirectory>false</clearOutputDirectory>
             </configuration>
