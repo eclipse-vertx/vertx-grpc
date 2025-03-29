@@ -257,6 +257,14 @@
             <pluginParameter>@generated=omit</pluginParameter>
           </configuration>
         </plugin>
+        <plugin>
+          <groupId>io.github.ascopes</groupId>
+          <artifactId>protobuf-maven-plugin</artifactId>
+          <version>2.13.1</version>
+          <configuration>
+            <protocVersion>${protobuf.version}</protocVersion>
+          </configuration>
+        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
