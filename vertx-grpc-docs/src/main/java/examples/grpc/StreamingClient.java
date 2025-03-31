@@ -17,7 +17,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
  * <p>A client for invoking the Streaming gRPC service.</p>
  */
 @io.vertx.codegen.annotations.VertxGen
-public interface StreamingClient {
+public interface StreamingClient extends Streaming {
 
   /**
    * Source protobuf RPC client service method.

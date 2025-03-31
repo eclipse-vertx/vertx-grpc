@@ -325,6 +325,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
   private List<PluginProtos.CodeGeneratorResponse.File> buildFiles(ServiceContext context) {
     List<PluginProtos.CodeGeneratorResponse.File> files = new ArrayList<>();
+    files.add(buildBaseFile(context));
     if (generateClient) {
       files.add(buildClientFile(context));
     }
@@ -332,6 +333,12 @@ public class VertxGrpcGeneratorImpl extends Generator {
       files.add(buildServerFile(context));
     }
     return files;
+  }
+
+  private PluginProtos.CodeGeneratorResponse.File buildBaseFile(ServiceContext context) {
+    context.fileName = context.serviceName + ".java";
+    context.className = context.serviceName;
+    return buildFile(context, applyTemplate("base.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildClientFile(ServiceContext context) {

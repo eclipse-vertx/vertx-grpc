@@ -30,7 +30,7 @@ import java.util.List;
  *   <li>SayHello</li>
  * </ul>
  */
-public class GreeterService implements Service {
+public class GreeterService implements Greeter, Service {
 
   /**
    * Greeter service name.
@@ -136,7 +136,7 @@ public class GreeterService implements Service {
   /**
    * Override this method to implement the SayHello RPC.
    */
-  protected Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
+  public Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 

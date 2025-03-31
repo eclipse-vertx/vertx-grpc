@@ -34,7 +34,7 @@ import java.util.List;
 {{/allMethods}}
  * </ul>
  */
-public class {{className}} implements Service {
+public class {{className}} implements {{serviceName}}, Service {
 
   /**
    * {{serviceName}} service name.
@@ -163,7 +163,7 @@ public class {{className}} implements Service {
   /**
    * Override this method to implement the {{methodName}} RPC.
    */
-  protected Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+  public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
@@ -178,15 +178,20 @@ public class {{className}} implements Service {
   /**
    * Override this method to implement the {{methodName}} RPC.
    */
-  protected ReadStream<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
   protected void {{vertxMethodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
     {{vertxMethodName}}(request)
-      .handler(msg -> response.write(msg))
-      .endHandler(msg -> response.end())
-      .resume();
+      .onComplete(ar -> {
+        if (ar.succeeded()) {
+          ReadStream<{{outputType}}> stream = ar.result();
+          stream.pipeTo(response);
+        } else {
+          // Todo
+        }
+      });
   }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
@@ -194,7 +199,7 @@ public class {{className}} implements Service {
   /**
    * Override this method to implement the {{methodName}} RPC.
    */
-  protected Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
+  public Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
@@ -209,15 +214,20 @@ public class {{className}} implements Service {
   /**
    * Override this method to implement the {{methodName}} RPC.
    */
-  protected ReadStream<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
+  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
   protected void {{vertxMethodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
     {{vertxMethodName}}(request)
-      .handler(msg -> response.write(msg))
-      .endHandler(msg -> response.end())
-      .resume();
+      .onComplete(ar -> {
+        if (ar.succeeded()) {
+          ReadStream<{{outputType}}> stream = ar.result();
+          stream.pipeTo(response);
+        } else {
+          // Todo
+        }
+      });
   }
 {{/manyManyMethods}}
 

@@ -32,7 +32,7 @@ import java.util.List;
  *   <li>Pipe</li>
  * </ul>
  */
-public class StreamingService implements Service {
+public class StreamingService implements Streaming, Service {
 
   /**
    * Streaming service name.
@@ -159,21 +159,26 @@ public class StreamingService implements Service {
   /**
    * Override this method to implement the Source RPC.
    */
-  protected ReadStream<examples.grpc.Item> source(examples.grpc.Empty request) {
+  public Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
   protected void source(examples.grpc.Empty request, WriteStream<examples.grpc.Item> response) {
     source(request)
-      .handler(msg -> response.write(msg))
-      .endHandler(msg -> response.end())
-      .resume();
+      .onComplete(ar -> {
+        if (ar.succeeded()) {
+          ReadStream<examples.grpc.Item> stream = ar.result();
+          stream.pipeTo(response);
+        } else {
+          // Todo
+        }
+      });
   }
 
   /**
    * Override this method to implement the Sink RPC.
    */
-  protected Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> request) {
+  public Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
@@ -186,15 +191,20 @@ public class StreamingService implements Service {
   /**
    * Override this method to implement the Pipe RPC.
    */
-  protected ReadStream<examples.grpc.Item> pipe(ReadStream<examples.grpc.Item> request) {
+  public Future<ReadStream<examples.grpc.Item>> pipe(ReadStream<examples.grpc.Item> request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
   protected void pipe(ReadStream<examples.grpc.Item> request, WriteStream<examples.grpc.Item> response) {
     pipe(request)
-      .handler(msg -> response.write(msg))
-      .endHandler(msg -> response.end())
-      .resume();
+      .onComplete(ar -> {
+        if (ar.succeeded()) {
+          ReadStream<examples.grpc.Item> stream = ar.result();
+          stream.pipeTo(response);
+        } else {
+          // Todo
+        }
+      });
   }
 
   private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
