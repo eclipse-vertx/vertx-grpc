@@ -32,7 +32,7 @@ import java.util.List;
  *   <li>Pipe</li>
  * </ul>
  */
-public class StreamingService implements Streaming, Service {
+public class StreamingGrpcService implements Streaming, Service {
 
   /**
    * Streaming service name.
@@ -209,17 +209,17 @@ public class StreamingService implements Streaming, Service {
 
   private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
     if (Source == serviceMethod || Json.Source == serviceMethod) {
-      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item>> handler = StreamingService.this::handle_source;
+      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item>> handler = StreamingGrpcService.this::handle_source;
       Handler<?> handler2 = handler;
       return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
     }
     if (Sink == serviceMethod || Json.Sink == serviceMethod) {
-      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Empty>> handler = StreamingService.this::handle_sink;
+      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Empty>> handler = StreamingGrpcService.this::handle_sink;
       Handler<?> handler2 = handler;
       return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
     }
     if (Pipe == serviceMethod || Json.Pipe == serviceMethod) {
-      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item>> handler = StreamingService.this::handle_pipe;
+      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item>> handler = StreamingGrpcService.this::handle_pipe;
       Handler<?> handler2 = handler;
       return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
     }
@@ -250,17 +250,17 @@ public class StreamingService implements Streaming, Service {
 
     private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
       if (Source == serviceMethod || Json.Source == serviceMethod) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item>> handler = StreamingService.this::handle_source;
+        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item>> handler = StreamingGrpcService.this::handle_source;
         Handler<?> handler2 = handler;
         return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
       }
       if (Sink == serviceMethod || Json.Sink == serviceMethod) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Empty>> handler = StreamingService.this::handle_sink;
+        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Empty>> handler = StreamingGrpcService.this::handle_sink;
         Handler<?> handler2 = handler;
         return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
       }
       if (Pipe == serviceMethod || Json.Pipe == serviceMethod) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item>> handler = StreamingService.this::handle_pipe;
+        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item>> handler = StreamingGrpcService.this::handle_pipe;
         Handler<?> handler2 = handler;
         return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
       }

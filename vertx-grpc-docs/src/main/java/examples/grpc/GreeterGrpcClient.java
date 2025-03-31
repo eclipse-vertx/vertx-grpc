@@ -17,7 +17,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
  * <p>A client for invoking the Greeter gRPC service.</p>
  */
 @io.vertx.codegen.annotations.VertxGen
-public interface GreeterClient extends Greeter {
+public interface GreeterGrpcClient extends Greeter {
 
   /**
    * SayHello protobuf RPC client service method.
@@ -52,8 +52,8 @@ public interface GreeterClient extends Greeter {
    * @param host   the host providing the service
    * @return the configured client
    */
-  static GreeterClient create(GrpcClient client, SocketAddress host) {
-    return new GreeterClientImpl(client, host);
+  static GreeterGrpcClient create(GrpcClient client, SocketAddress host) {
+    return new GreeterGrpcClientImpl(client, host);
   }
 
   /**
@@ -64,8 +64,8 @@ public interface GreeterClient extends Greeter {
    * @param wireFormat the wire format
    * @return the configured client
    */
-  static GreeterClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new GreeterClientImpl(client, host, wireFormat);
+  static GreeterGrpcClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new GreeterGrpcClientImpl(client, host, wireFormat);
   }
 
   /**
@@ -81,17 +81,17 @@ public interface GreeterClient extends Greeter {
 /**
  * The proxy implementation.
  */
-class GreeterClientImpl implements GreeterClient {
+class GreeterGrpcClientImpl implements GreeterGrpcClient {
 
   private final GrpcClient client;
   private final SocketAddress socketAddress;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  GreeterClientImpl(GrpcClient client, SocketAddress socketAddress) {
+  GreeterGrpcClientImpl(GrpcClient client, SocketAddress socketAddress) {
     this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  GreeterClientImpl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  GreeterGrpcClientImpl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);

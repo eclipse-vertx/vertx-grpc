@@ -10,8 +10,8 @@
  */
 package io.vertx.grpc.it;
 
-import io.grpc.examples.helloworld.GreeterClient;
-import io.grpc.examples.helloworld.GreeterService;
+import io.grpc.examples.helloworld.GreeterGrpcClient;
+import io.grpc.examples.helloworld.GreeterGrpcService;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.vertx.core.Future;
@@ -37,7 +37,7 @@ public class ProxyTest extends ProxyTestBase {
 
     GrpcClient client = GrpcClient.client(vertx);
 
-    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(GreeterService.SayHello, call -> {
+    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHello, call -> {
       call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         call.response().end(helloReply);
@@ -61,7 +61,7 @@ public class ProxyTest extends ProxyTestBase {
 
     Async test = should.async();
     server.flatMap(v -> proxy).onComplete(should.asyncAssertSuccess(v -> {
-      client.request(SocketAddress.inetSocketAddress(8081, "localhost"), GreeterClient.SayHello)
+      client.request(SocketAddress.inetSocketAddress(8081, "localhost"), GreeterGrpcClient.SayHello)
         .onComplete(should.asyncAssertSuccess(callRequest -> {
           callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
             AtomicInteger count = new AtomicInteger();

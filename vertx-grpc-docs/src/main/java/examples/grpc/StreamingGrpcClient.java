@@ -17,7 +17,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
  * <p>A client for invoking the Streaming gRPC service.</p>
  */
 @io.vertx.codegen.annotations.VertxGen
-public interface StreamingClient extends Streaming {
+public interface StreamingGrpcClient extends Streaming {
 
   /**
    * Source protobuf RPC client service method.
@@ -90,8 +90,8 @@ public interface StreamingClient extends Streaming {
    * @param host   the host providing the service
    * @return the configured client
    */
-  static StreamingClient create(GrpcClient client, SocketAddress host) {
-    return new StreamingClientImpl(client, host);
+  static StreamingGrpcClient create(GrpcClient client, SocketAddress host) {
+    return new StreamingGrpcClientImpl(client, host);
   }
 
   /**
@@ -102,8 +102,8 @@ public interface StreamingClient extends Streaming {
    * @param wireFormat the wire format
    * @return the configured client
    */
-  static StreamingClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new StreamingClientImpl(client, host, wireFormat);
+  static StreamingGrpcClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new StreamingGrpcClientImpl(client, host, wireFormat);
   }
 
   /**
@@ -155,17 +155,17 @@ public interface StreamingClient extends Streaming {
 /**
  * The proxy implementation.
  */
-class StreamingClientImpl implements StreamingClient {
+class StreamingGrpcClientImpl implements StreamingGrpcClient {
 
   private final GrpcClient client;
   private final SocketAddress socketAddress;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  StreamingClientImpl(GrpcClient client, SocketAddress socketAddress) {
+  StreamingGrpcClientImpl(GrpcClient client, SocketAddress socketAddress) {
     this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  StreamingClientImpl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  StreamingGrpcClientImpl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);

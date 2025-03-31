@@ -297,14 +297,14 @@ public class GrpcServerExamples {
     server.addService(stub);
   }
 
-  private ReadStream<Item> streamOfItems() {
+  private Future<ReadStream<Item>> streamOfItems() {
     throw new UnsupportedOperationException();
   }
 
   public void streamingResponseStub1() {
     StreamingService stub = new StreamingService() {
       @Override
-      public ReadStream<Item> source(Empty request) {
+      public Future<ReadStream<Item>> source(Empty request) {
         return streamOfItems();
       }
     };

@@ -30,7 +30,7 @@ import java.util.List;
  *   <li>SayHello</li>
  * </ul>
  */
-public class GreeterService implements Greeter, Service {
+public class GreeterGrpcService implements Greeter, Service {
 
   /**
    * Greeter service name.
@@ -148,7 +148,7 @@ public class GreeterService implements Greeter, Service {
 
   private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
     if (SayHello == serviceMethod || Json.SayHello == serviceMethod) {
-      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = GreeterService.this::handle_sayHello;
+      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = GreeterGrpcService.this::handle_sayHello;
       Handler<?> handler2 = handler;
       return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
     }
@@ -179,7 +179,7 @@ public class GreeterService implements Greeter, Service {
 
     private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
       if (SayHello == serviceMethod || Json.SayHello == serviceMethod) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = GreeterService.this::handle_sayHello;
+        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = GreeterGrpcService.this::handle_sayHello;
         Handler<?> handler2 = handler;
         return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
       }

@@ -10,8 +10,8 @@
  */
 package io.vertx.grpc.it;
 
-import io.grpc.examples.helloworld.GreeterClient;
-import io.grpc.examples.helloworld.GreeterService;
+import io.grpc.examples.helloworld.GreeterGrpcClient;
+import io.grpc.examples.helloworld.GreeterGrpcService;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.vertx.core.Future;
@@ -30,7 +30,7 @@ import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import static io.grpc.examples.helloworld.GreeterService.SayHello;
+import static io.grpc.examples.helloworld.GreeterGrpcService.SayHello;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -44,15 +44,15 @@ public class DeadlineTest extends ProxyTestBase {
     GrpcServerOptions serverOptions = new GrpcServerOptions().setDeadlinePropagation(true);
     GrpcClient client = GrpcClient.client(vertx, clientOptions);
     Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx, serverOptions)
-      .callHandler(GreeterService.SayHello, call -> {
+      .callHandler(GreeterGrpcService.SayHello, call -> {
       should.assertTrue(call.timeout() > 0L);
       call.errorHandler(err -> {
         should.assertEquals(GrpcStatus.CANCELLED, err.status);
         latch.countDown();
       });
     })).listen(8080, "localhost");
-    GreeterClient stub = GreeterClient.create(client, SocketAddress.inetSocketAddress(8080, "localhost"));
-    GreeterService service = new GreeterService() {
+    GreeterGrpcClient stub = GreeterGrpcClient.create(client, SocketAddress.inetSocketAddress(8080, "localhost"));
+    GreeterGrpcService service = new GreeterGrpcService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
         GrpcLocal local = GrpcLocal.current();
@@ -77,7 +77,7 @@ public class DeadlineTest extends ProxyTestBase {
     proxy.addService(service);
     HttpServer proxyServer = vertx.createHttpServer().requestHandler(proxy);
     server.flatMap(v -> proxyServer.listen(8081, "localhost")).onComplete(should.asyncAssertSuccess(v -> {
-      client.request(SocketAddress.inetSocketAddress(8081, "localhost"), GreeterClient.SayHello)
+      client.request(SocketAddress.inetSocketAddress(8081, "localhost"), GreeterGrpcClient.SayHello)
         .onComplete(should.asyncAssertSuccess(callRequest -> {
           callRequest.response().onComplete(should.asyncAssertFailure(err -> {
             should.assertTrue(err instanceof GrpcErrorException);
