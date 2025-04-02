@@ -16,7 +16,9 @@ import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.internal.streams.ReadStreamIterator;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.core.streams.ReadStream;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
@@ -28,7 +30,9 @@ import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import org.junit.Test;
 
+import java.util.Spliterators;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.StreamSupport;
 
 import static io.grpc.examples.helloworld.GreeterGrpcService.SayHello;
 
@@ -39,6 +43,11 @@ public class DeadlineTest extends ProxyTestBase {
 
   @Test
   public void testAutomaticPropagation(TestContext should) {
+
+    ReadStream<String> rs = null;
+
+    StreamSupport.stream(() -> Spliterators.spliteratorUnknownSize(ReadStreamIterator.iterator(rs), 0), 0, false);
+
     Async latch = should.async(3);
     GrpcClientOptions clientOptions = new GrpcClientOptions().setScheduleDeadlineAutomatically(true);
     GrpcServerOptions serverOptions = new GrpcServerOptions().setDeadlinePropagation(true);

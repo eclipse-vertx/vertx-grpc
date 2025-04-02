@@ -16,6 +16,7 @@ import io.grpc.examples.helloworld.GreeterGrpcService;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.testing.integration.Messages;
+import io.grpc.testing.integration.TestServiceGrpcBlockingClient;
 import io.grpc.testing.integration.TestServiceGrpcClient;
 import io.grpc.testing.integration.TestServiceGrpcService;
 import io.vertx.core.Future;
@@ -36,6 +37,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+
+import static org.junit.Assert.assertEquals;
 
 public class ProtocPluginTest extends ProxyTestBase {
 
@@ -366,6 +370,41 @@ public class ProtocPluginTest extends ProxyTestBase {
         response.exceptionHandler(should::fail);
       }));
     test.awaitSuccess();
+  }
+
+  @Test
+  public void testUnaryMany_ReadStreamReturn_Sync(TestContext should) throws Exception {
+    // Create gRPC Server
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    grpcServer.addService(new TestServiceGrpcService() {
+      @Override
+      protected void streamingOutputCall(Messages.StreamingOutputCallRequest request, WriteStream<Messages.StreamingOutputCallResponse> response) {
+        response.write(Messages.StreamingOutputCallResponse.newBuilder()
+          .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
+          .build());
+        response.write(Messages.StreamingOutputCallResponse.newBuilder()
+          .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-2", StandardCharsets.UTF_8)).build())
+          .build());
+        response.end();
+      }
+    });
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer)
+      .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    TestServiceGrpcClient client = TestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    TestServiceGrpcBlockingClient blockingClient = TestServiceGrpcBlockingClient.create(client);
+
+    Messages.StreamingOutputCallRequest request = Messages.StreamingOutputCallRequest.newBuilder()
+      .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest", StandardCharsets.UTF_8)).build())
+      .build();
+    Stream<Messages.StreamingOutputCallResponse> res = blockingClient.streamingOutputCall(request);
+    Thread.sleep(100);
+    List<Messages.StreamingOutputCallResponse> list = new ArrayList<>();
+    res.forEach(msg -> list.add(msg));
+    assertEquals(2, list.size());
   }
 
   @Test

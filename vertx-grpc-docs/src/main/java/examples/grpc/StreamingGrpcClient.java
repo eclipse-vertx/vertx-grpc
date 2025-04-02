@@ -5,6 +5,7 @@ import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -12,6 +13,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import java.util.stream.Stream;
 
 /**
  * <p>A client for invoking the Streaming gRPC service.</p>
@@ -172,6 +174,19 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
   }
 
   public Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request) {
+    return source_(request).compose(req -> {
+      req.end(request);
+      return req.response().flatMap(resp -> {
+        if (resp.status() != null && resp.status() != GrpcStatus.OK) {
+          return Future.failedFuture("Invalid gRPC status " + resp.status());
+        } else {
+          return Future.succeededFuture(resp);
+        }
+      });
+    });
+  }
+
+  public Future<GrpcClientRequest<examples.grpc.Empty, examples.grpc.Item>> source_(examples.grpc.Empty request) {
     ServiceMethod<examples.grpc.Item, examples.grpc.Empty> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -183,16 +198,7 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
       default:
         throw new AssertionError();
     }
-    return client.request(socketAddress, serviceMethod).compose(req -> {
-      req.end(request);
-      return req.response().flatMap(resp -> {
-        if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-          return Future.failedFuture("Invalid gRPC status " + resp.status());
-        } else {
-          return Future.succeededFuture(resp);
-        }
-      });
-    });
+    return client.request(socketAddress, serviceMethod);
   }
 
   public Future<examples.grpc.Empty> sink(Completable<WriteStream<examples.grpc.Item>> completable) {

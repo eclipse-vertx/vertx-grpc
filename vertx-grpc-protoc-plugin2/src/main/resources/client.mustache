@@ -7,6 +7,7 @@ import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -14,6 +15,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import java.util.stream.Stream;
 
 /**
  * <p>A client for invoking the {{serviceName}} gRPC service.</p>
@@ -178,6 +180,19 @@ class {{className}}Impl implements {{className}} {
 {{#unaryManyMethods}}
 
   public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
+    return {{vertxMethodName}}_(request).compose(req -> {
+      req.end(request);
+      return req.response().flatMap(resp -> {
+        if (resp.status() != null && resp.status() != GrpcStatus.OK) {
+          return Future.failedFuture("Invalid gRPC status " + resp.status());
+        } else {
+          return Future.succeededFuture(resp);
+        }
+      });
+    });
+  }
+
+  public Future<GrpcClientRequest<{{inputType}}, {{outputType}}>> {{vertxMethodName}}_({{inputType}} request) {
     ServiceMethod<{{outputType}}, {{inputType}}> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -189,16 +204,7 @@ class {{className}}Impl implements {{className}} {
       default:
         throw new AssertionError();
     }
-    return client.request(socketAddress, serviceMethod).compose(req -> {
-      req.end(request);
-      return req.response().flatMap(resp -> {
-        if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-          return Future.failedFuture("Invalid gRPC status " + resp.status());
-        } else {
-          return Future.succeededFuture(resp);
-        }
-      });
-    });
+    return client.request(socketAddress, serviceMethod);
   }
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}

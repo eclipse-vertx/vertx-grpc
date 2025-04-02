@@ -5,6 +5,7 @@ import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -12,6 +13,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import java.util.stream.Stream;
 
 /**
  * <p>A client for invoking the Streaming gRPC service.</p>
@@ -115,6 +117,9 @@ public interface StreamingClient extends Streaming {
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request);
 
+  @io.vertx.codegen.annotations.GenIgnore
+  Stream<examples.grpc.Item> source_sync(examples.grpc.Empty request);
+
   /**
    * Calls the Sink RPC service method.
    *
@@ -132,6 +137,26 @@ public interface StreamingClient extends Streaming {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> streamOfMessages);
+
+  /**
+   * Calls the Sink RPC service method.
+   *
+   * @param streamOfMessages a stream of messages to be sent to the service
+   * @return a future of the examples.grpc.Empty response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  default examples.grpc.Empty sink_sync(java.util.List<examples.grpc.Item> streamOfMessages) {
+    return sink_sync(streamOfMessages.iterator());
+  }
+
+  /**
+   * Calls the Sink RPC service method.
+   *
+   * @param streamOfMessages a stream of messages to be sent to the service
+   * @return a future of the examples.grpc.Empty response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  examples.grpc.Empty sink_sync(java.util.Iterator<examples.grpc.Item> streamOfMessages);
 
   /**
    * Calls the Pipe RPC service method.
@@ -172,6 +197,34 @@ class StreamingClientImpl implements StreamingClient {
   }
 
   public Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request) {
+    return source_(request).compose(req -> {
+      req.end(request);
+      return req.response().flatMap(resp -> {
+        if (resp.status() != null && resp.status() != GrpcStatus.OK) {
+          return Future.failedFuture("Invalid gRPC status " + resp.status());
+        } else {
+          return Future.succeededFuture(resp);
+        }
+      });
+    });
+  }
+
+  public Stream<examples.grpc.Item> source_sync(examples.grpc.Empty request) {
+    Stream<examples.grpc.Item> iterator = source_(request)
+      .compose(req -> {
+        req.end(request);
+        return req.response().compose(resp -> {
+          if (resp.status() != null && resp.status() != GrpcStatus.OK) {
+            return Future.failedFuture("Invalid gRPC status " + resp.status());
+          } else {
+            return Future.succeededFuture(resp.blockingStream());
+          }
+        });
+      }).await();
+    return iterator;
+  }
+
+  public Future<GrpcClientRequest<examples.grpc.Empty, examples.grpc.Item>> source_(examples.grpc.Empty request) {
     ServiceMethod<examples.grpc.Item, examples.grpc.Empty> serviceMethod;
     switch (wireFormat) {
       case PROTOBUF:
@@ -183,16 +236,7 @@ class StreamingClientImpl implements StreamingClient {
       default:
         throw new AssertionError();
     }
-    return client.request(socketAddress, serviceMethod).compose(req -> {
-      req.end(request);
-      return req.response().flatMap(resp -> {
-        if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-          return Future.failedFuture("Invalid gRPC status " + resp.status());
-        } else {
-          return Future.succeededFuture(resp);
-        }
-      });
-    });
+    return client.request(socketAddress, serviceMethod);
   }
 
   public Future<examples.grpc.Empty> sink(Completable<WriteStream<examples.grpc.Item>> completable) {
@@ -223,6 +267,10 @@ class StreamingClientImpl implements StreamingClient {
           pipe.close();
         }
     });
+  }
+
+  public examples.grpc.Empty sink_sync(java.util.Iterator<examples.grpc.Item> request) {
+    throw new UnsupportedOperationException();
   }
 
   public Future<ReadStream<examples.grpc.Item>> pipe(Completable<WriteStream<examples.grpc.Item>> completable) {
