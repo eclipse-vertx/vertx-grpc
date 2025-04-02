@@ -85,9 +85,6 @@ public interface {{className}} extends {{serviceName}} {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
-
-  @io.vertx.codegen.annotations.GenIgnore
-  {{outputType}} {{vertxMethodName}}_sync({{inputType}} request);
 {{/unaryMethods}}
 {{#unaryManyMethods}}
 
@@ -99,9 +96,6 @@ public interface {{className}} extends {{serviceName}} {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);
-
-  @io.vertx.codegen.annotations.GenIgnore
-  Stream<{{outputType}}> {{vertxMethodName}}_sync({{inputType}} request);
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
 
@@ -122,26 +116,6 @@ public interface {{className}} extends {{serviceName}} {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages);
-
-  /**
-   * Calls the {{methodName}} RPC service method.
-   *
-   * @param streamOfMessages a stream of messages to be sent to the service
-   * @return a future of the {{outputType}} response message
-   */
-  @io.vertx.codegen.annotations.GenIgnore
-  default {{outputType}} {{vertxMethodName}}_sync(java.util.List<{{inputType}}> streamOfMessages) {
-    return {{vertxMethodName}}_sync(streamOfMessages.iterator());
-  }
-
-  /**
-   * Calls the {{methodName}} RPC service method.
-   *
-   * @param streamOfMessages a stream of messages to be sent to the service
-   * @return a future of the {{outputType}} response message
-   */
-  @io.vertx.codegen.annotations.GenIgnore
-  {{outputType}} {{vertxMethodName}}_sync(java.util.Iterator<{{inputType}}> streamOfMessages);
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
 
@@ -202,10 +176,6 @@ class {{className}}Impl implements {{className}} {
       return req.response().compose(resp -> resp.last());
     });
   }
-
-  public {{outputType}} {{vertxMethodName}}_sync({{inputType}} request) {
-    return {{vertxMethodName}}(request).await();
-  }
 {{/unaryMethods}}
 {{#unaryManyMethods}}
 
@@ -220,21 +190,6 @@ class {{className}}Impl implements {{className}} {
         }
       });
     });
-  }
-
-  public Stream<{{outputType}}> {{vertxMethodName}}_sync({{inputType}} request) {
-    Stream<{{outputType}}> iterator = {{vertxMethodName}}_(request)
-      .compose(req -> {
-        req.end(request);
-        return req.response().compose(resp -> {
-          if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-            return Future.failedFuture("Invalid gRPC status " + resp.status());
-          } else {
-            return Future.succeededFuture(resp.blockingStream());
-          }
-        });
-      }).await();
-    return iterator;
   }
 
   public Future<GrpcClientRequest<{{inputType}}, {{outputType}}>> {{vertxMethodName}}_({{inputType}} request) {
@@ -282,10 +237,6 @@ class {{className}}Impl implements {{className}} {
           pipe.close();
         }
     });
-  }
-
-  public {{outputType}} {{vertxMethodName}}_sync(java.util.Iterator<{{inputType}}> request) {
-    throw new UnsupportedOperationException();
   }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}

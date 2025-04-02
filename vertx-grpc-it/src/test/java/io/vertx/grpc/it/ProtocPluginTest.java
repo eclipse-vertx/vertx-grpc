@@ -16,6 +16,7 @@ import io.grpc.examples.helloworld.GreeterGrpcService;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.testing.integration.Messages;
+import io.grpc.testing.integration.TestServiceGrpcBlockingClient;
 import io.grpc.testing.integration.TestServiceGrpcClient;
 import io.grpc.testing.integration.TestServiceGrpcService;
 import io.vertx.core.Future;
@@ -30,7 +31,6 @@ import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.client.GrpcClient;
-import io.vertx.test.fakestream.FakeStream;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -395,11 +395,12 @@ public class ProtocPluginTest extends ProxyTestBase {
     // Create gRPC Client
     GrpcClient grpcClient = GrpcClient.client(vertx);
     TestServiceGrpcClient client = TestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    TestServiceGrpcBlockingClient blockingClient = TestServiceGrpcBlockingClient.create(client);
 
     Messages.StreamingOutputCallRequest request = Messages.StreamingOutputCallRequest.newBuilder()
       .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest", StandardCharsets.UTF_8)).build())
       .build();
-    Stream<Messages.StreamingOutputCallResponse> res = client.streamingOutputCall_sync(request);
+    Stream<Messages.StreamingOutputCallResponse> res = blockingClient.streamingOutputCall(request);
     Thread.sleep(100);
     List<Messages.StreamingOutputCallResponse> list = new ArrayList<>();
     res.forEach(msg -> list.add(msg));

@@ -78,9 +78,6 @@ public interface GreeterGrpcClient extends Greeter {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request);
-
-  @io.vertx.codegen.annotations.GenIgnore
-  examples.grpc.HelloReply sayHello_sync(examples.grpc.HelloRequest request);
 }
 
 /**
@@ -118,9 +115,5 @@ class GreeterGrpcClientImpl implements GreeterGrpcClient {
       req.end(request);
       return req.response().compose(resp -> resp.last());
     });
-  }
-
-  public examples.grpc.HelloReply sayHello_sync(examples.grpc.HelloRequest request) {
-    return sayHello(request).await();
   }
 }

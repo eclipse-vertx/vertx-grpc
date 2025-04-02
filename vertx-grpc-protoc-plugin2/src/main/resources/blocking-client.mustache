@@ -1,0 +1,90 @@
+{{#vertxPackageName}}
+package {{vertxPackageName}};
+{{/vertxPackageName}}
+
+import io.vertx.core.Future;
+import io.vertx.core.Completable;
+import io.vertx.core.Handler;
+import io.vertx.core.net.SocketAddress;
+import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.core.streams.ReadStream;
+import io.vertx.core.streams.WriteStream;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import java.util.stream.Stream;
+
+/**
+ * <p>A client for invoking the {{serviceName}} gRPC service.</p>
+ */
+public interface {{className}} {
+
+  static {{className}} create({{serviceName}}GrpcClient client) {
+    return new {{className}}Impl(client);
+  }
+
+{{#unaryMethods}}
+
+  @io.vertx.codegen.annotations.GenIgnore
+  {{outputType}} {{vertxMethodName}}({{inputType}} request);
+{{/unaryMethods}}
+{{#unaryManyMethods}}
+
+  @io.vertx.codegen.annotations.GenIgnore
+  Stream<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
+{{/unaryManyMethods}}
+{{#manyUnaryMethods}}
+
+  @io.vertx.codegen.annotations.GenIgnore
+  default {{outputType}} {{vertxMethodName}}(java.util.List<{{inputType}}> streamOfMessages) {
+    return {{vertxMethodName}}(streamOfMessages.iterator());
+  }
+
+  @io.vertx.codegen.annotations.GenIgnore
+  {{outputType}} {{vertxMethodName}}(java.util.Iterator<{{inputType}}> streamOfMessages);
+{{/manyUnaryMethods}}
+}
+
+/**
+ * The proxy implementation.
+ */
+class {{className}}Impl implements {{className}} {
+
+  private final {{serviceName}}GrpcClientImpl client;
+
+  {{className}}Impl({{serviceName}} client) {
+    this.client = ({{serviceName}}GrpcClientImpl)java.util.Objects.requireNonNull(client);
+  }
+{{#unaryMethods}}
+
+  public {{outputType}} {{vertxMethodName}}({{inputType}} request) {
+    return client.{{vertxMethodName}}(request).await();
+  }
+{{/unaryMethods}}
+{{#unaryManyMethods}}
+
+  public Stream<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+    Stream<{{outputType}}> iterator = client.{{vertxMethodName}}_(request)
+      .compose(req -> {
+        req.end(request);
+        return req.response().compose(resp -> {
+          if (resp.status() != null && resp.status() != GrpcStatus.OK) {
+            return Future.failedFuture("Invalid gRPC status " + resp.status());
+          } else {
+            return Future.succeededFuture(resp.blockingStream());
+          }
+        });
+      }).await();
+    return iterator;
+  }
+{{/unaryManyMethods}}
+{{#manyUnaryMethods}}
+
+  public {{outputType}} {{vertxMethodName}}(java.util.Iterator<{{inputType}}> request) {
+    throw new UnsupportedOperationException();
+  }
+{{/manyUnaryMethods}}
+}
