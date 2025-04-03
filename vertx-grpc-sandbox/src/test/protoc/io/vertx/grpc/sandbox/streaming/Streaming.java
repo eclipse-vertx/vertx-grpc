@@ -1,6 +1,4 @@
-{{#vertxPackageName}}
-package {{vertxPackageName}};
-{{/vertxPackageName}}
+package io.vertx.grpc.sandbox.streaming;
 
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -26,31 +24,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * <p>Base definition {{serviceName}} service.</p>
+ * <p>Base definition Streaming service.</p>
  */
 @io.vertx.codegen.annotations.VertxGen
-@io.vertx.grpc.common.annotations.GrpcClass(packageName = "{{packageName}}", name = "{{serviceName}}")
-public interface {{className}} {
+@io.vertx.grpc.common.annotations.GrpcClass(packageName = "streaming", name = "Streaming")
+public interface Streaming {
 
-{{#unaryMethods}}
 
-  @io.vertx.grpc.common.annotations.GrpcMethod(name = "{{methodName}}")
+  @io.vertx.grpc.common.annotations.GrpcMethod(name = "Unary")
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
-{{/unaryMethods}}
-{{#unaryManyMethods}}
+  Future<io.vertx.grpc.sandbox.streaming.Item> unary(io.vertx.grpc.sandbox.streaming.Item request);
 
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);
-{{/unaryManyMethods}}
-{{#manyUnaryMethods}}
+  Future<ReadStream<io.vertx.grpc.sandbox.streaming.Item>> source(io.vertx.grpc.sandbox.streaming.Empty request);
 
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request);
-{{/manyUnaryMethods}}
-{{#manyManyMethods}}
+  Future<io.vertx.grpc.sandbox.streaming.Empty> sink(ReadStream<io.vertx.grpc.sandbox.streaming.Item> request);
 
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> request);
-{{/manyManyMethods}}
+  Future<ReadStream<io.vertx.grpc.sandbox.streaming.Item>> pipe(ReadStream<io.vertx.grpc.sandbox.streaming.Item> request);
 }
