@@ -209,6 +209,7 @@
     <module>vertx-grpc-protoc-plugin2</module>
     <module>vertx-grpc-it</module>
     <module>vertx-grpc-docs</module>
+    <module>vertx-grpc-sandbox</module>
   </modules>
 
   <build>
