@@ -29,6 +29,10 @@
 
   <name>Vert.x gRPC sandbox</name>
 
+  <properties>
+    <s>${path.separator}</s>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>io.vertx</groupId>
@@ -72,7 +76,41 @@
   </dependencies>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>default-testCompile</id>
+              <configuration>
+                <useModulePath>false</useModulePath>
+                <generatedTestSourcesDirectory>${project.basedir}/src/test/generated</generatedTestSourcesDirectory>
+                <annotationProcessors>
+                  <annotationProcessor>io.vertx.codegen.processor.Processor</annotationProcessor>
+                </annotationProcessors>
+                <testCompilerArguments>
+                  <processorpath>${project.build.directory}/classes${s}${io.vertx:vertx-codegen-api:jar}${s}${io.vertx:vertx-codegen-processor:jar}${s}${io.vertx:vertx-grpc-common:jar}</processorpath>
+                </testCompilerArguments>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>initialize</phase>
+            <goals>
+              <goal>properties</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
@@ -81,11 +119,11 @@
             <id>add-source</id>
             <phase>generate-sources</phase>
             <goals>
-              <goal>add-source</goal>
+              <goal>add-test-source</goal>
             </goals>
             <configuration>
               <sources>
-                <source>${project.basedir}/src/main/protoc</source>
+                <source>${project.basedir}/src/test/protoc</source>
               </sources>
             </configuration>
           </execution>
@@ -101,17 +139,17 @@
               <groupId>io.vertx</groupId>
               <artifactId>vertx-grpc-protoc-plugin2</artifactId>
               <version>${project.version}</version>
-              <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
+              <mainClass>io.vertx.grpc.plugin.VertxGrpcBaseGenerator</mainClass>
             </protocPlugin>
           </protocPlugins>
-          <outputDirectory>${project.basedir}/src/main/protoc</outputDirectory>
+          <outputDirectory>${project.basedir}/src/test/protoc</outputDirectory>
           <clearOutputDirectory>true</clearOutputDirectory>
         </configuration>
         <executions>
           <execution>
             <id>compile</id>
             <goals>
-              <goal>compile</goal>
+              <goal>test-compile</goal>
             </goals>
           </execution>
         </executions>

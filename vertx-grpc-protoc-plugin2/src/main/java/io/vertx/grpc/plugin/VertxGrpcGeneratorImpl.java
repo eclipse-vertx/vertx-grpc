@@ -34,10 +34,12 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
   private final boolean generateClient;
   private final boolean generateServer;
+  private final boolean generateBase;
 
-  public VertxGrpcGeneratorImpl(boolean generateClient, boolean generateServer) {
+  public VertxGrpcGeneratorImpl(boolean generateClient, boolean generateServer, boolean generateBase) {
     this.generateClient = generateClient;
     this.generateServer = generateServer;
+    this.generateBase = generateBase;
   }
 
   private String getServiceJavaDocPrefix() {
@@ -325,7 +327,9 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
   private List<PluginProtos.CodeGeneratorResponse.File> buildFiles(ServiceContext context) {
     List<PluginProtos.CodeGeneratorResponse.File> files = new ArrayList<>();
-    files.add(buildBaseFile(context));
+    if (generateBase) {
+      files.add(buildBaseFile(context));
+    }
     if (generateClient) {
       files.add(buildClientFile(context));
     }

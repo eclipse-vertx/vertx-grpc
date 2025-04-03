@@ -28,23 +28,29 @@ import java.util.List;
 /**
  * <p>Base definition {{serviceName}} service.</p>
  */
+@io.vertx.codegen.annotations.VertxGen
+@io.vertx.grpc.common.annotations.GrpcClass(packageName = "{{packageName}}", name = "{{serviceName}}")
 public interface {{className}} {
 
 {{#unaryMethods}}
 
+  @io.vertx.grpc.common.annotations.GrpcMethod(name = "{{methodName}}")
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
 {{/unaryMethods}}
 {{#unaryManyMethods}}
 
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
 
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request);
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
 
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> request);
 {{/manyManyMethods}}
-
 }
