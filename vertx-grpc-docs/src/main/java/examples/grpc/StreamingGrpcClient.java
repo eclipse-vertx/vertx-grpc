@@ -17,7 +17,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
  * <p>A client for invoking the Streaming gRPC service.</p>
  */
 @io.vertx.codegen.annotations.VertxGen
-public interface StreamingGrpcClient extends Streaming {
+public interface StreamingGrpcClient extends StreamingClient {
 
   /**
    * Source protobuf RPC client service method.
@@ -105,51 +105,6 @@ public interface StreamingGrpcClient extends Streaming {
   static StreamingGrpcClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
     return new StreamingGrpcClientImpl(client, host, wireFormat);
   }
-
-  /**
-   * Calls the Source RPC service method.
-   *
-   * @param request the examples.grpc.Empty request message
-   * @return a future of the examples.grpc.Item response messages
-   */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request);
-
-  /**
-   * Calls the Sink RPC service method.
-   *
-   * @param completable a completable that will be passed a stream to which the examples.grpc.Item request messages can be written to.
-   * @return a future of the examples.grpc.Empty response message
-   */
-  @io.vertx.codegen.annotations.GenIgnore
-  Future<examples.grpc.Empty> sink(Completable<WriteStream<examples.grpc.Item>> completable);
-
-  /**
-   * Calls the Sink RPC service method.
-   *
-   * @param streamOfMessages a stream of messages to be sent to the service
-   * @return a future of the examples.grpc.Empty response message
-   */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> streamOfMessages);
-
-  /**
-   * Calls the Pipe RPC service method.
-   *
-   * @param compltable a completable that will be passed a stream to which the examples.grpc.Item request messages can be written to.
-   * @return a future of the examples.grpc.Item response messages
-   */
-  @io.vertx.codegen.annotations.GenIgnore
-  Future<ReadStream<examples.grpc.Item>> pipe(Completable<WriteStream<examples.grpc.Item>> completable);
-
-  /**
-   * Calls the Pipe RPC service method.
-   *
-    * @param streamOfMessages a stream of messages to be sent to the service
-   * @return a future of the examples.grpc.Item response messages
-   */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<ReadStream<examples.grpc.Item>> pipe(ReadStream<examples.grpc.Item> streamOfMessages);
 }
 
 /**

@@ -17,7 +17,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
  * <p>A client for invoking the Greeter gRPC service.</p>
  */
 @io.vertx.codegen.annotations.VertxGen
-public interface GreeterGrpcClient extends Greeter {
+public interface GreeterGrpcClient extends GreeterClient {
 
   /**
    * SayHello protobuf RPC client service method.
@@ -67,15 +67,6 @@ public interface GreeterGrpcClient extends Greeter {
   static GreeterGrpcClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
     return new GreeterGrpcClientImpl(client, host, wireFormat);
   }
-
-  /**
-   * Calls the SayHello RPC service method.
-   *
-   * @param request the examples.grpc.HelloRequest request message
-   * @return a future of the examples.grpc.HelloReply response message
-   */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request);
 }
 
 /**

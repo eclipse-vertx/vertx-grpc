@@ -28,7 +28,6 @@ import java.util.List;
  */
 public interface Streaming {
 
-
   Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request);
 
   Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> request);
