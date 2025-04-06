@@ -60,6 +60,13 @@ public class StreamingGrpcService extends StreamingService implements Service {
   }
 
   /**
+   * @return a service binding all methods of the given {@code service}
+   */
+  public static Service of(StreamingService service) {
+    return builder(service).bind(all()).build();
+  }
+
+  /**
    * Source protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.grpc.Empty, examples.grpc.Item> Source = ServiceMethod.server(
@@ -116,13 +123,6 @@ public class StreamingGrpcService extends StreamingService implements Service {
       java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
       return all;
     }
-  }
-
-  /**
-   * @return a service binding all methods of the given {@code service}
-   */
-  public static Service of(StreamingService service) {
-    return builder(service).bind(all()).build();
   }
 
   /**
@@ -232,7 +232,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
       } catch (UnsupportedOperationException e) {
         request.response().status(GrpcStatus.UNIMPLEMENTED).end();
       } catch (RuntimeException err) {
-        request.response().status(GrpcStatus.INTERNAL).end();
+        request.response().status(GrpcStatus.UNKNOWN).end();
       }
     });
   }
@@ -243,13 +243,13 @@ public class StreamingGrpcService extends StreamingService implements Service {
         if (err == null) {
           request.response().end(res);
         } else {
-          request.response().status(GrpcStatus.INTERNAL).end();
+          request.response().status(GrpcStatus.UNKNOWN).end();
         }
       });
     } catch (UnsupportedOperationException err) {
       request.response().status(GrpcStatus.UNIMPLEMENTED).end();
     } catch (RuntimeException err) {
-      request.response().status(GrpcStatus.INTERNAL).end();
+      request.response().status(GrpcStatus.UNKNOWN).end();
     }
   }
 
@@ -259,7 +259,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
      } catch (UnsupportedOperationException err) {
       request.response().status(GrpcStatus.UNIMPLEMENTED).end();
      } catch (RuntimeException err) {
-      request.response().status(GrpcStatus.INTERNAL).end();
+      request.response().status(GrpcStatus.UNKNOWN).end();
     }
   }
     }

@@ -30,8 +30,6 @@ import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import static io.grpc.examples.helloworld.GreeterGrpcService.SayHello;
-
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
