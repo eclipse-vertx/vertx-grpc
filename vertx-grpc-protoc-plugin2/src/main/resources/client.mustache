@@ -1,0 +1,84 @@
+{{#javaPackageName}}
+package {{javaPackageName}};
+{{/javaPackageName}}
+
+import io.vertx.core.Future;
+import io.vertx.core.Completable;
+import io.vertx.core.Handler;
+import io.vertx.core.net.SocketAddress;
+import io.vertx.grpc.client.GrpcClient;
+import io.vertx.core.streams.ReadStream;
+import io.vertx.core.streams.WriteStream;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+
+/**
+ * <p>A client for invoking the {{serviceName}} gRPC service.</p>
+ */
+public interface {{className}} extends {{serviceName}} {
+{{#unaryMethods}}
+
+  /**
+   * Calls the {{methodName}} RPC service method.
+   *
+   * @param request the {{inputType}} request message
+   * @return a future of the {{outputType}} response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
+{{/unaryMethods}}
+{{#unaryManyMethods}}
+
+  /**
+   * Calls the {{methodName}} RPC service method.
+   *
+   * @param request the {{inputType}} request message
+   * @return a future of the {{outputType}} response messages
+   */
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);
+{{/unaryManyMethods}}
+{{#manyUnaryMethods}}
+
+  /**
+   * Calls the {{methodName}} RPC service method.
+   *
+   * @param completable a completable that will be passed a stream to which the {{inputType}} request messages can be written to.
+   * @return a future of the {{outputType}} response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  Future<{{outputType}}> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable);
+
+  /**
+   * Calls the {{methodName}} RPC service method.
+   *
+   * @param streamOfMessages a stream of messages to be sent to the service
+   * @return a future of the {{outputType}} response message
+   */
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages);
+{{/manyUnaryMethods}}
+{{#manyManyMethods}}
+
+  /**
+   * Calls the {{methodName}} RPC service method.
+   *
+   * @param compltable a completable that will be passed a stream to which the {{inputType}} request messages can be written to.
+   * @return a future of the {{outputType}} response messages
+   */
+  @io.vertx.codegen.annotations.GenIgnore
+  Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable);
+
+  /**
+   * Calls the {{methodName}} RPC service method.
+   *
+    * @param streamOfMessages a stream of messages to be sent to the service
+   * @return a future of the {{outputType}} response messages
+   */
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages);
+{{/manyManyMethods}}
+}

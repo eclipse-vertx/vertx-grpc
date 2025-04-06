@@ -327,9 +327,11 @@ public class VertxGrpcGeneratorImpl extends Generator {
     List<PluginProtos.CodeGeneratorResponse.File> files = new ArrayList<>();
     files.add(buildBaseFile(context));
     if (generateGrpcClient) {
+      files.add(buildClientFile(context));
       files.add(buildGrpcClientFile(context));
     }
     if (generateGrpcService) {
+      files.add(buildServiceFile(context));
       files.add(buildGrpcServiceFile(context));
     }
     return files;
@@ -341,10 +343,22 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return buildFile(context, applyTemplate("base.mustache", context));
   }
 
+  private PluginProtos.CodeGeneratorResponse.File buildClientFile(ServiceContext context) {
+    context.fileName = context.serviceName + "Client.java";
+    context.className = context.serviceName + "Client";
+    return buildFile(context, applyTemplate("client.mustache", context));
+  }
+
   private PluginProtos.CodeGeneratorResponse.File buildGrpcClientFile(ServiceContext context) {
     context.fileName = context.serviceName + "GrpcClient.java";
     context.className = context.serviceName + "GrpcClient";
     return buildFile(context, applyTemplate("grpc-client.mustache", context));
+  }
+
+  private PluginProtos.CodeGeneratorResponse.File buildServiceFile(ServiceContext context) {
+    context.fileName = context.serviceName + "Service.java";
+    context.className = context.serviceName + "Service";
+    return buildFile(context, applyTemplate("service.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildGrpcServiceFile(ServiceContext context) {

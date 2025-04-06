@@ -29,7 +29,6 @@ import java.util.List;
  * <p>Base definition {{serviceName}} service.</p>
  */
 public interface {{className}} {
-
 {{#unaryMethods}}
 
   Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);

@@ -34,7 +34,7 @@ import java.util.List;
 {{/allMethods}}
  * </ul>
  */
-public class {{className}} implements {{serviceName}}, Service {
+public class {{className}} extends {{serviceName}}Service implements Service {
 
   /**
    * {{serviceName}} service name.
@@ -157,79 +157,6 @@ public class {{className}} implements {{serviceName}}, Service {
       return all;
     }
   }
-
-{{#unaryMethods}}
-
-  /**
-   * Override this method to implement the {{methodName}} RPC.
-   */
-  public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  protected void {{vertxMethodName}}({{inputType}} request, Promise<{{outputType}}> response) {
-    {{vertxMethodName}}(request)
-      .onSuccess(msg -> response.complete(msg))
-      .onFailure(error -> response.fail(error));
-  }
-{{/unaryMethods}}
-{{#unaryManyMethods}}
-
-  /**
-   * Override this method to implement the {{methodName}} RPC.
-   */
-  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  protected void {{vertxMethodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
-    {{vertxMethodName}}(request)
-      .onComplete(ar -> {
-        if (ar.succeeded()) {
-          ReadStream<{{outputType}}> stream = ar.result();
-          stream.pipeTo(response);
-        } else {
-          // Todo
-        }
-      });
-  }
-{{/unaryManyMethods}}
-{{#manyUnaryMethods}}
-
-  /**
-   * Override this method to implement the {{methodName}} RPC.
-   */
-  public Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  protected void {{vertxMethodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
-    {{vertxMethodName}}(request)
-      .onSuccess(msg -> response.complete(msg))
-      .onFailure(error -> response.fail(error));
-  }
-{{/manyUnaryMethods}}
-{{#manyManyMethods}}
-
-  /**
-   * Override this method to implement the {{methodName}} RPC.
-   */
-  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  protected void {{vertxMethodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
-    {{vertxMethodName}}(request)
-      .onComplete(ar -> {
-        if (ar.succeeded()) {
-          ReadStream<{{outputType}}> stream = ar.result();
-          stream.pipeTo(response);
-        } else {
-          // Todo
-        }
-      });
-  }
-{{/manyManyMethods}}
 
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
