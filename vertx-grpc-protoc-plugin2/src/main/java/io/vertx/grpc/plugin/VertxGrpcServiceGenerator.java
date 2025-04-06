@@ -5,7 +5,7 @@ import com.salesforce.jprotoc.ProtocPlugin;
 
 import java.util.List;
 
-public class VertxGrpcServerGenerator {
+public class VertxGrpcServiceGenerator {
   public static void main(String[] args) {
     if (args.length == 0) {
       ProtocPlugin.generate(List.of(new VertxGrpcGeneratorImpl(false, true)), List.of(AnnotationsProto.http));

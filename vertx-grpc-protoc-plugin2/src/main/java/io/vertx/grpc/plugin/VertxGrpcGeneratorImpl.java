@@ -33,11 +33,11 @@ public class VertxGrpcGeneratorImpl extends Generator {
   private static final int METHOD_NUMBER_OF_PATHS = 4;
 
   private final boolean generateClient;
-  private final boolean generateServer;
+  private final boolean generateService;
 
-  public VertxGrpcGeneratorImpl(boolean generateClient, boolean generateServer) {
+  public VertxGrpcGeneratorImpl(boolean generateClient, boolean generateService) {
     this.generateClient = generateClient;
-    this.generateServer = generateServer;
+    this.generateService = generateService;
   }
 
   private String getServiceJavaDocPrefix() {
@@ -79,7 +79,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
         serviceContext.protoName = fileProto.getName();
         serviceContext.packageName = fileProto.getPackage();
         serviceContext.outerClassName = ProtoTypeMap.getJavaOuterClassname(fileProto);
-        serviceContext.vertxPackageName = extractPackageName(fileProto);
+        serviceContext.javaPackageName = extractPackageName(fileProto);
         contexts.add(serviceContext);
       }
     });
@@ -329,8 +329,8 @@ public class VertxGrpcGeneratorImpl extends Generator {
     if (generateClient) {
       files.add(buildClientFile(context));
     }
-    if (generateServer) {
-      files.add(buildServerFile(context));
+    if (generateService) {
+      files.add(buildServiceFile(context));
     }
     return files;
   }
@@ -347,10 +347,10 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return buildFile(context, applyTemplate("client.mustache", context));
   }
 
-  private PluginProtos.CodeGeneratorResponse.File buildServerFile(ServiceContext context) {
+  private PluginProtos.CodeGeneratorResponse.File buildServiceFile(ServiceContext context) {
     context.fileName = context.serviceName + "GrpcService.java";
     context.className = context.serviceName + "GrpcService";
-    return buildFile(context, applyTemplate("server.mustache", context));
+    return buildFile(context, applyTemplate("service.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildFile(ServiceContext context, String content) {
@@ -362,7 +362,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
   }
 
   private String absoluteFileName(ServiceContext ctx) {
-    String dir = ctx.vertxPackageName.replace('.', '/');
+    String dir = ctx.javaPackageName.replace('.', '/');
     if (Strings.isNullOrEmpty(dir)) {
       return ctx.fileName;
     } else {
@@ -397,7 +397,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String fileName;
     public String protoName;
     public String packageName;
-    public String vertxPackageName;
+    public String javaPackageName;
     public String className;
     public String serviceName;
     public String outerClassName;
