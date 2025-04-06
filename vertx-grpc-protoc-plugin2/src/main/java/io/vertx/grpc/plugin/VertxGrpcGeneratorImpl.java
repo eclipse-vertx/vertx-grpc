@@ -32,12 +32,12 @@ public class VertxGrpcGeneratorImpl extends Generator {
   private static final int SERVICE_NUMBER_OF_PATHS = 2;
   private static final int METHOD_NUMBER_OF_PATHS = 4;
 
-  private final boolean generateClient;
-  private final boolean generateService;
+  private final boolean generateGrpcClient;
+  private final boolean generateGrpcService;
 
-  public VertxGrpcGeneratorImpl(boolean generateClient, boolean generateService) {
-    this.generateClient = generateClient;
-    this.generateService = generateService;
+  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService) {
+    this.generateGrpcClient = generateGrpcClient;
+    this.generateGrpcService = generateGrpcService;
   }
 
   private String getServiceJavaDocPrefix() {
@@ -326,11 +326,11 @@ public class VertxGrpcGeneratorImpl extends Generator {
   private List<PluginProtos.CodeGeneratorResponse.File> buildFiles(ServiceContext context) {
     List<PluginProtos.CodeGeneratorResponse.File> files = new ArrayList<>();
     files.add(buildBaseFile(context));
-    if (generateClient) {
-      files.add(buildClientFile(context));
+    if (generateGrpcClient) {
+      files.add(buildGrpcClientFile(context));
     }
-    if (generateService) {
-      files.add(buildServiceFile(context));
+    if (generateGrpcService) {
+      files.add(buildGrpcServiceFile(context));
     }
     return files;
   }
@@ -341,16 +341,16 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return buildFile(context, applyTemplate("base.mustache", context));
   }
 
-  private PluginProtos.CodeGeneratorResponse.File buildClientFile(ServiceContext context) {
+  private PluginProtos.CodeGeneratorResponse.File buildGrpcClientFile(ServiceContext context) {
     context.fileName = context.serviceName + "GrpcClient.java";
     context.className = context.serviceName + "GrpcClient";
-    return buildFile(context, applyTemplate("client.mustache", context));
+    return buildFile(context, applyTemplate("grpc-client.mustache", context));
   }
 
-  private PluginProtos.CodeGeneratorResponse.File buildServiceFile(ServiceContext context) {
+  private PluginProtos.CodeGeneratorResponse.File buildGrpcServiceFile(ServiceContext context) {
     context.fileName = context.serviceName + "GrpcService.java";
     context.className = context.serviceName + "GrpcService";
-    return buildFile(context, applyTemplate("service.mustache", context));
+    return buildFile(context, applyTemplate("grpc-service.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildFile(ServiceContext context, String content) {
