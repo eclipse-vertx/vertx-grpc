@@ -231,49 +231,32 @@ public class {{className}} implements {{serviceName}}, Service {
   }
 {{/manyManyMethods}}
 
-  private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
-{{#methods}}
-    if ({{methodName}} == serviceMethod || Json.{{methodName}} == serviceMethod) {
-      Handler<io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}>> handler = {{className}}.this::handle_{{vertxMethodName}};
-      Handler<?> handler2 = handler;
-      return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-    }
-{{/methods}}
-    return null;
-  }
-
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
   public Builder builder() {
-    return new Builder();
+    return new Builder(this);
   }
 
   /**
    * Service builder.
    */
-  public class Builder implements ServiceBuilder {
+  public static class Builder implements ServiceBuilder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
+    private final {{className}} instance;
 
-    private void validate() {
-      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-        if (resolveHandler(serviceMethod) == null) {
-          throw new IllegalArgumentException("Invalid service method:" + serviceMethod);
-        }
-      }
+    private Builder({{className}} instance) {
+      this.instance = instance;
     }
 
-    private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
-{{#methods}}
-      if ({{methodName}} == serviceMethod || Json.{{methodName}} == serviceMethod) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}>> handler = {{className}}.this::handle_{{vertxMethodName}};
-        Handler<?> handler2 = handler;
-        return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-      }
-{{/methods}}
-      return null;
-    }
+//    private void validate() {
+//      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
+//        if (resolveHandler(serviceMethod) == null) {
+//          throw new IllegalArgumentException("Invalid service method:" + serviceMethod);
+//        }
+//      }
+//    }
 
     /**
      * Throws {@code UnsupportedOperationException}.
@@ -298,37 +281,54 @@ public class {{className}} implements {{serviceName}}, Service {
     }
 
     public Service build() {
-      // Defensive copy
-      List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>(Builder.this.serviceMethods);
-      return new Service() {
-        public ServiceName name() {
-          return SERVICE_NAME;
-        }
-        public Descriptors.ServiceDescriptor descriptor() {
-          return SERVICE_DESCRIPTOR;
-        }
-        /**
-         * Bind the contained service methods to the {@code server}.
-         */
-        public void bind(GrpcServer server) {
-          for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-            bindHandler(serviceMethod, server);
-          }
-        }
-        private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServer server) {
-          Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
-          server.callHandler(serviceMethod, handler);
-        }
-      };
+      return new Invoker();
     }
-  }
+
+    private class Invoker implements Service {
+
+      // Defensive copy
+      private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>(Builder.this.serviceMethods);
+
+      public ServiceName name() {
+        return SERVICE_NAME;
+      }
+
+      public Descriptors.ServiceDescriptor descriptor() {
+        return SERVICE_DESCRIPTOR;
+      }
+
+      /**
+       * Bind the contained service methods to the {@code server}.
+       */
+      public void bind(GrpcServer server) {
+        for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
+          bindHandler(serviceMethod, server);
+        }
+      }
+
+      private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServer server) {
+        Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
+        server.callHandler(serviceMethod, handler);
+      }
+
+      private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
+{{#methods}}
+        if ({{methodName}} == serviceMethod || Json.{{methodName}} == serviceMethod) {
+          Handler<io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}>> handler = this::handle_{{vertxMethodName}};
+          Handler<?> handler2 = handler;
+          return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
+        }
+{{/methods}}
+        return null;
+      }
+
 {{#unaryMethods}}
 
   private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
     Promise<{{outputType}}> promise = Promise.promise();
     request.handler(msg -> {
       try {
-        {{vertxMethodName}}(msg, promise);
+        instance.{{vertxMethodName}}(msg, promise);
       } catch (RuntimeException err) {
         promise.tryFail(err);
       }
@@ -343,7 +343,7 @@ public class {{className}} implements {{serviceName}}, Service {
   private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
     request.handler(msg -> {
       try {
-        {{vertxMethodName}}(msg, request.response());
+        instance.{{vertxMethodName}}(msg, request.response());
       } catch (RuntimeException err) {
         request.response().status(GrpcStatus.INTERNAL).end();
       }
@@ -358,7 +358,7 @@ public class {{className}} implements {{serviceName}}, Service {
       .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
       .onSuccess(resp -> request.response().end(resp));
     try {
-      {{vertxMethodName}}(request, promise);
+      instance.{{vertxMethodName}}(request, promise);
     } catch (RuntimeException err) {
       promise.tryFail(err);
     }
@@ -368,10 +368,13 @@ public class {{className}} implements {{serviceName}}, Service {
 
   private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
     try {
-      {{vertxMethodName}}(request, request.response());
+      instance.{{vertxMethodName}}(request, request.response());
     } catch (RuntimeException err) {
       request.response().status(GrpcStatus.INTERNAL).end();
     }
   }
 {{/manyManyMethods}}
+
+    }
+  }
 }
