@@ -35,7 +35,7 @@ import java.util.List;
  * </ul>
  */
 public class {{className}} implements {{serviceName}} {
-{{#unaryMethods}}
+{{#unaryUnaryMethods}}
 
   /**
    * Override this method to implement the {{methodName}} RPC.
@@ -49,7 +49,7 @@ public class {{className}} implements {{serviceName}} {
       .onSuccess(msg -> response.complete(msg))
       .onFailure(error -> response.fail(error));
   }
-{{/unaryMethods}}
+{{/unaryUnaryMethods}}
 {{#unaryManyMethods}}
 
   /**

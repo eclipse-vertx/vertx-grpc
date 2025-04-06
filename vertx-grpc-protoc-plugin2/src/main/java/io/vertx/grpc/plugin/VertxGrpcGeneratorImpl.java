@@ -427,7 +427,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
       return methods.stream().filter(m -> m.isManyInput || m.isManyOutput).collect(Collectors.toList());
     }
 
-    public List<MethodContext> unaryMethods() {
+    public List<MethodContext> unaryUnaryMethods() {
       return methods.stream().filter(m -> !m.isManyInput && !m.isManyOutput).collect(Collectors.toList());
     }
 

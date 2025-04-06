@@ -29,10 +29,10 @@ import java.util.List;
  * <p>Base definition {{serviceName}} service.</p>
  */
 public interface {{className}} {
-{{#unaryMethods}}
+{{#unaryUnaryMethods}}
 
   Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
-{{/unaryMethods}}
+{{/unaryUnaryMethods}}
 {{#unaryManyMethods}}
 
   Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);

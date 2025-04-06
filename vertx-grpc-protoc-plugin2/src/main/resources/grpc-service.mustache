@@ -249,7 +249,7 @@ public class {{className}} extends {{serviceName}}Service implements Service {
         return null;
       }
 
-{{#unaryMethods}}
+{{#unaryUnaryMethods}}
 
   private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {
     Promise<{{outputType}}> promise = Promise.promise();
@@ -264,7 +264,7 @@ public class {{className}} extends {{serviceName}}Service implements Service {
       .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
       .onSuccess(resp -> request.response().end(resp));
   }
-{{/unaryMethods}}
+{{/unaryUnaryMethods}}
 {{#unaryManyMethods}}
 
   private void handle_{{vertxMethodName}}(io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}> request) {

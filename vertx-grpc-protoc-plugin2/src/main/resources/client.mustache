@@ -19,7 +19,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
  * <p>A client for invoking the {{serviceName}} gRPC service.</p>
  */
 public interface {{className}} extends {{serviceName}} {
-{{#unaryMethods}}
+{{#unaryUnaryMethods}}
 
   /**
    * Calls the {{methodName}} RPC service method.
@@ -29,7 +29,7 @@ public interface {{className}} extends {{serviceName}} {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
-{{/unaryMethods}}
+{{/unaryUnaryMethods}}
 {{#unaryManyMethods}}
 
   /**

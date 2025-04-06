@@ -93,7 +93,7 @@ class {{className}}Impl implements {{className}} {
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
-{{#unaryMethods}}
+{{#unaryUnaryMethods}}
 
   public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
     ServiceMethod<{{outputType}}, {{inputType}}> serviceMethod;
@@ -112,7 +112,7 @@ class {{className}}Impl implements {{className}} {
       return req.response().compose(resp -> resp.last());
     });
   }
-{{/unaryMethods}}
+{{/unaryUnaryMethods}}
 {{#unaryManyMethods}}
 
   public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
