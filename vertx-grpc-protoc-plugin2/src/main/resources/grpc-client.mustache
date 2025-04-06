@@ -159,17 +159,6 @@ class {{className}}Impl implements {{className}} {
       return request.response().compose(response -> response.last());
     });
   }
-
-  public Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
-    io.vertx.core.streams.Pipe<{{inputType}}> pipe = request.pipe();
-    return {{vertxMethodName}}((result, error) -> {
-        if (error == null) {
-          pipe.to(result);
-        } else {
-          pipe.close();
-        }
-    });
-  }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
 
@@ -195,17 +184,6 @@ class {{className}}Impl implements {{className}} {
             return Future.succeededFuture(resp);
           }
         });
-    });
-  }
-
-  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
-    io.vertx.core.streams.Pipe<{{inputType}}> pipe = request.pipe();
-    return {{vertxMethodName}}((result, error) -> {
-        if (error == null) {
-          pipe.to(result);
-        } else {
-          pipe.close();
-        }
     });
   }
 {{/manyManyMethods}}

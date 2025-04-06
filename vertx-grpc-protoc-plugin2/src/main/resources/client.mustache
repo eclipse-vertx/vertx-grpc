@@ -59,7 +59,16 @@ public interface {{className}} extends {{serviceName}} {
    * @return a future of the {{outputType}} response message
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages);
+  default Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages) {
+    io.vertx.core.streams.Pipe<{{inputType}}> pipe = streamOfMessages.pipe();
+    return {{vertxMethodName}}((result, error) -> {
+        if (error == null) {
+          pipe.to(result);
+        } else {
+          pipe.close();
+        }
+    });
+  }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
 
@@ -79,6 +88,15 @@ public interface {{className}} extends {{serviceName}} {
    * @return a future of the {{outputType}} response messages
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages);
+  default Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages) {
+    io.vertx.core.streams.Pipe<{{inputType}}> pipe = streamOfMessages.pipe();
+    return {{vertxMethodName}}((result, error) -> {
+        if (error == null) {
+          pipe.to(result);
+        } else {
+          pipe.close();
+        }
+    });
+  }
 {{/manyManyMethods}}
 }
