@@ -1,0 +1,110 @@
+{{#javaPackageName}}
+package {{javaPackageName}};
+{{/javaPackageName}}
+
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
+import io.vertx.core.Handler;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.streams.ReadStream;
+import io.vertx.core.streams.WriteStream;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.Service;
+import io.vertx.grpc.server.ServiceBuilder;
+
+import com.google.protobuf.Descriptors;
+
+import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * <p>Provides support for RPC methods implementations of the {{serviceName}} gRPC service.</p>
+ *
+ * <p>The following methods of this class should be overridden to provide an implementation of the service:</p>
+ * <ul>
+{{#allMethods}}
+ *   <li>{{methodName}}</li>
+{{/allMethods}}
+ * </ul>
+ */
+public class {{className}} implements {{serviceName}} {
+{{#unaryMethods}}
+
+  /**
+   * Override this method to implement the {{methodName}} RPC.
+   */
+  public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void {{vertxMethodName}}({{inputType}} request, Promise<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .onSuccess(msg -> response.complete(msg))
+      .onFailure(error -> response.fail(error));
+  }
+{{/unaryMethods}}
+{{#unaryManyMethods}}
+
+  /**
+   * Override this method to implement the {{methodName}} RPC.
+   */
+  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void {{vertxMethodName}}({{inputType}} request, WriteStream<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .onComplete(ar -> {
+        if (ar.succeeded()) {
+          ReadStream<{{outputType}}> stream = ar.result();
+          stream.pipeTo(response);
+        } else {
+          // Todo
+        }
+      });
+  }
+{{/unaryManyMethods}}
+{{#manyUnaryMethods}}
+
+  /**
+   * Override this method to implement the {{methodName}} RPC.
+   */
+  public Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void {{vertxMethodName}}(ReadStream<{{inputType}}> request, Promise<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .onSuccess(msg -> response.complete(msg))
+      .onFailure(error -> response.fail(error));
+  }
+{{/manyUnaryMethods}}
+{{#manyManyMethods}}
+
+  /**
+   * Override this method to implement the {{methodName}} RPC.
+   */
+  public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  protected void {{vertxMethodName}}(ReadStream<{{inputType}}> request, WriteStream<{{outputType}}> response) {
+    {{vertxMethodName}}(request)
+      .onComplete(ar -> {
+        if (ar.succeeded()) {
+          ReadStream<{{outputType}}> stream = ar.result();
+          stream.pipeTo(response);
+        } else {
+          // Todo
+        }
+      });
+  }
+{{/manyManyMethods}}
+}

@@ -32,7 +32,7 @@ import java.util.List;
  *   <li>Pipe</li>
  * </ul>
  */
-public class StreamingGrpcService implements Streaming, Service {
+public class StreamingGrpcService extends StreamingService implements Service {
 
   /**
    * Streaming service name.
@@ -155,117 +155,32 @@ public class StreamingGrpcService implements Streaming, Service {
     }
   }
 
-
-  /**
-   * Override this method to implement the Source RPC.
-   */
-  public Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  protected void source(examples.grpc.Empty request, WriteStream<examples.grpc.Item> response) {
-    source(request)
-      .onComplete(ar -> {
-        if (ar.succeeded()) {
-          ReadStream<examples.grpc.Item> stream = ar.result();
-          stream.pipeTo(response);
-        } else {
-          // Todo
-        }
-      });
-  }
-
-  /**
-   * Override this method to implement the Sink RPC.
-   */
-  public Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> request) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  protected void sink(ReadStream<examples.grpc.Item> request, Promise<examples.grpc.Empty> response) {
-    sink(request)
-      .onSuccess(msg -> response.complete(msg))
-      .onFailure(error -> response.fail(error));
-  }
-
-  /**
-   * Override this method to implement the Pipe RPC.
-   */
-  public Future<ReadStream<examples.grpc.Item>> pipe(ReadStream<examples.grpc.Item> request) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  protected void pipe(ReadStream<examples.grpc.Item> request, WriteStream<examples.grpc.Item> response) {
-    pipe(request)
-      .onComplete(ar -> {
-        if (ar.succeeded()) {
-          ReadStream<examples.grpc.Item> stream = ar.result();
-          stream.pipeTo(response);
-        } else {
-          // Todo
-        }
-      });
-  }
-
-  private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
-    if (Source == serviceMethod || Json.Source == serviceMethod) {
-      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item>> handler = StreamingGrpcService.this::handle_source;
-      Handler<?> handler2 = handler;
-      return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-    }
-    if (Sink == serviceMethod || Json.Sink == serviceMethod) {
-      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Empty>> handler = StreamingGrpcService.this::handle_sink;
-      Handler<?> handler2 = handler;
-      return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-    }
-    if (Pipe == serviceMethod || Json.Pipe == serviceMethod) {
-      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item>> handler = StreamingGrpcService.this::handle_pipe;
-      Handler<?> handler2 = handler;
-      return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-    }
-    return null;
-  }
-
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
   public Builder builder() {
-    return new Builder();
+    return new Builder(this);
   }
 
   /**
    * Service builder.
    */
-  public class Builder implements ServiceBuilder {
+  public static class Builder implements ServiceBuilder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
+    private final StreamingGrpcService instance;
 
-    private void validate() {
-      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-        if (resolveHandler(serviceMethod) == null) {
-          throw new IllegalArgumentException("Invalid service method:" + serviceMethod);
-        }
-      }
+    private Builder(StreamingGrpcService instance) {
+      this.instance = instance;
     }
 
-    private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
-      if (Source == serviceMethod || Json.Source == serviceMethod) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item>> handler = StreamingGrpcService.this::handle_source;
-        Handler<?> handler2 = handler;
-        return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-      }
-      if (Sink == serviceMethod || Json.Sink == serviceMethod) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Empty>> handler = StreamingGrpcService.this::handle_sink;
-        Handler<?> handler2 = handler;
-        return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-      }
-      if (Pipe == serviceMethod || Json.Pipe == serviceMethod) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item>> handler = StreamingGrpcService.this::handle_pipe;
-        Handler<?> handler2 = handler;
-        return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-      }
-      return null;
-    }
+//    private void validate() {
+//      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
+//        if (resolveHandler(serviceMethod) == null) {
+//          throw new IllegalArgumentException("Invalid service method:" + serviceMethod);
+//        }
+//      }
+//    }
 
     /**
      * Throws {@code UnsupportedOperationException}.
@@ -290,35 +205,60 @@ public class StreamingGrpcService implements Streaming, Service {
     }
 
     public Service build() {
-      // Defensive copy
-      List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>(Builder.this.serviceMethods);
-      return new Service() {
-        public ServiceName name() {
-          return SERVICE_NAME;
-        }
-        public Descriptors.ServiceDescriptor descriptor() {
-          return SERVICE_DESCRIPTOR;
-        }
-        /**
-         * Bind the contained service methods to the {@code server}.
-         */
-        public void bind(GrpcServer server) {
-          for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-            bindHandler(serviceMethod, server);
-          }
-        }
-        private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServer server) {
-          Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
-          server.callHandler(serviceMethod, handler);
-        }
-      };
+      return new Invoker();
     }
-  }
+
+    private class Invoker implements Service {
+
+      // Defensive copy
+      private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>(Builder.this.serviceMethods);
+
+      public ServiceName name() {
+        return SERVICE_NAME;
+      }
+
+      public Descriptors.ServiceDescriptor descriptor() {
+        return SERVICE_DESCRIPTOR;
+      }
+
+      /**
+       * Bind the contained service methods to the {@code server}.
+       */
+      public void bind(GrpcServer server) {
+        for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
+          bindHandler(serviceMethod, server);
+        }
+      }
+
+      private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServer server) {
+        Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
+        server.callHandler(serviceMethod, handler);
+      }
+
+      private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
+        if (Source == serviceMethod || Json.Source == serviceMethod) {
+          Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item>> handler = this::handle_source;
+          Handler<?> handler2 = handler;
+          return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
+        }
+        if (Sink == serviceMethod || Json.Sink == serviceMethod) {
+          Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Empty>> handler = this::handle_sink;
+          Handler<?> handler2 = handler;
+          return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
+        }
+        if (Pipe == serviceMethod || Json.Pipe == serviceMethod) {
+          Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item>> handler = this::handle_pipe;
+          Handler<?> handler2 = handler;
+          return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
+        }
+        return null;
+      }
+
 
   private void handle_source(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item> request) {
     request.handler(msg -> {
       try {
-        source(msg, request.response());
+        instance.source(msg, request.response());
       } catch (RuntimeException err) {
         request.response().status(GrpcStatus.INTERNAL).end();
       }
@@ -331,7 +271,7 @@ public class StreamingGrpcService implements Streaming, Service {
       .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
       .onSuccess(resp -> request.response().end(resp));
     try {
-      sink(request, promise);
+      instance.sink(request, promise);
     } catch (RuntimeException err) {
       promise.tryFail(err);
     }
@@ -339,9 +279,12 @@ public class StreamingGrpcService implements Streaming, Service {
 
   private void handle_pipe(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item> request) {
     try {
-      pipe(request, request.response());
+      instance.pipe(request, request.response());
     } catch (RuntimeException err) {
       request.response().status(GrpcStatus.INTERNAL).end();
+    }
+  }
+
     }
   }
 }

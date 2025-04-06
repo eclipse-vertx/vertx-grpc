@@ -32,7 +32,7 @@ public class GrpcServerExamples {
 
   public void requestResponse(GrpcServer server) {
 
-    ServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterService.SayHello;
+    ServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterGrpcService.SayHello;
 
     server.callHandler(serviceMethod, request -> {
 
@@ -49,7 +49,7 @@ public class GrpcServerExamples {
 
   public void streamingRequest(GrpcServer server) {
 
-    server.callHandler(StreamingService.Sink, request -> {
+    server.callHandler(StreamingGrpcService.Sink, request -> {
       request.handler(item -> {
         // Process item
       });
@@ -66,7 +66,7 @@ public class GrpcServerExamples {
 
   public void streamingResponse(GrpcServer server) {
 
-    server.callHandler(StreamingService.Source, request -> {
+    server.callHandler(StreamingGrpcService.Source, request -> {
       GrpcServerResponse<Empty, Item> response = request.response();
       request.handler(empty -> {
         for (int i = 0;i < 10;i++) {
@@ -79,7 +79,7 @@ public class GrpcServerExamples {
 
   public void bidi(GrpcServer server) {
 
-    server.callHandler(StreamingService.Pipe, request -> {
+    server.callHandler(StreamingGrpcService.Pipe, request -> {
 
       request.handler(item -> request.response().write(item));
       request.endHandler(v -> request.response().end());
@@ -135,7 +135,7 @@ public class GrpcServerExamples {
   }
 
   public void jsonWireFormat01(GrpcServer server) {
-    server.callHandler(GreeterService.Json.SayHello, request -> {
+    server.callHandler(GreeterGrpcService.Json.SayHello, request -> {
       request.last().onSuccess(helloRequest -> {
         request.response().end(HelloReply.newBuilder()
           .setMessage("Hello " + helloRequest.getName()).build()
@@ -170,7 +170,7 @@ public class GrpcServerExamples {
 
   public GrpcServer transcodingRequestResponse(GrpcServer server) {
     // Define the service method
-    TranscodingServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterService.Transcoding.SayHello;
+    TranscodingServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterGrpcService.Transcoding.SayHello;
 
     // Register the handler with transcoding options
     server.callHandler(serviceMethod, request -> {
@@ -272,19 +272,19 @@ public class GrpcServerExamples {
     };
   }
 
-  public void unaryStub3(GreeterService stub, GrpcServer server) {
+  public void unaryStub3(GreeterGrpcService stub, GrpcServer server) {
     server.addService(stub);
   }
 
-  public void unaryStub4(GreeterService stub, GrpcServer server) {
+  public void unaryStub4(GreeterGrpcService stub, GrpcServer server) {
     server.addService(stub
       .builder()
-      .bind(GreeterService.Json.all())
+      .bind(GreeterGrpcService.Json.all())
       .build());
   }
 
   public void streamingRequestStub(GrpcServer server) {
-    StreamingService stub = new StreamingService() {
+    StreamingGrpcService stub = new StreamingGrpcService() {
       @Override
       public void sink(ReadStream<Item> stream, Promise<Empty> response) {
         stream.handler(item -> {
@@ -326,7 +326,7 @@ public class GrpcServerExamples {
     // Add reflection service
     grpcServer.addService(ReflectionService.v1());
 
-    GreeterService greeterService = new GreeterService() {
+    GreeterGrpcService greeterService = new GreeterGrpcService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
         return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());

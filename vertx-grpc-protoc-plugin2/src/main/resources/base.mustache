@@ -1,6 +1,6 @@
-{{#vertxPackageName}}
-package {{vertxPackageName}};
-{{/vertxPackageName}}
+{{#javaPackageName}}
+package {{javaPackageName}};
+{{/javaPackageName}}
 
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -29,7 +29,6 @@ import java.util.List;
  * <p>Base definition {{serviceName}} service.</p>
  */
 public interface {{className}} {
-
 {{#unaryMethods}}
 
   Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);

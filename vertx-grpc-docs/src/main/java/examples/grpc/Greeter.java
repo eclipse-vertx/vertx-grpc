@@ -28,7 +28,6 @@ import java.util.List;
  */
 public interface Greeter {
 
-
   Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request);
 
 }

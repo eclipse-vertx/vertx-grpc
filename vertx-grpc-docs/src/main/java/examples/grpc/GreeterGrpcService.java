@@ -30,7 +30,7 @@ import java.util.List;
  *   <li>SayHello</li>
  * </ul>
  */
-public class GreeterGrpcService implements Greeter, Service {
+public class GreeterGrpcService extends GreeterService implements Service {
 
   /**
    * Greeter service name.
@@ -132,59 +132,32 @@ public class GreeterGrpcService implements Greeter, Service {
     }
   }
 
-
-  /**
-   * Override this method to implement the SayHello RPC.
-   */
-  public Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  protected void sayHello(examples.grpc.HelloRequest request, Promise<examples.grpc.HelloReply> response) {
-    sayHello(request)
-      .onSuccess(msg -> response.complete(msg))
-      .onFailure(error -> response.fail(error));
-  }
-
-  private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
-    if (SayHello == serviceMethod || Json.SayHello == serviceMethod) {
-      Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = GreeterGrpcService.this::handle_sayHello;
-      Handler<?> handler2 = handler;
-      return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-    }
-    return null;
-  }
-
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
   public Builder builder() {
-    return new Builder();
+    return new Builder(this);
   }
 
   /**
    * Service builder.
    */
-  public class Builder implements ServiceBuilder {
+  public static class Builder implements ServiceBuilder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
+    private final GreeterGrpcService instance;
 
-    private void validate() {
-      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-        if (resolveHandler(serviceMethod) == null) {
-          throw new IllegalArgumentException("Invalid service method:" + serviceMethod);
-        }
-      }
+    private Builder(GreeterGrpcService instance) {
+      this.instance = instance;
     }
 
-    private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
-      if (SayHello == serviceMethod || Json.SayHello == serviceMethod) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = GreeterGrpcService.this::handle_sayHello;
-        Handler<?> handler2 = handler;
-        return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-      }
-      return null;
-    }
+//    private void validate() {
+//      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
+//        if (resolveHandler(serviceMethod) == null) {
+//          throw new IllegalArgumentException("Invalid service method:" + serviceMethod);
+//        }
+//      }
+//    }
 
     /**
      * Throws {@code UnsupportedOperationException}.
@@ -209,36 +182,51 @@ public class GreeterGrpcService implements Greeter, Service {
     }
 
     public Service build() {
-      // Defensive copy
-      List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>(Builder.this.serviceMethods);
-      return new Service() {
-        public ServiceName name() {
-          return SERVICE_NAME;
-        }
-        public Descriptors.ServiceDescriptor descriptor() {
-          return SERVICE_DESCRIPTOR;
-        }
-        /**
-         * Bind the contained service methods to the {@code server}.
-         */
-        public void bind(GrpcServer server) {
-          for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-            bindHandler(serviceMethod, server);
-          }
-        }
-        private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServer server) {
-          Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
-          server.callHandler(serviceMethod, handler);
-        }
-      };
+      return new Invoker();
     }
-  }
+
+    private class Invoker implements Service {
+
+      // Defensive copy
+      private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>(Builder.this.serviceMethods);
+
+      public ServiceName name() {
+        return SERVICE_NAME;
+      }
+
+      public Descriptors.ServiceDescriptor descriptor() {
+        return SERVICE_DESCRIPTOR;
+      }
+
+      /**
+       * Bind the contained service methods to the {@code server}.
+       */
+      public void bind(GrpcServer server) {
+        for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
+          bindHandler(serviceMethod, server);
+        }
+      }
+
+      private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServer server) {
+        Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
+        server.callHandler(serviceMethod, handler);
+      }
+
+      private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
+        if (SayHello == serviceMethod || Json.SayHello == serviceMethod) {
+          Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = this::handle_sayHello;
+          Handler<?> handler2 = handler;
+          return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
+        }
+        return null;
+      }
+
 
   private void handle_sayHello(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply> request) {
     Promise<examples.grpc.HelloReply> promise = Promise.promise();
     request.handler(msg -> {
       try {
-        sayHello(msg, promise);
+        instance.sayHello(msg, promise);
       } catch (RuntimeException err) {
         promise.tryFail(err);
       }
@@ -246,5 +234,8 @@ public class GreeterGrpcService implements Greeter, Service {
     promise.future()
       .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
       .onSuccess(resp -> request.response().end(resp));
+  }
+
+    }
   }
 }
