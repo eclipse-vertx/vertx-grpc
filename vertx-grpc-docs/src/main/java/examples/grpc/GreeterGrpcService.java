@@ -58,6 +58,13 @@ public class GreeterGrpcService extends GreeterService implements Service {
   }
 
   /**
+   * @return a service binding all methods of the given {@code service}
+   */
+  public static Service of(GreeterService service) {
+    return builder(service).bind(all()).build();
+  }
+
+  /**
    * SayHello protobuf RPC server service method.
    */
   public static final ServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHello = ServiceMethod.server(
@@ -113,13 +120,6 @@ public class GreeterGrpcService extends GreeterService implements Service {
       all.add(SayHello);
       return all;
     }
-  }
-
-  /**
-   * @return a service binding all methods of the given {@code service}
-   */
-  public static Service of(GreeterService service) {
-    return builder(service).bind(all()).build();
   }
 
   /**
@@ -219,13 +219,13 @@ public class GreeterGrpcService extends GreeterService implements Service {
           if (err == null) {
             request.response().end(res);
           } else {
-            request.response().status(GrpcStatus.INTERNAL).end();
+            request.response().status(GrpcStatus.UNKNOWN).end();
           }
         });
       } catch (UnsupportedOperationException err) {
         request.response().status(GrpcStatus.UNIMPLEMENTED).end();
       } catch (RuntimeException err) {
-        request.response().status(GrpcStatus.INTERNAL).end();
+        request.response().status(GrpcStatus.UNKNOWN).end();
       }
     });
   }

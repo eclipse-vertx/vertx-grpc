@@ -256,7 +256,7 @@ public class GrpcServerExamples {
   }
 
   public void unaryStub1(GrpcServer server) {
-    GreeterService stub = new GreeterService() {
+    GreeterService service = new GreeterService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
         return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
@@ -265,7 +265,7 @@ public class GrpcServerExamples {
   }
 
   public void unaryStub2(GrpcServer server) {
-    GreeterService stub = new GreeterService() {
+    GreeterService service = new GreeterService() {
       @Override
       public void sayHello(HelloRequest request, Completable<HelloReply> response) {
         response.succeed(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
@@ -273,16 +273,16 @@ public class GrpcServerExamples {
     };
   }
 
-  public void unaryStub3(GreeterGrpcService stub, GrpcServer server) {
-    server.addService(stub);
+  public void unaryStub3(GreeterGrpcService service, GrpcServer server) {
+    server.addService(service);
   }
 
-  public void unaryStub4(GreeterGrpcService stub, GrpcServer server) {
-    server.addService(GreeterGrpcService.of(stub));
+  public void unaryStub4(GreeterService service, GrpcServer server) {
+    server.addService(GreeterGrpcService.of(service));
   }
 
   public void streamingRequestStub(GrpcServer server) {
-    StreamingGrpcService stub = new StreamingGrpcService() {
+    StreamingGrpcService service = new StreamingGrpcService() {
       @Override
       public void sink(ReadStream<Item> stream, Completable<Empty> response) {
         stream.handler(item -> {
@@ -292,7 +292,7 @@ public class GrpcServerExamples {
         stream.endHandler(v -> response.succeed(Empty.getDefaultInstance()));
       }
     };
-    server.addService(stub);
+    server.addService(service);
   }
 
   private Future<ReadStream<Item>> streamOfItems() {
@@ -300,7 +300,7 @@ public class GrpcServerExamples {
   }
 
   public void streamingResponseStub1() {
-    StreamingService stub = new StreamingService() {
+    StreamingService service = new StreamingService() {
       @Override
       public Future<ReadStream<Item>> source(Empty request) {
         return streamOfItems();
@@ -309,7 +309,7 @@ public class GrpcServerExamples {
   }
 
   public void streamingResponseStub2() {
-    StreamingService stub = new StreamingService() {
+    StreamingService service = new StreamingService() {
       @Override
       public void source(Empty request, WriteStream<Item> response) {
         response.write(Item.newBuilder().setValue("value-1").build());

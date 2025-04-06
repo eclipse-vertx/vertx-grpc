@@ -60,6 +60,13 @@ public class {{className}} extends {{serviceName}}Service implements Service {
   public void bind(GrpcServer server) {
     builder(this).bind(all()).build().bind(server);
   }
+
+  /**
+   * @return a service binding all methods of the given {@code service}
+   */
+  public static Service of({{serviceName}}Service service) {
+    return builder(service).bind(all()).build();
+  }
 {{#allMethods}}
 
   /**
@@ -135,13 +142,6 @@ public class {{className}} extends {{serviceName}}Service implements Service {
 {{/transcodingMethods}}
       return all;
     }
-  }
-
-  /**
-   * @return a service binding all methods of the given {@code service}
-   */
-  public static Service of({{serviceName}}Service service) {
-    return builder(service).bind(all()).build();
   }
 
   /**
@@ -244,13 +244,13 @@ public class {{className}} extends {{serviceName}}Service implements Service {
           if (err == null) {
             request.response().end(res);
           } else {
-            request.response().status(GrpcStatus.INTERNAL).end();
+            request.response().status(GrpcStatus.UNKNOWN).end();
           }
         });
       } catch (UnsupportedOperationException err) {
         request.response().status(GrpcStatus.UNIMPLEMENTED).end();
       } catch (RuntimeException err) {
-        request.response().status(GrpcStatus.INTERNAL).end();
+        request.response().status(GrpcStatus.UNKNOWN).end();
       }
     });
   }
@@ -264,7 +264,7 @@ public class {{className}} extends {{serviceName}}Service implements Service {
       } catch (UnsupportedOperationException e) {
         request.response().status(GrpcStatus.UNIMPLEMENTED).end();
       } catch (RuntimeException err) {
-        request.response().status(GrpcStatus.INTERNAL).end();
+        request.response().status(GrpcStatus.UNKNOWN).end();
       }
     });
   }
@@ -277,13 +277,13 @@ public class {{className}} extends {{serviceName}}Service implements Service {
         if (err == null) {
           request.response().end(res);
         } else {
-          request.response().status(GrpcStatus.INTERNAL).end();
+          request.response().status(GrpcStatus.UNKNOWN).end();
         }
       });
     } catch (UnsupportedOperationException err) {
       request.response().status(GrpcStatus.UNIMPLEMENTED).end();
     } catch (RuntimeException err) {
-      request.response().status(GrpcStatus.INTERNAL).end();
+      request.response().status(GrpcStatus.UNKNOWN).end();
     }
   }
 {{/manyUnaryMethods}}
@@ -295,7 +295,7 @@ public class {{className}} extends {{serviceName}}Service implements Service {
      } catch (UnsupportedOperationException err) {
       request.response().status(GrpcStatus.UNIMPLEMENTED).end();
      } catch (RuntimeException err) {
-      request.response().status(GrpcStatus.INTERNAL).end();
+      request.response().status(GrpcStatus.UNKNOWN).end();
     }
   }
 {{/manyManyMethods}}

@@ -34,10 +34,12 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
   private final boolean generateGrpcClient;
   private final boolean generateGrpcService;
+  private final boolean generateGrpcIo;
 
-  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService) {
+  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo) {
     this.generateGrpcClient = generateGrpcClient;
     this.generateGrpcService = generateGrpcService;
+    this.generateGrpcIo = generateGrpcIo;
   }
 
   private String getServiceJavaDocPrefix() {
@@ -325,7 +327,9 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
   private List<PluginProtos.CodeGeneratorResponse.File> buildFiles(ServiceContext context) {
     List<PluginProtos.CodeGeneratorResponse.File> files = new ArrayList<>();
-    files.add(buildBaseFile(context));
+    if (generateGrpcClient || generateGrpcService) {
+      files.add(buildBaseFile(context));
+    }
     if (generateGrpcClient) {
       files.add(buildClientFile(context));
       files.add(buildGrpcClientFile(context));
@@ -333,6 +337,9 @@ public class VertxGrpcGeneratorImpl extends Generator {
     if (generateGrpcService) {
       files.add(buildServiceFile(context));
       files.add(buildGrpcServiceFile(context));
+    }
+    if (generateGrpcIo) {
+      files.add(buildGrpcIoFile(context));
     }
     return files;
   }
@@ -365,6 +372,12 @@ public class VertxGrpcGeneratorImpl extends Generator {
     context.fileName = context.serviceName + "GrpcService.java";
     context.className = context.serviceName + "GrpcService";
     return buildFile(context, applyTemplate("grpc-service.mustache", context));
+  }
+
+  private PluginProtos.CodeGeneratorResponse.File buildGrpcIoFile(ServiceContext context) {
+    context.fileName = context.serviceName + "GrpcIo.java";
+    context.className = context.serviceName + "GrpcIo";
+    return buildFile(context, applyTemplate("grpc-io.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildFile(ServiceContext context, String content) {

@@ -13,39 +13,41 @@ package io.vertx.grpc.it;
 import io.grpc.examples.helloworld.*;
 import io.grpc.testing.integration.*;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
+import io.vertx.grpcio.client.GrpcIoClient;
+import io.vertx.grpcio.server.GrpcIoServer;
 
-public class ProtocPluginTest extends ProtocPluginTestBase {
+public class ProtocPluginStubTest extends ProtocPluginTestBase {
 
   @Override
   protected GrpcServer grpcServer() {
-    return GrpcServer.server(vertx);
+    return GrpcIoServer.server(vertx);
   }
 
   @Override
   protected GrpcClient grpcClient() {
-    return GrpcClient.client(vertx);
+    return GrpcIoClient.client(vertx);
   }
 
   @Override
   protected Service greeterService(GreeterService service) {
-    return GreeterGrpcService.of(service);
+    return GreeterGrpcIo.of(service);
   }
 
   @Override
   protected GreeterClient greeterClient(GrpcClient grpcClient, SocketAddress socketAddress) {
-    return GreeterGrpcClient.create(grpcClient, socketAddress);
+    return GreeterGrpcIo.newStub((GrpcIoClient)grpcClient, socketAddress);
   }
 
   @Override
   protected Service testService(TestServiceService service) {
-    return TestServiceGrpcService.of(service);
+    return TestServiceGrpcIo.of(service);
   }
 
   @Override
-  protected TestServiceClient testClient(GrpcClient client, SocketAddress socketAddress) {
-    return TestServiceGrpcClient.create(client, socketAddress);
+  protected TestServiceClient testClient(GrpcClient grpcClient, SocketAddress socketAddress) {
+    return TestServiceGrpcIo.newStub((GrpcIoClient) grpcClient, socketAddress);
   }
 }

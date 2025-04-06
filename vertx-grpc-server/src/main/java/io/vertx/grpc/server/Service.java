@@ -47,7 +47,6 @@ public interface Service {
    * This allows the server to handle requests for this service.
    *
    * @param server the gRPC server to bind this service to
-   * @return a reference to this, so the API can be used fluently
    */
   void bind(GrpcServer server);
 

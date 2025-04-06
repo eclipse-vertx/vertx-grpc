@@ -1,0 +1,157 @@
+{{#javaPackageName}}
+package {{javaPackageName}};
+{{/javaPackageName}}
+
+import static {{javaPackageName}}.{{serviceName}}Grpc.getServiceDescriptor;
+import static io.grpc.stub.ServerCalls.asyncUnaryCall;
+import static io.grpc.stub.ServerCalls.asyncServerStreamingCall;
+import static io.grpc.stub.ServerCalls.asyncClientStreamingCall;
+import static io.grpc.stub.ServerCalls.asyncBidiStreamingCall;
+
+import io.grpc.ClientCall;
+
+import io.grpc.stub.StreamObserver;
+
+import io.vertx.grpcio.client.GrpcIoClientChannel;
+import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
+
+public final class {{className}} {
+  private {{className}}() {}
+
+   public static {{serviceName}}Stub newStub(io.vertx.grpcio.client.GrpcIoClient client, io.vertx.core.net.SocketAddress socketAddress) {
+    return newStub(new io.vertx.grpcio.client.GrpcIoClientChannel(client, socketAddress));
+  }
+
+  public static {{serviceName}}Stub newStub(io.grpc.Channel channel) {
+    return new {{serviceName}}Stub(channel);
+  }
+
+  {{#javaDoc}}{{{javaDoc}}}{{/javaDoc}}
+  public static final class {{serviceName}}Stub extends io.grpc.stub.AbstractStub<{{serviceName}}Stub> implements {{serviceName}}Client {
+    private final io.vertx.core.internal.ContextInternal context;
+    private {{serviceName}}Grpc.{{serviceName}}Stub delegateStub;
+
+    private {{serviceName}}Stub(io.grpc.Channel channel) {
+      super(channel);
+      this.delegateStub = {{serviceName}}Grpc.newStub(channel);
+      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
+    }
+
+    private {{serviceName}}Stub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+      super(channel, callOptions);
+      this.delegateStub = {{serviceName}}Grpc.newStub(channel).build(channel, callOptions);
+      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
+    }
+
+    @Override
+    protected {{serviceName}}Stub build(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+      return new {{serviceName}}Stub(channel, callOptions);
+    }
+
+    {{#unaryUnaryMethods}}
+    {{{methodHeader}}}
+    public io.vertx.core.Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(context, request, delegateStub::{{vertxMethodName}});
+    }
+
+    {{/unaryUnaryMethods}}
+    {{#unaryManyMethods}}
+    {{{methodHeader}}}
+    public io.vertx.core.Future<io.vertx.core.streams.ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(context, request, delegateStub::{{vertxMethodName}});
+    }
+
+    {{/unaryManyMethods}}
+    {{#manyUnaryMethods}}
+    {{{methodHeader}}}
+    public io.vertx.core.Future<{{outputType}}> {{vertxMethodName}}(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<{{inputType}}>> handler) {
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(context, handler, delegateStub::{{vertxMethodName}});
+    }
+
+    {{/manyUnaryMethods}}
+    {{#manyManyMethods}}
+    {{{methodHeader}}}
+    public io.vertx.core.Future<io.vertx.core.streams.ReadStream<{{outputType}}>> {{vertxMethodName}}(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<{{inputType}}>> handler) {
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(context, handler, delegateStub::{{vertxMethodName}});
+    }
+    {{/manyManyMethods}}
+  }
+
+  public static io.vertx.grpc.server.Service of({{serviceName}}Service service) {
+    String compression = null;
+    return io.vertx.grpcio.server.GrpcIoServiceBridge.bridge(io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
+      {{#methods}}
+      .addMethod(
+        {{javaPackageName}}.{{serviceName}}Grpc.{{methodNameGetter}}(),
+        {{grpcCallsMethodName}}(
+                new MethodHandlers<
+                        {{inputType}},
+                        {{outputType}}>(
+                        service, METHODID_{{methodNameUpperUnderscore}}, compression)))
+      {{/methods}}
+      .build());
+  }
+
+  {{#methods}}
+  private static final int METHODID_{{methodNameUpperUnderscore}} = {{methodNumber}};
+  {{/methods}}
+
+  private static final class MethodHandlers<Req, Resp> implements
+          io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
+          io.grpc.stub.ServerCalls.ServerStreamingMethod<Req, Resp>,
+          io.grpc.stub.ServerCalls.ClientStreamingMethod<Req, Resp>,
+          io.grpc.stub.ServerCalls.BidiStreamingMethod<Req, Resp> {
+
+    private final {{serviceName}}Service serviceImpl;
+    private final int methodId;
+    private final String compression;
+
+    MethodHandlers({{serviceName}}Service serviceImpl, int methodId, String compression) {
+      this.serviceImpl = serviceImpl;
+      this.methodId = methodId;
+      this.compression = compression;
+    }
+
+    @java.lang.Override
+    @java.lang.SuppressWarnings("unchecked")
+    public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
+      switch (methodId) {
+        {{#methods}}
+        {{^isManyInput}}
+        case METHODID_{{methodNameUpperUnderscore}}:
+          io.vertx.grpcio.common.impl.stub.ServerCalls.<{{inputType}}, {{outputType}}>{{vertxCallsMethodName}}(
+            (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext(),
+            ({{inputType}}) request,
+            (io.grpc.stub.StreamObserver<{{outputType}}>) responseObserver,
+            compression,
+            serviceImpl::{{vertxMethodName}});
+          break;
+        {{/isManyInput}}
+        {{/methods}}
+        default:
+          throw new java.lang.AssertionError();
+      }
+    }
+
+    @java.lang.Override
+    @java.lang.SuppressWarnings("unchecked")
+    public io.grpc.stub.StreamObserver<Req> invoke(io.grpc.stub.StreamObserver<Resp> responseObserver) {
+      StreamObserver<Req> reqStreamObserver;
+      switch (methodId) {
+        {{#methods}}
+        {{#isManyInput}}
+        case METHODID_{{methodNameUpperUnderscore}}:
+          reqStreamObserver = (io.grpc.stub.StreamObserver<Req>) io.vertx.grpcio.common.impl.stub.ServerCalls.<{{inputType}}, {{outputType}}>{{vertxCallsMethodName}}(
+                  (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext(),
+                  (io.grpc.stub.StreamObserver<{{outputType}}>) responseObserver,
+                  compression,
+                  serviceImpl::{{vertxMethodName}});
+          return reqStreamObserver;
+        {{/isManyInput}}
+        {{/methods}}
+        default:
+          throw new java.lang.AssertionError();
+      }
+    }
+  }
+}

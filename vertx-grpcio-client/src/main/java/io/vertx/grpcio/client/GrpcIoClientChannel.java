@@ -52,4 +52,8 @@ public class GrpcIoClientChannel extends io.grpc.Channel {
   public String authority() {
     return null;
   }
+
+  public GrpcIoClient client() {
+    return client;
+  }
 }
