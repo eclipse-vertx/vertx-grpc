@@ -243,19 +243,22 @@ public class GreeterGrpcService extends GreeterService implements Service {
 
 
   private void handle_sayHello(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply> request) {
-    Promise<examples.grpc.HelloReply> promise = Promise.promise();
     request.handler(msg -> {
       try {
-        instance.sayHello(msg, promise);
+        instance.sayHello(msg, (res, err) -> {
+          if (err == null) {
+            request.response().end(res);
+          } else {
+            request.response().status(GrpcStatus.INTERNAL).end();
+          }
+        });
+      } catch (UnsupportedOperationException err) {
+        request.response().status(GrpcStatus.UNIMPLEMENTED).end();
       } catch (RuntimeException err) {
-        promise.tryFail(err);
+        request.response().status(GrpcStatus.INTERNAL).end();
       }
     });
-    promise.future()
-      .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-      .onSuccess(resp -> request.response().end(resp));
   }
-
     }
   }
 }
