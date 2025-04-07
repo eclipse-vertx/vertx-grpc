@@ -42,7 +42,7 @@
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpc-server-reflection</artifactId>
+      <artifactId>vertx-grpc-reflection</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
