@@ -58,7 +58,7 @@ public class {{className}} extends {{serviceName}}Service implements Service {
 
   @Override
   public void bind(GrpcServer server) {
-    builder().bind(all()).build().bind(server);
+    builder(this).bind(all()).build().bind(server);
   }
 {{#allMethods}}
 
@@ -87,8 +87,14 @@ public class {{className}} extends {{serviceName}}Service implements Service {
    * Json server service methods.
    */
   public static final class Json {
-{{#allMethods}}
 
+    /**
+     * @return a service binding all methods of the given {@code service} using json wire format
+     */
+    public static Service of({{serviceName}}Service service) {
+      return builder(service).bind(all()).build();
+    }
+{{#allMethods}}
     /**
      * {{methodName}} json RPC server service method.
      */
@@ -115,6 +121,13 @@ public class {{className}} extends {{serviceName}}Service implements Service {
    * Transcoded server service methods.
    */
   public static final class Transcoding {
+
+    /**
+     * @return a service binding all methods of the given {@code service} using transcoding options
+     */
+    public static Service of({{serviceName}}Service service) {
+      return builder(service).bind(all()).build();
+    }
 {{#transcodingMethods}}
 
     private static final io.vertx.grpc.transcoding.MethodTranscodingOptions {{methodName}}_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
@@ -158,15 +171,18 @@ public class {{className}} extends {{serviceName}}Service implements Service {
     }
   }
 
-  public static Service of({{serviceName}}Service impl) {
-    return new Builder(impl).bind(all()).build();
+  /**
+   * @return a service binding all methods of the given {@code service}
+   */
+  public static Service of({{serviceName}}Service service) {
+    return builder(service).bind(all()).build();
   }
 
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
-  public Builder builder() {
-    return new Builder(this);
+  public static Builder builder({{serviceName}}Service service) {
+    return new Builder(service);
   }
 
   /**

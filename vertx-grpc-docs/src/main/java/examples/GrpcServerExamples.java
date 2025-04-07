@@ -277,10 +277,7 @@ public class GrpcServerExamples {
   }
 
   public void unaryStub4(GreeterGrpcService stub, GrpcServer server) {
-    server.addService(stub
-      .builder()
-      .bind(GreeterGrpcService.Json.all())
-      .build());
+    server.addService(GreeterGrpcService.of(stub));
   }
 
   public void streamingRequestStub(GrpcServer server) {

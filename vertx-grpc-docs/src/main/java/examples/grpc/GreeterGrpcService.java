@@ -54,7 +54,7 @@ public class GreeterGrpcService extends GreeterService implements Service {
 
   @Override
   public void bind(GrpcServer server) {
-    builder().bind(all()).build().bind(server);
+    builder(this).bind(all()).build().bind(server);
   }
 
   /**
@@ -81,6 +81,12 @@ public class GreeterGrpcService extends GreeterService implements Service {
   public static final class Json {
 
     /**
+     * @return a service binding all methods of the given {@code service} using json wire format
+     */
+    public static Service of(GreeterService service) {
+      return builder(service).bind(all()).build();
+    }
+    /**
      * SayHello json RPC server service method.
      */
     public static final ServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHello = ServiceMethod.server(
@@ -103,6 +109,13 @@ public class GreeterGrpcService extends GreeterService implements Service {
    * Transcoded server service methods.
    */
   public static final class Transcoding {
+
+    /**
+     * @return a service binding all methods of the given {@code service} using transcoding options
+     */
+    public static Service of(GreeterService service) {
+      return builder(service).bind(all()).build();
+    }
 
     private static final io.vertx.grpc.transcoding.MethodTranscodingOptions SayHello_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
       .setSelector("")
@@ -132,15 +145,18 @@ public class GreeterGrpcService extends GreeterService implements Service {
     }
   }
 
-  public static Service of(GreeterService impl) {
-    return new Builder(impl).bind(all()).build();
+  /**
+   * @return a service binding all methods of the given {@code service}
+   */
+  public static Service of(GreeterService service) {
+    return builder(service).bind(all()).build();
   }
 
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
-  public Builder builder() {
-    return new Builder(this);
+  public static Builder builder(GreeterService service) {
+    return new Builder(service);
   }
 
   /**

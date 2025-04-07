@@ -56,7 +56,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
 
   @Override
   public void bind(GrpcServer server) {
-    builder().bind(all()).build().bind(server);
+    builder(this).bind(all()).build().bind(server);
   }
 
   /**
@@ -103,6 +103,12 @@ public class StreamingGrpcService extends StreamingService implements Service {
   public static final class Json {
 
     /**
+     * @return a service binding all methods of the given {@code service} using json wire format
+     */
+    public static Service of(StreamingService service) {
+      return builder(service).bind(all()).build();
+    }
+    /**
      * Source json RPC server service method.
      */
     public static final ServiceMethod<examples.grpc.Empty, examples.grpc.Item> Source = ServiceMethod.server(
@@ -110,7 +116,6 @@ public class StreamingGrpcService extends StreamingService implements Service {
       "Source",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.grpc.Empty.newBuilder()));
-
     /**
      * Sink json RPC server service method.
      */
@@ -119,7 +124,6 @@ public class StreamingGrpcService extends StreamingService implements Service {
       "Sink",
       GrpcMessageEncoder.json(),
       GrpcMessageDecoder.json(() -> examples.grpc.Item.newBuilder()));
-
     /**
      * Pipe json RPC server service method.
      */
@@ -147,6 +151,13 @@ public class StreamingGrpcService extends StreamingService implements Service {
   public static final class Transcoding {
 
     /**
+     * @return a service binding all methods of the given {@code service} using transcoding options
+     */
+    public static Service of(StreamingService service) {
+      return builder(service).bind(all()).build();
+    }
+
+    /**
      * @return a mutable list of the known transcoded RPC server service methods.
      */
     public static java.util.List<ServiceMethod<?, ?>> all() {
@@ -155,15 +166,18 @@ public class StreamingGrpcService extends StreamingService implements Service {
     }
   }
 
-  public static Service of(StreamingService impl) {
-    return new Builder(impl).bind(all()).build();
+  /**
+   * @return a service binding all methods of the given {@code service}
+   */
+  public static Service of(StreamingService service) {
+    return builder(service).bind(all()).build();
   }
 
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
-  public Builder builder() {
-    return new Builder(this);
+  public static Builder builder(StreamingService service) {
+    return new Builder(service);
   }
 
   /**
