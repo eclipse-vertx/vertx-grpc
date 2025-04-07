@@ -158,6 +158,10 @@ public class {{className}} extends {{serviceName}}Service implements Service {
     }
   }
 
+  public static Service of({{serviceName}}Service impl) {
+    return new Builder(impl).bind(all()).build();
+  }
+
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
@@ -171,9 +175,9 @@ public class {{className}} extends {{serviceName}}Service implements Service {
   public static class Builder implements ServiceBuilder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
-    private final {{className}} instance;
+    private final {{serviceName}}Service instance;
 
-    private Builder({{className}} instance) {
+    private Builder({{serviceName}}Service instance) {
       this.instance = instance;
     }
 

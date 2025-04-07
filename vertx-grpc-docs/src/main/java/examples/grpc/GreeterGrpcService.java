@@ -132,6 +132,10 @@ public class GreeterGrpcService extends GreeterService implements Service {
     }
   }
 
+  public static Service of(GreeterService impl) {
+    return new Builder(impl).bind(all()).build();
+  }
+
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
@@ -145,9 +149,9 @@ public class GreeterGrpcService extends GreeterService implements Service {
   public static class Builder implements ServiceBuilder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
-    private final GreeterGrpcService instance;
+    private final GreeterService instance;
 
-    private Builder(GreeterGrpcService instance) {
+    private Builder(GreeterService instance) {
       this.instance = instance;
     }
 

@@ -155,6 +155,10 @@ public class StreamingGrpcService extends StreamingService implements Service {
     }
   }
 
+  public static Service of(StreamingService impl) {
+    return new Builder(impl).bind(all()).build();
+  }
+
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
@@ -168,9 +172,9 @@ public class StreamingGrpcService extends StreamingService implements Service {
   public static class Builder implements ServiceBuilder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
-    private final StreamingGrpcService instance;
+    private final StreamingService instance;
 
-    private Builder(StreamingGrpcService instance) {
+    private Builder(StreamingService instance) {
       this.instance = instance;
     }
 
