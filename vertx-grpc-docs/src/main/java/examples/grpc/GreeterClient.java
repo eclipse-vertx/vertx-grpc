@@ -16,6 +16,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the Greeter gRPC service.</p>
  */
+@io.vertx.codegen.annotations.VertxGen
 public interface GreeterClient extends Greeter {
 
   /**

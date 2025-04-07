@@ -16,6 +16,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the Streaming gRPC service.</p>
  */
+@io.vertx.codegen.annotations.VertxGen
 public interface StreamingClient extends Streaming {
 
   /**
@@ -43,7 +44,16 @@ public interface StreamingClient extends Streaming {
    * @return a future of the examples.grpc.Empty response message
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> streamOfMessages);
+  default Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> streamOfMessages) {
+    io.vertx.core.streams.Pipe<examples.grpc.Item> pipe = streamOfMessages.pipe();
+    return sink((result, error) -> {
+        if (error == null) {
+          pipe.to(result);
+        } else {
+          pipe.close();
+        }
+    });
+  }
 
   /**
    * Calls the Pipe RPC service method.
@@ -61,5 +71,14 @@ public interface StreamingClient extends Streaming {
    * @return a future of the examples.grpc.Item response messages
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<ReadStream<examples.grpc.Item>> pipe(ReadStream<examples.grpc.Item> streamOfMessages);
+  default Future<ReadStream<examples.grpc.Item>> pipe(ReadStream<examples.grpc.Item> streamOfMessages) {
+    io.vertx.core.streams.Pipe<examples.grpc.Item> pipe = streamOfMessages.pipe();
+    return pipe((result, error) -> {
+        if (error == null) {
+          pipe.to(result);
+        } else {
+          pipe.close();
+        }
+    });
+  }
 }

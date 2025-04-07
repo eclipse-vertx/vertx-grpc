@@ -169,17 +169,6 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
     });
   }
 
-  public Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> request) {
-    io.vertx.core.streams.Pipe<examples.grpc.Item> pipe = request.pipe();
-    return sink((result, error) -> {
-        if (error == null) {
-          pipe.to(result);
-        } else {
-          pipe.close();
-        }
-    });
-  }
-
   public Future<ReadStream<examples.grpc.Item>> pipe(Completable<WriteStream<examples.grpc.Item>> completable) {
     ServiceMethod<examples.grpc.Item, examples.grpc.Item> serviceMethod;
     switch (wireFormat) {
@@ -202,17 +191,6 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
             return Future.succeededFuture(resp);
           }
         });
-    });
-  }
-
-  public Future<ReadStream<examples.grpc.Item>> pipe(ReadStream<examples.grpc.Item> request) {
-    io.vertx.core.streams.Pipe<examples.grpc.Item> pipe = request.pipe();
-    return pipe((result, error) -> {
-        if (error == null) {
-          pipe.to(result);
-        } else {
-          pipe.close();
-        }
     });
   }
 }
