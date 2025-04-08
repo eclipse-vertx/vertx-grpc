@@ -142,7 +142,7 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
       req.end(request);
       return req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-          return Future.failedFuture("Invalid gRPC status " + resp.status());
+          return Future.failedFuture(new io.vertx.grpc.client.InvalidStatusException(GrpcStatus.OK, resp.status()));
         } else {
           return Future.succeededFuture(resp);
         }
@@ -186,7 +186,7 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
       .compose(req -> {
         return req.response().flatMap(resp -> {
           if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-            return Future.failedFuture("Invalid gRPC status " + resp.status());
+            return Future.failedFuture(new io.vertx.grpc.client.InvalidStatusException(GrpcStatus.OK, resp.status()));
           } else {
             return Future.succeededFuture(resp);
           }

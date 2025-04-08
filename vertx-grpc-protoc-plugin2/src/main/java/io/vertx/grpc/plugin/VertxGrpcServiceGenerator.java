@@ -8,9 +8,9 @@ import java.util.List;
 public class VertxGrpcServiceGenerator {
   public static void main(String[] args) {
     if (args.length == 0) {
-      ProtocPlugin.generate(List.of(new VertxGrpcGeneratorImpl(false, true)), List.of(AnnotationsProto.http));
+      ProtocPlugin.generate(List.of(new VertxGrpcGeneratorImpl(false, false, false)), List.of(AnnotationsProto.http));
     } else {
-      ProtocPlugin.debug(List.of(new VertxGrpcGeneratorImpl(false, true)), List.of(AnnotationsProto.http), args[0]);
+      ProtocPlugin.debug(List.of(new VertxGrpcGeneratorImpl(false, false, false)), List.of(AnnotationsProto.http), args[0]);
     }
   }
 }
