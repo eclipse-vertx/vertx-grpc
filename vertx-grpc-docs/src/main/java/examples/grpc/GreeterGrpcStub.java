@@ -6,7 +6,12 @@ import static io.grpc.stub.ServerCalls.asyncServerStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncClientStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncBidiStreamingCall;
 
+import io.grpc.ClientCall;
+
 import io.grpc.stub.StreamObserver;
+
+import io.vertx.grpcio.client.GrpcIoClientChannel;
+import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
 public final class GreeterGrpcStub {
   private GreeterGrpcStub() {}
@@ -21,19 +26,19 @@ public final class GreeterGrpcStub {
 
   
   public static final class GreeterVertxStub extends io.grpc.stub.AbstractStub<GreeterVertxStub> implements GreeterClient {
-    private final io.vertx.core.internal.ContextInternal ctx;
+    private final io.vertx.core.internal.ContextInternal context;
     private GreeterGrpc.GreeterStub delegateStub;
 
     private GreeterVertxStub(io.grpc.Channel channel) {
       super(channel);
       delegateStub = GreeterGrpc.newStub(channel);
-      this.ctx = (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext();
+      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
     }
 
     private GreeterVertxStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
       delegateStub = GreeterGrpc.newStub(channel).build(channel, callOptions);
-      this.ctx = (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext();
+      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
     }
 
     @Override
@@ -43,7 +48,7 @@ public final class GreeterGrpcStub {
 
     
     public io.vertx.core.Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
-      return io.vertx.grpcio.common.impl.stub.ClientCalls.oneToOne(ctx, request, delegateStub::sayHello);
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.oneToOne(context, request, delegateStub::sayHello);
     }
 
   }

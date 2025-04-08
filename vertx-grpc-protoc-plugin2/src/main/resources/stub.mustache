@@ -8,7 +8,12 @@ import static io.grpc.stub.ServerCalls.asyncServerStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncClientStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncBidiStreamingCall;
 
+import io.grpc.ClientCall;
+
 import io.grpc.stub.StreamObserver;
+
+import io.vertx.grpcio.client.GrpcIoClientChannel;
+import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
 public final class {{className}} {
   private {{className}}() {}
@@ -23,19 +28,19 @@ public final class {{className}} {
 
   {{#javaDoc}}{{{javaDoc}}}{{/javaDoc}}
   public static final class {{serviceName}}VertxStub extends io.grpc.stub.AbstractStub<{{serviceName}}VertxStub> implements {{serviceName}}Client {
-    private final io.vertx.core.internal.ContextInternal ctx;
+    private final io.vertx.core.internal.ContextInternal context;
     private {{serviceName}}Grpc.{{serviceName}}Stub delegateStub;
 
     private {{serviceName}}VertxStub(io.grpc.Channel channel) {
       super(channel);
       delegateStub = {{serviceName}}Grpc.newStub(channel);
-      this.ctx = (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext();
+      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
     }
 
     private {{serviceName}}VertxStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
       delegateStub = {{serviceName}}Grpc.newStub(channel).build(channel, callOptions);
-      this.ctx = (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext();
+      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
     }
 
     @Override
@@ -46,28 +51,28 @@ public final class {{className}} {
     {{#unaryUnaryMethods}}
     {{{methodHeader}}}
     public io.vertx.core.Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
-      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(ctx, request, delegateStub::{{vertxMethodName}});
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(context, request, delegateStub::{{vertxMethodName}});
     }
 
     {{/unaryUnaryMethods}}
     {{#unaryManyMethods}}
     {{{methodHeader}}}
     public io.vertx.core.Future<io.vertx.core.streams.ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
-      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(ctx, request, delegateStub::{{vertxMethodName}});
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(context, request, delegateStub::{{vertxMethodName}});
     }
 
     {{/unaryManyMethods}}
     {{#manyUnaryMethods}}
     {{{methodHeader}}}
-    public io.vertx.core.Future<{{outputType}}> {{vertxMethodName}}(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<{{inputType}}>> hdlr) {
-      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(ctx, hdlr, delegateStub::{{vertxMethodName}});
+    public io.vertx.core.Future<{{outputType}}> {{vertxMethodName}}(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<{{inputType}}>> handler) {
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(context, handler, delegateStub::{{vertxMethodName}});
     }
 
     {{/manyUnaryMethods}}
     {{#manyManyMethods}}
     {{{methodHeader}}}
-    public io.vertx.core.Future<io.vertx.core.streams.ReadStream<{{outputType}}>> {{vertxMethodName}}(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<{{inputType}}>> hdlr) {
-      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(ctx, hdlr, delegateStub::{{vertxMethodName}});
+    public io.vertx.core.Future<io.vertx.core.streams.ReadStream<{{outputType}}>> {{vertxMethodName}}(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<{{inputType}}>> handler) {
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(context, handler, delegateStub::{{vertxMethodName}});
     }
     {{/manyManyMethods}}
   }

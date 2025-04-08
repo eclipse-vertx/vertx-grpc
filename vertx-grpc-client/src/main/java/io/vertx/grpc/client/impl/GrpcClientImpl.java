@@ -58,6 +58,10 @@ public class GrpcClientImpl implements GrpcClient {
     this.closeClient = close;
   }
 
+  public Vertx vertx() {
+    return vertx;
+  }
+
   public Future<GrpcClientRequest<Buffer, Buffer>> request(RequestOptions options) {
     return client.request(options)
       .map(httpRequest -> {

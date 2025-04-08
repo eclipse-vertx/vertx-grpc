@@ -100,7 +100,11 @@ public final class ServerCalls {
     StreamObserverReadStream<I> request = new StreamObserverReadStream<>(ctx, (CallStreamObserver<?>) response);
     request.init();
     GrpcWriteStream<O> responseStream = new GrpcWriteStream<>(ctx, response);
-    delegate.accept(request, responseStream);
+    try {
+      delegate.accept(request, responseStream);
+    } catch (UnsupportedOperationException e) {
+      response.onError(new StatusRuntimeException(Status.UNIMPLEMENTED));
+    }
     return request;
   }
 

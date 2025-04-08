@@ -17,6 +17,8 @@ package io.vertx.grpcio.common.impl.stub;
 
 import io.grpc.Status;
 import io.grpc.stub.CallStreamObserver;
+import io.grpc.stub.ClientCallStreamObserver;
+import io.grpc.stub.ClientResponseObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Completable;
 import io.vertx.core.Future;
@@ -26,7 +28,9 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -38,9 +42,15 @@ public final class ClientCalls {
   private ClientCalls() {
   }
 
+  public static <I, O> Future<O> oneToOne(ContextInternal ctx, I request, io.grpc.ClientCall<I, O> call) {
+    Promise<O> promise = ctx.promise();
+    io.grpc.stub.ClientCalls.asyncUnaryCall(call, request, toStreamObserver(promise, null));
+    return promise.future();
+  }
+
   public static <I, O> Future<O> oneToOne(ContextInternal ctx, I request, BiConsumer<I, StreamObserver<O>> delegate) {
-    Promise<O> promise = ctx != null ? ctx.promise() : Promise.promise();
-    delegate.accept(request, toStreamObserver(promise));
+    Promise<O> promise = ctx.promise();
+    delegate.accept(request, toStreamObserver(promise, null));
     return promise.future();
   }
 
@@ -49,17 +59,35 @@ public final class ClientCalls {
   }
 
   public static <I, O> Future<ReadStream<O>> oneToMany(ContextInternal ctx, I request, BiConsumer<I, StreamObserver<O>> delegate, Handler<O> handler, Handler<Void> endHandler, Handler<Throwable> exceptionHandler) {
-    StreamObserverReadStream<O> response = new StreamObserverReadStream<>(ctx, (CallStreamObserver<?>) delegate);
-    response.init();
-    response.handler(handler).endHandler(endHandler).exceptionHandler(exceptionHandler);
-    delegate.accept(request, response);
-    return Future.succeededFuture(response);
+    Promise<ReadStream<O>> promise = Promise.promise();
+    delegate.accept(request, new ClientResponseObserver<I, O>() {
+      @Override
+      public void beforeStart(ClientCallStreamObserver<I> requestStream) {
+        StreamObserverReadStream<O> response = new StreamObserverReadStream<>(ctx, requestStream);
+        response.init();
+        response.handler(handler).endHandler(endHandler).exceptionHandler(exceptionHandler);
+        promise.succeed(response);
+      }
+      @Override
+      public void onNext(O value) {
+      }
+      @Override
+      public void onError(Throwable t) {
+      }
+      @Override
+      public void onCompleted() {
+      }
+    });
+    return promise.future();
   }
 
   public static <I, O> Future<O> manyToOne(ContextInternal ctx, Completable<WriteStream<I>> requestHandler, Function<StreamObserver<O>, StreamObserver<I>> delegate) {
-    Promise<O> promise = ctx != null ? ctx.promise() : Promise.promise();
-    StreamObserver<I> request = delegate.apply(toStreamObserver(promise));
-    requestHandler.succeed(new GrpcWriteStream<>(ctx, request));
+    Promise<O> promise = ctx.promise();
+    ClientResponseObserver<I, O> so = ClientCalls.toStreamObserver(promise, blah -> {
+      GrpcWriteStream<I> ws = new GrpcWriteStream<>(ctx, blah);
+      requestHandler.succeed(ws);
+    });
+    delegate.apply(so);
     return promise.future();
   }
 
@@ -72,16 +100,39 @@ public final class ClientCalls {
   }
 
   public static <I, O> Future<ReadStream<O>> manyToMany(ContextInternal ctx, Completable<WriteStream<I>> requestHandler, Function<StreamObserver<O>, StreamObserver<I>> delegate, Handler<O> handler, Handler<Void> endHandler, Handler<Throwable> exceptionHandler) {
-    StreamObserverReadStream<O> response = new StreamObserverReadStream<>(ctx, (CallStreamObserver<?>) delegate);
-    response.init();
-    response.handler(handler).endHandler(endHandler).exceptionHandler(exceptionHandler);
-    StreamObserver<I> request = delegate.apply(response);
-    requestHandler.complete(new GrpcWriteStream<>(ctx, request), null);
-    return Future.succeededFuture(response);
+    Promise<ReadStream<O>> promise = ctx.promise();
+    delegate.apply(new ClientResponseObserver<I, O>() {
+      @Override
+      public void beforeStart(ClientCallStreamObserver<I> requestStream) {
+        StreamObserverReadStream<O> response = new StreamObserverReadStream<>(ctx, requestStream);
+        response.init();
+        response.handler(handler).endHandler(endHandler).exceptionHandler(exceptionHandler);
+        promise.complete(response);
+        requestHandler.complete(new GrpcWriteStream<>(ctx, requestStream), null);
+      }
+      @Override
+      public void onNext(O value) {
+      }
+      @Override
+      public void onError(Throwable t) {
+      }
+      @Override
+      public void onCompleted() {
+      }
+    });
+    return promise.future();
   }
 
-  private static <O> StreamObserver<O> toStreamObserver(Promise<O> promise) {
-    return new StreamObserver<O>() {
+  private static <I, O> ClientResponseObserver<I, O> toStreamObserver(Promise<O> promise, Consumer<ClientCallStreamObserver<I>> callback) {
+    return new ClientResponseObserver<>() {
+
+      @Override
+      public void beforeStart(ClientCallStreamObserver<I> requestStream) {
+        if (callback != null) {
+          callback.accept(requestStream);
+        }
+      }
+
       @Override
       public void onNext(O tResponse) {
         if (!promise.tryComplete(tResponse)) {

@@ -6,7 +6,12 @@ import static io.grpc.stub.ServerCalls.asyncServerStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncClientStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncBidiStreamingCall;
 
+import io.grpc.ClientCall;
+
 import io.grpc.stub.StreamObserver;
+
+import io.vertx.grpcio.client.GrpcIoClientChannel;
+import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
 public final class StreamingGrpcStub {
   private StreamingGrpcStub() {}
@@ -21,19 +26,19 @@ public final class StreamingGrpcStub {
 
   
   public static final class StreamingVertxStub extends io.grpc.stub.AbstractStub<StreamingVertxStub> implements StreamingClient {
-    private final io.vertx.core.internal.ContextInternal ctx;
+    private final io.vertx.core.internal.ContextInternal context;
     private StreamingGrpc.StreamingStub delegateStub;
 
     private StreamingVertxStub(io.grpc.Channel channel) {
       super(channel);
       delegateStub = StreamingGrpc.newStub(channel);
-      this.ctx = (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext();
+      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
     }
 
     private StreamingVertxStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
       delegateStub = StreamingGrpc.newStub(channel).build(channel, callOptions);
-      this.ctx = (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext();
+      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
     }
 
     @Override
@@ -43,17 +48,17 @@ public final class StreamingGrpcStub {
 
     
     public io.vertx.core.Future<io.vertx.core.streams.ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request) {
-      return io.vertx.grpcio.common.impl.stub.ClientCalls.oneToMany(ctx, request, delegateStub::source);
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.oneToMany(context, request, delegateStub::source);
     }
 
     
-    public io.vertx.core.Future<examples.grpc.Empty> sink(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<examples.grpc.Item>> hdlr) {
-      return io.vertx.grpcio.common.impl.stub.ClientCalls.manyToOne(ctx, hdlr, delegateStub::sink);
+    public io.vertx.core.Future<examples.grpc.Empty> sink(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<examples.grpc.Item>> handler) {
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.manyToOne(context, handler, delegateStub::sink);
     }
 
     
-    public io.vertx.core.Future<io.vertx.core.streams.ReadStream<examples.grpc.Item>> pipe(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<examples.grpc.Item>> hdlr) {
-      return io.vertx.grpcio.common.impl.stub.ClientCalls.manyToMany(ctx, hdlr, delegateStub::pipe);
+    public io.vertx.core.Future<io.vertx.core.streams.ReadStream<examples.grpc.Item>> pipe(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<examples.grpc.Item>> handler) {
+      return io.vertx.grpcio.common.impl.stub.ClientCalls.manyToMany(context, handler, delegateStub::pipe);
     }
   }
 
