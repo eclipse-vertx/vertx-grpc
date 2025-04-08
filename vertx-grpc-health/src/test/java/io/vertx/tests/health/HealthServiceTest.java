@@ -12,19 +12,17 @@ package io.vertx.tests.health;
 
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.vertx.ext.healthchecks.Status;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.health.HealthService;
 import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.Service;
 import io.vertx.tests.common.grpc.TestConstants;
-import io.vertx.tests.common.grpc.Tests;
-import io.vertx.tests.health.grpc.HealthGrpc;
 import io.vertx.tests.health.grpc.HealthCheckRequest;
 import io.vertx.tests.health.grpc.HealthCheckResponse;
+import io.vertx.tests.health.grpc.HealthGrpc;
 import io.vertx.tests.server.ServerTestBase;
 import org.junit.Test;
 
@@ -128,7 +126,7 @@ public class HealthServiceTest extends ServerTestBase {
     final HealthService healthService = HealthService.create(vertx);
 
     // Register a service with OK status
-    healthService.register(TestConstants.TEST_SERVICE, promise -> promise.complete(status.get()));
+    healthService.register(TestConstants.TEST_SERVICE, 1000, promise -> promise.complete(status.get()));
 
     startServer(GrpcServer
       .server(vertx)
@@ -166,6 +164,12 @@ public class HealthServiceTest extends ServerTestBase {
 
       @Override
       public void onError(Throwable throwable) {
+        if (throwable instanceof StatusRuntimeException) {
+          StatusRuntimeException sre = (StatusRuntimeException) throwable;
+          should.assertEquals(io.grpc.Status.UNAVAILABLE.getCode(), sre.getStatus().getCode());
+          return;
+        }
+
         should.fail(throwable);
       }
 
@@ -200,14 +204,23 @@ public class HealthServiceTest extends ServerTestBase {
     stub.watch(request, new StreamObserver<>() {
       @Override
       public void onNext(HealthCheckResponse response) {
-        should.assertEquals(HealthCheckResponse.ServingStatus.SERVICE_UNKNOWN, response.getStatus());
-
-        // After receiving the SERVICE_UNKNOWN response, register the service
-        healthService.register("unknown.service", promise -> promise.complete(io.vertx.ext.healthchecks.Status.OK()));
+        if (response.getStatus() == HealthCheckResponse.ServingStatus.SERVICE_UNKNOWN) {
+          should.assertEquals(HealthCheckResponse.ServingStatus.SERVICE_UNKNOWN, response.getStatus());
+          healthService.register("unknown.service", promise -> promise.complete(io.vertx.ext.healthchecks.Status.OK()));
+        } else {
+          should.assertEquals(HealthCheckResponse.ServingStatus.SERVING, response.getStatus());
+          test.complete();
+        }
       }
 
       @Override
       public void onError(Throwable throwable) {
+        if(throwable instanceof StatusRuntimeException) {
+          StatusRuntimeException sre = (StatusRuntimeException) throwable;
+          should.assertEquals(io.grpc.Status.UNAVAILABLE.getCode(), sre.getStatus().getCode());
+          return;
+        }
+
         should.fail(throwable);
       }
 

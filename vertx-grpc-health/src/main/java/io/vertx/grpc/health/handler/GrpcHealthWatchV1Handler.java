@@ -1,10 +1,11 @@
 package io.vertx.grpc.health.handler;
 
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.ext.healthchecks.HealthChecks;
-import io.vertx.ext.healthchecks.Status;
-import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.health.v1.HealthCheckRequest;
 import io.vertx.grpc.health.v1.HealthCheckResponse;
 import io.vertx.grpc.server.GrpcServerRequest;
@@ -35,7 +36,7 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
     super(healthChecks);
 
     this.vertx = vertx;
-    this.timerId = vertx.setPeriodic(5000, id -> checkHealthStatusChanges());
+    this.timerId = vertx.setPeriodic(2500, id -> checkHealthStatusChanges());
   }
 
   private void checkHealthStatusChanges() {
@@ -75,7 +76,7 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
         watchers.computeIfAbsent(service, k -> new ConcurrentHashMap<>()).put(response, Boolean.TRUE);
 
         // Handle client disconnection
-        request.endHandler(v -> removeWatcher(service, response));
+        request.connection().closeHandler(v -> removeWatcher(service, response));
         request.exceptionHandler(e -> removeWatcher(service, response));
       }).onFailure(failure -> {
         // If service is unknown, send SERVICE_UNKNOWN but don't end the stream
@@ -87,7 +88,7 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
         watchers.computeIfAbsent(service, k -> new ConcurrentHashMap<>()).put(response, Boolean.TRUE);
 
         // Handle client disconnection
-        request.endHandler(v -> removeWatcher(service, response));
+        request.connection().closeHandler(v -> removeWatcher(service, response));
         request.exceptionHandler(e -> removeWatcher(service, response));
       });
     });
