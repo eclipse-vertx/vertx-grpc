@@ -33,6 +33,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
+
 public class ProtocPluginTest extends ProxyTestBase {
 
   @Test
@@ -388,7 +390,7 @@ public class ProtocPluginTest extends ProxyTestBase {
       .build();
     client.streamingOutputCall(request)
       .onComplete(should.asyncAssertFailure(err -> {
-        should.assertEquals("Invalid gRPC status 13", err.getMessage());
+        should.assertEquals("Invalid status: actual:INTERNAL, expected:OK", err.getMessage());
         test.complete();
       }));
     test.awaitSuccess();
@@ -519,11 +521,59 @@ public class ProtocPluginTest extends ProxyTestBase {
         req.end();
       })
       .onComplete(should.asyncAssertFailure(err -> {
-        should.assertEquals("Invalid gRPC status 13", err.getMessage());
+        should.assertEquals("Invalid status: actual:INTERNAL, expected:OK", err.getMessage());
         test.complete();
       }));
     test.awaitSuccess();
 
     httpServer.close();
+  }
+
+  @Test
+  public void testUnimplementedService() throws Exception {
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    grpcServer.addService(TestServiceGrpcService.of(new TestServiceService() {
+    }));
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer)
+      .listen(8080).await(20, TimeUnit.SECONDS);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    TestServiceClient client = TestServiceGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    try {
+      client.unaryCall(Messages.SimpleRequest.newBuilder()
+          .setFillUsername(true)
+          .build()).await(20, TimeUnit.SECONDS);
+    } catch (InvalidStatusException expected) {
+      assertEquals(GrpcStatus.UNIMPLEMENTED, expected.actualStatus());
+    }
+
+    try {
+      client.streamingInputCall((req, err) -> {
+        req.write(Messages.StreamingInputCallRequest.newBuilder()
+          .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFromUtf8("blah"))).build());
+      }).await(20, TimeUnit.SECONDS);
+    } catch (InvalidStatusException expected) {
+      assertEquals(GrpcStatus.UNIMPLEMENTED, expected.actualStatus());
+    }
+
+    try {
+      client.fullDuplexCall((req, err) -> {
+        req.write(Messages.StreamingOutputCallRequest.newBuilder()
+          .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFromUtf8("blah"))).build());
+      }).await(20, TimeUnit.SECONDS);
+    } catch (InvalidStatusException expected) {
+      assertEquals(GrpcStatus.UNIMPLEMENTED, expected.actualStatus());
+    }
+
+    try {
+      client.streamingOutputCall(Messages.StreamingOutputCallRequest.newBuilder()
+        .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFromUtf8("blah")).build())
+        .build()).await(20, TimeUnit.SECONDS);
+    } catch (InvalidStatusException expected) {
+      assertEquals(GrpcStatus.UNIMPLEMENTED, expected.actualStatus());
+    }
   }
 }
