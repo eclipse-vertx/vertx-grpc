@@ -12,7 +12,9 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.docgen.Source;
+import io.vertx.ext.healthchecks.Status;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.health.HealthService;
 import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpc.server.*;
 import io.vertx.grpc.transcoding.TranscodingServiceMethod;
@@ -318,7 +320,26 @@ public class GrpcServerExamples {
 
     grpcServer.addService(greeterService);
 
-    // Start the HTTP/2 server
+    // Start the server
+    vertx.createHttpServer(options)
+      .requestHandler(grpcServer)
+      .listen();
+  }
+
+  public void healthServiceExample(Vertx vertx, HttpServerOptions options) {
+    // Create a gRPC server
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+
+    // Create a health service instance
+    HealthService healthService = HealthService.create(vertx);
+
+    // Register health checks for your services
+    healthService.register("my.service.name", promise -> promise.complete(Status.OK()));
+
+    // Add the health service to the gRPC server
+    grpcServer.addService(healthService);
+
+    // Start the server
     vertx.createHttpServer(options)
       .requestHandler(grpcServer)
       .listen();
