@@ -127,14 +127,18 @@ public final class StreamingGrpcStub {
       switch (methodId) {
         case METHODID_SINK:
           reqStreamObserver = (io.grpc.stub.StreamObserver<Req>) io.vertx.grpcio.common.impl.stub.ServerCalls.<examples.grpc.Item, examples.grpc.Empty>manyToOne(
+                  (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext(),
                   (io.grpc.stub.StreamObserver<examples.grpc.Empty>) responseObserver,
                   compression,
                   serviceImpl::sink);
+          return reqStreamObserver;
         case METHODID_PIPE:
           reqStreamObserver = (io.grpc.stub.StreamObserver<Req>) io.vertx.grpcio.common.impl.stub.ServerCalls.<examples.grpc.Item, examples.grpc.Item>manyToMany(
+                  (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext(),
                   (io.grpc.stub.StreamObserver<examples.grpc.Item>) responseObserver,
                   compression,
                   serviceImpl::pipe);
+          return reqStreamObserver;
         default:
           throw new java.lang.AssertionError();
       }

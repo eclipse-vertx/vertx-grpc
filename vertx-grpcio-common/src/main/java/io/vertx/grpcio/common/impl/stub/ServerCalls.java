@@ -18,10 +18,12 @@ package io.vertx.grpcio.common.impl.stub;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
+import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Completable;
 import io.vertx.core.Future;
+import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 
@@ -67,10 +69,10 @@ public final class ServerCalls {
     }
   }
 
-  public static <I, O> StreamObserver<I> manyToOne(StreamObserver<O> response, String compression, Function<ReadStream<I>, Future<O>> delegate) {
-
+  public static <I, O> StreamObserver<I> manyToOne(ContextInternal ctx, StreamObserver<O> response, String compression, Function<ReadStream<I>, Future<O>> delegate) {
     trySetCompression(response, compression);
-    StreamObserverReadStream<I> request = new StreamObserverReadStream<>();
+    StreamObserverReadStream<I> request = new StreamObserverReadStream<>(ctx, (CallStreamObserver<?>) response);
+    request.init();
     Future<O> future;
     try {
       future = delegate.apply(request);
@@ -93,9 +95,10 @@ public final class ServerCalls {
     return request;
   }
 
-  public static <I, O> StreamObserver<I> manyToMany(StreamObserver<O> response, String compression, BiConsumer<ReadStream<I>, WriteStream<O>> delegate) {
+  public static <I, O> StreamObserver<I> manyToMany(ContextInternal ctx, StreamObserver<O> response, String compression, BiConsumer<ReadStream<I>, WriteStream<O>> delegate) {
     trySetCompression(response, compression);
-    StreamObserverReadStream<I> request = new StreamObserverReadStream<>();
+    StreamObserverReadStream<I> request = new StreamObserverReadStream<>(ctx, (CallStreamObserver<?>) response);
+    request.init();
     GrpcWriteStream<O> responseStream = new GrpcWriteStream<>(response);
     delegate.accept(request, responseStream);
     return request;

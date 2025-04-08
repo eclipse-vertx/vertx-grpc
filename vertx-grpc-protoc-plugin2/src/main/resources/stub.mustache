@@ -136,6 +136,7 @@ public final class {{className}} {
         {{#isManyInput}}
         case METHODID_{{methodNameUpperUnderscore}}:
           reqStreamObserver = (io.grpc.stub.StreamObserver<Req>) io.vertx.grpcio.common.impl.stub.ServerCalls.<{{inputType}}, {{outputType}}>{{vertxCallsMethodName}}(
+                  (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext(),
                   (io.grpc.stub.StreamObserver<{{outputType}}>) responseObserver,
                   compression,
                   serviceImpl::{{vertxMethodName}});

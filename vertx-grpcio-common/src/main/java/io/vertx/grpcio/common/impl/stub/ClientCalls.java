@@ -16,6 +16,7 @@
 package io.vertx.grpcio.common.impl.stub;
 
 import io.grpc.Status;
+import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Completable;
 import io.vertx.core.Future;
@@ -48,7 +49,8 @@ public final class ClientCalls {
   }
 
   public static <I, O> Future<ReadStream<O>> oneToMany(ContextInternal ctx, I request, BiConsumer<I, StreamObserver<O>> delegate, Handler<O> handler, Handler<Void> endHandler, Handler<Throwable> exceptionHandler) {
-    StreamObserverReadStream<O> response = new StreamObserverReadStream<>();
+    StreamObserverReadStream<O> response = new StreamObserverReadStream<>(ctx, (CallStreamObserver<?>) delegate);
+    response.init();
     response.handler(handler).endHandler(endHandler).exceptionHandler(exceptionHandler);
     delegate.accept(request, response);
     return Future.succeededFuture(response);
@@ -70,7 +72,8 @@ public final class ClientCalls {
   }
 
   public static <I, O> Future<ReadStream<O>> manyToMany(ContextInternal ctx, Completable<WriteStream<I>> requestHandler, Function<StreamObserver<O>, StreamObserver<I>> delegate, Handler<O> handler, Handler<Void> endHandler, Handler<Throwable> exceptionHandler) {
-    StreamObserverReadStream<O> response = new StreamObserverReadStream<>();
+    StreamObserverReadStream<O> response = new StreamObserverReadStream<>(ctx, (CallStreamObserver<?>) delegate);
+    response.init();
     response.handler(handler).endHandler(endHandler).exceptionHandler(exceptionHandler);
     StreamObserver<I> request = delegate.apply(response);
     requestHandler.complete(new GrpcWriteStream<>(request), null);

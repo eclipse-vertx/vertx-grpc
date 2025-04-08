@@ -37,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 
@@ -603,22 +604,26 @@ public abstract class ProtocPluginTestBase extends ProxyTestBase {
     }
   }
 
-  private <T> void sendUntil(GrpcClientRequest<T, ?> request, T msg) {
-    sendUntil(request, msg, 0);
-  }
-
-  private <T> void sendUntil(GrpcClientRequest<T, ?> request, T msg, int num) {
+  private <T> void sendUntil(GrpcClientRequest<T, ?> request, T msg, int remainingDrains) {
     if (request.writeQueueFull()) {
-      System.out.println("FULL " + num);
+      request.drainHandler(v -> {
+        if (remainingDrains > 0) {
+          sendUntil(request, msg, remainingDrains - 1);
+        } else {
+          request.end();
+        }
+      });
     } else {
+      inflight.incrementAndGet();
       request.write(msg);
-      vertx.runOnContext(v -> {
-        sendUntil(request, msg, num + 1);
+      vertx.setTimer(1, v -> {
+        sendUntil(request, msg, remainingDrains);
       });
     }
   }
 
-  @Ignore("does not pass at the moment for stubs")
+  private final AtomicInteger inflight = new AtomicInteger();
+
   @Test
   public void testManyUnaryBackPressure(TestContext should) throws Exception {
     // Create gRPC Server
@@ -628,9 +633,15 @@ public abstract class ProtocPluginTestBase extends ProxyTestBase {
       public Future<Messages.StreamingInputCallResponse> streamingInputCall(ReadStream<Messages.StreamingInputCallRequest> request) {
         Promise<Messages.StreamingInputCallResponse> promise = Promise.promise();
         request.handler(msg -> {
-          should.fail();
+          inflight.decrementAndGet();
+        });
+        request.endHandler(v -> {
+          promise.complete(Messages.StreamingInputCallResponse.getDefaultInstance());
         });
         request.pause();
+        vertx.setPeriodic(2, id -> {
+          request.fetch(1);
+        });
         return promise.future();
       }
     }));
@@ -641,11 +652,23 @@ public abstract class ProtocPluginTestBase extends ProxyTestBase {
     // Create gRPC Client
     GrpcClient grpcClient = grpcClient();
 
-    grpcClient.request(SocketAddress.inetSocketAddress(8080, "localhost"), TestServiceGrpcClient.StreamingInputCall).onComplete(should.asyncAssertSuccess(request -> {
-      sendUntil(request, Messages.StreamingInputCallRequest.newBuilder().setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFromUtf8("blah"))).build());
+    Async async = should.async();
+    inflight.set(0);
+
+    Messages.StreamingInputCallRequest msg = Messages.StreamingInputCallRequest.newBuilder()
+            .setPayload(Messages.Payload.newBuilder()
+                    .setBody(ByteString.copyFromUtf8("ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ"))).build();
+
+    Future<GrpcClientRequest<Messages.StreamingInputCallRequest, Messages.StreamingInputCallResponse>> fut = grpcClient.request(SocketAddress.inetSocketAddress(8080, "localhost"), TestServiceGrpcClient.StreamingInputCall).onComplete(should.asyncAssertSuccess(request -> {
+      sendUntil(request, msg, 4);
+      request.response().onComplete(should.asyncAssertSuccess(resp -> {
+        resp.endHandler(v -> {
+          assertEquals(0, inflight.get());
+          async.complete();
+        });
+      }));
     }));
 
-    Async test = should.async();
-    test.awaitSuccess();
+    async.awaitSuccess(20_000);
   }
 }
