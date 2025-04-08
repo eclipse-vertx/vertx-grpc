@@ -15,9 +15,12 @@
  */
 package io.vertx.grpcio.common.impl.stub;
 
+import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.concurrent.OutboundMessageQueue;
 import io.vertx.core.streams.WriteStream;
 
 /**
@@ -26,68 +29,80 @@ import io.vertx.core.streams.WriteStream;
  */
 public class GrpcWriteStream<T> implements WriteStream<T> {
 
-  private final StreamObserver<T> observer;
-  private Handler<Throwable> errHandler;
+  private static final Object END_SENTINEL = new Object();
 
-  public GrpcWriteStream(StreamObserver<T> observer) {
-    this.observer = observer;
-    this.errHandler = observer::onError;
+  private final OutboundMessageQueue<T> queue;
+  private Handler<Void> drainHandler;
+  private boolean ended;
+
+  public GrpcWriteStream(ContextInternal context, StreamObserver<T> observer) {
+    CallStreamObserver<T> streamObserver = (CallStreamObserver<T>) observer;
+    this.queue = new OutboundMessageQueue<>(context.executor()) {
+      @Override
+      public boolean test(T msg) {
+        if (msg == END_SENTINEL) {
+          streamObserver.onCompleted();
+          return true;
+        } else {
+          boolean ready = streamObserver.isReady();
+          if (ready) {
+            streamObserver.onNext(msg);
+          }
+          return ready;
+        }
+      }
+      @Override
+      protected void handleDrained() {
+        Handler<Void> handler = drainHandler();
+        if (handler != null) {
+          handler.handle(null);
+        }
+      }
+    };
+    streamObserver.setOnReadyHandler(queue::tryDrain);
   }
 
   @Override
   public WriteStream<T> exceptionHandler(Handler<Throwable> hndlr) {
-    if (hndlr == null) {
-      this.errHandler = observer::onError;
-    } else {
-      this.errHandler = (Throwable t) -> {
-        observer.onError(t);
-        hndlr.handle(t);
-      };
-    }
     return this;
   }
 
   @Override
   public Future<Void> write(T data) {
-    try {
-      observer.onNext(data);
-    } catch (Throwable e) {
-      return Future.failedFuture(e);
+    if (ended) {
+      throw new IllegalStateException();
     }
+    queue.write(data);
     return Future.succeededFuture();
   }
 
   @Override
   public Future<Void> end() {
-    try {
-      observer.onCompleted();
-    } catch (Throwable e) {
-      return Future.failedFuture(e);
+    if (ended) {
+      throw new IllegalStateException();
     }
+    ended = true;
+    queue.write((T) END_SENTINEL);
     return Future.succeededFuture();
   }
 
   @Override
   public WriteStream<T> setWriteQueueMaxSize(int i) {
-    errHandler.handle(new UnsupportedOperationException());
     return this;
   }
 
   @Override
   public boolean writeQueueFull() {
-    return false;
+    return !queue.isWritable();
   }
 
   @Override
-  public WriteStream<T> drainHandler(Handler<Void> hndlr) {
-    errHandler.handle(new UnsupportedOperationException());
+  public synchronized WriteStream<T> drainHandler(Handler<Void> handler) {
+    drainHandler = handler;
     return this;
   }
 
-  /**
-   * Low level control of the observer for advanced use cases.
-   */
-  public StreamObserver<T> streamObserver() {
-    return observer;
+  private synchronized Handler<Void> drainHandler() {
+    return drainHandler;
   }
 }

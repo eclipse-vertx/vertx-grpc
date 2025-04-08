@@ -30,7 +30,6 @@ import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -604,7 +603,7 @@ public abstract class ProtocPluginTestBase extends ProxyTestBase {
     }
   }
 
-  private <T> void sendUntil(GrpcClientRequest<T, ?> request, T msg, int remainingDrains) {
+  private <T> void sendUntil(WriteStream<T> request, T msg, int remainingDrains) {
     if (request.writeQueueFull()) {
       request.drainHandler(v -> {
         if (remainingDrains > 0) {
@@ -667,6 +666,54 @@ public abstract class ProtocPluginTestBase extends ProxyTestBase {
           async.complete();
         });
       }));
+    }));
+
+    async.awaitSuccess(20_000);
+  }
+
+  @Test
+  public void testUnaryManyBackPressure(TestContext should) throws Exception {
+
+    Messages.StreamingOutputCallResponse msg2 = Messages.StreamingOutputCallResponse.newBuilder()
+            .setPayload(Messages.Payload.newBuilder()
+                    .setBody(ByteString.copyFromUtf8("ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ"))).build();
+
+    // Create gRPC Server
+    GrpcServer grpcServer = grpcServer();
+    grpcServer.addService(testService(new TestServiceService() {
+      @Override
+      protected void streamingOutputCall(Messages.StreamingOutputCallRequest request, WriteStream<Messages.StreamingOutputCallResponse> response) {
+        sendUntil(response, msg2, 4);
+      }
+    }));
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer)
+            .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = grpcClient();
+
+    Async async = should.async();
+    inflight.set(0);
+
+    Future<GrpcClientRequest<Messages.StreamingOutputCallRequest, Messages.StreamingOutputCallResponse>> fut = grpcClient.request(
+            SocketAddress.inetSocketAddress(8080, "localhost"),
+            TestServiceGrpcClient.StreamingOutputCall);
+    fut.onComplete(should.asyncAssertSuccess(request -> {
+      request.response().onComplete(should.asyncAssertSuccess(response -> {
+        response.handler(msg -> {
+          inflight.decrementAndGet();
+        });
+        response.endHandler(v -> {
+          assertEquals(0, inflight.get());
+          async.complete();
+        });
+        response.pause();
+        vertx.setPeriodic(2, id -> {
+          response.fetch(1);
+        });
+      }));
+      request.end(Messages.StreamingOutputCallRequest.getDefaultInstance());
     }));
 
     async.awaitSuccess(20_000);

@@ -110,6 +110,7 @@ public final class StreamingGrpcStub {
       switch (methodId) {
         case METHODID_SOURCE:
           io.vertx.grpcio.common.impl.stub.ServerCalls.<examples.grpc.Empty, examples.grpc.Item>oneToMany(
+            (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext(),
             (examples.grpc.Empty) request,
             (io.grpc.stub.StreamObserver<examples.grpc.Item>) responseObserver,
             compression,

@@ -39,7 +39,7 @@ public final class ServerCalls {
   private ServerCalls() {
   }
 
-  public static <I, O> void oneToOne(I request, StreamObserver<O> response, String compression, BiConsumer<I, Completable<O>> delegate) {
+  public static <I, O> void oneToOne(ContextInternal ctx, I request, StreamObserver<O> response, String compression, BiConsumer<I, Completable<O>> delegate) {
     trySetCompression(response, compression);
     try {
       delegate.accept(request, (res, err) -> {
@@ -57,10 +57,10 @@ public final class ServerCalls {
     }
   }
 
-  public static <I, O> void oneToMany(I request, StreamObserver<O> response, String compression, BiConsumer<I, WriteStream<O>> delegate) {
+  public static <I, O> void oneToMany(ContextInternal ctx, I request, StreamObserver<O> response, String compression, BiConsumer<I, WriteStream<O>> delegate) {
     trySetCompression(response, compression);
     try {
-      GrpcWriteStream<O> responseWriteStream = new GrpcWriteStream<>(response);
+      GrpcWriteStream<O> responseWriteStream = new GrpcWriteStream<>(ctx, response);
       delegate.accept(request, responseWriteStream);
     } catch (UnsupportedOperationException e) {
       response.onError(new StatusRuntimeException(Status.UNIMPLEMENTED));
@@ -99,7 +99,7 @@ public final class ServerCalls {
     trySetCompression(response, compression);
     StreamObserverReadStream<I> request = new StreamObserverReadStream<>(ctx, (CallStreamObserver<?>) response);
     request.init();
-    GrpcWriteStream<O> responseStream = new GrpcWriteStream<>(response);
+    GrpcWriteStream<O> responseStream = new GrpcWriteStream<>(ctx, response);
     delegate.accept(request, responseStream);
     return request;
   }

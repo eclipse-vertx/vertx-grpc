@@ -59,7 +59,7 @@ public final class ClientCalls {
   public static <I, O> Future<O> manyToOne(ContextInternal ctx, Completable<WriteStream<I>> requestHandler, Function<StreamObserver<O>, StreamObserver<I>> delegate) {
     Promise<O> promise = ctx != null ? ctx.promise() : Promise.promise();
     StreamObserver<I> request = delegate.apply(toStreamObserver(promise));
-    requestHandler.succeed(new GrpcWriteStream<>(request));
+    requestHandler.succeed(new GrpcWriteStream<>(ctx, request));
     return promise.future();
   }
 
@@ -76,7 +76,7 @@ public final class ClientCalls {
     response.init();
     response.handler(handler).endHandler(endHandler).exceptionHandler(exceptionHandler);
     StreamObserver<I> request = delegate.apply(response);
-    requestHandler.complete(new GrpcWriteStream<>(request), null);
+    requestHandler.complete(new GrpcWriteStream<>(ctx, request), null);
     return Future.succeededFuture(response);
   }
 
