@@ -433,3 +433,43 @@ Support for the https://grpc.io/docs/guides/reflection/[gRPC reflection APIs] ca
 ----
 {@link examples.GrpcServerExamples#reflectionExample}
 ----
+
+=== gRPC Health Service
+
+The gRPC Health Service implements the standard https://github.com/grpc/grpc/blob/master/doc/health-checking.md[gRPC health checking protocol], which allows clients to check the health status of your services.
+
+The Health Service provides a bridge between Vert.x's `HealthChecks` system and the gRPC health checking protocol. It implements two RPCs:
+
+* `Check`: For checking the health status of a service
+* `Watch`: For watching the health status of a service over time
+
+To use the Health Service, add the following dependency:
+
+* Maven (in your `pom.xml`):
+
+[source,xml,subs="+attributes"]
+----
+<dependency>
+  <groupId>io.vertx</groupId>
+  <artifactId>vertx-grpc-health</artifactId>
+  <version>${maven.version}</version>
+</dependency>
+----
+
+* Gradle (in your `build.gradle` file):
+
+[source,groovy,subs="+attributes"]
+----
+dependencies {
+  compile 'io.vertx:vertx-grpc-health:${maven.version}'
+}
+----
+
+Here's how to create and bind a Health Service to your gRPC server:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#healthServiceExample}
+----
+
+Clients can then check the health of your services using the standard gRPC health checking protocol.

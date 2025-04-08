@@ -10,9 +10,9 @@ import io.vertx.ext.healthchecks.CheckResult;
 import io.vertx.ext.healthchecks.HealthChecks;
 import io.vertx.ext.healthchecks.Status;
 import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.health.HealthService;
 import io.vertx.grpc.health.handler.GrpcHealthCheckV1Handler;
 import io.vertx.grpc.health.handler.GrpcHealthWatchV1Handler;
-import io.vertx.grpc.health.HealthService;
 import io.vertx.grpc.health.v1.HealthProto;
 import io.vertx.grpc.server.GrpcServer;
 
