@@ -1,7 +1,7 @@
 package examples.grpc;
 
 import io.vertx.core.Future;
-import io.vertx.core.Promise;
+import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.streams.ReadStream;
@@ -60,10 +60,8 @@ public class StreamingService implements Streaming {
     throw new UnsupportedOperationException("Not implemented");
   }
 
-  protected void sink(ReadStream<examples.grpc.Item> request, Promise<examples.grpc.Empty> response) {
-    sink(request)
-      .onSuccess(msg -> response.complete(msg))
-      .onFailure(error -> response.fail(error));
+  protected void sink(ReadStream<examples.grpc.Item> request, Completable<examples.grpc.Empty> response) {
+    sink(request).onComplete(response);
   }
 
   /**

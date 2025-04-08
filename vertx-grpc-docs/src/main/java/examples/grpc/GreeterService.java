@@ -1,7 +1,7 @@
 package examples.grpc;
 
 import io.vertx.core.Future;
-import io.vertx.core.Promise;
+import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.streams.ReadStream;
@@ -39,9 +39,7 @@ public class GreeterService implements Greeter {
     throw new UnsupportedOperationException("Not implemented");
   }
 
-  protected void sayHello(examples.grpc.HelloRequest request, Promise<examples.grpc.HelloReply> response) {
-    sayHello(request)
-      .onSuccess(msg -> response.complete(msg))
-      .onFailure(error -> response.fail(error));
+  protected void sayHello(examples.grpc.HelloRequest request, Completable<examples.grpc.HelloReply> response) {
+    sayHello(request).onComplete(response);
   }
 }

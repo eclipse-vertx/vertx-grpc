@@ -1,6 +1,7 @@
 package examples;
 
 import examples.grpc.*;
+import io.vertx.core.Completable;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
@@ -266,8 +267,8 @@ public class GrpcServerExamples {
   public void unaryStub2(GrpcServer server) {
     GreeterService stub = new GreeterService() {
       @Override
-      public void sayHello(HelloRequest request, Promise<HelloReply> response) {
-        response.complete(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+      public void sayHello(HelloRequest request, Completable<HelloReply> response) {
+        response.succeed(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
       }
     };
   }
@@ -283,12 +284,12 @@ public class GrpcServerExamples {
   public void streamingRequestStub(GrpcServer server) {
     StreamingGrpcService stub = new StreamingGrpcService() {
       @Override
-      public void sink(ReadStream<Item> stream, Promise<Empty> response) {
+      public void sink(ReadStream<Item> stream, Completable<Empty> response) {
         stream.handler(item -> {
           System.out.println("Process item " + item.getValue());
         });
         // Send response
-        stream.endHandler(v -> response.complete(Empty.getDefaultInstance()));
+        stream.endHandler(v -> response.succeed(Empty.getDefaultInstance()));
       }
     };
     server.addService(stub);

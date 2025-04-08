@@ -13,6 +13,7 @@ package io.vertx.grpc.it;
 import com.google.protobuf.ByteString;
 import io.grpc.examples.helloworld.*;
 import io.grpc.testing.integration.*;
+import io.vertx.core.Completable;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
@@ -71,8 +72,8 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     grpcServer.addService(TestServiceGrpcService.of(new TestServiceService() {
       @Override
-      public void unaryCall(Messages.SimpleRequest request, Promise<Messages.SimpleResponse> response) {
-        response.complete(Messages.SimpleResponse.newBuilder()
+      public void unaryCall(Messages.SimpleRequest request, Completable<Messages.SimpleResponse> response) {
+        response.succeed(Messages.SimpleResponse.newBuilder()
           .setUsername("FooBar")
           .build());
       }
@@ -164,14 +165,14 @@ public class ProtocPluginTest extends ProxyTestBase {
     GrpcServer grpcServer = GrpcServer.server(vertx);
     grpcServer.addService(TestServiceGrpcService.of(new TestServiceService() {
       @Override
-      public void streamingInputCall(ReadStream<Messages.StreamingInputCallRequest> request, Promise<Messages.StreamingInputCallResponse> response) {
+      public void streamingInputCall(ReadStream<Messages.StreamingInputCallRequest> request, Completable<Messages.StreamingInputCallResponse> response) {
         List<Messages.StreamingInputCallRequest> list = new ArrayList<>();
         request.handler(list::add);
         request.endHandler($ -> {
           Messages.StreamingInputCallResponse resp = Messages.StreamingInputCallResponse.newBuilder()
             .setAggregatedPayloadSize(list.size())
             .build();
-          response.complete(resp);
+          response.succeed(resp);
         });
       }
     }));
