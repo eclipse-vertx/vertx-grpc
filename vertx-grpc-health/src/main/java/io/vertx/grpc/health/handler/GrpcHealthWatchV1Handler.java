@@ -1,19 +1,21 @@
 package io.vertx.grpc.health.handler;
 
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.ext.healthchecks.HealthChecks;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.health.v1.HealthCheckRequest;
 import io.vertx.grpc.health.v1.HealthCheckResponse;
+import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
 import java.io.Closeable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,8 +34,8 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
 
   private long timerId = -1;
 
-  public GrpcHealthWatchV1Handler(Vertx vertx, HealthChecks healthChecks) {
-    super(healthChecks);
+  public GrpcHealthWatchV1Handler(Vertx vertx, GrpcServer server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
+    super(server, healthChecks);
 
     this.vertx = vertx;
     this.timerId = vertx.setPeriodic(2500, id -> checkHealthStatusChanges());
@@ -42,9 +44,9 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
   private void checkHealthStatusChanges() {
     // For each service with watchers, check its status and notify watchers if changed
     for (String service : watchers.keySet()) {
-      healthChecks.checkStatus(service).onSuccess(result -> {
+      checkStatus(service).onSuccess(result -> {
         HealthCheckResponse.Builder builder = HealthCheckResponse.newBuilder();
-        builder.setStatus(statusToProto(result.getStatus()));
+        builder.setStatus(statusToProto(result));
         HealthCheckResponse response = builder.build();
 
         Map<GrpcServerResponse<HealthCheckRequest, HealthCheckResponse>, Boolean> serviceWatchers = watchers.get(service);
@@ -66,9 +68,9 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
       final GrpcServerResponse<HealthCheckRequest, HealthCheckResponse> response = request.response();
 
       // Send initial status
-      healthChecks.checkStatus(service).onSuccess(result -> {
+      checkStatus(service).onSuccess(result -> {
         HealthCheckResponse.Builder builder = HealthCheckResponse.newBuilder();
-        HealthCheckResponse.ServingStatus status = statusToProto(result.getStatus());
+        HealthCheckResponse.ServingStatus status = statusToProto(result);
         builder.setStatus(status);
         response.write(builder.build());
 
