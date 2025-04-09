@@ -34,10 +34,6 @@
       <groupId>io.vertx</groupId>
       <artifactId>vertx-grpc-server</artifactId>
     </dependency>
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-health-check</artifactId>
-    </dependency>
 
     <dependency>
       <groupId>io.vertx</groupId>

@@ -12,7 +12,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.docgen.Source;
-import io.vertx.ext.healthchecks.Status;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.health.HealthService;
 import io.vertx.grpc.reflection.ReflectionService;
@@ -334,7 +333,7 @@ public class GrpcServerExamples {
     HealthService healthService = HealthService.create(vertx);
 
     // Register health checks for your services
-    healthService.register("my.service.name", promise -> promise.complete(Status.OK()));
+    healthService.register("my.service.name", () -> Future.succeededFuture(true));
 
     // Add the health service to the gRPC server
     grpcServer.addService(healthService);

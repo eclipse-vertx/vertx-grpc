@@ -11,10 +11,11 @@
 package io.vertx.tests.health;
 
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import io.vertx.ext.healthchecks.Status;
+import io.vertx.core.Future;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.health.HealthService;
@@ -36,14 +37,14 @@ public class HealthServiceTest extends ServerTestBase {
 
   @Test
   public void testHealthCheck(TestContext should) throws StatusException, InterruptedException, TimeoutException {
-    HealthService healthService = HealthService.create(vertx);
+    HealthService service = HealthService.create(vertx);
 
     // Register a service with OK status
-    healthService.register(TestConstants.TEST_SERVICE, promise -> promise.complete(io.vertx.ext.healthchecks.Status.OK()));
+    service.register(TestConstants.TEST_SERVICE, () -> Future.succeededFuture(true));
 
     startServer(GrpcServer
       .server(vertx)
-      .addService(healthService));
+      .addService(service));
 
     channel = ManagedChannelBuilder.forAddress("localhost", port)
       .usePlaintext()
@@ -122,15 +123,15 @@ public class HealthServiceTest extends ServerTestBase {
 
   @Test
   public void testHealthWatch(TestContext should) throws StatusException, InterruptedException, TimeoutException {
-    final AtomicReference<Status> status = new AtomicReference<>(Status.OK());
-    final HealthService healthService = HealthService.create(vertx);
+    final AtomicReference<Boolean> status = new AtomicReference<>(true);
+    final HealthService service = HealthService.create(vertx);
 
     // Register a service with OK status
-    healthService.register(TestConstants.TEST_SERVICE, 1000, promise -> promise.complete(status.get()));
+    service.register(TestConstants.TEST_SERVICE, () -> Future.succeededFuture(status.get()));
 
     startServer(GrpcServer
       .server(vertx)
-      .addService(healthService));
+      .addService(service));
 
     channel = ManagedChannelBuilder.forAddress("localhost", port)
       .usePlaintext()
@@ -155,7 +156,7 @@ public class HealthServiceTest extends ServerTestBase {
           should.assertEquals(HealthCheckResponse.ServingStatus.SERVING, response.getStatus());
 
           // Change the status to NOT_SERVING
-          status.set(Status.KO());
+          status.set(false);
         } else if (responses.size() == 2) {
           should.assertEquals(HealthCheckResponse.ServingStatus.NOT_SERVING, response.getStatus());
           test.complete();
@@ -166,7 +167,7 @@ public class HealthServiceTest extends ServerTestBase {
       public void onError(Throwable throwable) {
         if (throwable instanceof StatusRuntimeException) {
           StatusRuntimeException sre = (StatusRuntimeException) throwable;
-          should.assertEquals(io.grpc.Status.UNAVAILABLE.getCode(), sre.getStatus().getCode());
+          should.assertEquals(Status.UNAVAILABLE.getCode(), sre.getStatus().getCode());
           return;
         }
 
@@ -206,7 +207,7 @@ public class HealthServiceTest extends ServerTestBase {
       public void onNext(HealthCheckResponse response) {
         if (response.getStatus() == HealthCheckResponse.ServingStatus.SERVICE_UNKNOWN) {
           should.assertEquals(HealthCheckResponse.ServingStatus.SERVICE_UNKNOWN, response.getStatus());
-          healthService.register("unknown.service", promise -> promise.complete(io.vertx.ext.healthchecks.Status.OK()));
+          healthService.register("unknown.service", () -> Future.succeededFuture(true));
         } else {
           should.assertEquals(HealthCheckResponse.ServingStatus.SERVING, response.getStatus());
           test.complete();
@@ -215,7 +216,7 @@ public class HealthServiceTest extends ServerTestBase {
 
       @Override
       public void onError(Throwable throwable) {
-        if(throwable instanceof StatusRuntimeException) {
+        if (throwable instanceof StatusRuntimeException) {
           StatusRuntimeException sre = (StatusRuntimeException) throwable;
           should.assertEquals(io.grpc.Status.UNAVAILABLE.getCode(), sre.getStatus().getCode());
           return;
