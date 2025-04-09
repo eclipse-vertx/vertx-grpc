@@ -14,7 +14,6 @@ open module io.vertx.tests.health {
   requires io.vertx.tests.server;
   requires junit;
   requires testcontainers;
-  requires io.vertx.healthcheck;
   requires io.vertx.core;
   requires io.vertx.codegen.api;
   exports io.vertx.tests.health.grpc;

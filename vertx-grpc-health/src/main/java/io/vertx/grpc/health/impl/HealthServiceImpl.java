@@ -2,13 +2,8 @@ package io.vertx.grpc.health.impl;
 
 import com.google.protobuf.Descriptors;
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.healthchecks.CheckResult;
-import io.vertx.ext.healthchecks.HealthChecks;
-import io.vertx.ext.healthchecks.Status;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.health.HealthService;
 import io.vertx.grpc.health.handler.GrpcHealthCheckV1Handler;
@@ -16,18 +11,21 @@ import io.vertx.grpc.health.handler.GrpcHealthWatchV1Handler;
 import io.vertx.grpc.health.v1.HealthProto;
 import io.vertx.grpc.server.GrpcServer;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
+
 public class HealthServiceImpl implements HealthService {
 
   private static final ServiceName V1_SERVICE_NAME = ServiceName.create("grpc.health.v1.Health");
   private static final Descriptors.ServiceDescriptor V1_SERVICE_DESCRIPTOR = HealthProto.getDescriptor().findServiceByName("Health");
 
-  private final HealthChecks healthChecks;
   private final Vertx vertx;
+  private final Map<String, Supplier<Future<Boolean>>> checks = new ConcurrentHashMap<>();
 
-  public HealthServiceImpl(Vertx vertx, HealthChecks healthChecks) {
+  public HealthServiceImpl(Vertx vertx) {
     this.vertx = vertx;
-    this.healthChecks = healthChecks;
-    this.healthChecks.register(V1_SERVICE_NAME.fullyQualifiedName(), promise -> promise.complete(Status.OK()));
+    this.register(V1_SERVICE_NAME, () -> Future.succeededFuture(true));
   }
 
   @Override
@@ -42,42 +40,31 @@ public class HealthServiceImpl implements HealthService {
 
   @Override
   public void bind(GrpcServer server) {
-    server.callHandler(GrpcHealthCheckV1Handler.SERVICE_METHOD, new GrpcHealthCheckV1Handler(healthChecks));
-    server.callHandler(GrpcHealthWatchV1Handler.SERVICE_METHOD, new GrpcHealthWatchV1Handler(vertx, healthChecks));
+    server.callHandler(GrpcHealthCheckV1Handler.SERVICE_METHOD, new GrpcHealthCheckV1Handler(server, checks));
+    server.callHandler(GrpcHealthWatchV1Handler.SERVICE_METHOD, new GrpcHealthWatchV1Handler(vertx, server, checks));
   }
 
   @Override
-  public HealthChecks register(String s, Handler<Promise<Status>> handler) {
-    return healthChecks.register(s, handler);
+  public HealthService register(String name, Supplier<Future<Boolean>> check) {
+    checks.put(name, check);
+    return this;
   }
 
   @Override
-  public HealthChecks register(String s, long l, Handler<Promise<Status>> handler) {
-    return healthChecks.register(s, l, handler);
+  public HealthService unregister(String name) {
+    checks.remove(name);
+    return this;
   }
 
   @Override
-  public HealthChecks unregister(String s) {
-    return healthChecks.unregister(s);
-  }
-
-  @Override
-  public HealthChecks invoke(Handler<JsonObject> handler) {
-    return healthChecks.invoke(handler);
-  }
-
-  @Override
-  public Future<JsonObject> invoke(String s) {
-    return healthChecks.invoke(s);
-  }
-
-  @Override
-  public Future<CheckResult> checkStatus() {
-    return healthChecks.checkStatus();
-  }
-
-  @Override
-  public Future<CheckResult> checkStatus(String s) {
-    return healthChecks.checkStatus(s);
+  public Future<Boolean> checkStatus(String name) {
+    Promise<Boolean> promise = Promise.promise();
+    Supplier<Future<Boolean>> check = checks.get(name);
+    if (check != null) {
+      check.get().onComplete(promise);
+    } else {
+      promise.fail("Unknown service " + name);
+    }
+    return promise.future();
   }
 }

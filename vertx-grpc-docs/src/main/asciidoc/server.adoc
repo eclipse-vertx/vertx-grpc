@@ -438,7 +438,7 @@ Support for the https://grpc.io/docs/guides/reflection/[gRPC reflection APIs] ca
 
 The gRPC Health Service implements the standard https://github.com/grpc/grpc/blob/master/doc/health-checking.md[gRPC health checking protocol], which allows clients to check the health status of your services.
 
-The Health Service provides a bridge between Vert.x's `HealthChecks` system and the gRPC health checking protocol. It implements two RPCs:
+The Health Service provides a simple way to expose health status of your services via gRPC. It implements two RPCs:
 
 * `Check`: For checking the health status of a service
 * `Watch`: For watching the health status of a service over time
