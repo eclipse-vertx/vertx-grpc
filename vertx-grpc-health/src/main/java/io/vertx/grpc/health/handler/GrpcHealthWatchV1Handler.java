@@ -1,6 +1,7 @@
 package io.vertx.grpc.health.handler;
 
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
@@ -19,7 +20,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements Closeable {
+public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements Handler<GrpcServerRequest<HealthCheckRequest, HealthCheckResponse>>, Closeable {
 
   private static final Logger logger = Logger.getLogger(GrpcHealthWatchV1Handler.class.getName());
 
