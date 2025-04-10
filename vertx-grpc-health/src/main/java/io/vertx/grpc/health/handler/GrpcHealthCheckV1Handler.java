@@ -1,6 +1,7 @@
 package io.vertx.grpc.health.handler;
 
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.health.v1.HealthCheckRequest;
 import io.vertx.grpc.health.v1.HealthCheckResponse;
@@ -10,7 +11,7 @@ import io.vertx.grpc.server.GrpcServerRequest;
 import java.util.Map;
 import java.util.function.Supplier;
 
-public class GrpcHealthCheckV1Handler extends GrpcHealthV1HandlerBase {
+public class GrpcHealthCheckV1Handler extends GrpcHealthV1HandlerBase implements Handler<GrpcServerRequest<HealthCheckRequest, HealthCheckResponse>> {
 
   public static final ServiceMethod<HealthCheckRequest, HealthCheckResponse> SERVICE_METHOD = ServiceMethod.server(
     ServiceName.create("grpc.health.v1.Health"),

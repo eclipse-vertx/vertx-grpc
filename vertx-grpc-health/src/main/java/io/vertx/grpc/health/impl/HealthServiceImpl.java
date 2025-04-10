@@ -7,6 +7,7 @@ import io.vertx.core.Vertx;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.health.HealthService;
 import io.vertx.grpc.health.handler.GrpcHealthCheckV1Handler;
+import io.vertx.grpc.health.handler.GrpcHealthListV1Handler;
 import io.vertx.grpc.health.handler.GrpcHealthWatchV1Handler;
 import io.vertx.grpc.health.v1.HealthProto;
 import io.vertx.grpc.server.GrpcServer;
@@ -41,6 +42,7 @@ public class HealthServiceImpl implements HealthService {
   @Override
   public void bind(GrpcServer server) {
     server.callHandler(GrpcHealthCheckV1Handler.SERVICE_METHOD, new GrpcHealthCheckV1Handler(server, checks));
+    server.callHandler(GrpcHealthListV1Handler.SERVICE_METHOD, new GrpcHealthListV1Handler(server, checks));
     server.callHandler(GrpcHealthWatchV1Handler.SERVICE_METHOD, new GrpcHealthWatchV1Handler(vertx, server, checks));
   }
 
