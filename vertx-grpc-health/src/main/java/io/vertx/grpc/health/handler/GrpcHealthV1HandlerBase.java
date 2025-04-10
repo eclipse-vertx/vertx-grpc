@@ -1,16 +1,14 @@
 package io.vertx.grpc.health.handler;
 
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.grpc.health.v1.HealthCheckRequest;
 import io.vertx.grpc.health.v1.HealthCheckResponse;
 import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerRequest;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
-public abstract class GrpcHealthV1HandlerBase implements Handler<GrpcServerRequest<HealthCheckRequest, HealthCheckResponse>> {
+public abstract class GrpcHealthV1HandlerBase {
 
   protected final GrpcServer server;
   protected final Map<String, Supplier<Future<Boolean>>> healthChecks;
@@ -18,6 +16,16 @@ public abstract class GrpcHealthV1HandlerBase implements Handler<GrpcServerReque
   protected GrpcHealthV1HandlerBase(GrpcServer server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
     this.server = server;
     this.healthChecks = healthChecks;
+  }
+
+  protected Map<String, Supplier<Future<Boolean>>> healthChecks() {
+    Map<String, Supplier<Future<Boolean>>> checks = new ConcurrentHashMap<>(healthChecks);
+    server.getServices().forEach(service -> {
+      if (!checks.containsKey(service.name().fullyQualifiedName())) {
+        checks.put(service.name().fullyQualifiedName(), () -> Future.succeededFuture(true));
+      }
+    });
+    return checks;
   }
 
   protected Future<Boolean> checkStatus(String name) {

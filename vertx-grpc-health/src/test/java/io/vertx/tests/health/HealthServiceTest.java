@@ -21,9 +21,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.health.HealthService;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.tests.common.grpc.TestConstants;
-import io.vertx.tests.health.grpc.HealthCheckRequest;
-import io.vertx.tests.health.grpc.HealthCheckResponse;
-import io.vertx.tests.health.grpc.HealthGrpc;
+import io.vertx.tests.health.grpc.*;
 import io.vertx.tests.server.ServerTestBase;
 import org.junit.Test;
 
@@ -115,6 +113,52 @@ public class HealthServiceTest extends ServerTestBase {
         if (!errorReceived.get()) {
           test.complete();
         }
+      }
+    });
+
+    test.await();
+  }
+
+  @Test
+  public void testHealthList(TestContext should) throws StatusException, InterruptedException, TimeoutException {
+    HealthService service = HealthService.create(vertx);
+
+    // Register a service with OK status
+    service.register(TestConstants.TEST_SERVICE, () -> Future.succeededFuture(true));
+
+    startServer(GrpcServer
+      .server(vertx)
+      .addService(service));
+
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+
+    Async test = should.async();
+    HealthGrpc.HealthStub stub = HealthGrpc.newStub(channel);
+    HealthListRequest request = HealthListRequest.newBuilder().build();
+
+    stub.list(request, new StreamObserver<>() {
+      @Override
+      public void onNext(HealthListResponse response) {
+        should.assertEquals(2, response.getStatusesCount());
+        should.assertTrue(response.getStatusesMap().containsKey(TestConstants.TEST_SERVICE.fullyQualifiedName()));
+
+        for (String serviceName : response.getStatusesMap().keySet()) {
+          HealthCheckResponse status = response.getStatusesMap().get(serviceName);
+          should.assertNotNull(status);
+          should.assertEquals(HealthCheckResponse.ServingStatus.SERVING, status.getStatus());
+        }
+      }
+
+      @Override
+      public void onError(Throwable throwable) {
+        should.fail(throwable);
+      }
+
+      @Override
+      public void onCompleted() {
+        test.complete();
       }
     });
 
