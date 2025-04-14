@@ -47,7 +47,7 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
     for (String service : watchers.keySet()) {
       checkStatus(service).onSuccess(result -> {
         HealthCheckResponse.Builder builder = HealthCheckResponse.newBuilder();
-        builder.setStatus(statusToProto(result));
+        builder.setStatus(result);
         HealthCheckResponse response = builder.build();
 
         Map<GrpcServerResponse<HealthCheckRequest, HealthCheckResponse>, Boolean> serviceWatchers = watchers.get(service);
@@ -71,8 +71,8 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
       // Send initial status
       checkStatus(service).onSuccess(result -> {
         HealthCheckResponse.Builder builder = HealthCheckResponse.newBuilder();
-        HealthCheckResponse.ServingStatus status = statusToProto(result);
-        builder.setStatus(status);
+        builder.setStatus(result);
+
         response.write(builder.build());
 
         // Add to watchers

@@ -437,10 +437,13 @@ Support for the https://grpc.io/docs/guides/reflection/[gRPC reflection APIs] ca
 === gRPC Health Service
 
 The gRPC Health Service implements the standard https://github.com/grpc/grpc/blob/master/doc/health-checking.md[gRPC health checking protocol], which allows clients to check the health status of your services.
+By default `HealthService` returns all registered services with status `SERVING`, if you want to override this, you need to register health check, for the specified service.
 
-The Health Service provides a simple way to expose health status of your services via gRPC. It implements two RPCs:
+The Health Service provides a simple way to expose health status of your services via gRPC.
+It implements two RPCs:
 
 * `Check`: For checking the health status of a service
+* `List`: For listing services and their health status
 * `Watch`: For watching the health status of a service over time
 
 To use the Health Service, add the following dependency:
