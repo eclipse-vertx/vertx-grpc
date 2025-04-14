@@ -78,22 +78,23 @@ router.route("/com.mycompany.MyService/*").handler(corsHandler);
 
 gRPC transcoding is a feature that enables mapping between HTTP/JSON requests and gRPC services.
 
-gRPC transcoding allows your services to accept both gRPC and HTTP/JSON requests, providing greater flexibility. This feature is particularly useful when:
+gRPC transcoding allows your services to accept both gRPC and HTTP/JSON requests, providing greater flexibility.
+This feature is particularly useful when:
 
 * You want to expose your gRPC services to clients that don't support gRPC
 * You need to support both traditional REST APIs and gRPC endpoints
 * You want to leverage gRPC's efficiency while maintaining HTTP/JSON compatibility
 
-You do not need specific configuration for gRPC transcoding since it is serves HTTP protocol. However, services must
-be deployed with additional configuration such as the mount path to have transcoding operational.
+You do not need specific configuration for gRPC transcoding since it is serves HTTP protocol.
+However, services must be deployed with additional configuration such as the mount path to have transcoding operational.
 
 NOTE: transcoding is in tech preview in Vert.x 5.0 until the API becomes stable.
 
 ==== Transcoding error handling
 
 If an error occurs during transcoding, the server will return an HTTP error response with the appropriate status code.
-Most grpc status codes are mapped to the corresponding HTTP status codes on best effort basis. If the status code is not mapped,
-the server will return a 500 Internal Server Error.
+Most grpc status codes are mapped to the corresponding HTTP status codes on best effort basis.
+If the status code is not mapped, the server will return a 500 Internal Server Error.
 
 |===
 |gRPC Status Code | HTTP Status Code | Description
@@ -118,8 +119,7 @@ the server will return a 500 Internal Server Error.
 
 === Server request/response API
 
-The gRPC request/response server API provides an alternative way to interact with a client without the need of extending
-a Java class.
+The gRPC request/response server API provides an alternative way to interact with a client without the need of extending a Java class.
 
 ==== Request/response
 
@@ -143,8 +143,7 @@ You can set handlers to process request events
 
 ==== Streaming response
 
-A streaming response involves calling `{@link io.vertx.grpc.server.GrpcServerResponse#write}` for each element of the stream
-and using `{@link io.vertx.grpc.server.GrpcServerResponse#end()}` to end the stream
+A streaming response involves calling `{@link io.vertx.grpc.server.GrpcServerResponse#write}` for each element of the stream and using `{@link io.vertx.grpc.server.GrpcServerResponse#end()}` to end the stream
 
 [source,java]
 ----
@@ -196,12 +195,10 @@ By default, the server
 - does not schedule automatically a deadline for a given request
 - does not automatically propagate the deadline to a vertx client
 
-The server can schedule deadlines: when a request carries a timeout, the server schedules
-locally a timer to cancel the request when the response has not been sent in time.
+The server can schedule deadlines: when a request carries a timeout, the server schedules locally a timer to cancel the request when the response has not been sent in time.
 
-The server can propagate deadlines: when a request carries a timeout, the server calculate the deadline
-and associate the current server request with this deadline. Vert.x gRPC client can use this deadline to compute
-a timeout to be sent and cascade the timeout to another gRPC server.
+The server can propagate deadlines: when a request carries a timeout, the server calculate the deadline and associate the current server request with this deadline.
+Vert.x gRPC client can use this deadline to compute a timeout to be sent and cascade the timeout to another gRPC server.
 
 [source,java]
 ----
@@ -298,25 +295,21 @@ The server provides a message level API to interact directly with protobuf encod
 
 TIP: the server message level API can be used with the client message level API to write a gRPC reverse proxy
 
-Such API is useful when you are not interested in the content of the messages, and instead you want to forward them to
-another service, e.g. you are writing a proxy.
+Such API is useful when you are not interested in the content of the messages, and instead you want to forward them to another service, e.g. you are writing a proxy.
 
 [source,java]
 ----
 {@link examples.GrpcServerExamples#protobufLevelAPI}
 ----
 
-You can also set a `messageHandler` to handle `{@link io.vertx.grpc.common.GrpcMessage}`, such messages preserve the
-client encoding, which is useful the service you are forwarding to can handle compressed messages directly, in this case
-the message does not need to be decompressed and compressed again.
+You can also set a `messageHandler` to handle `{@link io.vertx.grpc.common.GrpcMessage}`, such messages preserve the client encoding, which is useful the service you are forwarding to can handle compressed messages directly, in this case the message does not need to be decompressed and compressed again.
 
 [source,java]
 ----
 {@link examples.GrpcServerExamples#messageLevelAPI}
 ----
 
-The `{@link io.vertx.grpc.server.GrpcServerResponse#writeMessage}` and `{@link io.vertx.grpc.server.GrpcServerResponse#endMessage}` will
-handle the message encoding:
+The `{@link io.vertx.grpc.server.GrpcServerResponse#writeMessage}` and `{@link io.vertx.grpc.server.GrpcServerResponse#endMessage}` will handle the message encoding:
 
 - when the message uses the response encoding, the message is sent as is
 - when the message uses a different encoding, it will be encoded, e.g. compressed or uncompressed
@@ -400,10 +393,13 @@ Support for the https://grpc.io/docs/guides/reflection/[gRPC reflection APIs] ca
 === gRPC Health Service
 
 The gRPC Health Service implements the standard https://github.com/grpc/grpc/blob/master/doc/health-checking.md[gRPC health checking protocol], which allows clients to check the health status of your services.
+By default `HealthService` returns all registered services with status `SERVING`, if you want to override this, you need to register health check, for the specified service.
 
-The Health Service provides a simple way to expose health status of your services via gRPC. It implements two RPCs:
+The Health Service provides a simple way to expose health status of your services via gRPC.
+It implements two RPCs:
 
 * `Check`: For checking the health status of a service
+* `List`: For listing services and their health status
 * `Watch`: For watching the health status of a service over time
 
 To use the Health Service, add the following dependency:

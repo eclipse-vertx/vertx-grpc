@@ -104,8 +104,15 @@ public class HealthServiceTest extends ServerTestBase {
 
       @Override
       public void onError(Throwable throwable) {
-        errorReceived.set(true);
-        test.complete();
+        if (throwable instanceof StatusRuntimeException) {
+          StatusRuntimeException sre = (StatusRuntimeException) throwable;
+          should.assertEquals(Status.NOT_FOUND.getCode(), sre.getStatus().getCode());
+          errorReceived.set(true);
+          test.complete();
+          return;
+        }
+
+        should.fail(throwable);
       }
 
       @Override
@@ -262,7 +269,7 @@ public class HealthServiceTest extends ServerTestBase {
       public void onError(Throwable throwable) {
         if (throwable instanceof StatusRuntimeException) {
           StatusRuntimeException sre = (StatusRuntimeException) throwable;
-          should.assertEquals(io.grpc.Status.UNAVAILABLE.getCode(), sre.getStatus().getCode());
+          should.assertEquals(Status.UNAVAILABLE.getCode(), sre.getStatus().getCode());
           return;
         }
 

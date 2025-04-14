@@ -26,8 +26,12 @@ public class GrpcHealthCheckV1Handler extends GrpcHealthV1HandlerBase implements
   @Override
   public void handle(GrpcServerRequest<HealthCheckRequest, HealthCheckResponse> request) {
     request.handler(check -> checkStatus(check.getService()).compose(result -> {
+      if (result == HealthCheckResponse.ServingStatus.SERVICE_UNKNOWN) {
+        return request.response().status(GrpcStatus.NOT_FOUND).end();
+      }
+
       HealthCheckResponse.Builder builder = HealthCheckResponse.newBuilder();
-      builder.setStatus(statusToProto(result));
+      builder.setStatus(result);
       return request.response().end(builder.build());
     }).onFailure(failure -> request.response().status(GrpcStatus.INTERNAL).end()));
   }

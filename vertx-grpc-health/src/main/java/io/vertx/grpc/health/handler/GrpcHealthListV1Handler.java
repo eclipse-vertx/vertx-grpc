@@ -34,7 +34,7 @@ public class GrpcHealthListV1Handler extends GrpcHealthV1HandlerBase implements 
       healthChecks().forEach((name, check) -> {
         HealthCheckResponse.Builder responseBuilder = HealthCheckResponse.newBuilder();
         checkStatus(name).onSuccess(result -> {
-          responseBuilder.setStatus(statusToProto(result));
+          responseBuilder.setStatus(result);
           builder.putStatuses(name, responseBuilder.build());
         }).onFailure(failure -> {
           responseBuilder.setStatus(HealthCheckResponse.ServingStatus.NOT_SERVING);

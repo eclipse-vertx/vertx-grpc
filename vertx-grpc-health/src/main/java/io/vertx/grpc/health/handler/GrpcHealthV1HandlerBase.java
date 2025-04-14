@@ -28,16 +28,16 @@ public abstract class GrpcHealthV1HandlerBase {
     return checks;
   }
 
-  protected Future<Boolean> checkStatus(String name) {
+  protected Future<HealthCheckResponse.ServingStatus> checkStatus(String name) {
     Supplier<Future<Boolean>> check = healthChecks.get(name);
     if (check != null) {
-      return check.get();
+      return check.get().map(this::statusToProto);
     } else {
       if (server.getServices().stream().anyMatch(service -> service.name().fullyQualifiedName().equals(name))) {
-        return Future.succeededFuture(true);
+        return Future.succeededFuture(HealthCheckResponse.ServingStatus.SERVING);
       }
 
-      return Future.failedFuture("Unknown service " + name);
+      return Future.succeededFuture(HealthCheckResponse.ServingStatus.SERVICE_UNKNOWN);
     }
   }
 
