@@ -29,6 +29,11 @@ public abstract class GrpcHealthV1HandlerBase {
   }
 
   protected Future<HealthCheckResponse.ServingStatus> checkStatus(String name) {
+    // Default server status
+    if (name == null || name.isBlank()) {
+      return Future.succeededFuture(HealthCheckResponse.ServingStatus.SERVING);
+    }
+
     Supplier<Future<Boolean>> check = healthChecks.get(name);
     if (check != null) {
       return check.get().map(this::statusToProto);
@@ -41,7 +46,7 @@ public abstract class GrpcHealthV1HandlerBase {
     }
   }
 
-  protected HealthCheckResponse.ServingStatus statusToProto(boolean status) {
+  private HealthCheckResponse.ServingStatus statusToProto(boolean status) {
     return status ? HealthCheckResponse.ServingStatus.SERVING : HealthCheckResponse.ServingStatus.NOT_SERVING;
   }
 }

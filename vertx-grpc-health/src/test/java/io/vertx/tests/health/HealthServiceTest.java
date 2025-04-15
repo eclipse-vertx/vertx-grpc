@@ -34,6 +34,47 @@ import java.util.concurrent.atomic.AtomicReference;
 public class HealthServiceTest extends ServerTestBase {
 
   @Test
+  public void testServerHealth(TestContext should) throws StatusException, InterruptedException, TimeoutException {
+    HealthService service = HealthService.create(vertx);
+
+    // Register a service with OK status
+    service.register(TestConstants.TEST_SERVICE, () -> Future.succeededFuture(true));
+
+    startServer(GrpcServer
+      .server(vertx)
+      .addService(service));
+
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+
+    Async test = should.async();
+    HealthGrpc.HealthStub stub = HealthGrpc.newStub(channel);
+
+    HealthCheckRequest request = HealthCheckRequest.newBuilder().build();
+
+    stub.check(request, new StreamObserver<>() {
+      @Override
+      public void onNext(HealthCheckResponse response) {
+        should.assertEquals(HealthCheckResponse.ServingStatus.SERVING, response.getStatus());
+        test.complete();
+      }
+
+      @Override
+      public void onError(Throwable throwable) {
+        should.fail(throwable);
+      }
+
+      @Override
+      public void onCompleted() {
+        // This shouldn't be called unless we explicitly close the stream
+      }
+    });
+
+    test.await();
+  }
+
+  @Test
   public void testHealthCheck(TestContext should) throws StatusException, InterruptedException, TimeoutException {
     HealthService service = HealthService.create(vertx);
 
