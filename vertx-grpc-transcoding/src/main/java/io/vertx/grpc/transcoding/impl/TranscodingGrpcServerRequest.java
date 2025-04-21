@@ -43,8 +43,8 @@ public class TranscodingGrpcServerRequest<Req, Resp> extends GrpcServerRequestIm
         return messageDecoder.decode(GrpcMessage.message("identity", WireFormat.JSON, transcoded));
       }
       @Override
-      public WireFormat format() {
-        return messageDecoder.format();
+      public boolean accepts(WireFormat format) {
+        return messageDecoder.accepts(format);
       }
     }, methodCall);
 

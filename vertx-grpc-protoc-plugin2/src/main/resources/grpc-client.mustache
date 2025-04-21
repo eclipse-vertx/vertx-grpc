@@ -30,26 +30,8 @@ public interface {{className}} extends {{serviceName}}Client {
     ServiceName.create("{{packageName}}", "{{serviceName}}"),
     "{{methodName}}",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder({{outputType}}.parser()));
+    GrpcMessageDecoder.decoder({{outputType}}.newBuilder()));
 {{/allMethods}}
-
-  /**
-   * Json client service methods.
-   */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  final class Json {
-{{#allMethods}}
-
-    /**
-     * {{methodName}} json RPC client service method.
-     */
-    public static final ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}} = ServiceMethod.client(
-      ServiceName.create("{{packageName}}", "{{serviceName}}"),
-      "{{methodName}}",
-      GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> {{outputType}}.newBuilder()));
-{{/allMethods}}
-  }
 
   /**
    * Create and return a {{serviceName}} gRPC service client. The assumed wire format is Protobuf.
@@ -96,18 +78,8 @@ class {{className}}Impl implements {{className}} {
 {{#unaryUnaryMethods}}
 
   public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
-    ServiceMethod<{{outputType}}, {{inputType}}> serviceMethod;
-    switch (wireFormat) {
-      case PROTOBUF:
-        serviceMethod = {{methodName}};
-        break;
-      case JSON:
-        serviceMethod = Json.{{methodName}};
-        break;
-      default:
-        throw new AssertionError();
-    }
-    return client.request(socketAddress, serviceMethod).compose(req -> {
+    return client.request(socketAddress, {{methodName}}).compose(req -> {
+      req.format(wireFormat);
       req.end(request);
       return req.response().compose(resp -> resp.last());
     });
@@ -116,18 +88,8 @@ class {{className}}Impl implements {{className}} {
 {{#unaryManyMethods}}
 
   public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
-    ServiceMethod<{{outputType}}, {{inputType}}> serviceMethod;
-    switch (wireFormat) {
-      case PROTOBUF:
-        serviceMethod = {{methodName}};
-        break;
-      case JSON:
-        serviceMethod = Json.{{methodName}};
-        break;
-      default:
-        throw new AssertionError();
-    }
-    return client.request(socketAddress, serviceMethod).compose(req -> {
+    return client.request(socketAddress, {{methodName}}).compose(req -> {
+      req.format(wireFormat);
       req.end(request);
       return req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
@@ -142,41 +104,29 @@ class {{className}}Impl implements {{className}} {
 {{#manyUnaryMethods}}
 
   public Future<{{outputType}}> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable) {
-    ServiceMethod<{{outputType}}, {{inputType}}> serviceMethod;
-    switch (wireFormat) {
-      case PROTOBUF:
-        serviceMethod = {{methodName}};
-        break;
-      case JSON:
-        serviceMethod = Json.{{methodName}};
-        break;
-      default:
-        throw new AssertionError();
-    }
-    return client.request(socketAddress, serviceMethod)
-      .andThen(completable)
+    return client.request(socketAddress, {{methodName}})
+      .andThen((res, err) -> {
+        if (err == null) {
+          res.format(wireFormat);
+        }
+        completable.complete(res, err);
+      })
       .compose(request -> {
-      return request.response().compose(response -> response.last());
-    });
+        return request.response().compose(response -> response.last());
+      });
   }
 {{/manyUnaryMethods}}
 {{#manyManyMethods}}
 
   public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable) {
-    ServiceMethod<{{outputType}}, {{inputType}}> serviceMethod;
-    switch (wireFormat) {
-      case PROTOBUF:
-        serviceMethod = {{methodName}};
-        break;
-      case JSON:
-        serviceMethod = Json.{{methodName}};
-        break;
-      default:
-        throw new AssertionError();
-    }
-    return client.request(socketAddress, serviceMethod)
-      .andThen(completable)
-      .compose(req -> {
+    return client.request(socketAddress, {{methodName}})
+       .andThen((res, err) -> {
+        if (err == null) {
+          res.format(wireFormat);
+        }
+        completable.complete(res, err);
+      })
+     .compose(req -> {
         return req.response().flatMap(resp -> {
           if (resp.status() != null && resp.status() != GrpcStatus.OK) {
             return Future.failedFuture(new io.vertx.grpc.client.InvalidStatusException(GrpcStatus.OK, resp.status()));

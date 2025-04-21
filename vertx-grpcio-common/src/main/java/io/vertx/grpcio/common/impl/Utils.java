@@ -21,10 +21,7 @@ import io.netty.util.AsciiString;
 import io.vertx.core.MultiMap;
 import io.vertx.core.VertxException;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.grpc.common.WireFormat;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -75,6 +72,7 @@ public class Utils {
     return new GrpcMessageDecoder<T>() {
       @Override
       public T decode(GrpcMessage msg) {
+        assert msg.format() == WireFormat.PROTOBUF;
         ByteArrayInputStream in = new ByteArrayInputStream(msg.payload().getBytes());
         try {
           return desc.parse(in);
@@ -86,8 +84,8 @@ public class Utils {
         }
       }
       @Override
-      public WireFormat format() {
-        return WireFormat.PROTOBUF;
+      public boolean accepts(WireFormat format) {
+        return format == WireFormat.PROTOBUF;
       }
     };
   }
@@ -95,7 +93,8 @@ public class Utils {
   public static <T> GrpcMessageEncoder<T> marshaller(MethodDescriptor.Marshaller<T> desc) {
     return new GrpcMessageEncoder<T>() {
       @Override
-      public GrpcMessage encode(T msg) {
+      public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
+        assert format == WireFormat.PROTOBUF;
         Buffer encoded = Buffer.buffer();
         InputStream stream = desc.stream(msg);
         byte[] tmp = new byte[256];
@@ -110,8 +109,8 @@ public class Utils {
         return GrpcMessage.message("identity", encoded);
       }
       @Override
-      public WireFormat format() {
-        return WireFormat.PROTOBUF;
+      public boolean accepts(WireFormat format) {
+        return format == WireFormat.PROTOBUF;
       }
     };
   }

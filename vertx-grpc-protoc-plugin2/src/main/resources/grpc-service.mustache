@@ -69,7 +69,7 @@ public class {{className}} extends {{serviceName}}Service implements Service {
     SERVICE_NAME,
     "{{methodName}}",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder({{inputType}}.parser()));
+    GrpcMessageDecoder.decoder({{inputType}}.newBuilder()));
 {{/allMethods}}
 
   /**
@@ -81,40 +81,6 @@ public class {{className}} extends {{serviceName}}Service implements Service {
     all.add({{methodName}});
 {{/allMethods}}
     return all;
-  }
-
-  /**
-   * Json server service methods.
-   */
-  public static final class Json {
-
-    /**
-     * @return a service binding all methods of the given {@code service} using json wire format
-     */
-    public static Service of({{serviceName}}Service service) {
-      return builder(service).bind(all()).build();
-    }
-{{#allMethods}}
-    /**
-     * {{methodName}} json RPC server service method.
-     */
-    public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = ServiceMethod.server(
-      SERVICE_NAME,
-      "{{methodName}}",
-      GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()));
-{{/allMethods}}
-
-    /**
-     * @return a mutable list of the known json RPC server service methods.
-     */
-    public static java.util.List<ServiceMethod<?, ?>> all() {
-      java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
-{{#allMethods}}
-      all.add({{methodName}});
-{{/allMethods}}
-      return all;
-    }
   }
 
   /**
@@ -260,7 +226,7 @@ public class {{className}} extends {{serviceName}}Service implements Service {
 
       private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
 {{#methods}}
-        if ({{methodName}} == serviceMethod || Json.{{methodName}} == serviceMethod) {
+        if ({{methodName}} == serviceMethod) {
           Handler<io.vertx.grpc.server.GrpcServerRequest<{{inputType}}, {{outputType}}>> handler = this::handle_{{vertxMethodName}};
           Handler<?> handler2 = handler;
           return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;

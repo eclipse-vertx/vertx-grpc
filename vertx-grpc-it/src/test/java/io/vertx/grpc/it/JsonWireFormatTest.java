@@ -26,6 +26,8 @@ import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.grpc.examples.helloworld.GreeterGrpcService.SayHello;
+
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
@@ -36,7 +38,7 @@ public class JsonWireFormatTest extends ProxyTestBase {
 
     GrpcClient client = GrpcClient.client(vertx);
 
-    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.Json.SayHello, call -> {
+    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(SayHello, call -> {
       call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         call.response().end(helloReply);
@@ -45,8 +47,9 @@ public class JsonWireFormatTest extends ProxyTestBase {
 
     Async test = should.async();
     server.onComplete(should.asyncAssertSuccess(v -> {
-      client.request(SocketAddress.inetSocketAddress(8080, "localhost"), GreeterGrpcClient.Json.SayHello)
+      client.request(SocketAddress.inetSocketAddress(8080, "localhost"), GreeterGrpcClient.SayHello)
         .onComplete(should.asyncAssertSuccess(callRequest -> {
+          callRequest.format(WireFormat.JSON);
           callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
             AtomicInteger count = new AtomicInteger();
             callResponse.handler(reply -> {
@@ -79,7 +82,7 @@ public class JsonWireFormatTest extends ProxyTestBase {
 
     GrpcServer grpcServer = GrpcServer.server(vertx);
 
-    grpcServer.addService(GreeterGrpcService.Json.of(greeter));
+    grpcServer.addService(GreeterGrpcService.of(greeter));
 
     Future<HttpServer> server = vertx
       .createHttpServer()

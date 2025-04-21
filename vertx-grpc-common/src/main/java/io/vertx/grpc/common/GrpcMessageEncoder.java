@@ -19,25 +19,44 @@ public interface GrpcMessageEncoder<T> {
   static <T extends MessageLite> GrpcMessageEncoder<T> encoder() {
     return new GrpcMessageEncoder<T>() {
       @Override
-      public GrpcMessage encode(T msg) {
-        byte[] bytes = msg.toByteArray();
-        return GrpcMessage.message("identity", Buffer.buffer(bytes));
+      public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
+        switch (format) {
+          case PROTOBUF:
+            byte[] bytes = msg.toByteArray();
+            return GrpcMessage.message("identity", Buffer.buffer(bytes));
+          case JSON:
+            if (msg instanceof MessageOrBuilder) {
+              MessageOrBuilder mob = (MessageOrBuilder) msg;
+              try {
+                String res = JsonFormat.printer().print(mob);
+                return GrpcMessage.message("identity", WireFormat.JSON, Buffer.buffer(res));
+              } catch (InvalidProtocolBufferException e) {
+                throw new CodecException(e);
+              }
+            }
+            return GrpcMessage.message(
+              "identity",
+              WireFormat.JSON,
+              Json.encodeToBuffer(msg));
+          default:
+            throw new IllegalArgumentException("Invalid wire format: " + format);
+        }
       }
       @Override
-      public WireFormat format() {
-        return WireFormat.PROTOBUF;
+      public boolean accepts(WireFormat format) {
+        return true;
       }
     };
   }
 
   GrpcMessageEncoder<Buffer> IDENTITY = new GrpcMessageEncoder<>() {
     @Override
-    public GrpcMessage encode(Buffer payload) {
-      return GrpcMessage.message("identity", WireFormat.PROTOBUF, payload);
+    public GrpcMessage encode(Buffer msg, WireFormat format) throws CodecException {
+      return GrpcMessage.message("identity", format, msg);
     }
     @Override
-    public WireFormat format() {
-      return WireFormat.PROTOBUF;
+    public boolean accepts(WireFormat format) {
+      return true;
     }
   };
 
@@ -50,7 +69,7 @@ public interface GrpcMessageEncoder<T> {
   static <T> GrpcMessageEncoder<T> json() {
     return new GrpcMessageEncoder<>() {
       @Override
-      public GrpcMessage encode(T msg) {
+      public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
         if (msg instanceof MessageOrBuilder) {
           MessageOrBuilder mob = (MessageOrBuilder) msg;
           try {
@@ -66,8 +85,8 @@ public interface GrpcMessageEncoder<T> {
           Json.encodeToBuffer(msg));
       }
       @Override
-      public WireFormat format() {
-        return WireFormat.JSON;
+      public boolean accepts(WireFormat format) {
+        return format == WireFormat.JSON;
       }
     };
   }
@@ -77,17 +96,17 @@ public interface GrpcMessageEncoder<T> {
    */
   GrpcMessageEncoder<JsonObject> JSON_OBJECT = new GrpcMessageEncoder<>() {
     @Override
-    public GrpcMessage encode(JsonObject msg) {
+    public GrpcMessage encode(JsonObject msg, WireFormat format) throws CodecException {
       return GrpcMessage.message("identity", WireFormat.JSON, msg == null ? Buffer.buffer("null") : msg.toBuffer());
     }
     @Override
-    public WireFormat format() {
-      return WireFormat.JSON;
+    public boolean accepts(WireFormat format) {
+      return format == WireFormat.JSON;
     }
   };
 
-  GrpcMessage encode(T msg);
+  GrpcMessage encode(T msg, WireFormat format) throws CodecException;
 
-  WireFormat format();
+  boolean accepts(WireFormat format);
 
 }

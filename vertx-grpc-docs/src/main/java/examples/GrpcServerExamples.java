@@ -136,7 +136,7 @@ public class GrpcServerExamples {
   }
 
   public void jsonWireFormat01(GrpcServer server) {
-    server.callHandler(GreeterGrpcService.Json.SayHello, request -> {
+    server.callHandler(GreeterGrpcService.SayHello, request -> {
       request.last().onSuccess(helloRequest -> {
         request.response().end(HelloReply.newBuilder()
           .setMessage("Hello " + helloRequest.getName()).build()

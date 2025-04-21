@@ -42,8 +42,8 @@ public class GrpcServerImpl implements GrpcServer {
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
 
   private final List<Service> services = new ArrayList<>();
-  private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
-  private final List<Mount> mounts = new ArrayList<>();
+  private final Map<String, MethodCallHandler<?, ?>> methodCallHandlers = new HashMap<>();
+  private final List<Mount<?, ?>> mounts = new ArrayList<>();
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
@@ -134,8 +134,8 @@ public class GrpcServerImpl implements GrpcServer {
 
     // Exact service lookup first
     GrpcMethodCall methodCall = new GrpcMethodCall(httpRequest.path());
-    MethodCallHandler<?, ?> mch = findMethodCallHandler(methodCall, details.format);
-    if (mch != null) {
+    MethodCallHandler<?, ?> mch = methodCallHandlers.get(methodCall.fullMethodName());
+    if (mch != null && mch.messageEncoder.accepts(details.format) && mch.messageDecoder.accepts(details.format)) {
       handle(mch, httpRequest, methodCall, details.protocol, details.format);
       return;
     }
@@ -154,18 +154,6 @@ public class GrpcServerImpl implements GrpcServer {
     } else {
       httpRequest.response().setStatusCode(500).end();
     }
-  }
-
-  private MethodCallHandler<?, ?> findMethodCallHandler(GrpcMethodCall methodCall, WireFormat format) {
-    List<MethodCallHandler<?, ?>> methods = methodCallHandlers.get(methodCall.fullMethodName());
-    if (methods != null) {
-      for (MethodCallHandler<?, ?> method : methods) {
-        if (method.messageEncoder.format() == format && method.messageDecoder.format() == format) {
-          return method;
-        }
-      }
-    }
-    return null;
   }
 
   private int validate(HttpVersion version, GrpcProtocol protocol, WireFormat format) {
@@ -232,6 +220,7 @@ public class GrpcServerImpl implements GrpcServer {
       default:
         throw new AssertionError();
     }
+    grpcResponse.format(format);
     handle(grpcRequest, grpcResponse, method);
   }
 
@@ -268,38 +257,10 @@ public class GrpcServerImpl implements GrpcServer {
         mounts.add(new Mount<>(mountPoint, handler));
         return this;
       }
-
       MethodCallHandler<Req, Resp> p = new MethodCallHandler<>(serviceMethod.decoder(), serviceMethod.encoder(), handler);
-      methodCallHandlers.compute(serviceMethod.fullMethodName(), (key, prev) -> {
-        if (prev == null) {
-          prev = new ArrayList<>();
-        }
-        for (int i = 0;i < prev.size();i++) {
-          MethodCallHandler<?, ?> a = prev.get(i);
-          if (a.messageDecoder.format() == serviceMethod.decoder().format() && a.messageEncoder.format() == serviceMethod.encoder().format()) {
-            prev.set(i, p);
-            return prev;
-          }
-        }
-        prev.add(p);
-        return prev;
-      });
+      methodCallHandlers.put(serviceMethod.fullMethodName(), p);
     } else {
-      methodCallHandlers.compute(serviceMethod.fullMethodName(), (key, prev) -> {
-        if (prev != null) {
-          for (int i = 0;i < prev.size();i++) {
-            MethodCallHandler<?, ?> a = prev.get(i);
-            if (a.messageDecoder.format() == serviceMethod.decoder().format() && a.messageEncoder.format() == serviceMethod.encoder().format()) {
-              prev.remove(i);
-              break;
-            }
-          }
-          if (prev.isEmpty()) {
-            prev = null;
-          }
-        }
-        return prev;
-      });
+      methodCallHandlers.remove(serviceMethod.fullMethodName());
     }
     return this;
   }

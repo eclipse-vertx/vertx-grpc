@@ -31,7 +31,7 @@ class GrpcServerReflectionV1Handler implements Handler<GrpcServerRequest<ServerR
     ServiceName.create("grpc.reflection.v1.ServerReflection"),
     "ServerReflectionInfo",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(ServerReflectionRequest.parser()));
+    GrpcMessageDecoder.decoder(ServerReflectionRequest.newBuilder()));
 
   private final GrpcServer server;
 

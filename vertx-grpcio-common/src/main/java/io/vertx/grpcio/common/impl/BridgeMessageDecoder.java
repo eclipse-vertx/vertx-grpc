@@ -49,6 +49,7 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
 
   @Override
   public T decode(GrpcMessage msg) {
+    assert msg.format() == WireFormat.PROTOBUF;
     try (KnownLengthStream kls = new KnownLengthStream(msg.payload())) {
       if (msg.encoding().equals("identity")) {
         return marshaller.parse(kls);
@@ -63,7 +64,7 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
   }
 
   @Override
-  public WireFormat format() {
-    return WireFormat.PROTOBUF;
+  public boolean accepts(WireFormat format) {
+    return format == WireFormat.PROTOBUF;
   }
 }

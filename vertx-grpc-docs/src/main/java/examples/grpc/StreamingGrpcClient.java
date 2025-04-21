@@ -27,7 +27,7 @@ public interface StreamingGrpcClient extends StreamingClient {
     ServiceName.create("examples.grpc", "Streaming"),
     "Source",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.grpc.Item.parser()));
+    GrpcMessageDecoder.decoder(examples.grpc.Item.newBuilder()));
 
   /**
    * Sink protobuf RPC client service method.
@@ -37,7 +37,7 @@ public interface StreamingGrpcClient extends StreamingClient {
     ServiceName.create("examples.grpc", "Streaming"),
     "Sink",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.grpc.Empty.parser()));
+    GrpcMessageDecoder.decoder(examples.grpc.Empty.newBuilder()));
 
   /**
    * Pipe protobuf RPC client service method.
@@ -47,41 +47,7 @@ public interface StreamingGrpcClient extends StreamingClient {
     ServiceName.create("examples.grpc", "Streaming"),
     "Pipe",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.grpc.Item.parser()));
-
-  /**
-   * Json client service methods.
-   */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  final class Json {
-
-    /**
-     * Source json RPC client service method.
-     */
-    public static final ServiceMethod<examples.grpc.Item, examples.grpc.Empty> Source = ServiceMethod.client(
-      ServiceName.create("examples.grpc", "Streaming"),
-      "Source",
-      GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.grpc.Item.newBuilder()));
-
-    /**
-     * Sink json RPC client service method.
-     */
-    public static final ServiceMethod<examples.grpc.Empty, examples.grpc.Item> Sink = ServiceMethod.client(
-      ServiceName.create("examples.grpc", "Streaming"),
-      "Sink",
-      GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.grpc.Empty.newBuilder()));
-
-    /**
-     * Pipe json RPC client service method.
-     */
-    public static final ServiceMethod<examples.grpc.Item, examples.grpc.Item> Pipe = ServiceMethod.client(
-      ServiceName.create("examples.grpc", "Streaming"),
-      "Pipe",
-      GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.grpc.Item.newBuilder()));
-  }
+    GrpcMessageDecoder.decoder(examples.grpc.Item.newBuilder()));
 
   /**
    * Create and return a Streaming gRPC service client. The assumed wire format is Protobuf.
@@ -127,22 +93,12 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
   }
 
   public Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request) {
-    ServiceMethod<examples.grpc.Item, examples.grpc.Empty> serviceMethod;
-    switch (wireFormat) {
-      case PROTOBUF:
-        serviceMethod = Source;
-        break;
-      case JSON:
-        serviceMethod = Json.Source;
-        break;
-      default:
-        throw new AssertionError();
-    }
-    return client.request(socketAddress, serviceMethod).compose(req -> {
+    return client.request(socketAddress, Source).compose(req -> {
+      req.format(wireFormat);
       req.end(request);
       return req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-          return Future.failedFuture("Invalid gRPC status " + resp.status());
+          return Future.failedFuture(new io.vertx.grpc.client.InvalidStatusException(GrpcStatus.OK, resp.status()));
         } else {
           return Future.succeededFuture(resp);
         }
@@ -151,42 +107,30 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
   }
 
   public Future<examples.grpc.Empty> sink(Completable<WriteStream<examples.grpc.Item>> completable) {
-    ServiceMethod<examples.grpc.Empty, examples.grpc.Item> serviceMethod;
-    switch (wireFormat) {
-      case PROTOBUF:
-        serviceMethod = Sink;
-        break;
-      case JSON:
-        serviceMethod = Json.Sink;
-        break;
-      default:
-        throw new AssertionError();
-    }
-    return client.request(socketAddress, serviceMethod)
-      .andThen(completable)
+    return client.request(socketAddress, Sink)
+      .andThen((res, err) -> {
+        if (err == null) {
+          res.format(wireFormat);
+        }
+        completable.complete(res, err);
+      })
       .compose(request -> {
-      return request.response().compose(response -> response.last());
-    });
+        return request.response().compose(response -> response.last());
+      });
   }
 
   public Future<ReadStream<examples.grpc.Item>> pipe(Completable<WriteStream<examples.grpc.Item>> completable) {
-    ServiceMethod<examples.grpc.Item, examples.grpc.Item> serviceMethod;
-    switch (wireFormat) {
-      case PROTOBUF:
-        serviceMethod = Pipe;
-        break;
-      case JSON:
-        serviceMethod = Json.Pipe;
-        break;
-      default:
-        throw new AssertionError();
-    }
-    return client.request(socketAddress, serviceMethod)
-      .andThen(completable)
-      .compose(req -> {
+    return client.request(socketAddress, Pipe)
+       .andThen((res, err) -> {
+        if (err == null) {
+          res.format(wireFormat);
+        }
+        completable.complete(res, err);
+      })
+     .compose(req -> {
         return req.response().flatMap(resp -> {
           if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-            return Future.failedFuture("Invalid gRPC status " + resp.status());
+            return Future.failedFuture(new io.vertx.grpc.client.InvalidStatusException(GrpcStatus.OK, resp.status()));
           } else {
             return Future.succeededFuture(resp);
           }
