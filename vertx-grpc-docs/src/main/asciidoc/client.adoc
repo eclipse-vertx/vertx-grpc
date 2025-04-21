@@ -287,3 +287,37 @@ Streaming responses get a Vert.x `ReadStream` of messages sent by the service
 ----
 {@link examples.GrpcClientExamples#streamingResponseStub}
 ----
+
+=== Method Signature
+
+The Vert.x gRPC client provides support for google protobuf method signatures.
+
+You can add method signature option to service method like this:
+[source,proto]
+----
+syntax = "proto3";
+
+package io.vertx.grpc.examples;
+
+import "google/api/client.proto";
+
+service Greeter {
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (google.api.method_signature) = "name";
+  }
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloReply {
+  string message = 1;
+}
+
+----
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#unaryStubSignature}
+----

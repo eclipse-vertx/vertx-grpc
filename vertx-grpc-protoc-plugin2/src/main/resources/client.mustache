@@ -30,6 +30,25 @@ public interface {{className}} extends {{serviceName}} {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
+
+{{#parsedSignatures}}
+  /**
+  * Calls the {{methodName}} RPC service method.
+  *
+  {{#.}}
+  * @param {{name}} the {{type}} {{name}} parameter
+  {{/.}}
+  * @return a future of the {{outputType}} response message
+  */
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  default Future<{{outputType}}> {{vertxMethodName}}({{#.}}{{type}} {{name}}{{^last}}, {{/last}}{{/.}}) {
+    {{inputType}}.Builder builder = {{inputType}}.newBuilder();
+    {{#.}}
+    builder.set{{capitalizedName}}({{name}});
+    {{/.}}
+    return {{vertxMethodName}}(builder.build());
+  }
+{{/parsedSignatures}}
 {{/unaryUnaryMethods}}
 {{#unaryManyMethods}}
 
@@ -41,6 +60,25 @@ public interface {{className}} extends {{serviceName}} {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);
+
+{{#parsedSignatures}}
+  /**
+  * Calls the {{methodName}} RPC service method.
+  *
+  {{#.}}
+  * @param {{name}} the {{type}} {{name}} parameter
+  {{/.}}
+  * @return a future of the {{outputType}} response messages
+  */
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  default Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{#.}}{{type}} {{name}}{{^last}}, {{/last}}{{/.}}) {
+    {{inputType}}.Builder builder = {{inputType}}.newBuilder();
+    {{#.}}
+    builder.set{{capitalizedName}}({{name}});
+    {{/.}}
+    return {{vertxMethodName}}(builder.build());
+  }
+{{/parsedSignatures}}
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
 
