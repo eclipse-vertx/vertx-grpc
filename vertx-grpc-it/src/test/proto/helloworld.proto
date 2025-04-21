@@ -30,6 +30,7 @@
 syntax = "proto3";
 
 import "google/api/annotations.proto";
+import "google/api/client.proto";
 
 option java_multiple_files = true;
 option java_package = "io.grpc.examples.helloworld";
@@ -48,6 +49,7 @@ service Greeter {
         post: "/v1/hello"
       }
     };
+    option (google.api.method_signature) = "name";
   }
 
   // Sends another greeting
@@ -58,6 +60,7 @@ service Greeter {
         get: "/v2/hello/{name}"
       }
     };
+    option (google.api.method_signature) = "name";
   }
 
   // Sends a greeting with a custom verb
@@ -68,6 +71,16 @@ service Greeter {
         path: "/v1/hello/custom/{name}"
       }
     };
+  }
+
+  // Send a two argument request
+  rpc SayHelloDouble (HelloDoubleRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      post: "/v1/hello/double"
+      body: "*"
+    };
+
+    option (google.api.method_signature) = "name,age";
   }
 
   // Sand hello nested
@@ -83,6 +96,7 @@ service Greeter {
       post: "/v1/hello/body"
       body: "request"
     };
+    option (google.api.method_signature) = "request";
   }
 
   // Sends a greeting with a body and a custom verb
@@ -97,6 +111,12 @@ service Greeter {
 // The request message containing the user's name.
 message HelloRequest {
   string name = 1;
+}
+
+// The request message containing the user's name and age.
+message HelloDoubleRequest {
+  string name = 1;
+  int32 age = 2;
 }
 
 // The response message containing the greetings

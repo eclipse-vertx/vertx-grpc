@@ -55,22 +55,24 @@ public final class Docs {
   static {
     java.lang.String[] descriptorData = {
       "\n\ndocs.proto\022\rexamples.grpc\032\034google/api/" +
-      "annotations.proto\"\034\n\014HelloRequest\022\014\n\004nam" +
-      "e\030\001 \001(\t\"\035\n\nHelloReply\022\017\n\007message\030\001 \001(\t\"\025" +
-      "\n\004Item\022\r\n\005value\030\001 \001(\t\"\007\n\005Empty2g\n\007Greete" +
-      "r\022\\\n\010SayHello\022\033.examples.grpc.HelloReque" +
-      "st\032\031.examples.grpc.HelloReply\"\030\202\323\344\223\002\022\022\020/" +
-      "v1/hello/{name}2\263\001\n\tStreaming\0227\n\006Source\022" +
-      "\024.examples.grpc.Empty\032\023.examples.grpc.It" +
-      "em\"\0000\001\0225\n\004Sink\022\023.examples.grpc.Item\032\024.ex" +
-      "amples.grpc.Empty\"\000(\001\0226\n\004Pipe\022\023.examples" +
-      ".grpc.Item\032\023.examples.grpc.Item\"\000(\0010\001B\021\n" +
-      "\rexamples.grpcP\001b\006proto3"
+      "annotations.proto\032\027google/api/client.pro" +
+      "to\"\034\n\014HelloRequest\022\014\n\004name\030\001 \001(\t\"\035\n\nHell" +
+      "oReply\022\017\n\007message\030\001 \001(\t\"\025\n\004Item\022\r\n\005value" +
+      "\030\001 \001(\t\"\007\n\005Empty2n\n\007Greeter\022c\n\010SayHello\022\033" +
+      ".examples.grpc.HelloRequest\032\031.examples.g" +
+      "rpc.HelloReply\"\037\332A\004name\202\323\344\223\002\022\022\020/v1/hello" +
+      "/{name}2\263\001\n\tStreaming\0227\n\006Source\022\024.exampl" +
+      "es.grpc.Empty\032\023.examples.grpc.Item\"\0000\001\0225" +
+      "\n\004Sink\022\023.examples.grpc.Item\032\024.examples.g" +
+      "rpc.Empty\"\000(\001\0226\n\004Pipe\022\023.examples.grpc.It" +
+      "em\032\023.examples.grpc.Item\"\000(\0010\001B\021\n\rexample" +
+      "s.grpcP\001b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
         new com.google.protobuf.Descriptors.FileDescriptor[] {
           com.google.api.AnnotationsProto.getDescriptor(),
+          com.google.api.ClientProto.getDescriptor(),
         });
     internal_static_examples_grpc_HelloRequest_descriptor =
       getDescriptor().getMessageTypes().get(0);
@@ -98,9 +100,11 @@ public final class Docs {
         new java.lang.String[] { });
     descriptor.resolveAllFeaturesImmutable();
     com.google.api.AnnotationsProto.getDescriptor();
+    com.google.api.ClientProto.getDescriptor();
     com.google.protobuf.ExtensionRegistry registry =
         com.google.protobuf.ExtensionRegistry.newInstance();
     registry.add(com.google.api.AnnotationsProto.http);
+    registry.add(com.google.api.ClientProto.methodSignature);
     com.google.protobuf.Descriptors.FileDescriptor
         .internalUpdateFileDescriptor(descriptor, registry);
   }

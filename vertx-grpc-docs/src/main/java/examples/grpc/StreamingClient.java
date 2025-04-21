@@ -28,6 +28,7 @@ public interface StreamingClient extends Streaming {
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request);
 
+
   /**
    * Calls the Sink RPC service method.
    *

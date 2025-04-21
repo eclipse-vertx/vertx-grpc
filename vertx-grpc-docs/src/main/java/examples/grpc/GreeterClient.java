@@ -27,4 +27,17 @@ public interface GreeterClient extends Greeter {
    */
   @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
   Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request);
+
+  /**
+  * Calls the SayHello RPC service method.
+  *
+  * @param name the String name parameter
+  * @return a future of the examples.grpc.HelloReply response message
+  */
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  default Future<examples.grpc.HelloReply> sayHello(String name) {
+    examples.grpc.HelloRequest.Builder builder = examples.grpc.HelloRequest.newBuilder();
+    builder.setName(name);
+    return sayHello(builder.build());
+  }
 }

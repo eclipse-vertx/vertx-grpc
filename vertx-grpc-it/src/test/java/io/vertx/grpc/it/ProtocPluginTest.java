@@ -162,6 +162,34 @@ public class ProtocPluginTest extends ProxyTestBase {
   }
 
   @Test
+  public void testUnary_FutureReturn_MethodSignature(TestContext should) throws Exception {
+    // Create gRPC Server
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+    grpcServer.addService(GreeterGrpcService.of(new GreeterService() {
+      @Override
+      protected void sayHelloDouble(HelloDoubleRequest request, Completable<HelloReply> response) {
+        response.succeed(HelloReply.newBuilder()
+          .setMessage("Hello " + request.getName())
+          .build());
+      }
+    }));
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer).listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    GreeterGrpcClient client = GreeterGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    Async test = should.async();
+    client.sayHelloDouble("World", 25).onComplete(should.asyncAssertSuccess(reply -> {
+      should.assertEquals("Hello World", reply.getMessage());
+      test.complete();
+    }));
+
+    test.awaitSuccess();
+  }
+
+  @Test
   public void testManyUnary_PromiseArg(TestContext should) throws Exception {
     // Create gRPC Server
     GrpcServer grpcServer = GrpcServer.server(vertx);
@@ -298,7 +326,7 @@ public class ProtocPluginTest extends ProxyTestBase {
           .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-2", StandardCharsets.UTF_8)).build())
           .build());
         response.end();
-      };
+      }
     }));
     HttpServer httpServer = vertx.createHttpServer();
     httpServer.requestHandler(grpcServer)
@@ -412,7 +440,7 @@ public class ProtocPluginTest extends ProxyTestBase {
             .build());
           response.end();
         });
-      };
+      }
     }));
     HttpServer httpServer = vertx.createHttpServer();
     httpServer.requestHandler(grpcServer)

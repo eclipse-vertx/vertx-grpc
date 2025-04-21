@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "google/api/annotations.proto";
+import "google/api/client.proto";
 
 option java_multiple_files = true;
 option java_package = "examples.grpc";
@@ -12,6 +13,7 @@ service Greeter {
     option (google.api.http) = {
       get: "/v1/hello/{name}"
     };
+    option (google.api.method_signature) = "name";
   }
 }
 

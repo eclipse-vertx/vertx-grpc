@@ -11,6 +11,7 @@
 package io.vertx.grpc.plugin;
 
 import com.google.api.AnnotationsProto;
+import com.google.api.ClientProto;
 import com.google.api.HttpRule;
 import com.google.common.base.Strings;
 import com.google.common.html.HtmlEscapers;
@@ -71,6 +72,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     protos.forEach(fileProto -> {
       for (int serviceNumber = 0; serviceNumber < fileProto.getServiceCount(); serviceNumber++) {
         ServiceContext serviceContext = buildServiceContext(
+          protos,
           fileProto.getService(serviceNumber),
           typeMap,
           fileProto.getSourceCodeInfo().getLocationList(),
@@ -99,7 +101,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return Strings.nullToEmpty(proto.getPackage());
   }
 
-  private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int serviceNumber) {
+  private ServiceContext buildServiceContext(List<DescriptorProtos.FileDescriptorProto> protos, DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int serviceNumber) {
     ServiceContext serviceContext = new ServiceContext();
     // Set Later
     //serviceContext.fileName = CLASS_PREFIX + serviceProto.getName() + "Grpc.java";
@@ -123,6 +125,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
     for (int methodNumber = 0; methodNumber < serviceProto.getMethodCount(); methodNumber++) {
       MethodContext methodContext = buildMethodContext(
+        protos,
         serviceProto.getMethod(methodNumber),
         typeMap,
         locations,
@@ -134,7 +137,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return serviceContext;
   }
 
-  private MethodContext buildMethodContext(DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int methodNumber) {
+  private MethodContext buildMethodContext(List<DescriptorProtos.FileDescriptorProto> protos, DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int methodNumber) {
     MethodContext methodContext = new MethodContext();
     methodContext.methodName = methodProto.getName();
     methodContext.vertxMethodName = mixedLower(methodProto.getName());
@@ -172,9 +175,18 @@ public class VertxGrpcGeneratorImpl extends Generator {
       methodContext.grpcCallsMethodName = "asyncBidiStreamingCall";
     }
 
-    if (methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
+    if (this.generateGrpcService && methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
       HttpRule httpRule = methodProto.getOptions().getExtension(AnnotationsProto.http);
       methodContext.transcodingContext = buildTranscodingContext(httpRule);
+    }
+
+    if (this.generateGrpcClient) {
+      methodContext.parsedSignatures = parseMethodSignatures(
+        methodProto.getOptions().getExtension(ClientProto.methodSignature),
+        typeMap,
+        methodProto,
+        protos
+      );
     }
 
     return methodContext;
@@ -218,6 +230,156 @@ public class VertxGrpcGeneratorImpl extends Generator {
       .collect(Collectors.toList());
 
     return transcodingContext;
+  }
+
+  private List<List<MethodContext.SignatureParam>> parseMethodSignatures(List<String> methodSignatures, ProtoTypeMap typeMap, DescriptorProtos.MethodDescriptorProto methodProto,
+    List<DescriptorProtos.FileDescriptorProto> allProtoFiles) {
+
+    List<List<MethodContext.SignatureParam>> parsedSignatures = new ArrayList<>();
+    String inputTypeName = methodProto.getInputType();
+
+    if (inputTypeName.startsWith(".")) {
+      inputTypeName = inputTypeName.substring(1);
+    }
+
+    for (String signature : methodSignatures) {
+      List<MethodContext.SignatureParam> params = new ArrayList<>();
+      String[] fieldPaths = signature.split(",");
+
+      for (int i = 0; i < fieldPaths.length; i++) {
+        String fieldPath = fieldPaths[i];
+        String trimmedPath = fieldPath.trim();
+        if (trimmedPath.isEmpty()) {
+          continue;
+        }
+
+        // Convert field path to parameter name (last segment of the path)
+        String[] segments = trimmedPath.split("\\.");
+        String paramName = segments[segments.length - 1];
+
+        String paramType;
+        try {
+          paramType = determineFieldType(inputTypeName, trimmedPath, typeMap, allProtoFiles);
+        } catch (Exception e) {
+          System.err.println("Warning: Failed to resolve type for field " + trimmedPath + " in message " + inputTypeName + ": " + e.getMessage());
+          paramType = "Object";
+        }
+
+        params.add(new MethodContext.SignatureParam(paramName, paramType, i == fieldPaths.length - 1));
+      }
+
+      parsedSignatures.add(params);
+    }
+
+    return parsedSignatures;
+  }
+
+  private String determineFieldType(String messageTypeName, String fieldPath, ProtoTypeMap typeMap,
+    List<DescriptorProtos.FileDescriptorProto> allProtoFiles) {
+
+    if (messageTypeName.startsWith(".")) {
+      messageTypeName = messageTypeName.substring(1);
+    }
+
+    DescriptorProtos.FieldDescriptorProto fieldDescriptor = findFieldDescriptor(messageTypeName, fieldPath, allProtoFiles);
+    if (fieldDescriptor == null) {
+      return "Object";
+    }
+
+    return getJavaTypeFromFieldDescriptor(fieldDescriptor, typeMap);
+  }
+
+  private DescriptorProtos.FieldDescriptorProto findFieldDescriptor(String messageTypeName, String fieldPath,
+    List<DescriptorProtos.FileDescriptorProto> allProtoFiles) {
+    String[] pathParts = fieldPath.split("\\.");
+
+    DescriptorProtos.DescriptorProto currentDescriptor = findMessageDescriptor(messageTypeName, allProtoFiles);
+
+    if (currentDescriptor == null) {
+      return null;
+    }
+
+    DescriptorProtos.FieldDescriptorProto field = null;
+    for (int i = 0; i < pathParts.length; i++) {
+      String part = pathParts[i];
+
+      field = null;
+      for (DescriptorProtos.FieldDescriptorProto f : currentDescriptor.getFieldList()) {
+        if (f.getName().equals(part)) {
+          field = f;
+          break;
+        }
+      }
+
+      if (field == null) {
+        return null;
+      }
+
+      if (i < pathParts.length - 1) {
+        if (field.getType() != DescriptorProtos.FieldDescriptorProto.Type.TYPE_MESSAGE) {
+          return null;
+        }
+
+        String fieldTypeName = field.getTypeName();
+        if (fieldTypeName.startsWith(".")) {
+          fieldTypeName = fieldTypeName.substring(1);
+        }
+
+        currentDescriptor = findMessageDescriptor(fieldTypeName, allProtoFiles);
+
+        if (currentDescriptor == null) {
+          return null;
+        }
+      }
+    }
+
+    return field;
+  }
+
+  private DescriptorProtos.DescriptorProto findMessageDescriptor(String messageTypeName, List<DescriptorProtos.FileDescriptorProto> allProtoFiles) {
+    for (DescriptorProtos.FileDescriptorProto fileProto : allProtoFiles) {
+      for (DescriptorProtos.DescriptorProto msgDesc : fileProto.getMessageTypeList()) {
+        String fullMsgName = fileProto.getPackage().isEmpty() ? msgDesc.getName() : fileProto.getPackage() + "." + msgDesc.getName();
+        if (fullMsgName.equals(messageTypeName)) {
+          return msgDesc;
+        }
+      }
+    }
+    return null;
+  }
+
+  private String getJavaTypeFromFieldDescriptor(DescriptorProtos.FieldDescriptorProto fieldDescriptor, ProtoTypeMap typeMap) {
+    String javaType = typeMap.toJavaTypeName(fieldDescriptor.getTypeName());
+
+    switch (fieldDescriptor.getType()) {
+      case TYPE_DOUBLE:
+        return fieldDescriptor.getLabel() == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED ? "java.util.List<Double>" : "double";
+      case TYPE_FLOAT:
+        return fieldDescriptor.getLabel() == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED ? "java.util.List<Float>" : "float";
+      case TYPE_INT64:
+      case TYPE_UINT64:
+      case TYPE_FIXED64:
+      case TYPE_SFIXED64:
+      case TYPE_SINT64:
+        return fieldDescriptor.getLabel() == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED ? "java.util.List<Long>" : "long";
+      case TYPE_INT32:
+      case TYPE_UINT32:
+      case TYPE_FIXED32:
+      case TYPE_SFIXED32:
+      case TYPE_SINT32:
+        return fieldDescriptor.getLabel() == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED ? "java.util.List<Integer>" : "int";
+      case TYPE_BOOL:
+        return fieldDescriptor.getLabel() == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED ? "java.util.List<Boolean>" : "boolean";
+      case TYPE_STRING:
+        return fieldDescriptor.getLabel() == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED ? "java.util.List<String>" : "String";
+      case TYPE_BYTES:
+        return fieldDescriptor.getLabel() == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED ? "java.util.List<com.google.protobuf.ByteString>" : "com.google.protobuf.ByteString";
+      case TYPE_ENUM:
+      case TYPE_MESSAGE:
+        return fieldDescriptor.getLabel() == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED ? "java.util.List<" + javaType + ">" : javaType;
+      default:
+        return "Object";
+    }
   }
 
   // java keywords from: https://docs.oracle.com/javase/specs/jls/se8/html/jls-3.html#jls-3.9
@@ -448,9 +610,6 @@ public class VertxGrpcGeneratorImpl extends Generator {
     }
   }
 
-  /**
-   * Template class for proto RPC objects.
-   */
   private static class MethodContext {
     // CHECKSTYLE DISABLE VisibilityModifier FOR 10 LINES
     public String methodName;
@@ -464,38 +623,24 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String grpcCallsMethodName;
     public int methodNumber;
     public String javaDoc;
+    public List<List<SignatureParam>> parsedSignatures = new ArrayList<>();
 
     public TranscodingContext transcodingContext;
 
-    // This method mimics the upper-casing method ogf gRPC to ensure compatibility
-    // See https://github.com/grpc/grpc-java/blob/v1.8.0/compiler/src/java_plugin/cpp/java_generator.cpp#L58
-    public String methodNameUpperUnderscore() {
-      StringBuilder s = new StringBuilder();
-      for (int i = 0; i < methodName.length(); i++) {
-        char c = methodName.charAt(i);
-        s.append(Character.toUpperCase(c));
-        if ((i < methodName.length() - 1) && Character.isLowerCase(c) && Character.isUpperCase(methodName.charAt(i + 1))) {
-          s.append('_');
-        }
-      }
-      return s.toString();
-    }
+    public static class SignatureParam {
+      public final String name;
+      public final String type;
+      public final boolean last;
 
-    public String methodNameGetter() {
-      return VertxGrpcGeneratorImpl.mixedLower("get_" + methodName + "_method");
-    }
-
-    public String methodHeader() {
-      String mh = "";
-      if (!Strings.isNullOrEmpty(javaDoc)) {
-        mh = javaDoc;
+      public SignatureParam(String name, String type, boolean last) {
+        this.name = name;
+        this.type = type;
+        this.last = last;
       }
 
-      if (deprecated) {
-        mh += "\n        @Deprecated";
+      public String capitalizedName() {
+        return Character.toUpperCase(name.charAt(0)) + name.substring(1);
       }
-
-      return mh;
     }
   }
 

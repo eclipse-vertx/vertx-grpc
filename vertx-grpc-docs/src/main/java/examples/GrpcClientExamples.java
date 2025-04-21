@@ -298,6 +298,12 @@ public class GrpcClientExamples {
     response.onFailure(err -> System.out.println("Service failure: " + response.cause().getMessage()));
   }
 
+  public void unaryStubSignature(GreeterGrpcClient client) {
+    Future<HelloReply> response = client.sayHello("John");
+    response.onSuccess(result -> System.out.println("Service responded: " + response.result().getMessage()));
+    response.onFailure(err -> System.out.println("Service failure: " + response.cause().getMessage()));
+  }
+
   public void streamingRequestStub(StreamingGrpcClient client) {
     Future<Empty> response = client.sink((stream, err) -> {
       stream.write(Item.newBuilder().setValue("Value 1").build());

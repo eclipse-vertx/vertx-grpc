@@ -277,6 +277,8 @@ public class StreamingGrpcService extends StreamingService implements Service {
     request.handler(msg -> {
       try {
         instance.source(msg, request.response());
+      } catch (UnsupportedOperationException e) {
+        request.response().status(GrpcStatus.UNIMPLEMENTED).end();
       } catch (RuntimeException err) {
         request.response().status(GrpcStatus.INTERNAL).end();
       }
@@ -284,25 +286,30 @@ public class StreamingGrpcService extends StreamingService implements Service {
   }
 
   private void handle_sink(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Empty> request) {
-    Promise<examples.grpc.Empty> promise = Promise.promise();
-    promise.future()
-      .onFailure(err -> request.response().status(GrpcStatus.INTERNAL).end())
-      .onSuccess(resp -> request.response().end(resp));
     try {
-      instance.sink(request, promise);
+      instance.sink(request, (res, err) -> {
+        if (err == null) {
+          request.response().end(res);
+        } else {
+          request.response().status(GrpcStatus.INTERNAL).end();
+        }
+      });
+    } catch (UnsupportedOperationException err) {
+      request.response().status(GrpcStatus.UNIMPLEMENTED).end();
     } catch (RuntimeException err) {
-      promise.tryFail(err);
+      request.response().status(GrpcStatus.INTERNAL).end();
     }
   }
 
   private void handle_pipe(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item> request) {
     try {
       instance.pipe(request, request.response());
-    } catch (RuntimeException err) {
+     } catch (UnsupportedOperationException err) {
+      request.response().status(GrpcStatus.UNIMPLEMENTED).end();
+     } catch (RuntimeException err) {
       request.response().status(GrpcStatus.INTERNAL).end();
     }
   }
-
     }
   }
 }
