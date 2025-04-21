@@ -12,6 +12,7 @@ package io.vertx.grpc.common.impl;
 
 import io.vertx.grpc.common.GrpcWriteStream;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.WireFormat;
 
 /**
  * An adapter between gRPC and Vert.x back-pressure.
@@ -44,7 +45,7 @@ public class WriteStreamAdapter<T> {
   }
 
   public final void write(T msg) {
-    stream.writeMessage(encoder.encode(msg));
+    stream.writeMessage(encoder.encode(msg, WireFormat.PROTOBUF));
     synchronized (this) {
       ready = !stream.writeQueueFull();
     }

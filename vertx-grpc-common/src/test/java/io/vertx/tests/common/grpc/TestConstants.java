@@ -21,11 +21,11 @@ public final class TestConstants {
 
   public static final ServiceName TEST_SERVICE = ServiceName.create("io.vertx.tests.common.grpc.tests.TestService");
   public static final GrpcMessageEncoder<Empty> EMPTY_ENC = encoder();
-  public static final GrpcMessageDecoder<Empty> EMPTY_DEC = decoder(Empty.parser());
+  public static final GrpcMessageDecoder<Empty> EMPTY_DEC = decoder(Empty.newBuilder());
   public static final GrpcMessageEncoder<Request> REQUEST_ENC = encoder();
-  public static final GrpcMessageDecoder<Request> REQUEST_DEC = decoder(Request.parser());
+  public static final GrpcMessageDecoder<Request> REQUEST_DEC = decoder(Request.newBuilder());
   public static final GrpcMessageEncoder<Reply> REPLY_ENC = encoder();
-  public static final GrpcMessageDecoder<Reply> REPLY_DEC = decoder(Reply.parser());
+  public static final GrpcMessageDecoder<Reply> REPLY_DEC = decoder(Reply.newBuilder());
 
   private TestConstants() {
   }

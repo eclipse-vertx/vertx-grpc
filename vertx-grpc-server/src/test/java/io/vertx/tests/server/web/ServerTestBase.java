@@ -42,11 +42,11 @@ import static org.junit.Assert.*;
  */
 public abstract class ServerTestBase extends GrpcTestBase {
 
-  public static GrpcMessageDecoder<Empty> EMPTY_DECODER = GrpcMessageDecoder.decoder(Empty.parser());
+  public static GrpcMessageDecoder<Empty> EMPTY_DECODER = GrpcMessageDecoder.decoder(Empty.newBuilder());
   public static GrpcMessageEncoder<Empty> EMPTY_ENCODER = GrpcMessageEncoder.encoder();
-  public static GrpcMessageDecoder<EchoRequest> ECHO_REQUEST_DECODER = GrpcMessageDecoder.decoder(EchoRequest.parser());
+  public static GrpcMessageDecoder<EchoRequest> ECHO_REQUEST_DECODER = GrpcMessageDecoder.decoder(EchoRequest.newBuilder());
   public static GrpcMessageEncoder<EchoResponse> ECHO_RESPONSE_ENCODER = GrpcMessageEncoder.encoder();
-  public static GrpcMessageDecoder<StreamingRequest> STREAMING_REQUEST_DECODER = GrpcMessageDecoder.decoder(StreamingRequest.parser());
+  public static GrpcMessageDecoder<StreamingRequest> STREAMING_REQUEST_DECODER = GrpcMessageDecoder.decoder(StreamingRequest.newBuilder());
   public static GrpcMessageEncoder<StreamingResponse> STREAMING_RESPONSE_ENCODER = GrpcMessageEncoder.encoder();
 
   public static final ServiceName TEST_SERVICE_NAME = ServiceName.create("io.vertx.grpcweb.TestService");

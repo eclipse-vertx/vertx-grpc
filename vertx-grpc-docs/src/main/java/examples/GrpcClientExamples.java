@@ -176,7 +176,8 @@ public class GrpcClientExamples {
 
   public void jsonWireFormat01(GrpcClient client, SocketAddress server) {
     client
-      .request(server, GreeterGrpcClient.Json.SayHello).compose(request -> {
+      .request(server, GreeterGrpcClient.SayHello).compose(request -> {
+        request.format(WireFormat.JSON);
         request.end(HelloRequest
           .newBuilder()
           .setName("Bob")

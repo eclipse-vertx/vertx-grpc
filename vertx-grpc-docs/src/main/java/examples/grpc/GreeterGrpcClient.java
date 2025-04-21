@@ -27,23 +27,7 @@ public interface GreeterGrpcClient extends GreeterClient {
     ServiceName.create("examples.grpc", "Greeter"),
     "SayHello",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.grpc.HelloReply.parser()));
-
-  /**
-   * Json client service methods.
-   */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  final class Json {
-
-    /**
-     * SayHello json RPC client service method.
-     */
-    public static final ServiceMethod<examples.grpc.HelloReply, examples.grpc.HelloRequest> SayHello = ServiceMethod.client(
-      ServiceName.create("examples.grpc", "Greeter"),
-      "SayHello",
-      GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.grpc.HelloReply.newBuilder()));
-  }
+    GrpcMessageDecoder.decoder(examples.grpc.HelloReply.newBuilder()));
 
   /**
    * Create and return a Greeter gRPC service client. The assumed wire format is Protobuf.
@@ -89,18 +73,8 @@ class GreeterGrpcClientImpl implements GreeterGrpcClient {
   }
 
   public Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
-    ServiceMethod<examples.grpc.HelloReply, examples.grpc.HelloRequest> serviceMethod;
-    switch (wireFormat) {
-      case PROTOBUF:
-        serviceMethod = SayHello;
-        break;
-      case JSON:
-        serviceMethod = Json.SayHello;
-        break;
-      default:
-        throw new AssertionError();
-    }
-    return client.request(socketAddress, serviceMethod).compose(req -> {
+    return client.request(socketAddress, SayHello).compose(req -> {
+      req.format(wireFormat);
       req.end(request);
       return req.response().compose(resp -> resp.last());
     });

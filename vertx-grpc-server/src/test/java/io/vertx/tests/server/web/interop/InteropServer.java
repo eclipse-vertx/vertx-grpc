@@ -34,11 +34,11 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  */
 public class InteropServer extends AbstractVerticle {
 
-  public static GrpcMessageDecoder<Empty> EMPTY_DECODER = GrpcMessageDecoder.decoder(Empty.parser());
+  public static GrpcMessageDecoder<Empty> EMPTY_DECODER = GrpcMessageDecoder.decoder(Empty.newBuilder());
   public static GrpcMessageEncoder<Empty> EMPTY_ENCODER = GrpcMessageEncoder.encoder();
-  public static GrpcMessageDecoder<SimpleRequest> ECHO_REQUEST_DECODER = GrpcMessageDecoder.decoder(SimpleRequest.parser());
+  public static GrpcMessageDecoder<SimpleRequest> ECHO_REQUEST_DECODER = GrpcMessageDecoder.decoder(SimpleRequest.newBuilder());
   public static GrpcMessageEncoder<SimpleResponse> ECHO_RESPONSE_ENCODER = GrpcMessageEncoder.encoder();
-  public static GrpcMessageDecoder<StreamingOutputCallRequest> STREAMING_REQUEST_DECODER = GrpcMessageDecoder.decoder(StreamingOutputCallRequest.parser());
+  public static GrpcMessageDecoder<StreamingOutputCallRequest> STREAMING_REQUEST_DECODER = GrpcMessageDecoder.decoder(StreamingOutputCallRequest.newBuilder());
   public static GrpcMessageEncoder<StreamingOutputCallResponse> STREAMING_RESPONSE_ENCODER = GrpcMessageEncoder.encoder();
 
   public static final ServiceName TEST_SERVICE_NAME = ServiceName.create("grpc.testing.TestService");

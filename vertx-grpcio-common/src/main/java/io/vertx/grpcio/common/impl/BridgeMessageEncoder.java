@@ -14,6 +14,7 @@ import io.grpc.Compressor;
 import io.grpc.Drainable;
 import io.grpc.MethodDescriptor;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageEncoder;
@@ -34,12 +35,13 @@ public class BridgeMessageEncoder<T> implements GrpcMessageEncoder<T> {
   }
 
   @Override
-  public WireFormat format() {
-    return WireFormat.PROTOBUF;
+  public boolean accepts(WireFormat format) {
+    return format == WireFormat.PROTOBUF;
   }
 
   @Override
-  public GrpcMessage encode(T msg) {
+  public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
+    assert format == WireFormat.PROTOBUF;
     return new GrpcMessage() {
       private Buffer encoded;
       @Override

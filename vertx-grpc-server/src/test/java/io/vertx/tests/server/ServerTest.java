@@ -31,6 +31,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.tests.common.grpc.*;
 import org.junit.Test;
@@ -355,7 +356,7 @@ public abstract class ServerTest extends ServerTestBase {
           should.assertEquals(String.valueOf(GrpcStatus.DEADLINE_EXCEEDED.code), status);
           async.complete();
         }));
-        GrpcMessage msg = TestConstants.REQUEST_ENC.encode(Request.newBuilder().setName("test").build());
+        GrpcMessage msg = TestConstants.REQUEST_ENC.encode(Request.newBuilder().setName("test").build(), WireFormat.PROTOBUF);
         req.end(GrpcMessageImpl.encode(msg));
       }));
 
