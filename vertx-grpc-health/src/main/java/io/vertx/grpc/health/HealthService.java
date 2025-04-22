@@ -34,13 +34,24 @@ import java.util.function.Supplier;
 public interface HealthService extends Service {
 
   /**
-   * Creates a new HealthService instance.
+   * Creates a new HealthService instance with default options.
    *
    * @param vertx the Vert.x instance
    * @return a new HealthService instance
    */
   static HealthService create(Vertx vertx) {
-    return new HealthServiceImpl(vertx);
+    return create(vertx, new HealthServiceOptions());
+  }
+
+  /**
+   * Creates a new HealthService instance with the specified options.
+   *
+   * @param vertx the Vert.x instance
+   * @param options the options for configuring the health service
+   * @return a new HealthService instance
+   */
+  static HealthService create(Vertx vertx, HealthServiceOptions options) {
+    return new HealthServiceImpl(vertx, options);
   }
 
   /**

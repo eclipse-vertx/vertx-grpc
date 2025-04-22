@@ -6,6 +6,7 @@ import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.health.HealthService;
+import io.vertx.grpc.health.HealthServiceOptions;
 import io.vertx.grpc.health.handler.GrpcHealthCheckV1Handler;
 import io.vertx.grpc.health.handler.GrpcHealthListV1Handler;
 import io.vertx.grpc.health.handler.GrpcHealthWatchV1Handler;
@@ -22,10 +23,16 @@ public class HealthServiceImpl implements HealthService {
   private static final Descriptors.ServiceDescriptor V1_SERVICE_DESCRIPTOR = HealthProto.getDescriptor().findServiceByName("Health");
 
   private final Vertx vertx;
+  private final HealthServiceOptions options;
   private final Map<String, Supplier<Future<Boolean>>> checks = new ConcurrentHashMap<>();
 
   public HealthServiceImpl(Vertx vertx) {
+    this(vertx, new HealthServiceOptions());
+  }
+
+  public HealthServiceImpl(Vertx vertx, HealthServiceOptions options) {
     this.vertx = vertx;
+    this.options = options;
     this.register(V1_SERVICE_NAME, () -> Future.succeededFuture(true));
   }
 
@@ -43,7 +50,7 @@ public class HealthServiceImpl implements HealthService {
   public void bind(GrpcServer server) {
     server.callHandler(GrpcHealthCheckV1Handler.SERVICE_METHOD, new GrpcHealthCheckV1Handler(server, checks));
     server.callHandler(GrpcHealthListV1Handler.SERVICE_METHOD, new GrpcHealthListV1Handler(server, checks));
-    server.callHandler(GrpcHealthWatchV1Handler.SERVICE_METHOD, new GrpcHealthWatchV1Handler(vertx, server, checks));
+    server.callHandler(GrpcHealthWatchV1Handler.SERVICE_METHOD, new GrpcHealthWatchV1Handler(vertx, server, checks, options));
   }
 
   @Override
