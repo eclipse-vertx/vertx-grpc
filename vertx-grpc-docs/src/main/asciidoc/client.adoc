@@ -1,8 +1,6 @@
 == Vert.x gRPC Client
 
-Vert.x gRPC Client is a gRPC client powered by Vert.x HTTP client.
-
-This client provides a gRPC request/response oriented API as well as a generated stub approach with a gRPC Channel
+The Vert.x gRPC Client provides a gRPC request/response oriented API as well as a generated client approach.
 
 === Using Vert.x gRPC Client
 
@@ -37,20 +35,111 @@ You can easily create the gRPC client
 {@link examples.GrpcClientExamples#createClient}
 ----
 
+[[idiomatic-client]]
+=== Idiomatic client API generation
+
+The <<vertx-grpc-protoc-plugin,Vert.x gRPC protoc plugin>> generates idiomatic client code:
+
+- `examples/Greeter.java`
+- `examples/GreeterClient.java`
+- `examples/GreeterGrpcClient.java`
+
+An idiomatic client wraps a `GrpcClient` and provides a Vert.x idiomatic API to interact with the service
+
+The `Greeter` interface defines the primary _contract_ of the service:
+
+[source,java]
+----
+public interface Greeter {
+
+  Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request);
+
+}
+----
+
+The `GreeterClient` interface extends the `Greeter` contract and annotates it with Vert.x codegen annotations, providing
+the option to perform further code generation such as generating an _RxJava_ or a _Mutiny_ client.
+
+[source,java]
+----
+@io.vertx.codegen.annotations.VertxGen
+public interface GreeterClient extends Greeter {
+
+  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request);
+}
+----
+
+The `GreeterGrpcClient` interface extends `GreeterClient` and provides an implementation that uses the Vert.x gRPC Client to
+interact with a service:
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#createIdiomaticClient}
+----
+
+==== Unary services
+
+Unary services returns a Vert.x `Future`
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#unaryIdiomaticClient}
+----
+
+==== Streaming requests
+
+Streaming requests use a lambda passed a Vert.x `WriteStream` of messages sent to the service
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#streamingRequestIdiomaticClient1}
+----
+
+Alternatively, you can pass a stream of messages to be sent to the service
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#streamingRequestIdiomaticClient2}
+----
+
+==== Streaming responses
+
+Streaming responses get a Vert.x `ReadStream` of messages sent by the service
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#streamingResponseIdiomaticClient}
+----
+
 === Client request/response API
 
 The gRPC request/response client API provides an alternative way to interact with a server without the need of a generated stub.
 
+==== Addressing a gRPC service method
+
+You will use a `{@link io.vertx.grpc.common.ServiceMethod}` to address a gRPC service method
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#createServiceMethod}
+----
+
+However, most of the time you can use `ServiceMethod` generated constants by the <<vertx-grpc-protoc-plugin,Vert.x gRPC protoc plugin>>:
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#reuseServiceMethod}
+----
+
 ==== Request/response
 
-Interacting with a gRPC server involves creating a request to the remote gRPC service
+Interacting with a gRPC server involves the creation of a request to the remote gRPC service.
 
 [source,java]
 ----
 {@link examples.GrpcClientExamples#sendRequest}
 ----
-
-`{@link io.vertx.grpc.common.ServiceMethod}` constants are <<ServiceMethodConstants,generated>> by the Vert.x gRPC protoc plugin.
 
 The `{@link io.vertx.grpc.client.GrpcClientRequest#response}` holds the response and the
 `{@link io.vertx.grpc.client.GrpcClientResponse#last}` holds the result
@@ -92,7 +181,7 @@ A bidi request/response is simply the combination of a streaming request and a s
 
 === Flow control
 
-Request and response are back pressured Vert.x streams.
+Whether you use the request/response API or the idiomatic client API, you interact with stream which are back pressured Vert.x streams.
 
 You can check the writability of a request and set a drain handler
 
@@ -101,12 +190,14 @@ You can check the writability of a request and set a drain handler
 {@link examples.GrpcClientExamples#requestFlowControl}
 ----
 
-You can pause/resume/fetch a response
+You can pause/resume/fetch a response to precisely control the message you read.
 
 [source,java]
 ----
 {@link examples.GrpcClientExamples#responseFlowControl}
 ----
+
+NOTE: you can learn more about Vert.x streams in the Vert.x Core documentation
 
 === Timeout and deadlines
 
@@ -193,6 +284,8 @@ You can call a JSON service method with the `application/grpc+json` content-type
 {@link examples.GrpcClientExamples#jsonWireFormat01}
 ----
 
+The client will send `application/grpc+json` requests.
+
 NOTE: JSON encoding/decoding is achieved by `com.google.protobuf:protobuf-java-util` library.
 
 Anemic JSON is also supported with Vert.x `JsonObject`
@@ -200,6 +293,13 @@ Anemic JSON is also supported with Vert.x `JsonObject`
 [source,java]
 ----
 {@link examples.GrpcClientExamples#jsonWireFormat02}
+----
+
+You can also specify the JSON wire format when creating an idiomatic client
+
+[source,java]
+----
+{@link examples.GrpcClientExamples#createClientIdiomaticJson}
 ----
 
 === Compression
@@ -219,7 +319,8 @@ Decompression is achieved transparently by the client when the server sends enco
 
 The client provides a message level API to interact directly with protobuf encoded gRPC messages.
 
-TIP: the client message level API can be used with the server message level API to write a gRPC reverse proxy
+TIP: the client message level API can be combined with the server message level API to write a gRPC intermediary for which
+messages are opaque such as a reverse proxy.
 
 Such API is useful when you are not interested in the content of the messages, and instead you want to forward them to
 another service, e.g. you are writing a proxy.
@@ -241,49 +342,3 @@ handle the message encoding:
 
 - when the message uses the response encoding, the message is sent as is
 - when the message uses a different encoding, it will be encoded, e.g. compressed or uncompressed
-
-=== Generated client API
-
-In addition to the request/response API, the <<vertx-grpc-protoc-plugin,Vert.x gRPC protoc plugin>> generates idiomatic service clients.
-
-A client wraps a `GrpcClient` and provides a Vert.x idiomatic API to interact with the service
-
-[source,java]
-----
-{@link examples.GrpcClientExamples#createClientStub}
-----
-
-You can also specify the JSON wire format when creating a stub
-
-[source,java]
-----
-{@link examples.GrpcClientExamples#createClientStubJson}
-----
-
-The client will send `application/grpc+json` requests.
-
-==== Unary services
-
-Unary services returns a Vert.x `Future`
-
-[source,java]
-----
-{@link examples.GrpcClientExamples#unaryStub}
-----
-==== Streaming requests
-
-Streaming requests use a lambda passed a Vert.x `WriteStream` of messages sent to the service
-
-[source,java]
-----
-{@link examples.GrpcClientExamples#streamingRequestStub}
-----
-
-==== Streaming responses
-
-Streaming responses get a Vert.x `ReadStream` of messages sent by the service
-
-[source,java]
-----
-{@link examples.GrpcClientExamples#streamingResponseStub}
-----

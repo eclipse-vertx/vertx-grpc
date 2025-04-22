@@ -31,11 +31,22 @@ public class GrpcServerExamples {
       .listen();
   }
 
+  public void createServiceMethod() {
+    ServiceName serviceName = ServiceName.create("examples.grpc", "Greeter");
+    ServiceMethod<HelloRequest, HelloReply> sayHello = ServiceMethod.server(
+      serviceName,
+      "SayHello",
+      GrpcMessageEncoder.encoder(),
+      GrpcMessageDecoder.decoder(HelloRequest.newBuilder()));
+  }
+
+  public void reuseServiceMethod() {
+    ServiceMethod<HelloRequest, HelloReply> sayHello = GreeterGrpcService.SayHello;
+  }
+
   public void requestResponse(GrpcServer server) {
 
-    ServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterGrpcService.SayHello;
-
-    server.callHandler(serviceMethod, request -> {
+    server.callHandler(GreeterGrpcService.SayHello, request -> {
 
       request.handler(hello -> {
 
@@ -135,17 +146,7 @@ public class GrpcServerExamples {
     );
   }
 
-  public void jsonWireFormat01(GrpcServer server) {
-    server.callHandler(GreeterGrpcService.SayHello, request -> {
-      request.last().onSuccess(helloRequest -> {
-        request.response().end(HelloReply.newBuilder()
-          .setMessage("Hello " + helloRequest.getName()).build()
-        );
-      });
-    });
-  }
-
-  public void jsonWireFormat02(GrpcServer server) {
+  public void anemicJson(GrpcServer server) {
     ServiceMethod<JsonObject, JsonObject> sayHello = ServiceMethod.server(
       ServiceName.create("helloworld", "Greeter"),
       "SayHello",
@@ -169,25 +170,13 @@ public class GrpcServerExamples {
     response.write(Item.newBuilder().setValue("item-3").build());
   }
 
-  public GrpcServer transcodingRequestResponse(GrpcServer server) {
-    // Define the service method
-    TranscodingServiceMethod<HelloRequest, HelloReply> serviceMethod = GreeterGrpcService.Transcoding.SayHello;
-
-    // Register the handler with transcoding options
-    server.callHandler(serviceMethod, request -> {
-
-        request.handler(hello -> {
-
-          GrpcServerResponse<HelloRequest, HelloReply> response = request.response();
-
-          HelloReply reply = HelloReply.newBuilder().setMessage("Hello " + hello.getName()).build();
-
-          response.end(reply);
-        });
+  public void transcodingRequestResponse(GrpcServer server) {
+    server.addService(GreeterGrpcService.Transcoding.of(new GreeterGrpcService() {
+      @Override
+      public Future<HelloReply> sayHello(HelloRequest request) {
+        return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
       }
-    );
-
-    return server;
+    }));
   }
 
   public void protobufLevelAPI(GrpcServer server) {
@@ -275,10 +264,6 @@ public class GrpcServerExamples {
 
   public void unaryStub3(GreeterGrpcService service, GrpcServer server) {
     server.addService(service);
-  }
-
-  public void unaryStub4(GreeterService service, GrpcServer server) {
-    server.addService(GreeterGrpcService.of(service));
   }
 
   public void streamingRequestStub(GrpcServer server) {

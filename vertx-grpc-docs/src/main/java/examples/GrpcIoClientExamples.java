@@ -1,9 +1,11 @@
 package examples;
 
 import examples.grpc.GreeterGrpc;
+import examples.grpc.GreeterGrpcIo;
 import examples.grpc.HelloReply;
 import examples.grpc.HelloRequest;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.docgen.Source;
@@ -50,5 +52,22 @@ public class GrpcIoClientExamples {
     GreeterGrpc.GreeterStub greeter = GreeterGrpc.newStub(channel).withDeadlineAfter(10, TimeUnit.SECONDS);
 
     greeter.sayHello(HelloRequest.newBuilder().setName("Bob").build(), observer);
+  }
+
+  public void idiomaticStub(Vertx vertx, GrpcIoClient client) {
+
+    GrpcIoClientChannel channel = new GrpcIoClientChannel(client, SocketAddress.inetSocketAddress(443, "example.com"));
+
+    GreeterGrpcIo.GreeterStub greeter = GreeterGrpcIo.newStub(vertx, channel);
+
+    Future<HelloReply> future = greeter.sayHello(HelloRequest.newBuilder().setName("Bob").build());
+
+    future
+      .onSuccess(reply -> {
+        // Process response
+      })
+      .onFailure(err -> {
+        // Something went bad
+      });
   }
 }

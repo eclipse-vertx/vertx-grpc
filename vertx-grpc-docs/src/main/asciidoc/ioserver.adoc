@@ -39,6 +39,39 @@ The Vert.x gRPC Server can bridge a gRPC service to use with _grpc-java_ generat
 
 The bridge supports deadline automatic cancellation: when a gRPC request carrying a timeout is received, a deadline is associated with the `io.grpc.Context` an can be obtained from the current context. This deadline automatically cancels the request in progress when its associated timeout fires.
 
+=== Idiomatic gRPC/IO service
+
+The <<vertx-grpc-protoc-plugin,Vert.x gRPC protoc plugin>> supports the generation of gRPC/IO client code:
+
+- `examples/Greeter.java`
+- `examples/GreeterService.java`
+- `examples/GreeterGrpcIo.java`
+
+By default, `GreeterGrpcIo` is not generated, to activate it you need to tell the Vert.x gRPC protoc plugin to generate it:
+
+[source,xml]
+----
+<protocPlugin>
+  <id>vertx-grpc-protoc-plugin2</id>
+  <groupId>io.vertx</groupId>
+  <artifactId>vertx-grpc-protoc-plugin2</artifactId>
+  <version>${stack.version}</version>
+  <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
+  <args>
+    <arg>grpc-io</arg>
+  </args>
+</protocPlugin>
+----
+
+The `GreeterGrpcIo` provides a bindable service that uses the Vert.x gRPC/IO Server to expose the service:
+
+[source,java]
+----
+{@link examples.GrpcIoServerExamples#idiomaticStubExample}
+----
+
+You can read the <<idiomatic-server, idiomatic server>> section to learn more about it.
+
 === gRPC Reflection APIs
 
 Support for the https://grpc.io/docs/guides/reflection/[gRPC reflection APIs] can be added to your Vert.x gRPC Server.

@@ -37,89 +37,140 @@ A `{@link io.vertx.grpc.server.GrpcServer}` is a `Handler<HttpServerRequest>` an
 {@link examples.GrpcServerExamples#createServer}
 ----
 
-[TIP]
-====
 A `GrpcServer` can be used within a Vert.x Web router:
 
 [source,java]
 ----
 route.consumes("application/grpc").handler(rc -> grpcServer.handle(rc.request()));
 ----
-====
 
-==== HTTP/2 protocol
+[[idiomatic-server]]
+=== Idiomatic server stub generation
 
-The default protocol served by the Vert.x gRPC server is HTTP/2, messages are exchanged in protobuf wire format.
+The <<vertx-grpc-protoc-plugin,Vert.x gRPC protoc plugin>> generates idiomatic service stubs:
 
-In addition, Vert.x gRPC server also supports https://github.com/grpc/grpc-web[gRPC-Web] protocol and HTTP/JSON transcoding.
+- `examples/Greeter.java`
+- `examples/GreeterService.java`
+- `examples/GreeterGrpcService.java`
 
-==== gRPC-Web protocol
-
-The Vert.x gRPC Server supports the gRPC-Web protocol by default.
-
-To disable the gRPC-Web protocol support, configure options with {@link io.vertx.grpc.server.GrpcServerOptions#setGrpcWebEnabled GrpcServerOptions#setGrpcWebEnabled(false)} and then create a server with {@link io.vertx.grpc.server.GrpcServer#server(io.vertx.core.Vertx, io.vertx.grpc.server.GrpcServerOptions) GrpcServer#server(vertx, options)}.
-
-[TIP]
-====
-If your website server and the gRPC server are different, you have to configure the gRPC server for CORS.
-This can be done with a Vert.x Web router and the CORS handler:
+The `Greeter` interface defines the primary _contract_ of the service:
 
 [source,java]
 ----
-CorsHandler corsHandler = CorsHandler.create()
-  .addRelativeOrigin("https://www.mycompany.com")
-  .allowedHeaders(Set.of("keep-alive","user-agent","cache-control","content-type","content-transfer-encoding","x-custom-key","x-user-agent","x-grpc-web","grpc-timeout"))
-  .exposedHeaders(Set.of("x-custom-key","grpc-status","grpc-message"));
-router.route("/com.mycompany.MyService/*").handler(corsHandler);
+public interface Greeter {
+
+  Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request);
+
+}
 ----
-====
 
-==== gRPC Transcoding
+The `GreeterService` class implements the `Greeter` contract:
 
-gRPC transcoding is a feature that enables mapping between HTTP/JSON requests and gRPC services.
+[source,java]
+----
+public class GreeterService implements Greeter {
 
-gRPC transcoding allows your services to accept both gRPC and HTTP/JSON requests, providing greater flexibility. This feature is particularly useful when:
+  public Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
+    // ...
+  }
 
-* You want to expose your gRPC services to clients that don't support gRPC
-* You need to support both traditional REST APIs and gRPC endpoints
-* You want to leverage gRPC's efficiency while maintaining HTTP/JSON compatibility
+  protected void sayHello(examples.grpc.HelloRequest request, Completable<examples.grpc.HelloReply> response) {
+    // ...
+  }
+}
+----
 
-You do not need specific configuration for gRPC transcoding since it is serves HTTP protocol. However, services must
-be deployed with additional configuration such as the mount path to have transcoding operational.
+Usually, you extend this class to provide a service implementation.
 
-NOTE: transcoding is in tech preview in Vert.x 5.0 until the API becomes stable.
+The `GreeterGrpcService` class extends `GreeterService` and let you turn your service implementation into a gRPC service
+that can be bound to a Vert.x gRPC server:
 
-==== Transcoding error handling
+[source,java]
+----
+GreeterGrpcService service = GreeterGrpcService.create(new GreeterService() {
+  @Override
+  public Future<HelloReply> sayHello(HelloRequest request) {
+    return Future.succeededFuture(HelloReply.newBuilder()
+      .setMessage("Hello " + request.getName())
+      .build());
+  }
+});
 
-If an error occurs during transcoding, the server will return an HTTP error response with the appropriate status code.
-Most grpc status codes are mapped to the corresponding HTTP status codes on best effort basis. If the status code is not mapped,
-the server will return a 500 Internal Server Error.
+grpcServer.add(service);
+----
 
-|===
-|gRPC Status Code | HTTP Status Code | Description
-|OK | 200 | The operation completed successfully.
-|CANCELLED | 408 | The operation was cancelled (typically by the caller).
-|UNKNOWN | 500 | Unknown error.
-|INVALID_ARGUMENT | 400 | Client specified an invalid argument.
-|DEADLINE_EXCEEDED | 504 | Deadline expired before operation could complete.
-|NOT_FOUND | 404 | Some requested entity (e.g., file or directory) was not found.
-|ALREADY_EXISTS | 409 | Some entity that we attempted to create (e.g., file or directory) already exists.
-|PERMISSION_DENIED | 403 | The caller does not have permission to execute the specified operation.
-|RESOURCE_EXHAUSTED | 429 | Some resource has been exhausted, perhaps a per-user quota, or perhaps the entire file system is out of space.
-|FAILED_PRECONDITION | 400 | Operation was rejected because the system is not in a state required for the operation's execution
-|ABORTED | 409 | The operation was aborted, typically due to a concurrency issue like sequencer check failures, transaction aborts, etc.
-|OUT_OF_RANGE | 400 | Operation was attempted past the valid range.
-|UNIMPLEMENTED | 501 | Operation is not implemented or not supported/enabled in this service.
-|INTERNAL | 500 | Internal errors. This means that some invariants expected by the underlying system have been broken.
-|UNAVAILABLE | 503 | The service is currently unavailable.
-|DATA_LOSS | 500 | Unrecoverable data loss or corruption.
-|UNAUTHENTICATED | 401 | The request does not have valid authentication credentials for the operation.
-|===
+Each service method comes in two flavors, you can override the method you like depending on the style.
+
+==== Unary methods
+
+Unary methods return a Vert.x `Future`
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#unaryStub1}
+----
+
+or process a Vert.x `Promise`
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#unaryStub2}
+----
+
+In both case you need to bind the stub to an existing `GrpcServer`
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#unaryStub3}
+----
+
+==== Streaming requests
+
+Streaming requests are implemented with a `ReadStream`:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#streamingRequestStub}
+----
+
+==== Streaming responses
+
+Streaming responses are implemented with Vert.x streams and comes in two flavors.
+
+You can return a Vert.x `ReadStream` and let the service send it for you:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#streamingResponseStub1}
+----
+
+or you can process a `WriteStream`:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#streamingResponseStub2}
+----
 
 === Server request/response API
 
 The gRPC request/response server API provides an alternative way to interact with a client without the need of extending
 a Java class.
+
+==== Binding a gRPC service method
+
+You will use a `{@link io.vertx.grpc.common.ServiceMethod}` to bind a gRPC service method
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#createServiceMethod}
+----
+
+However, most of the time you will use `ServiceMethod` constants generated by the <<vertx-grpc-protoc-plugin,Vert.x gRPC protoc plugin>>:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#reuseServiceMethod}
+----
 
 ==== Request/response
 
@@ -129,8 +180,6 @@ Each service method is processed by a handler, the handler is bound using a `{@l
 ----
 {@link examples.GrpcServerExamples#requestResponse}
 ----
-
-`{@link io.vertx.grpc.common.ServiceMethod}` constants are <<ServiceMethodConstants,generated>> by the Vert.x gRPC protoc plugin.
 
 ==== Streaming request
 
@@ -160,7 +209,114 @@ A bidi request/response is simply the combination of a streaming request and a s
 {@link examples.GrpcServerExamples#bidi}
 ----
 
-NOTE: The gRPC-Web protocol does not support bidirectional streaming.
+=== gRPC protocols
+
+==== HTTP/2 protocol
+
+The default protocol served by the Vert.x gRPC server is HTTP/2.
+
+In addition, Vert.x gRPC server also supports https://github.com/grpc/grpc-web[gRPC-Web] protocol and HTTP/JSON transcoding.
+
+==== gRPC-Web protocol
+
+The Vert.x gRPC Server supports the gRPC-Web protocol by default.
+
+To disable the gRPC-Web protocol support, configure options with {@link io.vertx.grpc.server.GrpcServerOptions#setGrpcWebEnabled GrpcServerOptions#setGrpcWebEnabled(false)} and then create a server with {@link io.vertx.grpc.server.GrpcServer#server(io.vertx.core.Vertx, io.vertx.grpc.server.GrpcServerOptions) GrpcServer#server(vertx, options)}.
+
+If your website server and the gRPC server are different, you have to configure the gRPC server for CORS.
+This can be done with a Vert.x Web router and the CORS handler:
+
+[source,java]
+----
+CorsHandler corsHandler = CorsHandler.create()
+  .addRelativeOrigin("https://www.mycompany.com")
+  .allowedHeaders(Set.of("keep-alive","user-agent","cache-control","content-type","content-transfer-encoding","x-custom-key","x-user-agent","x-grpc-web","grpc-timeout"))
+  .exposedHeaders(Set.of("x-custom-key","grpc-status","grpc-message"));
+router.route("/com.mycompany.MyService/*").handler(corsHandler);
+----
+
+==== gRPC Transcoding
+
+gRPC transcoding is a feature that enables mapping between HTTP/JSON requests and gRPC services.
+
+gRPC transcoding allows your services to accept both gRPC and HTTP/JSON requests, providing greater flexibility. This feature is particularly useful when:
+
+* You want to expose your gRPC services to clients that don't support gRPC
+* You need to support both traditional REST APIs and gRPC endpoints
+* You want to leverage gRPC's efficiency while maintaining HTTP/JSON compatibility
+
+You do not need specific configuration for gRPC transcoding since it is serves HTTP protocol. However, services must
+be deployed with additional configuration such as the mount path to have transcoding operational.
+
+NOTE: transcoding is in tech preview in Vert.x 5.0 until the API becomes stable.
+
+A service method is processed by a handler, the handler is bound using a `{@link io.vertx.grpc.transcoding.TranscodingServiceMethod}`.
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#transcodingRequestResponse}
+----
+
+Transcoding service methods are generated by the Vert.x gRPC protoc plugin, when the service declares an `HttpRule`:
+
+[source,proto]
+----
+syntax = "proto3";
+
+import "google/api/annotations.proto";
+
+option java_multiple_files = true;
+option java_package = "examples";
+option java_outer_classname = "HelloWorldProto";
+
+package helloworld;
+
+// The greeting service definition.
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      get: "/v1/hello/{name}"
+    };
+  }
+}
+----
+
+To test gRPC transcoding, you can use a tool like `curl` to send HTTP requests to your gRPC service.
+
+For example, to send a `GET` request to the `/v1/hello/Steve` endpoint:
+
+[source]
+----
+curl -X GET http://localhost:8080/v1/hello/Steve
+----
+
+==== Transcoding error handling
+
+If an error occurs during transcoding, the server will return an HTTP error response with the appropriate status code.
+Most grpc status codes are mapped to the corresponding HTTP status codes on best effort basis. If the status code is not mapped,
+the server will return a 500 Internal Server Error.
+
+|===
+|gRPC Status Code | HTTP Status Code | Description
+|OK | 200 | The operation completed successfully.
+|CANCELLED | 408 | The operation was cancelled (typically by the caller).
+|UNKNOWN | 500 | Unknown error.
+|INVALID_ARGUMENT | 400 | Client specified an invalid argument.
+|DEADLINE_EXCEEDED | 504 | Deadline expired before operation could complete.
+|NOT_FOUND | 404 | Some requested entity (e.g., file or directory) was not found.
+|ALREADY_EXISTS | 409 | Some entity that we attempted to create (e.g., file or directory) already exists.
+|PERMISSION_DENIED | 403 | The caller does not have permission to execute the specified operation.
+|RESOURCE_EXHAUSTED | 429 | Some resource has been exhausted, perhaps a per-user quota, or perhaps the entire file system is out of space.
+|FAILED_PRECONDITION | 400 | Operation was rejected because the system is not in a state required for the operation's execution
+|ABORTED | 409 | The operation was aborted, typically due to a concurrency issue like sequencer check failures, transaction aborts, etc.
+|OUT_OF_RANGE | 400 | Operation was attempted past the valid range.
+|UNIMPLEMENTED | 501 | Operation is not implemented or not supported/enabled in this service.
+|INTERNAL | 500 | Internal errors. This means that some invariants expected by the underlying system have been broken.
+|UNAVAILABLE | 503 | The service is currently unavailable.
+|DATA_LOSS | 500 | Unrecoverable data loss or corruption.
+|UNAUTHENTICATED | 401 | The request does not have valid authentication credentials for the operation.
+|===
 
 === Flow control
 
@@ -212,24 +368,15 @@ a timeout to be sent and cascade the timeout to another gRPC server.
 
 gRPC implicitly assumes the usage of the https://protobuf.dev[Protobuf] wire format.
 
-The Vert.x gRPC server supports the JSON wire format as well.
-
-You can use a JSON service method to bind a service method accepting requests carrying the `application/grpc+json` content-type.
-
-[source,java]
-----
-{@link examples.GrpcServerExamples#jsonWireFormat01}
-----
+The Vert.x gRPC server supports the JSON wire format as well, that is gRPC requests carrying the `application/grpc+json` content type.
 
 The `com.google.protobuf:protobuf-java-util` library performs the JSON encoding/decoding.
-
-NOTE: the same service method can be bound twice with Protobuf and JSON wire formats.
 
 Anemic JSON is also supported with Vert.x `JsonObject`
 
 [source,java]
 ----
-{@link examples.GrpcServerExamples#jsonWireFormat02}
+{@link examples.GrpcServerExamples#anemicJson}
 ----
 
 === Compression
@@ -248,49 +395,6 @@ NOTE: Compression is not supported over the gRPC-Web protocol.
 Decompression is done transparently by the server when the client send encoded requests.
 
 NOTE: Decompression is not supported over the gRPC-Web protocol.
-
-=== Transcoding
-
-A service method is processed by a handler, the handler is bound using a `{@link io.vertx.grpc.transcoding.TranscodingServiceMethod}`.
-
-[source,java]
-----
-{@link examples.GrpcServerExamples#transcodingRequestResponse}
-----
-
-Transcoding service methods are generated by the Vert.x gRPC protoc plugin, when the service declares an `HttpRule`:
-
-[source,proto]
-----
-syntax = "proto3";
-
-import "google/api/annotations.proto";
-
-option java_multiple_files = true;
-option java_package = "examples";
-option java_outer_classname = "HelloWorldProto";
-
-package helloworld;
-
-// The greeting service definition.
-service Greeter {
-  // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {
-    option (google.api.http) = {
-      get: "/v1/hello/{name}"
-    };
-  }
-}
-----
-
-To test gRPC transcoding, you can use a tool like `curl` to send HTTP requests to your gRPC service.
-
-For example, to send a `GET` request to the `/v1/hello/Steve` endpoint:
-
-[source]
-----
-curl -X GET http://localhost:8080/v1/hello/Steve
-----
 
 === Message level API
 
@@ -320,73 +424,6 @@ handle the message encoding:
 
 - when the message uses the response encoding, the message is sent as is
 - when the message uses a different encoding, it will be encoded, e.g. compressed or uncompressed
-
-=== Server stub API
-
-In addition to the request/response API, the Vert.x gRPC protoc plugin idiomatic service stubs.
-
-Each service method comes in two flavors, you can override the method you like depending on the style.
-
-==== Unary methods
-
-Unary methods can return a Vert.x `Future`
-
-[source,java]
-----
-{@link examples.GrpcServerExamples#unaryStub1}
-----
-
-or process a Vert.x `Promise`
-
-[source,java]
-----
-{@link examples.GrpcServerExamples#unaryStub2}
-----
-
-In both case you need to bind the stub to an existing `GrpcServer`
-
-[source,java]
-----
-{@link examples.GrpcServerExamples#unaryStub3}
-----
-
-By default, only Protobuf methods are bound in a server.
-
-You can also specify the JSON wire format when binding a stub.
-
-[source,java]
-----
-{@link examples.GrpcServerExamples#unaryStub4}
-----
-
-The server will accept the `application/grpc+json` requests.
-
-==== Streaming requests
-
-Streaming requests are implemented with a `ReadStream`:
-
-[source,java]
-----
-{@link examples.GrpcServerExamples#streamingRequestStub}
-----
-
-==== Streaming responses
-
-Streaming responses are implemented with Vert.x streams and comes in two flavors.
-
-You can return a Vert.x `ReadStream` and let the service send it for you:
-
-[source,java]
-----
-{@link examples.GrpcServerExamples#streamingResponseStub1}
-----
-
-or you can process a `WriteStream`:
-
-[source,java]
-----
-{@link examples.GrpcServerExamples#streamingResponseStub2}
-----
 
 === gRPC Reflection APIs
 
