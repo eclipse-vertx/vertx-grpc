@@ -68,7 +68,7 @@ class GrpcServerReflectionV1Handler implements Handler<GrpcServerRequest<ServerR
 
   private ServerReflectionResponse getServiceList(ServerReflectionRequest request) {
     // Get name names directly from server metadata
-    List<String> serviceNames = server.getServices().stream()
+    List<String> serviceNames = server.services().stream()
       .map(metadata -> metadata.name().fullyQualifiedName())
       .collect(Collectors.toList());
 
@@ -89,7 +89,7 @@ class GrpcServerReflectionV1Handler implements Handler<GrpcServerRequest<ServerR
 
     // Find file descriptor by name on the fly
     Descriptors.FileDescriptor fd = null;
-    for (Service metadata : server.getServices()) {
+    for (Service metadata : server.services()) {
       if (metadata.descriptor() != null) {
         Descriptors.FileDescriptor serviceFile = metadata.descriptor().getFile();
         if (serviceFile.getName().equals(name)) {
@@ -134,7 +134,7 @@ class GrpcServerReflectionV1Handler implements Handler<GrpcServerRequest<ServerR
 
     // Find file descriptor containing the symbol on the fly
     Descriptors.FileDescriptor fd = null;
-    for (Service metadata : server.getServices()) {
+    for (Service metadata : server.services()) {
       if (metadata.descriptor() != null) {
         fd = findFileDescriptorBySymbol(metadata.descriptor().getFile(), symbol);
         if (fd != null) {
@@ -208,7 +208,7 @@ class GrpcServerReflectionV1Handler implements Handler<GrpcServerRequest<ServerR
 
     // Find file descriptor containing extension on the fly
     Descriptors.FileDescriptor fd = null;
-    for (Service metadata : server.getServices()) {
+    for (Service metadata : server.services()) {
       if (metadata.descriptor() != null) {
         fd = findFileDescriptorByExtension(metadata.descriptor().getFile(), type, extension);
         if (fd != null) {
@@ -276,7 +276,7 @@ class GrpcServerReflectionV1Handler implements Handler<GrpcServerRequest<ServerR
     Set<Integer> extensions = new HashSet<>();
 
     // Find all extensions on the fly
-    for (Service metadata : server.getServices()) {
+    for (Service metadata : server.services()) {
       if (metadata.descriptor() != null) {
         collectExtensionNumbers(metadata.descriptor().getFile(), type, extensions);
       }

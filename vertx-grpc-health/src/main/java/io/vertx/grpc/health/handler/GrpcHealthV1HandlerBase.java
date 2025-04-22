@@ -20,7 +20,7 @@ public abstract class GrpcHealthV1HandlerBase {
 
   protected Map<String, Supplier<Future<Boolean>>> healthChecks() {
     Map<String, Supplier<Future<Boolean>>> checks = new ConcurrentHashMap<>(healthChecks);
-    server.getServices().forEach(service -> {
+    server.services().forEach(service -> {
       if (!checks.containsKey(service.name().fullyQualifiedName())) {
         checks.put(service.name().fullyQualifiedName(), () -> Future.succeededFuture(true));
       }
@@ -38,7 +38,7 @@ public abstract class GrpcHealthV1HandlerBase {
     if (check != null) {
       return check.get().map(this::statusToProto);
     } else {
-      if (server.getServices().stream().anyMatch(service -> service.name().fullyQualifiedName().equals(name))) {
+      if (server.services().stream().anyMatch(service -> service.name().fullyQualifiedName().equals(name))) {
         return Future.succeededFuture(HealthCheckResponse.ServingStatus.SERVING);
       }
 
