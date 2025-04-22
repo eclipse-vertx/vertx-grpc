@@ -7,6 +7,7 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.health.HealthServiceOptions;
 import io.vertx.grpc.health.v1.HealthCheckRequest;
 import io.vertx.grpc.health.v1.HealthCheckResponse;
 import io.vertx.grpc.server.GrpcServer;
@@ -30,16 +31,22 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(HealthCheckRequest.newBuilder()));
 
-  private final Map<String, Map<GrpcServerResponse<HealthCheckRequest, HealthCheckResponse>, Boolean>> watchers = new ConcurrentHashMap<>();
   private final Vertx vertx;
+  private final HealthServiceOptions options;
+  private final Map<String, Map<GrpcServerResponse<HealthCheckRequest, HealthCheckResponse>, Boolean>> watchers = new ConcurrentHashMap<>();
 
   private long timerId = -1;
 
   public GrpcHealthWatchV1Handler(Vertx vertx, GrpcServer server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
+    this(vertx, server, healthChecks, new HealthServiceOptions());
+  }
+
+  public GrpcHealthWatchV1Handler(Vertx vertx, GrpcServer server, Map<String, Supplier<Future<Boolean>>> healthChecks, HealthServiceOptions options) {
     super(server, healthChecks);
 
     this.vertx = vertx;
-    this.timerId = vertx.setPeriodic(2500, id -> checkHealthStatusChanges());
+    this.options = options;
+    this.timerId = vertx.setPeriodic(options.getHealthCheckInterval(), id -> checkHealthStatusChanges());
   }
 
   private void checkHealthStatusChanges() {
