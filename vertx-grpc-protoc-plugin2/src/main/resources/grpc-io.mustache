@@ -15,15 +15,25 @@ import io.grpc.stub.StreamObserver;
 import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
+/**
+ * gRPC/IO client/service in a Vert.x idiomatic way.
+ */
 public final class {{className}} {
+
   private {{className}}() {}
 
-   public static {{serviceName}}Stub newStub(io.vertx.grpcio.client.GrpcIoClient client, io.vertx.core.net.SocketAddress socketAddress) {
-    return newStub(new io.vertx.grpcio.client.GrpcIoClientChannel(client, socketAddress));
+  /**
+   * Build a new stub.
+   */
+  public static {{serviceName}}Stub newStub(io.vertx.grpcio.client.GrpcIoClient client, io.vertx.core.net.SocketAddress socketAddress) {
+    return newStub(((GrpcIoClientImpl)client).vertx(), new io.vertx.grpcio.client.GrpcIoClientChannel(client, socketAddress));
   }
 
-  public static {{serviceName}}Stub newStub(io.grpc.Channel channel) {
-    return new {{serviceName}}Stub(channel);
+  /**
+   * Build a new stub.
+   */
+  public static {{serviceName}}Stub newStub(io.vertx.core.Vertx vertx, io.grpc.Channel channel) {
+    return new {{serviceName}}Stub(vertx, channel);
   }
 
   {{#javaDoc}}{{{javaDoc}}}{{/javaDoc}}
@@ -31,10 +41,10 @@ public final class {{className}} {
     private final io.vertx.core.internal.ContextInternal context;
     private {{serviceName}}Grpc.{{serviceName}}Stub delegateStub;
 
-    private {{serviceName}}Stub(io.grpc.Channel channel) {
+    private {{serviceName}}Stub(io.vertx.core.Vertx vertx, io.grpc.Channel channel) {
       super(channel);
       this.delegateStub = {{serviceName}}Grpc.newStub(channel);
-      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
+      this.context = (io.vertx.core.internal.ContextInternal)vertx.getOrCreateContext();
     }
 
     private {{serviceName}}Stub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
@@ -77,9 +87,20 @@ public final class {{className}} {
     {{/manyManyMethods}}
   }
 
-  public static io.vertx.grpc.server.Service of({{serviceName}}Service service) {
+  /**
+   * @return a service binding the given {@code service}.
+   */
+  public static io.grpc.BindableService bindableServiceOf({{serviceName}}Service service) {
+    return new io.grpc.BindableService() {
+      public io.grpc.ServerServiceDefinition bindService() {
+        return serverServiceDefinition(service);
+      }
+    };
+  }
+
+  private static io.grpc.ServerServiceDefinition serverServiceDefinition({{serviceName}}Service service) {
     String compression = null;
-    return io.vertx.grpcio.server.GrpcIoServiceBridge.bridge(io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
+    return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
       {{#methods}}
       .addMethod(
         {{javaPackageName}}.{{serviceName}}Grpc.{{methodNameGetter}}(),
@@ -89,8 +110,8 @@ public final class {{className}} {
                         {{outputType}}>(
                         service, METHODID_{{methodNameUpperUnderscore}}, compression)))
       {{/methods}}
-      .build());
-  }
+      .build();
+ }
 
   {{#methods}}
   private static final int METHODID_{{methodNameUpperUnderscore}} = {{methodNumber}};
