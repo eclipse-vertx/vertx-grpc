@@ -21,7 +21,7 @@ public class GrpcHealthListV1Handler extends GrpcHealthV1HandlerBase implements 
     ServiceName.create("grpc.health.v1.Health"),
     "List",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(HealthListRequest.parser()));
+    GrpcMessageDecoder.decoder(HealthListRequest.newBuilder()));
 
   public GrpcHealthListV1Handler(GrpcServer server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
     super(server, healthChecks);

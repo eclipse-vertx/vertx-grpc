@@ -28,7 +28,7 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
     ServiceName.create("grpc.health.v1.Health"),
     "Watch",
     GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(HealthCheckRequest.parser()));
+    GrpcMessageDecoder.decoder(HealthCheckRequest.newBuilder()));
 
   private final Map<String, Map<GrpcServerResponse<HealthCheckRequest, HealthCheckResponse>, Boolean>> watchers = new ConcurrentHashMap<>();
   private final Vertx vertx;
