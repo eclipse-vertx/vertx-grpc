@@ -46,7 +46,7 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
 
     this.vertx = vertx;
     this.options = options;
-    this.timerId = vertx.setPeriodic(options.getHealthCheckInterval(), id -> checkHealthStatusChanges());
+    this.timerId = vertx.setPeriodic(options.getHealthCheckInterval().toMillis(), id -> checkHealthStatusChanges());
   }
 
   private void checkHealthStatusChanges() {
