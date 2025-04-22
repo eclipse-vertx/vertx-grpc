@@ -122,7 +122,11 @@
               <artifactId>vertx-grpc-protoc-plugin2</artifactId>
               <version>${project.version}</version>
               <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
-              <args>grpc-client grpc-service grpc-io</args>
+              <args>
+                <arg>grpc-client</arg>
+                <arg>grpc-service</arg>
+                <arg>grpc-io</arg>
+              </args>
             </protocPlugin>
           </protocPlugins>
         </configuration>
