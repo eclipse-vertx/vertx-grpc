@@ -17,6 +17,9 @@ jobs:
             jdk: 11
           - os: ubuntu-latest
             jdk: 21
+          - os: windows-latest
+            jdk: 11
+            stable: true
     uses: ./.github/workflows/ci.yml
     with:
       branch: ${{ github.event.pull_request.head.sha || github.ref_name }}
