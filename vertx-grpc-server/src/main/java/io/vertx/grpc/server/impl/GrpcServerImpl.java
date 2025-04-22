@@ -280,7 +280,7 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   @Override
-  public List<Service> getServices() {
+  public List<Service> services() {
     return Collections.unmodifiableList(services);
   }
 
