@@ -1,5 +1,6 @@
 package io.vertx.grpcio.server;
 
+import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
 import io.vertx.codegen.annotations.GenIgnore;
@@ -7,10 +8,7 @@ import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerOptions;
-import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.*;
 import io.vertx.grpcio.server.impl.GrpcIoServerImpl;
 
 /**
@@ -59,4 +57,11 @@ public interface GrpcIoServer extends GrpcServer {
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> GrpcIoServer callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler);
 
+  /**
+   * Like {@link #addService(Service)} with a gRPC/IO {@link BindableService}.
+   */
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
+  default GrpcIoServer addService(BindableService bindableService) {
+    return (GrpcIoServer) addService(GrpcIoServiceBridge.bridge(bindableService));
+  }
 }

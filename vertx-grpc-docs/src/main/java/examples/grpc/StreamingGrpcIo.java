@@ -13,15 +13,25 @@ import io.grpc.stub.StreamObserver;
 import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
+/**
+ * gRPC/IO client/service in a Vert.x idiomatic way.
+ */
 public final class StreamingGrpcIo {
+
   private StreamingGrpcIo() {}
 
-   public static StreamingStub newStub(io.vertx.grpcio.client.GrpcIoClient client, io.vertx.core.net.SocketAddress socketAddress) {
-    return newStub(new io.vertx.grpcio.client.GrpcIoClientChannel(client, socketAddress));
+  /**
+   * Build a new stub.
+   */
+  public static StreamingStub newStub(io.vertx.grpcio.client.GrpcIoClient client, io.vertx.core.net.SocketAddress socketAddress) {
+    return newStub(((GrpcIoClientImpl)client).vertx(), new io.vertx.grpcio.client.GrpcIoClientChannel(client, socketAddress));
   }
 
-  public static StreamingStub newStub(io.grpc.Channel channel) {
-    return new StreamingStub(channel);
+  /**
+   * Build a new stub.
+   */
+  public static StreamingStub newStub(io.vertx.core.Vertx vertx, io.grpc.Channel channel) {
+    return new StreamingStub(vertx, channel);
   }
 
   
@@ -29,15 +39,15 @@ public final class StreamingGrpcIo {
     private final io.vertx.core.internal.ContextInternal context;
     private StreamingGrpc.StreamingStub delegateStub;
 
-    private StreamingStub(io.grpc.Channel channel) {
+    private StreamingStub(io.vertx.core.Vertx vertx, io.grpc.Channel channel) {
       super(channel);
-      delegateStub = StreamingGrpc.newStub(channel);
-      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
+      this.delegateStub = StreamingGrpc.newStub(channel);
+      this.context = (io.vertx.core.internal.ContextInternal)vertx.getOrCreateContext();
     }
 
     private StreamingStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
-      delegateStub = StreamingGrpc.newStub(channel).build(channel, callOptions);
+      this.delegateStub = StreamingGrpc.newStub(channel).build(channel, callOptions);
       this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
     }
 
@@ -62,9 +72,20 @@ public final class StreamingGrpcIo {
     }
   }
 
-  public static io.vertx.grpc.server.Service of(StreamingService service) {
+  /**
+   * @return a service binding the given {@code service}.
+   */
+  public static io.grpc.BindableService bindableServiceOf(StreamingService service) {
+    return new io.grpc.BindableService() {
+      public io.grpc.ServerServiceDefinition bindService() {
+        return serverServiceDefinition(service);
+      }
+    };
+  }
+
+  private static io.grpc.ServerServiceDefinition serverServiceDefinition(StreamingService service) {
     String compression = null;
-    return io.vertx.grpcio.server.GrpcIoServiceBridge.bridge(io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
+    return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
       .addMethod(
         examples.grpc.StreamingGrpc.getSourceMethod(),
         asyncServerStreamingCall(
@@ -86,8 +107,8 @@ public final class StreamingGrpcIo {
                         examples.grpc.Item,
                         examples.grpc.Item>(
                         service, METHODID_PIPE, compression)))
-      .build());
-  }
+      .build();
+ }
 
   private static final int METHODID_SOURCE = 0;
   private static final int METHODID_SINK = 1;

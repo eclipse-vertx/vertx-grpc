@@ -13,31 +13,41 @@ import io.grpc.stub.StreamObserver;
 import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
+/**
+ * gRPC/IO client/service in a Vert.x idiomatic way.
+ */
 public final class GreeterGrpcIo {
+
   private GreeterGrpcIo() {}
 
-   public static GreeterStub newStub(io.vertx.grpcio.client.GrpcIoClient client, io.vertx.core.net.SocketAddress socketAddress) {
-    return newStub(new io.vertx.grpcio.client.GrpcIoClientChannel(client, socketAddress));
+  /**
+   * Build a new stub.
+   */
+  public static GreeterStub newStub(io.vertx.grpcio.client.GrpcIoClient client, io.vertx.core.net.SocketAddress socketAddress) {
+    return newStub(((GrpcIoClientImpl)client).vertx(), new io.vertx.grpcio.client.GrpcIoClientChannel(client, socketAddress));
   }
 
-  public static GreeterStub newStub(io.grpc.Channel channel) {
-    return new GreeterStub(channel);
+  /**
+   * Build a new stub.
+   */
+  public static GreeterStub newStub(io.vertx.core.Vertx vertx, io.grpc.Channel channel) {
+    return new GreeterStub(vertx, channel);
   }
 
-
+  
   public static final class GreeterStub extends io.grpc.stub.AbstractStub<GreeterStub> implements GreeterClient {
     private final io.vertx.core.internal.ContextInternal context;
     private GreeterGrpc.GreeterStub delegateStub;
 
-    private GreeterStub(io.grpc.Channel channel) {
+    private GreeterStub(io.vertx.core.Vertx vertx, io.grpc.Channel channel) {
       super(channel);
       this.delegateStub = GreeterGrpc.newStub(channel);
-      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
+      this.context = (io.vertx.core.internal.ContextInternal)vertx.getOrCreateContext();
     }
 
     private GreeterStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
-      delegateStub = GreeterGrpc.newStub(channel).build(channel, callOptions);
+      this.delegateStub = GreeterGrpc.newStub(channel).build(channel, callOptions);
       this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
     }
 
@@ -46,16 +56,27 @@ public final class GreeterGrpcIo {
       return new GreeterStub(channel, callOptions);
     }
 
-
+    
     public io.vertx.core.Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
       return io.vertx.grpcio.common.impl.stub.ClientCalls.oneToOne(context, request, delegateStub::sayHello);
     }
 
   }
 
-  public static io.vertx.grpc.server.Service of(GreeterService service) {
+  /**
+   * @return a service binding the given {@code service}.
+   */
+  public static io.grpc.BindableService bindableServiceOf(GreeterService service) {
+    return new io.grpc.BindableService() {
+      public io.grpc.ServerServiceDefinition bindService() {
+        return serverServiceDefinition(service);
+      }
+    };
+  }
+
+  private static io.grpc.ServerServiceDefinition serverServiceDefinition(GreeterService service) {
     String compression = null;
-    return io.vertx.grpcio.server.GrpcIoServiceBridge.bridge(io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
+    return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
       .addMethod(
         examples.grpc.GreeterGrpc.getSayHelloMethod(),
         asyncUnaryCall(
@@ -63,8 +84,8 @@ public final class GreeterGrpcIo {
                         examples.grpc.HelloRequest,
                         examples.grpc.HelloReply>(
                         service, METHODID_SAY_HELLO, compression)))
-      .build());
-  }
+      .build();
+ }
 
   private static final int METHODID_SAY_HELLO = 0;
 

@@ -24,11 +24,23 @@ public class GrpcClientExamples {
     GrpcClient client = GrpcClient.client(vertx);
   }
 
+  public void createServiceMethod() {
+    ServiceName serviceName = ServiceName.create("examples.grpc", "Greeter");
+    ServiceMethod<HelloReply, HelloRequest> sayHello = ServiceMethod.client(
+      serviceName,
+      "SayHello",
+      GrpcMessageEncoder.encoder(),
+      GrpcMessageDecoder.decoder(HelloReply.newBuilder()));
+  }
+
+  public void reuseServiceMethod() {
+    ServiceMethod<HelloReply, HelloRequest> sayHello = GreeterGrpcClient.SayHello;
+  }
+
   public void sendRequest(GrpcClient client) {
 
     SocketAddress server = SocketAddress.inetSocketAddress(443, "example.com");
-    ServiceMethod<HelloReply, HelloRequest> sayHelloMethod = GreeterGrpcClient.SayHello;
-    Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, sayHelloMethod);
+    Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, GreeterGrpcClient.SayHello);
     fut.onSuccess(request -> {
       // The end method calls the service
       request.end(HelloRequest.newBuilder().setName("Bob").build());
@@ -283,32 +295,36 @@ public class GrpcClientExamples {
     });
   }
 
-  public void createClientStub(GrpcClient grpcClient, String host, int port) {
-    GreeterGrpcClient client = GreeterGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, host));
+  public void createIdiomaticClient(GrpcClient client, String host, int port) {
+    GreeterGrpcClient greeterClient = GreeterGrpcClient.create(client, SocketAddress.inetSocketAddress(port, host));
   }
 
-  public void createClientStubJson(GrpcClient grpcClient, int port, String host) {
-    GreeterGrpcClient client = GreeterGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(port, host), WireFormat.JSON);
+  public void createClientIdiomaticJson(GrpcClient client, int port, String host) {
+    GreeterGrpcClient greeterClient = GreeterGrpcClient.create(client, SocketAddress.inetSocketAddress(port, host), WireFormat.JSON);
   }
 
-  public void unaryStub(GreeterGrpcClient client) {
-    Future<HelloReply> response = client.sayHello(HelloRequest.newBuilder().setName("John").build());
+  public void unaryIdiomaticClient(GreeterGrpcClient greeterClient) {
+    Future<HelloReply> response = greeterClient.sayHello(HelloRequest.newBuilder().setName("John").build());
 
     response.onSuccess(result -> System.out.println("Service responded: " + response.result().getMessage()));
 
     response.onFailure(err -> System.out.println("Service failure: " + response.cause().getMessage()));
   }
 
-  public void streamingRequestStub(StreamingGrpcClient client) {
-    Future<Empty> response = client.sink((stream, err) -> {
+  public void streamingRequestIdiomaticClient1(StreamingGrpcClient streamingClient) {
+    Future<Empty> response = streamingClient.sink((stream, err) -> {
       stream.write(Item.newBuilder().setValue("Value 1").build());
       stream.write(Item.newBuilder().setValue("Value 2").build());
       stream.end(Item.newBuilder().setValue("Value 3").build());
     });
   }
 
-  public void streamingResponseStub(StreamingGrpcClient client) {
-    Future<ReadStream<Item>> response = client.source(Empty.getDefaultInstance());
+  public void streamingRequestIdiomaticClient2(StreamingGrpcClient streamingClient, ReadStream<Item> stream) {
+    Future<Empty> response = streamingClient.sink(stream);
+  }
+
+  public void streamingResponseIdiomaticClient(StreamingGrpcClient streamingClient) {
+    Future<ReadStream<Item>> response = streamingClient.source(Empty.getDefaultInstance());
 
     response.onSuccess(stream -> stream
       .handler(item -> System.out.println("Item " + item.getValue()))
