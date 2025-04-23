@@ -112,6 +112,71 @@ Streaming responses get a Vert.x `ReadStream` of messages sent by the service
 {@link examples.GrpcClientExamples#streamingResponseIdiomaticClient}
 ----
 
+=== RxJava client wrapper generation
+
+As seen above, the plugin generates a client service interface annotated with Vert.x codegen annotations.
+
+[source,java]
+----
+@io.vertx.codegen.annotations.VertxGen
+public interface GreeterClient {
+  ...
+}
+----
+
+Therefore, a Vert.x codegen processor can process it, as such a Vert.x RxJava generator will generate an RxJava client wrapper
+with idiomatic RxJava API.
+
+Here is a Maven configuration example:
+
+[source,xml]
+----
+<plugin>
+  <artifactId>maven-compiler-plugin</artifactId>
+  <executions>
+    <execution>
+      <id>default-compile</id>
+      <configuration>
+        <annotationProcessorPaths>
+          <annotationProcessorPath>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-codegen</artifactId>
+            <classifier>processor</classifier>
+            <version>${vertx.version}</version>
+          </annotationProcessorPath>
+          <annotationProcessorPath>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-rx-java3-gen</artifactId>
+            <version>${vertx.version}</version>
+          </annotationProcessorPath>
+        </annotationProcessorPaths>
+      </configuration>
+    </execution>
+  </executions>
+</plugin>
+----
+
+The generated can be then used
+
+[source,java]
+----
+// Use the RxJava version
+GreeterClient client = io.grpc.examples.rxjava3.helloworld.GreeterClient.create(grpcClient, SocketAddress.inetSocketAddress(8080, "localhost"));
+
+// Get a Single instead of a Future
+Single<HelloReply> reply = client.sayHello(HelloRequest.newBuilder().setName("World").build());
+
+Flowable<HelloRequest> requestStream = Flowable.just("World", "Monde", "Mundo")
+      .map(name -> HelloRequest.newBuilder().setName(name).build());
+
+// Use Flowable instead of Vert.x streams
+Flowable<String> responseStream = client
+  .sayHelloStreaming(stream)
+  .map(HelloReply::getMessage);
+----
+
+NOTE: this requires RxJava version of GrpcClient
+
 === Client request/response API
 
 The gRPC request/response client API provides an alternative way to interact with a server without the need of a generated stub.
