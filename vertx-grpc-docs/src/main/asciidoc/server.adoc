@@ -346,21 +346,46 @@ handle the message encoding:
 - when the message uses the response encoding, the message is sent as is
 - when the message uses a different encoding, it will be encoded, e.g. compressed or uncompressed
 
-=== gRPC Reflection APIs
+=== gRPC Reflection service
 
-Support for the https://grpc.io/docs/guides/reflection/[gRPC reflection APIs] can be added to your Vert.x gRPC Server.
+Support for the https://grpc.io/docs/guides/reflection/[gRPC reflection service] can be added to your Vert.x gRPC Server.
+
+To use the Reflection service, add the following dependency:
+
+* Maven (in your `pom.xml`):
+
+[source,xml,subs="+attributes"]
+----
+<dependency>
+  <groupId>io.vertx</groupId>
+  <artifactId>vertx-grpc-reflection</artifactId>
+  <version>${maven.version}</version>
+</dependency>
+----
+
+* Gradle (in your `build.gradle` file):
+
+[source,groovy,subs="+attributes"]
+----
+dependencies {
+  compile 'io.vertx:vertx-grpc-reflection:${maven.version}'
+}
+----
+
+You can then deploy the reflection service in your server:
 
 [source,java]
 ----
 {@link examples.GrpcServerExamples#reflectionExample}
 ----
 
-=== gRPC Health Service
+=== gRPC Health service
 
-The gRPC Health Service implements the standard https://github.com/grpc/grpc/blob/master/doc/health-checking.md[gRPC health checking protocol], which allows clients to check the health status of your services.
+The gRPC Health service implements the standard https://github.com/grpc/grpc/blob/master/doc/health-checking.md[gRPC health checking protocol], which allows clients to check the health status of your services.
+
 By default `HealthService` returns all registered services with status `SERVING`, if you want to override this, you need to register health check, for the specified service.
 
-The Health Service provides a simple way to expose health status of your services via gRPC.
+The Health service provides a simple way to expose health status of your services via gRPC.
 It implements two RPCs:
 
 * `Check`: For checking the health status of a service
@@ -389,7 +414,7 @@ dependencies {
 }
 ----
 
-Here's how to create and bind a Health Service to your gRPC server:
+Here's how to create and bind a Health service to your gRPC server:
 
 [source,java]
 ----
