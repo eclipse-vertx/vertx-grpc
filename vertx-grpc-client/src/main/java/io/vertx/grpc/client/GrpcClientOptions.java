@@ -41,10 +41,16 @@ public class GrpcClientOptions {
    */
   public static final long DEFAULT_MAX_MESSAGE_SIZE = 256 * 1024;
 
+  /**
+   * The default compression encoding = {@code "identity"} (no compression).
+   */
+  public static final String DEFAULT_COMPRESSION_ENCODING = "identity";
+
   private boolean scheduleDeadlineAutomatically;
   private int timeout;
   private TimeUnit timeoutUnit;
   private long maxMessageSize;
+  private String compressionEncoding;
 
   /**
    * Default constructor.
@@ -54,6 +60,7 @@ public class GrpcClientOptions {
     timeout = DEFAULT_TIMEOUT;
     timeoutUnit = DEFAULT_TIMEOUT_UNIT;
     this.maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
+    this.compressionEncoding = DEFAULT_COMPRESSION_ENCODING;
   }
 
   /**
@@ -66,6 +73,7 @@ public class GrpcClientOptions {
     timeout = other.timeout;
     timeoutUnit = other.timeoutUnit;
     maxMessageSize = other.maxMessageSize;
+    compressionEncoding = other.compressionEncoding;
   }
 
   /**
@@ -156,6 +164,25 @@ public class GrpcClientOptions {
       throw new IllegalArgumentException("Max message size must be <= 0xFFFFFFFF");
     }
     this.maxMessageSize = maxMessageSize;
+    return this;
+  }
+
+  /**
+   * @return the compression encoding used by the client
+   */
+  public String getCompressionEncoding() {
+    return compressionEncoding;
+  }
+
+  /**
+   * Set the compression encoding to be used by the client.
+   * Supported values include "identity" (no compression), "gzip", and "snappy".
+   *
+   * @param compressionEncoding the compression encoding
+   * @return a reference to this, so the API can be used fluently
+   */
+  public GrpcClientOptions setCompressionEncoding(String compressionEncoding) {
+    this.compressionEncoding = Objects.requireNonNull(compressionEncoding, "Compression encoding cannot be null");
     return this;
   }
 }
