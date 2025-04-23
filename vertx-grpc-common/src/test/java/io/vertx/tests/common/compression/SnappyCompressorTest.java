@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.tests.grpc.common;
+package io.vertx.tests.common.compression;
 
 public class SnappyCompressorTest extends CompressorTestBase {
 
