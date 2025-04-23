@@ -30,6 +30,8 @@ include::server.adoc[]
 
 include::client.adoc[]
 
+include::transcoding.adoc[]
+
 include::ioserver.adoc[]
 
 include::ioclient.adoc[]

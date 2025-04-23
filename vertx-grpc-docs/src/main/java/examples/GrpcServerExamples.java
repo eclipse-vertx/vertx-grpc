@@ -171,15 +171,6 @@ public class GrpcServerExamples {
     response.write(Item.newBuilder().setValue("item-3").build());
   }
 
-  public void transcodingRequestResponse(GrpcServer server) {
-    server.addService(GreeterGrpcService.Transcoding.of(new GreeterGrpcService() {
-      @Override
-      public Future<HelloReply> sayHello(HelloRequest request) {
-        return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
-      }
-    }));
-  }
-
   public void protobufLevelAPI(GrpcServer server) {
 
     ServiceName greeterServiceName = ServiceName.create("helloworld", "Greeter");
