@@ -43,6 +43,7 @@ public class GrpcClientImpl implements GrpcClient {
   private final long maxMessageSize;
   private final int timeout;
   private final TimeUnit timeoutUnit;
+  private final String compressionEncoding;
 
   public GrpcClientImpl(Vertx vertx, HttpClient client) {
     this(vertx, new GrpcClientOptions(), client, false);
@@ -52,9 +53,10 @@ public class GrpcClientImpl implements GrpcClient {
     this.vertx = vertx;
     this.client = client;
     this.scheduleDeadlineAutomatically = grpcOptions.getScheduleDeadlineAutomatically();
-    this.maxMessageSize = grpcOptions.getMaxMessageSize();;
+    this.maxMessageSize = grpcOptions.getMaxMessageSize();
     this.timeout = grpcOptions.getTimeout();
     this.timeoutUnit = grpcOptions.getTimeoutUnit();
+    this.compressionEncoding = grpcOptions.getCompressionEncoding();
     this.closeClient = close;
   }
 
@@ -72,6 +74,7 @@ public class GrpcClientImpl implements GrpcClient {
           GrpcMessageEncoder.IDENTITY,
           GrpcMessageDecoder.IDENTITY);
         grpcRequest.init();
+        grpcRequest.encoding(compressionEncoding);
         configureTimeout(grpcRequest);
         return grpcRequest;
       });
@@ -125,6 +128,7 @@ public class GrpcClientImpl implements GrpcClient {
           method.encoder(),
           method.decoder());
         call.init();
+        call.encoding(compressionEncoding);
         call.serviceName(method.serviceName());
         call.methodName(method.methodName());
         configureTimeout(call);

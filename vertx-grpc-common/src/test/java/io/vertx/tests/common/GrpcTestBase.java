@@ -11,7 +11,6 @@
 package io.vertx.tests.common;
 
 import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -24,6 +23,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+
+import io.vertx.grpc.common.GrpcCompressor;
+import io.vertx.grpc.common.GrpcCompressorRegistry;
+import io.vertx.grpc.common.GrpcDecompressor;
+import io.vertx.grpc.common.GrpcDecompressorRegistry;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -71,5 +75,15 @@ public abstract class GrpcTestBase {
       e.printStackTrace();
     }
     return Buffer.buffer(ret.toByteArray());
+  }
+
+  public static Buffer snappyCompress(Buffer buffer) {
+    GrpcCompressor compressor = GrpcCompressorRegistry.getDefaultInstance().lookupCompressor("snappy");
+    return compressor.compress(buffer);
+  }
+
+  public static Buffer snappyDecompress(Buffer buffer) {
+    GrpcDecompressor decompressor = GrpcDecompressorRegistry.getDefaultInstance().lookupDecompressor("snappy");
+    return decompressor.decompress(buffer);
   }
 }
