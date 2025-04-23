@@ -476,3 +476,5 @@ Here's how to create and bind a Health Service to your gRPC server:
 ----
 
 Clients can then check the health of your services using the standard gRPC health checking protocol.
+
+NOTE: health check service is in tech preview in Vert.x 5.0 until the API becomes stable.
