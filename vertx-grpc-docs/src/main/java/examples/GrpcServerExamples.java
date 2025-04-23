@@ -341,4 +341,52 @@ public class GrpcServerExamples {
       .requestHandler(grpcServer)
       .listen();
   }
+
+  public void customDecompressor() {
+    // Create a custom decompressor
+    GrpcDecompressor myDecompressor = new GrpcDecompressor() {
+      @Override
+      public String encoding() {
+        return "my-custom-encoding";
+      }
+
+      @Override
+      public Buffer decompress(Buffer data) throws CodecException {
+        // Implement your custom decompression logic here
+        // This is just a placeholder example
+        return Buffer.buffer(data.getBytes());
+      }
+    };
+
+    // Register the custom decompressor with the default registry
+    GrpcDecompressorRegistry.getDefaultInstance().register(myDecompressor);
+
+    // You can also create a custom registry if needed
+    GrpcDecompressorRegistry customRegistry = new GrpcDecompressorRegistry();
+    customRegistry.register(myDecompressor);
+  }
+
+  public void customCompressor() {
+    // Create a custom compressor
+    GrpcCompressor myCompressor = new GrpcCompressor() {
+      @Override
+      public String encoding() {
+        return "my-custom-encoding";
+      }
+
+      @Override
+      public Buffer compress(Buffer data) throws CodecException {
+        // Implement your custom compression logic here
+        // This is just a placeholder example
+        return Buffer.buffer(data.getBytes());
+      }
+    };
+
+    // Register the custom compressor with the default registry
+    GrpcCompressorRegistry.getDefaultInstance().register(myCompressor);
+
+    // You can also create a custom registry if needed
+    GrpcCompressorRegistry customRegistry = new GrpcCompressorRegistry();
+    customRegistry.register(myCompressor);
+  }
 }
