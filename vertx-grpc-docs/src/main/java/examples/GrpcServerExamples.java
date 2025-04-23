@@ -326,8 +326,8 @@ public class GrpcServerExamples {
     // Register health checks for your services
     healthService.register("my.service.name", () -> Future.succeededFuture(true));
 
-    // Add the health service to the gRPC server
-    grpcServer.addService(healthService);
+    // Bind the health service to the server
+    healthService.bind(grpcServer);
 
     // Start the server
     vertx.createHttpServer(options)
