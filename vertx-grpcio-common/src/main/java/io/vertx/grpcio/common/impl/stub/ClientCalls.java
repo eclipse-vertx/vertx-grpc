@@ -58,27 +58,44 @@ public final class ClientCalls {
     return oneToMany(ctx, request, delegate, null, null, null);
   }
 
+  public static <I, O> void oneToMany(ContextInternal ctx, I request, Completable<ReadStream<O>> completable, BiConsumer<I, StreamObserver<O>> delegate) {
+    oneToMany(ctx, request, completable, delegate, null, null, null);
+  }
+
   public static <I, O> Future<ReadStream<O>> oneToMany(ContextInternal ctx, I request, BiConsumer<I, StreamObserver<O>> delegate, Handler<O> handler, Handler<Void> endHandler, Handler<Throwable> exceptionHandler) {
     Promise<ReadStream<O>> promise = Promise.promise();
+    oneToMany(ctx, request, promise, delegate, handler, endHandler, exceptionHandler);
+    return promise.future();
+  }
+
+  public static <I, O> void oneToMany(ContextInternal ctx, I request, Completable<ReadStream<O>> completable, BiConsumer<I, StreamObserver<O>> delegate, Handler<O> handler, Handler<Void> endHandler, Handler<Throwable> exceptionHandler) {
     delegate.accept(request, new ClientResponseObserver<I, O>() {
+      StreamObserverReadStream<O> response;
       @Override
       public void beforeStart(ClientCallStreamObserver<I> requestStream) {
-        StreamObserverReadStream<O> response = new StreamObserverReadStream<>(ctx, requestStream);
+        response = new StreamObserverReadStream<>(ctx, requestStream);
         response.init();
         response.handler(handler).endHandler(endHandler).exceptionHandler(exceptionHandler);
-        promise.succeed(response);
+        completable.complete(response, null);
       }
       @Override
       public void onNext(O value) {
+        response.onNext(value);
       }
       @Override
       public void onError(Throwable t) {
+        StreamObserverReadStream<O> resp = response;
+        if (resp != null) {
+          resp.onError(t);
+        } else {
+          completable.fail(t);
+        }
       }
       @Override
       public void onCompleted() {
+        response.onCompleted();
       }
     });
-    return promise.future();
   }
 
   public static <I, O> Future<O> manyToOne(ContextInternal ctx, Completable<WriteStream<I>> requestHandler, Function<StreamObserver<O>, StreamObserver<I>> delegate) {

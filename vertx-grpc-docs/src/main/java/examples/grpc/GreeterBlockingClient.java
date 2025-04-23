@@ -5,6 +5,7 @@ import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -12,22 +13,27 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import java.util.stream.Stream;
 
 /**
  * <p>A client for invoking the Greeter gRPC service.</p>
  */
-@io.vertx.codegen.annotations.VertxGen
-public interface GreeterClient extends Greeter {
+public interface GreeterBlockingClient {
 
-  /**
-   * Calls the SayHello RPC service method.
-   *
-   * @param request the examples.grpc.HelloRequest request message
-   * @return a future of the examples.grpc.HelloReply response message
-   */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
-  Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request);
+  static GreeterBlockingClient create(GreeterClient client) {
+    return new GreeterBlockingClientImpl(client);
+  }
+
 }
 
-interface GreeterClientInternal extends GreeterClient {
+/**
+ * The proxy implementation.
+ */
+class GreeterBlockingClientImpl implements GreeterBlockingClient {
+
+  private final GreeterClientInternal client;
+
+  GreeterBlockingClientImpl(Greeter client) {
+    this.client = (GreeterClientInternal)java.util.Objects.requireNonNull(client);
+  }
 }

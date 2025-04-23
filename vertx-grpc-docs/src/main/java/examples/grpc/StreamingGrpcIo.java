@@ -35,7 +35,7 @@ public final class StreamingGrpcIo {
   }
 
   
-  public static final class StreamingStub extends io.grpc.stub.AbstractStub<StreamingStub> implements StreamingClient {
+  public static final class StreamingStub extends io.grpc.stub.AbstractStub<StreamingStub> implements StreamingClientInternal {
     private final io.vertx.core.internal.ContextInternal context;
     private StreamingGrpc.StreamingStub delegateStub;
 
@@ -61,6 +61,9 @@ public final class StreamingGrpcIo {
       return io.vertx.grpcio.common.impl.stub.ClientCalls.oneToMany(context, request, delegateStub::source);
     }
 
+    public void source(examples.grpc.Empty request, io.vertx.core.Completable<io.vertx.core.streams.ReadStream<examples.grpc.Item>> completable) {
+      io.vertx.grpcio.common.impl.stub.ClientCalls.oneToMany(context, request, completable, delegateStub::source);
+    }
     
     public io.vertx.core.Future<examples.grpc.Empty> sink(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<examples.grpc.Item>> handler) {
       return io.vertx.grpcio.common.impl.stub.ClientCalls.manyToOne(context, handler, delegateStub::sink);

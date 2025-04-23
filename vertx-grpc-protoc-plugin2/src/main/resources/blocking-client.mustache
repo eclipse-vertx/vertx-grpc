@@ -1,0 +1,80 @@
+{{#javaPackageName}}
+package {{javaPackageName}};
+{{/javaPackageName}}
+
+import io.vertx.core.Future;
+import io.vertx.core.Completable;
+import io.vertx.core.Handler;
+import io.vertx.core.Promise;
+import io.vertx.core.net.SocketAddress;
+import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.core.streams.ReadStream;
+import io.vertx.core.streams.WriteStream;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import java.util.stream.Stream;
+
+/**
+ * <p>A client for invoking the {{serviceName}} gRPC service.</p>
+ */
+public interface {{className}} {
+
+  static {{className}} create({{serviceName}}Client client) {
+    return new {{className}}Impl(client);
+  }
+
+{{#unaryUnaryMethods}}
+  {{outputType}} {{vertxMethodName}}({{inputType}} request);
+{{/unaryUnaryMethods}}
+{{#unaryManyMethods}}
+  Stream<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
+{{/unaryManyMethods}}
+{{#manyUnaryMethods}}
+  default {{outputType}} {{vertxMethodName}}(java.util.List<{{inputType}}> streamOfMessages) {
+    return {{vertxMethodName}}(streamOfMessages.iterator());
+  }
+  {{outputType}} {{vertxMethodName}}(java.util.Iterator<{{inputType}}> streamOfMessages);
+{{/manyUnaryMethods}}
+}
+
+/**
+ * The proxy implementation.
+ */
+class {{className}}Impl implements {{className}} {
+
+  private final {{serviceName}}ClientInternal client;
+
+  {{className}}Impl({{serviceName}} client) {
+    this.client = ({{serviceName}}ClientInternal)java.util.Objects.requireNonNull(client);
+  }
+{{#unaryUnaryMethods}}
+
+  public {{outputType}} {{vertxMethodName}}({{inputType}} request) {
+    return client.{{vertxMethodName}}(request).await();
+  }
+{{/unaryUnaryMethods}}
+{{#unaryManyMethods}}
+
+  public Stream<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
+    Promise<Stream<{{outputType}}>> promise = Promise.promise();
+    client.{{vertxMethodName}}(request, (resp, err) -> {
+      if (err == null) {
+        promise.complete(resp.blockingStream());
+      } else {
+        // Todo
+      }
+    });
+    return promise.future().await();
+  }
+{{/unaryManyMethods}}
+{{#manyUnaryMethods}}
+
+  public {{outputType}} {{vertxMethodName}}(java.util.Iterator<{{inputType}}> request) {
+    throw new UnsupportedOperationException();
+  }
+{{/manyUnaryMethods}}
+}

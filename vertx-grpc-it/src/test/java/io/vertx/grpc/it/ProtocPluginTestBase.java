@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 
@@ -717,5 +718,42 @@ public abstract class ProtocPluginTestBase extends ProxyTestBase {
     }));
 
     async.awaitSuccess(20_000);
+  }
+
+  @Test
+  public void testUnaryMany_ReadStreamReturn_Blocking() throws Exception {
+    // Create gRPC Server
+    GrpcServer grpcServer = grpcServer();
+    grpcServer.addService(testService(new TestServiceService() {
+      @Override
+      protected void streamingOutputCall(Messages.StreamingOutputCallRequest request, WriteStream<Messages.StreamingOutputCallResponse> response) {
+        System.out.println("write messages");
+        response.write(Messages.StreamingOutputCallResponse.newBuilder()
+          .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-1", StandardCharsets.UTF_8)).build())
+          .build());
+        response.write(Messages.StreamingOutputCallResponse.newBuilder()
+          .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputResponse-2", StandardCharsets.UTF_8)).build())
+          .build());
+        response.end();
+      }
+    }));
+
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer)
+      .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = grpcClient();
+    TestServiceClient client = testClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    TestServiceBlockingClient blockingClient = TestServiceBlockingClient.create(client);
+
+    Messages.StreamingOutputCallRequest request = Messages.StreamingOutputCallRequest.newBuilder()
+      .setPayload(Messages.Payload.newBuilder().setBody(ByteString.copyFrom("StreamingOutputRequest", StandardCharsets.UTF_8)).build())
+      .build();
+    Stream<Messages.StreamingOutputCallResponse> res = blockingClient.streamingOutputCall(request);
+    Thread.sleep(100);
+    List<Messages.StreamingOutputCallResponse> list = new ArrayList<>();
+    res.forEach(msg -> list.add(msg));
+    assertEquals(2, list.size());
   }
 }

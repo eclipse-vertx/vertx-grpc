@@ -76,7 +76,7 @@ public interface StreamingGrpcClient extends StreamingClient {
 /**
  * The proxy implementation.
  */
-class StreamingGrpcClientImpl implements StreamingGrpcClient {
+class StreamingGrpcClientImpl implements StreamingGrpcClient, StreamingClientInternal {
 
   private final GrpcClient client;
   private final SocketAddress socketAddress;
@@ -92,6 +92,10 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
 
+  public GrpcClient grpcClient() {
+    return client;
+  }
+
   public Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request) {
     return client.request(socketAddress, Source).compose(req -> {
       req.format(wireFormat);
@@ -104,6 +108,10 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
         }
       });
     });
+  }
+
+  public void source(examples.grpc.Empty request, Completable<ReadStream<examples.grpc.Item>> completable) {
+    throw new UnsupportedOperationException();
   }
 
   public Future<examples.grpc.Empty> sink(Completable<WriteStream<examples.grpc.Item>> completable) {

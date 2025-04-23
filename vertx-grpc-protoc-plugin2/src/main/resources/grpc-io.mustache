@@ -37,7 +37,7 @@ public final class {{className}} {
   }
 
   {{#javaDoc}}{{{javaDoc}}}{{/javaDoc}}
-  public static final class {{serviceName}}Stub extends io.grpc.stub.AbstractStub<{{serviceName}}Stub> implements {{serviceName}}Client {
+  public static final class {{serviceName}}Stub extends io.grpc.stub.AbstractStub<{{serviceName}}Stub> implements {{serviceName}}ClientInternal {
     private final io.vertx.core.internal.ContextInternal context;
     private {{serviceName}}Grpc.{{serviceName}}Stub delegateStub;
 
@@ -71,6 +71,9 @@ public final class {{className}} {
       return io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(context, request, delegateStub::{{vertxMethodName}});
     }
 
+    public void {{vertxMethodName}}({{inputType}} request, io.vertx.core.Completable<io.vertx.core.streams.ReadStream<{{outputType}}>> completable) {
+      io.vertx.grpcio.common.impl.stub.ClientCalls.{{vertxCallsMethodName}}(context, request, completable, delegateStub::{{vertxMethodName}});
+    }
     {{/unaryManyMethods}}
     {{#manyUnaryMethods}}
     {{{methodHeader}}}
