@@ -88,7 +88,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   @Override
   public String statusMessage() {
     if (status != null && status != GrpcStatus.OK) {
-      String msg = httpResponse.getHeader("grpc-message");
+      String msg = httpResponse.getHeader(GrpcHeaderNames.GRPC_MESSAGE);
       if (msg != null) {
         statusMessage = QueryStringDecoder.decodeComponent(msg, StandardCharsets.UTF_8);
       }
