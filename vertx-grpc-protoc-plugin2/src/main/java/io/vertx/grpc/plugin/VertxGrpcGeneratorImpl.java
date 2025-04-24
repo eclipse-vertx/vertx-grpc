@@ -35,11 +35,17 @@ public class VertxGrpcGeneratorImpl extends Generator {
   private final boolean generateGrpcClient;
   private final boolean generateGrpcService;
   private final boolean generateGrpcIo;
+  private final VertxGrpcGenerator.TranscodingMode transcodingMode;
 
   public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo) {
+    this(generateGrpcClient, generateGrpcService, generateGrpcIo, VertxGrpcGenerator.TranscodingMode.OPTION_ONLY);
+  }
+
+  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo, VertxGrpcGenerator.TranscodingMode transcodingMode) {
     this.generateGrpcClient = generateGrpcClient;
     this.generateGrpcService = generateGrpcService;
     this.generateGrpcIo = generateGrpcIo;
+    this.transcodingMode = transcodingMode;
   }
 
   private String getServiceJavaDocPrefix() {
@@ -108,6 +114,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     //serviceContext.className = CLASS_PREFIX + serviceProto.getName() + "Grpc";
     serviceContext.serviceName = serviceProto.getName();
     serviceContext.deprecated = serviceProto.getOptions() != null && serviceProto.getOptions().getDeprecated();
+    serviceContext.transcodingMode = this.transcodingMode;
 
     List<DescriptorProtos.SourceCodeInfo.Location> allLocationsForService = locations.stream()
       .filter(location ->
@@ -177,6 +184,11 @@ public class VertxGrpcGeneratorImpl extends Generator {
     if (methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
       HttpRule httpRule = methodProto.getOptions().getExtension(AnnotationsProto.http);
       methodContext.transcodingContext = buildTranscodingContext(httpRule);
+    } else if (transcodingMode == VertxGrpcGenerator.TranscodingMode.ALL) {
+      // For ALL mode, create a default TranscodingContext for methods without HTTP options
+      // URL path should be in format /GRPC_SERVICE_FULL_NAME/METHOD_NAME
+      methodContext.transcodingContext.path = "/" + methodProto.getName();
+      methodContext.transcodingContext.method = "POST"; // Default to POST for methods without HTTP options
     }
 
     return methodContext;
@@ -211,6 +223,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
         break;
     }
 
+    transcodingContext.option = true;
     transcodingContext.selector = rule.getSelector();
     transcodingContext.body = rule.getBody();
     transcodingContext.responseBody = rule.getResponseBody();
@@ -420,7 +433,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
    * Template class for proto Service objects.
    */
   private static class ServiceContext {
-    // CHECKSTYLE DISABLE VisibilityModifier FOR 8 LINES
+    // CHECKSTYLE DISABLE VisibilityModifier FOR 9 LINES
     public String fileName;
     public String protoName;
     public String packageName;
@@ -430,6 +443,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String outerClassName;
     public boolean deprecated;
     public String javaDoc;
+    public VertxGrpcGenerator.TranscodingMode transcodingMode;
     public final List<MethodContext> methods = new ArrayList<>();
 
     public List<MethodContext> allMethods() {
@@ -457,7 +471,13 @@ public class VertxGrpcGeneratorImpl extends Generator {
     }
 
     public List<MethodContext> transcodingMethods() {
-      return methods.stream().filter(t -> t.transcodingContext != null && t.transcodingContext.path != null).collect(Collectors.toList());
+      if (transcodingMode == VertxGrpcGenerator.TranscodingMode.DISABLED) {
+        return Collections.emptyList();
+      } else if (transcodingMode == VertxGrpcGenerator.TranscodingMode.ALL) {
+        return methods;
+      } else {
+        return methods.stream().filter(t -> t.transcodingContext != null && t.transcodingContext.option).collect(Collectors.toList());
+      }
     }
   }
 
@@ -517,6 +537,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String method;
     public String selector;
     public String body;
+    public boolean option;
     public String responseBody;
     public List<TranscodingContext> additionalBindings = new ArrayList<>();
   }

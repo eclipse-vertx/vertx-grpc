@@ -116,11 +116,68 @@ public class StreamingGrpcService extends StreamingService implements Service {
       return builder(service).bind(all()).build();
     }
 
+    private static final io.vertx.grpc.transcoding.MethodTranscodingOptions Source_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
+      .setSelector("")
+      .setHttpMethod(HttpMethod.valueOf("POST"))
+      .setPath("/Source")
+      .setBody("")
+      .setResponseBody("")
+    ;
+
+    private static final io.vertx.grpc.transcoding.MethodTranscodingOptions Sink_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
+      .setSelector("")
+      .setHttpMethod(HttpMethod.valueOf("POST"))
+      .setPath("/Sink")
+      .setBody("")
+      .setResponseBody("")
+    ;
+
+    private static final io.vertx.grpc.transcoding.MethodTranscodingOptions Pipe_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
+      .setSelector("")
+      .setHttpMethod(HttpMethod.valueOf("POST"))
+      .setPath("/Pipe")
+      .setBody("")
+      .setResponseBody("")
+    ;
+
+    /**
+     * Source transcoded RPC server service method.
+     */
+    public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.Empty, examples.grpc.Item> Source = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+      SERVICE_NAME,
+      "Source",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> examples.grpc.Empty.newBuilder()),
+      Source_OPTIONS);
+
+    /**
+     * Sink transcoded RPC server service method.
+     */
+    public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.Item, examples.grpc.Empty> Sink = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+      SERVICE_NAME,
+      "Sink",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> examples.grpc.Item.newBuilder()),
+      Sink_OPTIONS);
+
+    /**
+     * Pipe transcoded RPC server service method.
+     */
+    public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.Item, examples.grpc.Item> Pipe = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+      SERVICE_NAME,
+      "Pipe",
+      GrpcMessageEncoder.json(),
+      GrpcMessageDecoder.json(() -> examples.grpc.Item.newBuilder()),
+      Pipe_OPTIONS);
+
     /**
      * @return a mutable list of the known transcoded RPC server service methods.
      */
     public static java.util.List<ServiceMethod<?, ?>> all() {
       java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
+      all.add(Source);
+      all.add(Sink);
+      all.add(Pipe);
       return all;
     }
   }
