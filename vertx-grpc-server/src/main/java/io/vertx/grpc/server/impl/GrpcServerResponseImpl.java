@@ -16,6 +16,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.GrpcError;
+import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
@@ -131,8 +132,8 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
         httpTrailers.add(trailer.getKey(), trailer.getValue());
       }
     }
-    if (!httpHeaders.contains("grpc-status")) {
-      httpTrailers.set("grpc-status", status.toString());
+    if (!httpHeaders.contains(GrpcHeaderNames.GRPC_STATUS)) {
+      httpTrailers.set(GrpcHeaderNames.GRPC_STATUS, status.toString());
     }
     if (status != GrpcStatus.OK) {
       String msg = statusMessage;

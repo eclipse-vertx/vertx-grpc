@@ -16,10 +16,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
-import io.vertx.grpc.common.GrpcMediaType;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
@@ -78,6 +75,6 @@ public class WebGrpcServerRequest<Req, Resp> extends GrpcServerRequestImpl<Req, 
   }
 
   public WebGrpcServerRequest(ContextInternal context, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
-    super(context, protocol, format, httpRequest, httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE)) ? new TextMessageDeframer() : new Http2GrpcMessageDeframer(maxMessageSize, httpRequest.headers().get("grpc-encoding"), format), messageDecoder, methodCall);
+    super(context, protocol, format, httpRequest, httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE)) ? new TextMessageDeframer() : new Http2GrpcMessageDeframer(maxMessageSize, httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format), messageDecoder, methodCall);
   }
 }

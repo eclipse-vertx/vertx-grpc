@@ -418,7 +418,7 @@ public class ClientRequestTest extends ClientTest {
     Async test = should.async();
     vertx.createHttpServer().requestHandler(req -> {
       req.response()
-        .putHeader("grpc-status", "" + GrpcStatus.OK.code)
+        .putHeader(GrpcHeaderNames.GRPC_STATUS, "" + GrpcStatus.OK.code)
         .end();
       req.exceptionHandler(err -> {
         if (err instanceof StreamResetException) {
