@@ -80,8 +80,7 @@ class {{className}}Impl implements {{className}} {
   public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
     return client.request(socketAddress, {{methodName}}).compose(req -> {
       req.format(wireFormat);
-      req.end(request);
-      return req.response().compose(resp -> resp.last());
+      return req.end(request).compose(v -> req.response().compose(resp -> resp.last()));
     });
   }
 {{/unaryUnaryMethods}}
@@ -90,14 +89,13 @@ class {{className}}Impl implements {{className}} {
   public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
     return client.request(socketAddress, {{methodName}}).compose(req -> {
       req.format(wireFormat);
-      req.end(request);
-      return req.response().flatMap(resp -> {
+      return req.end(request).compose(v -> req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
           return Future.failedFuture(new io.vertx.grpc.client.InvalidStatusException(GrpcStatus.OK, resp.status()));
         } else {
           return Future.succeededFuture(resp);
         }
-      });
+      }));
     });
   }
 {{/unaryManyMethods}}
