@@ -39,4 +39,16 @@ public final class GrpcHeaderNames {
    * Values are defined in the gRPC protocol specification.
    */
   public static final AsciiString GRPC_STATUS = AsciiString.cached("grpc-status");
+
+  /**
+   * Header containing the error message when a request fails.
+   * The message is percent-encoded.
+   */
+  public static final AsciiString GRPC_MESSAGE = AsciiString.cached("grpc-message");
+
+  /**
+   * Header containing additional error details when a request fails.
+   * The value is base64 encoded.
+   */
+  public static final AsciiString GRPC_STATUS_DETAILS_BIN = AsciiString.cached("grpc-status-details-bin");
 }
