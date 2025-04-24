@@ -24,6 +24,7 @@ import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpcio.client.GrpcIoClient;
 import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpcio.common.impl.Utils;
@@ -503,7 +504,7 @@ public class ClientBridgeTest extends ClientTest {
   public void testGrpcResponseInvalidHttpCode(TestContext should) {
     testGrpcResponseHttpError(should, req -> {
       req.endHandler(v -> {
-        req.response().putHeader("grpc-status", "0").setStatusCode(500).end();
+        req.response().putHeader(GrpcHeaderNames.GRPC_STATUS, "0").setStatusCode(500).end();
       });
     }, Status.Code.INTERNAL);
   }
@@ -512,7 +513,7 @@ public class ClientBridgeTest extends ClientTest {
   public void testGrpcResponseInvalidHttpCode__(TestContext should) {
     testGrpcResponseHttpError(should, req -> {
       req.endHandler(v -> {
-        req.response().putHeader("grpc-status", "0").setStatusCode(500).end();
+        req.response().putHeader(GrpcHeaderNames.GRPC_STATUS, "0").setStatusCode(500).end();
       });
     }, Status.Code.INTERNAL);
   }

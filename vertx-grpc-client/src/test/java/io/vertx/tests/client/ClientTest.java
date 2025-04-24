@@ -22,6 +22,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.tests.common.grpc.Empty;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
@@ -392,7 +393,7 @@ public abstract class ClientTest extends ClientTestBase {
     HttpServer server = vertx.createHttpServer();
     server
       .requestHandler(request -> {
-        String timeout = request.getHeader("grpc-timeout");
+        String timeout = request.getHeader(GrpcHeaderNames.GRPC_TIMEOUT);
         should.assertNotNull(timeout);
         request.response().exceptionHandler(err -> {
           should.assertEquals(StreamResetException.class, err.getClass());
@@ -436,7 +437,7 @@ public abstract class ClientTest extends ClientTestBase {
         Buffer json = helloReply.toBuffer();
         req.response()
           .putHeader(HttpHeaders.CONTENT_TYPE, expectedContentType)
-          .putTrailer("grpc-status", "0")
+          .putTrailer(GrpcHeaderNames.GRPC_STATUS, "0")
           .end(Buffer
             .buffer()
             .appendByte((byte)0)

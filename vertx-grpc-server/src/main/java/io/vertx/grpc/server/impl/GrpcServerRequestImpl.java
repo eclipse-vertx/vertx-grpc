@@ -75,8 +75,8 @@ public abstract class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBas
                                GrpcMessageDeframer messageDeframer,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMethodCall methodCall) {
-    super(context, httpRequest, httpRequest.headers().get("grpc-encoding"), format, messageDeframer, messageDecoder);
-    String timeoutHeader = httpRequest.getHeader("grpc-timeout");
+    super(context, httpRequest, httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format, messageDeframer, messageDecoder);
+    String timeoutHeader = httpRequest.getHeader(GrpcHeaderNames.GRPC_TIMEOUT);
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 
     this.protocol = protocol;

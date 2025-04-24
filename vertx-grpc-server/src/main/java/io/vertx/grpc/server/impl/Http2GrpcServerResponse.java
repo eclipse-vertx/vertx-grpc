@@ -13,6 +13,7 @@ package io.vertx.grpc.server.impl;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcProtocol;
 
@@ -29,8 +30,8 @@ public class Http2GrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<R
   @Override
   protected void encodeGrpcHeaders(MultiMap grpcHeaders, MultiMap httpHeaders) {
     super.encodeGrpcHeaders(grpcHeaders, httpHeaders);
-    httpHeaders.set("grpc-encoding", encoding);
-    httpHeaders.set("grpc-accept-encoding", "gzip");
+    httpHeaders.set(GrpcHeaderNames.GRPC_ENCODING, encoding);
+    httpHeaders.set(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, "gzip");
   }
 
   @Override

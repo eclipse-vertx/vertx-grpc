@@ -29,6 +29,7 @@ import io.vertx.core.http.*;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.WireFormat;
@@ -349,10 +350,10 @@ public abstract class ServerTest extends ServerTestBase {
     Async async = should.async();
     client.request(HttpMethod.POST, port, "localhost", "/io.vertx.tests.common.grpc.tests.TestService/Unary")
       .onComplete(should.asyncAssertSuccess(req -> {
-        req.putHeader("grpc-timeout", TimeUnit.SECONDS.toMillis(1) + "m");
+        req.putHeader(GrpcHeaderNames.GRPC_TIMEOUT, TimeUnit.SECONDS.toMillis(1) + "m");
         req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
         req.response().onComplete(should.asyncAssertSuccess(resp -> {
-          String status = resp.getHeader("grpc-status");
+          String status = resp.getHeader(GrpcHeaderNames.GRPC_STATUS);
           should.assertEquals(String.valueOf(GrpcStatus.DEADLINE_EXCEEDED.code), status);
           async.complete();
         }));

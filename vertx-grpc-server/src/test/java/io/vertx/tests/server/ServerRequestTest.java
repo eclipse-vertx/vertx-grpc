@@ -378,7 +378,7 @@ public class ServerRequestTest extends ServerTest {
     Async async = should.async();
     client.request(HttpMethod.POST, port, "localhost", "/io.vertx.tests.common.grpc.tests.TestService/Unary")
       .onComplete(should.asyncAssertSuccess(req -> {
-        req.putHeader("grpc-timeout", TimeUnit.SECONDS.toMillis(1) + "m");
+        req.putHeader(GrpcHeaderNames.GRPC_TIMEOUT, TimeUnit.SECONDS.toMillis(1) + "m");
         req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
         req.response().onComplete(should.asyncAssertSuccess(resp -> {
           resp.endHandler(v -> {
@@ -409,7 +409,7 @@ public class ServerRequestTest extends ServerTest {
     Async async = should.async();
     client.request(HttpMethod.POST, port, "localhost", "/helloworld.Greeter/SayHello")
       .onComplete(should.asyncAssertSuccess(req -> {
-        req.putHeader("grpc-timeout", "10S");
+        req.putHeader(GrpcHeaderNames.GRPC_TIMEOUT, "10S");
         req.response().onComplete(should.asyncAssertSuccess(resp -> {
           resp.endHandler(v -> {
             async.complete();
@@ -528,7 +528,7 @@ public class ServerRequestTest extends ServerTest {
 
     client.request(HttpMethod.POST, 8080, "localhost", "/" + TestServiceGrpc.SERVICE_NAME + "/Sink")
       .onComplete(should.asyncAssertSuccess(request -> {
-        request.putHeader("grpc-encoding", "gzip");
+        request.putHeader(GrpcHeaderNames.GRPC_ENCODING, "gzip");
         request.setChunked(true);
         messages.forEach(msg -> {
           Buffer buffer = Buffer.buffer();

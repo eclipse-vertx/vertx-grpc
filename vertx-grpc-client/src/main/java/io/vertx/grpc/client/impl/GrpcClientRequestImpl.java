@@ -10,6 +10,7 @@
  */
 package io.vertx.grpc.client.impl;
 
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
@@ -62,7 +63,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       .response()
       .compose(httpResponse -> {
         String msg = null;
-        String statusHeader = httpResponse.getHeader("grpc-status");
+        String statusHeader = httpResponse.getHeader(GrpcHeaderNames.GRPC_STATUS);
         GrpcStatus status = statusHeader != null ? GrpcStatus.valueOf(Integer.parseInt(statusHeader)) : null;
         WireFormat format = null;
         if (status == null) {
@@ -174,15 +175,15 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       }
     }
     if (timeout > 0L) {
-      httpRequest.putHeader("grpc-timeout", timeoutHeader);
+      httpRequest.putHeader(GrpcHeaderNames.GRPC_TIMEOUT, timeoutHeader);
     }
     String uri = serviceName.pathOf(methodName);
     httpRequest.putHeader(HttpHeaders.CONTENT_TYPE, contentType);
     if (encoding != null) {
-      httpRequest.putHeader("grpc-encoding", encoding);
+      httpRequest.putHeader(GrpcHeaderNames.GRPC_ENCODING, encoding);
     }
-    httpRequest.putHeader("grpc-accept-encoding", "gzip");
-    httpRequest.putHeader("te", "trailers");
+    httpRequest.putHeader(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, "gzip");
+    httpRequest.putHeader(HttpHeaderNames.TE, "trailers");
     httpRequest.setChunked(true);
     httpRequest.setURI(uri);
     if (scheduleDeadline && timeout > 0L) {

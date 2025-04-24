@@ -22,6 +22,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcError;
+import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.tests.common.grpc.TestServiceGrpc;
@@ -72,7 +73,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
         }
         should.assertEquals(expected, payload);
         req.response()
-          .putHeader("grpc-status", "" + GrpcStatus.CANCELLED.code)
+          .putHeader(GrpcHeaderNames.GRPC_STATUS, "" + GrpcStatus.CANCELLED.code)
           .end();
       });
     }).listen(8080, "localhost")
@@ -167,9 +168,9 @@ public class ClientMessageEncodingTest extends ClientTestBase {
     vertx.createHttpServer().requestHandler(req -> {
         req.endHandler(v -> {
           HttpServerResponse resp = req.response();
-          resp.putHeader("grpc-encoding", "gzip");
+          resp.putHeader(GrpcHeaderNames.GRPC_ENCODING, "gzip");
           resp.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
-          resp.putTrailer("grpc-status", "" + GrpcStatus.OK.code);
+          resp.putTrailer(GrpcHeaderNames.GRPC_STATUS, "" + GrpcStatus.OK.code);
           resp.write(Buffer.buffer()
             .appendByte((byte)1)
             .appendInt(payload.length())

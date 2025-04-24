@@ -45,9 +45,9 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
     super(
       context,
       httpResponse,
-      httpResponse.headers().get("grpc-encoding"),
+      httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING),
       format,
-      new Http2GrpcMessageDeframer(maxMessageSize, httpResponse.headers().get("grpc-encoding"), format),
+      new Http2GrpcMessageDeframer(maxMessageSize, httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING), format),
       messageDecoder);
     this.request = request;
     this.httpResponse = httpResponse;

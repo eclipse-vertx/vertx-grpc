@@ -27,6 +27,7 @@ import io.vertx.core.http.*;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcError;
+import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
@@ -90,7 +91,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
     client
       .request(HttpMethod.POST, 8080, "localhost", "/")
       .onComplete(should.asyncAssertSuccess(request -> {
-      request.putHeader("grpc-encoding", "identity");
+      request.putHeader(GrpcHeaderNames.GRPC_ENCODING, "identity");
       request.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
       request.send(Buffer
         .buffer()
@@ -201,7 +202,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
     );
 
     client.request(HttpMethod.POST, 8080, "localhost", "/").onComplete( should.asyncAssertSuccess(request -> {
-      request.putHeader("grpc-encoding", "gzip");
+      request.putHeader(GrpcHeaderNames.GRPC_ENCODING, "gzip");
       request.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
       request.end(Buffer
         .buffer()
@@ -220,8 +221,8 @@ public class ServerMessageEncodingTest extends ServerTestBase {
 
     vertx.createHttpServer().requestHandler(req -> {
         req.response()
-          .putHeader("content-type", "application/grpc")
-          .putHeader("grpc-encoding", "gzip")
+          .putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc")
+          .putHeader(GrpcHeaderNames.GRPC_ENCODING, "gzip")
           .write(Buffer.buffer()
             .appendByte((byte) 1)
             .appendInt(11)
