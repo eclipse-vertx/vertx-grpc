@@ -58,7 +58,7 @@ By default, `GreeterGrpcIo` is not generated, to activate it you need to tell th
   <version>${stack.version}</version>
   <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
   <args>
-    <arg>--io</arg>
+    <arg>--grpc-io</arg>
   </args>
 </protocPlugin>
 ----

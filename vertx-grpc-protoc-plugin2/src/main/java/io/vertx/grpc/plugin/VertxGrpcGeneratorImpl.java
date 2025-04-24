@@ -189,10 +189,10 @@ public class VertxGrpcGeneratorImpl extends Generator {
       HttpRule httpRule = methodProto.getOptions().getExtension(AnnotationsProto.http);
       methodContext.transcodingContext = buildTranscodingContext(httpRule);
     } else if (transcodingMode == VertxGrpcGenerator.TranscodingMode.ALL) {
-      // For ALL mode, create a default TranscodingContext for methods without HTTP options
       // URL path should be in format /GRPC_SERVICE_FULL_NAME/METHOD_NAME
+      // See https://cloud.google.com/endpoints/docs/grpc/transcoding
       methodContext.transcodingContext.path = serviceName + "/" + methodProto.getName();
-      methodContext.transcodingContext.method = "POST"; // Default to POST for methods without HTTP options
+      methodContext.transcodingContext.method = "POST";
     }
 
     return methodContext;
@@ -297,7 +297,9 @@ public class VertxGrpcGeneratorImpl extends Generator {
   );
 
   /**
-   * Adjust a method name prefix identifier to follow the JavaBean spec: - decapitalize the first letter - remove embedded underscores & capitalize the following letter
+   * Adjust a method name prefix identifier to follow the JavaBean spec:
+   * - decapitalize the first letter
+   * - remove embedded underscores & capitalize the following letter
    * <p>
    * Finally, if the result is a reserved java keyword, append an underscore.
    *

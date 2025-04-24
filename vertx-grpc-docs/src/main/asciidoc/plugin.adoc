@@ -107,7 +107,7 @@ By default, the plugin generates both client and service files. If you need only
   <artifactId>vertx-grpc-protoc-plugin2</artifactId>
   <version>${stack.version}</version>
   <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
-  <args>--client</args>
+  <args>--grpc-client</args>
 </protocPlugin>
 ----
 
