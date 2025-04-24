@@ -126,7 +126,6 @@
                 <arg>--grpc-client</arg>
                 <arg>--grpc-service</arg>
                 <arg>--grpc-io</arg>
-                <arg>--grpc-transcoding=option</arg>
               </args>
             </protocPlugin>
           </protocPlugins>

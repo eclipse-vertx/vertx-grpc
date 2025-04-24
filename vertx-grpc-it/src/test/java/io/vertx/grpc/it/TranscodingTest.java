@@ -10,6 +10,7 @@ import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcServer;
 import org.junit.Test;
 
@@ -345,6 +346,78 @@ public class TranscodingTest extends ProxyTestBase {
       })).listen(8080, "localhost");
 
     RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/body/response").setMethod(HttpMethod.POST);
+
+    Async test = should.async();
+
+    server.onComplete(should.asyncAssertSuccess(v -> {
+      client.request(options).compose(req -> {
+        req.putHeader("Content-Type", "application/json");
+        req.putHeader("Accept", "application/json");
+        return req.send(createRequest("Julien"));
+      }).compose(resp -> {
+        should.assertEquals(200, resp.statusCode());
+        should.assertEquals("application/json", resp.getHeader("Content-Type"));
+        return resp.body();
+      }).onComplete(should.asyncAssertSuccess(body -> {
+        should.assertEquals("Hello Julien", getMessage(body.toString()));
+        test.complete();
+      }));
+    }));
+
+    test.awaitSuccess();
+  }
+
+  @Test
+  public void testUnaryWithoutOption(TestContext should) {
+    HttpClient client = vertx.createHttpClient();
+
+    Future<HttpServer> server = vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.Transcoding.SayHelloWithoutOptions, call -> {
+        call.handler(helloRequest -> {
+          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
+            .build();
+          call.response().end(helloReply);
+        });
+      })).listen(8080, "localhost");
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/helloworld.Greeter/SayHelloWithoutOptions").setMethod(HttpMethod.POST);
+
+    Async test = should.async();
+
+    server.onComplete(should.asyncAssertSuccess(v -> {
+      client.request(options).compose(req -> {
+        req.putHeader("Content-Type", "application/json");
+        req.putHeader("Accept", "application/json");
+        return req.send(createRequest("Julien"));
+      }).compose(resp -> {
+        should.assertEquals(200, resp.statusCode());
+        should.assertEquals("application/json", resp.getHeader("Content-Type"));
+        return resp.body();
+      }).onComplete(should.asyncAssertSuccess(body -> {
+        should.assertEquals("Hello Julien", getMessage(body.toString()));
+        test.complete();
+      }));
+    }));
+
+    test.awaitSuccess();
+  }
+
+  @Test
+  public void testUnaryCollisionWithoutOption(TestContext should) {
+    HttpClient client = vertx.createHttpClient();
+
+    Future<HttpServer> server = vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.Transcoding.SayHelloWithoutOptions, call -> {
+        call.handler(helloRequest -> {
+          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
+            .build();
+          call.response().end(helloReply);
+        });
+      }).callHandler(GreeterGrpcService.SayHelloWithoutOptions, call -> {
+        call.handler(helloRequest -> call.response().status(GrpcStatus.INTERNAL).end());
+      })).listen(8080, "localhost");
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/Julien").setMethod(HttpMethod.POST);
 
     Async test = should.async();
 

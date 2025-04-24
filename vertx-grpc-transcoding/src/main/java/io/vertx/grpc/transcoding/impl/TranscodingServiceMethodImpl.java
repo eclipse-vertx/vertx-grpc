@@ -1,5 +1,6 @@
 package io.vertx.grpc.transcoding.impl;
 
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.grpc.common.GrpcMessageDecoder;
@@ -31,7 +32,6 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
   private final PathMatcher pathMatcher;
 
   public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder, MethodTranscodingOptions options) {
-
     this.serviceName = serviceName;
     this.methodName = methodName;
     this.encoder = encoder;
@@ -71,6 +71,10 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
   }
 
   public GrpcInvocation<I, O> accept(HttpServerRequest httpRequest) {
+    if (!httpRequest.getHeader(HttpHeaders.CONTENT_TYPE).equals(GrpcProtocol.TRANSCODING.mediaType())) {
+      return null;
+    }
+
     PathMatcherLookupResult res = pathMatcher.lookup(httpRequest.method().name(), httpRequest.path(), httpRequest.query());
     if (res != null) {
       List<HttpVariableBinding> bindings = new ArrayList<>(res.getVariableBindings());
@@ -90,7 +94,25 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
         options.getResponseBody(),
         encoder);
       return new GrpcInvocation<>(grpcRequest, grpcResponse);
+    } else if (options.getPath().equals(fullMethodName())) {
+      io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
+      GrpcServerRequestImpl<I, O> grpcRequest = new TranscodingGrpcServerRequest<>(
+        context,
+        httpRequest,
+        options.getBody(),
+        new ArrayList<>(),
+        decoder,
+        new GrpcMethodCall("/" + methodName));
+      GrpcServerResponseImpl<I, O> grpcResponse = new TranscodingGrpcServerResponse<>(
+        context,
+        grpcRequest,
+        GrpcProtocol.TRANSCODING,
+        httpRequest.response(),
+        options.getResponseBody(),
+        encoder);
+      return new GrpcInvocation<>(grpcRequest, grpcResponse);
     }
+
     return null;
   }
 
