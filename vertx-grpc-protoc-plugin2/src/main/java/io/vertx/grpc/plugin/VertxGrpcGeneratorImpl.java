@@ -35,10 +35,11 @@ public class VertxGrpcGeneratorImpl extends Generator {
   private final boolean generateGrpcClient;
   private final boolean generateGrpcService;
   private final boolean generateGrpcIo;
+
   private final VertxGrpcGenerator.TranscodingMode transcodingMode;
 
   public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo) {
-    this(generateGrpcClient, generateGrpcService, generateGrpcIo, VertxGrpcGenerator.TranscodingMode.OPTION_ONLY);
+    this(generateGrpcClient, generateGrpcService, generateGrpcIo, VertxGrpcGenerator.TranscodingMode.OPTION);
   }
 
   public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo, VertxGrpcGenerator.TranscodingMode transcodingMode) {
@@ -82,6 +83,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
           fileProto.getService(serviceNumber),
           typeMap,
           fileProto.getSourceCodeInfo().getLocationList(),
+          fileProto.getPackage() + "." + fileProto.getService(serviceNumber).getName(),
           serviceNumber
         );
         serviceContext.protoName = fileProto.getName();
@@ -107,7 +109,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return Strings.nullToEmpty(proto.getPackage());
   }
 
-  private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int serviceNumber) {
+  private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, String name, int serviceNumber) {
     ServiceContext serviceContext = new ServiceContext();
     // Set Later
     //serviceContext.fileName = CLASS_PREFIX + serviceProto.getName() + "Grpc.java";
@@ -132,6 +134,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
     for (int methodNumber = 0; methodNumber < serviceProto.getMethodCount(); methodNumber++) {
       MethodContext methodContext = buildMethodContext(
+        name,
         serviceProto.getMethod(methodNumber),
         typeMap,
         locations,
@@ -143,8 +146,10 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return serviceContext;
   }
 
-  private MethodContext buildMethodContext(DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int methodNumber) {
+  private MethodContext buildMethodContext(String serviceName, DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int methodNumber) {
     MethodContext methodContext = new MethodContext();
+    methodContext.transcodingContext = new TranscodingContext();
+
     methodContext.methodName = methodProto.getName();
     methodContext.vertxMethodName = mixedLower(methodProto.getName());
     methodContext.inputType = typeMap.toJavaTypeName(methodProto.getInputType());
@@ -153,7 +158,6 @@ public class VertxGrpcGeneratorImpl extends Generator {
     methodContext.isManyInput = methodProto.getClientStreaming();
     methodContext.isManyOutput = methodProto.getServerStreaming();
     methodContext.methodNumber = methodNumber;
-    methodContext.transcodingContext = new TranscodingContext();
 
     DescriptorProtos.SourceCodeInfo.Location methodLocation = locations.stream()
       .filter(location ->
@@ -187,7 +191,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     } else if (transcodingMode == VertxGrpcGenerator.TranscodingMode.ALL) {
       // For ALL mode, create a default TranscodingContext for methods without HTTP options
       // URL path should be in format /GRPC_SERVICE_FULL_NAME/METHOD_NAME
-      methodContext.transcodingContext.path = "/" + methodProto.getName();
+      methodContext.transcodingContext.path = serviceName + "/" + methodProto.getName();
       methodContext.transcodingContext.method = "POST"; // Default to POST for methods without HTTP options
     }
 
@@ -293,9 +297,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
   );
 
   /**
-   * Adjust a method name prefix identifier to follow the JavaBean spec:
-   * - decapitalize the first letter
-   * - remove embedded underscores & capitalize the following letter
+   * Adjust a method name prefix identifier to follow the JavaBean spec: - decapitalize the first letter - remove embedded underscores & capitalize the following letter
    * <p>
    * Finally, if the result is a reserved java keyword, append an underscore.
    *

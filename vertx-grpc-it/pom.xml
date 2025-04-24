@@ -123,9 +123,10 @@
               <version>${project.version}</version>
               <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
               <args>
-                <arg>grpc-client</arg>
-                <arg>grpc-service</arg>
-                <arg>grpc-io</arg>
+                <arg>--grpc-client</arg>
+                <arg>--grpc-service</arg>
+                <arg>--grpc-io</arg>
+                <arg>--grpc-transcoding=option</arg>
               </args>
             </protocPlugin>
           </protocPlugins>

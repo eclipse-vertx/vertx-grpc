@@ -119,7 +119,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
     private static final io.vertx.grpc.transcoding.MethodTranscodingOptions Source_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
       .setSelector("")
       .setHttpMethod(HttpMethod.valueOf("POST"))
-      .setPath("/Source")
+      .setPath("examples.grpc.Streaming/Source")
       .setBody("")
       .setResponseBody("")
     ;
@@ -127,7 +127,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
     private static final io.vertx.grpc.transcoding.MethodTranscodingOptions Sink_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
       .setSelector("")
       .setHttpMethod(HttpMethod.valueOf("POST"))
-      .setPath("/Sink")
+      .setPath("examples.grpc.Streaming/Sink")
       .setBody("")
       .setResponseBody("")
     ;
@@ -135,7 +135,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
     private static final io.vertx.grpc.transcoding.MethodTranscodingOptions Pipe_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
       .setSelector("")
       .setHttpMethod(HttpMethod.valueOf("POST"))
-      .setPath("/Pipe")
+      .setPath("examples.grpc.Streaming/Pipe")
       .setBody("")
       .setResponseBody("")
     ;
