@@ -14,6 +14,8 @@ package io.vertx.tests.transcoding;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
@@ -30,7 +32,6 @@ import io.vertx.tests.server.grpc.web.*;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -50,14 +51,14 @@ public class ServerTranscodingTest extends GrpcTestBase {
     return ret;
   }
 
-  public static GrpcMessageDecoder<Empty> EMPTY_DECODER = GrpcMessageDecoder.json(Empty::newBuilder);
-  public static GrpcMessageEncoder<Empty> EMPTY_ENCODER = GrpcMessageEncoder.json();
-  public static GrpcMessageDecoder<EchoRequest> ECHO_REQUEST_DECODER = GrpcMessageDecoder.json(EchoRequest::newBuilder);
-  public static GrpcMessageDecoder<EchoRequestBody> ECHO_REQUEST_BODY_DECODER = GrpcMessageDecoder.json(EchoRequestBody::newBuilder);
-  public static GrpcMessageEncoder<EchoResponse> ECHO_RESPONSE_ENCODER = GrpcMessageEncoder.json();
-  public static GrpcMessageEncoder<EchoResponseBody> ECHO_RESPONSE_BODY_ENCODER = GrpcMessageEncoder.json();
+  public static GrpcMessageDecoder<Empty> EMPTY_DECODER = GrpcMessageDecoder.decoder(Empty.newBuilder());
+  public static GrpcMessageEncoder<Empty> EMPTY_ENCODER = GrpcMessageEncoder.encoder();
+  public static GrpcMessageDecoder<EchoRequest> ECHO_REQUEST_DECODER = GrpcMessageDecoder.decoder(EchoRequest.newBuilder());
+  public static GrpcMessageDecoder<EchoRequestBody> ECHO_REQUEST_BODY_DECODER = GrpcMessageDecoder.decoder(EchoRequestBody.newBuilder());
+  public static GrpcMessageEncoder<EchoResponse> ECHO_RESPONSE_ENCODER = GrpcMessageEncoder.encoder();
+  public static GrpcMessageEncoder<EchoResponseBody> ECHO_RESPONSE_BODY_ENCODER = GrpcMessageEncoder.encoder();
 
-  public static final ServiceName TEST_SERVICE_NAME = ServiceName.create("io.vertx.grpcweb.TestService");
+  public static final ServiceName TEST_SERVICE_NAME = ServiceName.create(TestServiceGrpc.SERVICE_NAME);
 
   public static final MethodTranscodingOptions EMPTY_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/hello");
   public static final MethodTranscodingOptions UNARY_TRANSCODING = new MethodTranscodingOptions().setPath("/hello");
@@ -86,7 +87,8 @@ public class ServerTranscodingTest extends GrpcTestBase {
   private static final MultiMap HEADERS = HttpHeaders.headers()
     .add(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE)
     .add(HttpHeaders.USER_AGENT, USER_AGENT)
-    .add(HttpHeaders.ACCEPT, CONTENT_TYPE);
+    .add(HttpHeaders.ACCEPT, CONTENT_TYPE)
+    .copy(false);
 
   private static final Empty EMPTY_DEFAULT_INSTANCE = Empty.getDefaultInstance();
 
@@ -96,7 +98,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
   @Override
   public void setUp(TestContext should) {
     super.setUp(should);
-    httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultPort(port));
+    httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultPort(port).setProtocolVersion(HttpVersion.HTTP_2));
     GrpcServer grpcServer = GrpcServer.server(vertx);
     grpcServer.callHandler(EMPTY_CALL, request -> {
       copyHeaders(request.headers(), request.response().headers());
@@ -402,5 +404,15 @@ public class ServerTranscodingTest extends GrpcTestBase {
   private JsonObject decodeBody(Buffer body) {
     String json = body.toString();
     return new JsonObject(json);
+  }
+
+  @Test
+  public void testHttp2Proto() {
+    ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+    TestServiceGrpc.TestServiceBlockingStub client = TestServiceGrpc.newBlockingStub(channel);
+    EchoResponse response = client.unaryCall(EchoRequest.newBuilder().setPayload("hello").build());
+    assertEquals("hello", response.getPayload());
   }
 }
