@@ -221,8 +221,6 @@ In addition, Vert.x gRPC server also supports https://github.com/grpc/grpc-web[g
 
 The Vert.x gRPC Server supports the gRPC-Web protocol by default.
 
-To disable the gRPC-Web protocol support, configure options with {@link io.vertx.grpc.server.GrpcServerOptions#setGrpcWebEnabled GrpcServerOptions#setGrpcWebEnabled(false)} and then create a server with {@link io.vertx.grpc.server.GrpcServer#server(io.vertx.core.Vertx, io.vertx.grpc.server.GrpcServerOptions) GrpcServer#server(vertx, options)}.
-
 If your website server and the gRPC server are different, you have to configure the gRPC server for CORS.
 This can be done with a Vert.x Web router and the CORS handler:
 
@@ -238,6 +236,18 @@ router.route("/com.mycompany.MyService/*").handler(corsHandler);
 ==== gRPC Transcoding
 
 The Vert.x gRPC server supports <<grpc-transcoding,gRPC transcoding>> that enables mapping between HTTP/JSON requests and gRPC services.
+
+==== Protocol configuration
+
+By default, a gRPC server accepts all protocols.
+
+To disable a specific protocol support, configure options with {@link io.vertx.grpc.server.GrpcServerOptions#removeEnabledProtocol} and then create a server with {@link io.vertx.grpc.server.GrpcServer#server(io.vertx.core.Vertx, io.vertx.grpc.server.GrpcServerOptions) GrpcServer#server(vertx, options)}.
+
+.Removing gRPC-Web support
+[source,java]
+----
+{@link examples.GrpcServerExamples#disablingGrpcWeb}
+----
 
 === Flow control
 

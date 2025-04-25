@@ -15,6 +15,10 @@ import io.vertx.codegen.annotations.Unstable;
 import io.vertx.codegen.json.annotations.JsonGen;
 import io.vertx.core.json.JsonObject;
 
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
+
 /**
  * Configuration for a {@link GrpcServer}.
  */
@@ -24,9 +28,9 @@ import io.vertx.core.json.JsonObject;
 public class GrpcServerOptions {
 
   /**
-   * Whether the gRPC-Web protocol should be enabled, by default = {@code true}.
+   *
    */
-  public static final boolean DEFAULT_GRPC_WEB_ENABLED = true;
+  public static final Set<GrpcProtocol> DEFAULT_ENABLED_PROTOCOLS = Collections.unmodifiableSet(EnumSet.allOf(GrpcProtocol.class));
 
   /**
    * Whether the server schedule deadline automatically when a request carrying a timeout is received, by default = {@code false}
@@ -43,7 +47,7 @@ public class GrpcServerOptions {
    */
   public static final long DEFAULT_MAX_MESSAGE_SIZE = 256 * 1024;
 
-  private boolean grpcWebEnabled;
+  private Set<GrpcProtocol> enabledProtocols;
   private boolean scheduleDeadlineAutomatically;
   private boolean deadlinePropagation;
   private long maxMessageSize;
@@ -52,7 +56,7 @@ public class GrpcServerOptions {
    * Default options.
    */
   public GrpcServerOptions() {
-    grpcWebEnabled = DEFAULT_GRPC_WEB_ENABLED;
+    enabledProtocols = EnumSet.copyOf(DEFAULT_ENABLED_PROTOCOLS);
     scheduleDeadlineAutomatically = DEFAULT_SCHEDULE_DEADLINE_AUTOMATICALLY;
     deadlinePropagation = DEFAULT_PROPAGATE_DEADLINE;
     maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
@@ -62,7 +66,7 @@ public class GrpcServerOptions {
    * Copy constructor.
    */
   public GrpcServerOptions(GrpcServerOptions other) {
-    grpcWebEnabled = other.grpcWebEnabled;
+    enabledProtocols = EnumSet.copyOf(other.enabledProtocols);
     scheduleDeadlineAutomatically = other.scheduleDeadlineAutomatically;
     deadlinePropagation = other.deadlinePropagation;
     maxMessageSize = other.maxMessageSize;
@@ -76,22 +80,22 @@ public class GrpcServerOptions {
     GrpcServerOptionsConverter.fromJson(json, this);
   }
 
-  /**
-   * @return {@code true} if the gRPC-Web protocol should be enabled, {@code false} otherwise
-   */
-  public boolean isGrpcWebEnabled() {
-    return grpcWebEnabled;
+  public boolean isProtocolEnabled(GrpcProtocol protocol) {
+    return enabledProtocols.contains(protocol);
   }
 
-  /**
-   * Whether the gRPC-Web protocol should be enabled. Defaults to {@code true}.
-   *
-   * @param grpcWebEnabled {@code true} if the gRPC-Web protocol should be enabled, {@code false} otherwise
-   * @return a reference to this, so the API can be used fluently
-   */
-  public GrpcServerOptions setGrpcWebEnabled(boolean grpcWebEnabled) {
-    this.grpcWebEnabled = grpcWebEnabled;
+  public GrpcServerOptions addEnabledProtocol(GrpcProtocol protocol) {
+    enabledProtocols.add(protocol);
     return this;
+  }
+
+  public GrpcServerOptions removeEnabledProtocol(GrpcProtocol protocol) {
+    enabledProtocols.remove(protocol);
+    return this;
+  }
+
+  public Set<GrpcProtocol> getEnabledProtocols() {
+    return enabledProtocols;
   }
 
   /**
