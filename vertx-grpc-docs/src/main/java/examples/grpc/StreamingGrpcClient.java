@@ -95,14 +95,13 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
   public Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request) {
     return client.request(socketAddress, Source).compose(req -> {
       req.format(wireFormat);
-      req.end(request);
-      return req.response().flatMap(resp -> {
+      return req.end(request).compose(v -> req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
           return Future.failedFuture(new io.vertx.grpc.client.InvalidStatusException(GrpcStatus.OK, resp.status()));
         } else {
           return Future.succeededFuture(resp);
         }
-      });
+      }));
     });
   }
 

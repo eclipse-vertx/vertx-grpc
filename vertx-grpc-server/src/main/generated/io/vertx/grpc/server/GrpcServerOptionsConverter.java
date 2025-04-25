@@ -14,9 +14,12 @@ public class GrpcServerOptionsConverter {
    static void fromJson(Iterable<java.util.Map.Entry<String, Object>> json, GrpcServerOptions obj) {
     for (java.util.Map.Entry<String, Object> member : json) {
       switch (member.getKey()) {
-        case "grpcWebEnabled":
-          if (member.getValue() instanceof Boolean) {
-            obj.setGrpcWebEnabled((Boolean)member.getValue());
+        case "enabledProtocols":
+          if (member.getValue() instanceof JsonArray) {
+            ((Iterable<Object>)member.getValue()).forEach( item -> {
+              if (item instanceof String)
+                obj.addEnabledProtocol(io.vertx.grpc.server.GrpcProtocol.valueOf((String)item));
+            });
           }
           break;
         case "scheduleDeadlineAutomatically":
@@ -43,7 +46,11 @@ public class GrpcServerOptionsConverter {
   }
 
    static void toJson(GrpcServerOptions obj, java.util.Map<String, Object> json) {
-    json.put("grpcWebEnabled", obj.isGrpcWebEnabled());
+    if (obj.getEnabledProtocols() != null) {
+      JsonArray array = new JsonArray();
+      obj.getEnabledProtocols().forEach(item -> array.add(item.name()));
+      json.put("enabledProtocols", array);
+    }
     json.put("scheduleDeadlineAutomatically", obj.getScheduleDeadlineAutomatically());
     json.put("deadlinePropagation", obj.getDeadlinePropagation());
     json.put("maxMessageSize", obj.getMaxMessageSize());

@@ -99,6 +99,13 @@ public class GrpcServerExamples {
     });
   }
 
+  public void disablingGrpcWeb(Vertx vertx) {
+    GrpcServer server = GrpcServer.server(vertx, new GrpcServerOptions()
+      .removeEnabledProtocol(GrpcProtocol.WEB)
+      .removeEnabledProtocol(GrpcProtocol.WEB_TEXT)
+    );
+  }
+
   public void requestFlowControl(Vertx vertx, GrpcServerRequest<Item, Empty> request, Item item) {
     // Pause the response
     request.pause();

@@ -153,14 +153,9 @@ public class GrpcServerImpl implements GrpcServer {
       return 415;
     }
     // Check config
-    switch (protocol) {
-      case WEB:
-      case WEB_TEXT:
-        if (!options.isGrpcWebEnabled()) {
-          log.trace("gRPC-Web is not supported on HTTP/1.1, sending error 415");
-          return 415;
-        }
-        break;
+    if (!options.isProtocolEnabled(protocol)) {
+      log.trace(protocol + " is not supported, sending error 415");
+      return 415;
     }
     return -1;
   }

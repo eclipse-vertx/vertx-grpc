@@ -94,7 +94,7 @@ public abstract class ServerTestBase extends GrpcTestBase {
   public void setUp(TestContext should) {
     super.setUp(should);
     httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultPort(port));
-    GrpcServer grpcServer = GrpcServer.server(vertx, new GrpcServerOptions().setGrpcWebEnabled(true));
+    GrpcServer grpcServer = GrpcServer.server(vertx, new GrpcServerOptions());
     grpcServer.callHandler(EMPTY_CALL, request -> {
       copyHeaders(request.headers(), request.response().headers());
       copyTrailers(request.headers(), request.response().trailers());

@@ -411,8 +411,12 @@ public class ServerTranscodingTest extends GrpcTestBase {
     ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", port)
       .usePlaintext()
       .build();
-    TestServiceGrpc.TestServiceBlockingStub client = TestServiceGrpc.newBlockingStub(channel);
-    EchoResponse response = client.unaryCall(EchoRequest.newBuilder().setPayload("hello").build());
-    assertEquals("hello", response.getPayload());
+    try {
+      TestServiceGrpc.TestServiceBlockingStub client = TestServiceGrpc.newBlockingStub(channel);
+      EchoResponse response = client.unaryCall(EchoRequest.newBuilder().setPayload("hello").build());
+      assertEquals("hello", response.getPayload());
+    } finally {
+      channel.shutdown();
+    }
   }
 }

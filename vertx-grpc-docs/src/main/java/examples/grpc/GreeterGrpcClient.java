@@ -75,8 +75,7 @@ class GreeterGrpcClientImpl implements GreeterGrpcClient {
   public Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
     return client.request(socketAddress, SayHello).compose(req -> {
       req.format(wireFormat);
-      req.end(request);
-      return req.response().compose(resp -> resp.last());
+      return req.end(request).compose(v -> req.response().compose(resp -> resp.last()));
     });
   }
 }
