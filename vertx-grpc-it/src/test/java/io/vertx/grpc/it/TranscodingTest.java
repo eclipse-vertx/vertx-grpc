@@ -417,7 +417,7 @@ public class TranscodingTest extends ProxyTestBase {
         call.handler(helloRequest -> call.response().status(GrpcStatus.INTERNAL).end());
       })).listen(8080, "localhost");
 
-    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/Julien").setMethod(HttpMethod.POST);
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/helloworld.Greeter/SayHelloWithoutOptions").setMethod(HttpMethod.POST);
 
     Async test = should.async();
 

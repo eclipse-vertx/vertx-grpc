@@ -53,6 +53,11 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
   }
 
   private void computePaths(MethodTranscodingOptions options, Set<String> paths) {
+    if (options.getPath().equals(fullMethodName())) {
+      paths.add(options.getPath());
+      return;
+    }
+
     HttpTemplate tmpl = HttpTemplate.parse(options.getPath());
     StringBuilder sb = new StringBuilder();
     for (String a : tmpl.getSegments()) {

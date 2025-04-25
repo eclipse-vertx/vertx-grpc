@@ -146,8 +146,8 @@ public class StreamingGrpcService extends StreamingService implements Service {
     public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.Empty, examples.grpc.Item> Source = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
       SERVICE_NAME,
       "Source",
-      GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.grpc.Empty.newBuilder()),
+      GrpcMessageEncoder.encoder(),
+      GrpcMessageDecoder.decoder(examples.grpc.Empty.newBuilder()),
       Source_OPTIONS);
 
     /**
@@ -156,8 +156,8 @@ public class StreamingGrpcService extends StreamingService implements Service {
     public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.Item, examples.grpc.Empty> Sink = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
       SERVICE_NAME,
       "Sink",
-      GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.grpc.Item.newBuilder()),
+      GrpcMessageEncoder.encoder(),
+      GrpcMessageDecoder.decoder(examples.grpc.Item.newBuilder()),
       Sink_OPTIONS);
 
     /**
@@ -166,8 +166,8 @@ public class StreamingGrpcService extends StreamingService implements Service {
     public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.Item, examples.grpc.Item> Pipe = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
       SERVICE_NAME,
       "Pipe",
-      GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> examples.grpc.Item.newBuilder()),
+      GrpcMessageEncoder.encoder(),
+      GrpcMessageDecoder.decoder(examples.grpc.Item.newBuilder()),
       Pipe_OPTIONS);
 
     /**
