@@ -1,9 +1,9 @@
 package io.vertx.grpc.server.impl;
 
-import io.vertx.core.http.HttpServerRequest;
+import java.util.List;
 
 public interface MountPoint<I, O> {
 
-  GrpcInvocation<I, O> accept(HttpServerRequest request);
+  List<String> paths();
 
 }

@@ -12,10 +12,13 @@ import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import io.vertx.grpc.server.impl.MountPoint;
 import io.vertx.grpc.transcoding.*;
+import io.vertx.grpc.transcoding.impl.config.HttpTemplate;
 import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMethod<I, O>, MountPoint<I, O> {
 
@@ -43,6 +46,30 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
   }
 
   @Override
+  public List<String> paths() {
+    Set<String> paths = new HashSet<>();
+    computePaths(options, paths);
+    return new ArrayList<>(paths);
+  }
+
+  private void computePaths(MethodTranscodingOptions options, Set<String> paths) {
+    HttpTemplate tmpl = HttpTemplate.parse(options.getPath());
+    StringBuilder sb = new StringBuilder();
+    for (String a : tmpl.getSegments()) {
+      if (a.equals("*") || (a.startsWith("{") && a.endsWith("}"))) {
+        break;
+      }
+      sb.append('/').append(a);
+    }
+    paths.add(sb.toString());
+    List<MethodTranscodingOptions> extra = options.getAdditionalBindings();
+    if (extra != null) {
+      for (MethodTranscodingOptions o : extra) {
+        computePaths(o, paths);
+      }
+    }
+  }
+
   public GrpcInvocation<I, O> accept(HttpServerRequest httpRequest) {
     PathMatcherLookupResult res = pathMatcher.lookup(httpRequest.method().name(), httpRequest.path(), httpRequest.query());
     if (res != null) {

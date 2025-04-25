@@ -188,6 +188,21 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   protected abstract Future<Void> sendMessage(Buffer message, boolean compressed);
   protected abstract Future<Void> sendEnd();
 
+  protected String contentType(WireFormat wireFormat) {
+    if (wireFormat != null) {
+      switch (wireFormat) {
+        case JSON:
+          if (!mediaType.endsWith("/json")) {
+            return mediaType + "+json";
+          }
+        case PROTOBUF:
+          // contentType = mediaType + "+proto";
+          break;
+      }
+    }
+    return mediaType;
+  }
+
   private Future<Void> writeMessage(GrpcMessage message, boolean end) {
     if (error != null) {
       throw new IllegalStateException("The stream is failed: " + error);
@@ -253,17 +268,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     }
     if (!headersSent) {
       headersSent = true;
-      String contentType = mediaType;
-      if (format != null) {
-        switch (format) {
-          case JSON:
-            contentType = mediaType + "+json";
-            break;
-          case PROTOBUF:
-            // contentType = mediaType + "+proto";
-            break;
-        }
-      }
+      String contentType = contentType(format);
       setHeaders(contentType, headers, end);
     }
     if (end) {

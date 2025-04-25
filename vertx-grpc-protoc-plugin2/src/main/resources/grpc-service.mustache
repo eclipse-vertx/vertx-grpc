@@ -127,8 +127,8 @@ public class {{className}} extends {{serviceName}}Service implements Service {
     public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
       SERVICE_NAME,
       "{{methodName}}",
-      GrpcMessageEncoder.json(),
-      GrpcMessageDecoder.json(() -> {{inputType}}.newBuilder()),
+      GrpcMessageEncoder.encoder(),
+      GrpcMessageDecoder.decoder({{inputType}}.newBuilder()),
       {{methodName}}_OPTIONS);
 {{/transcodingMethods}}
 

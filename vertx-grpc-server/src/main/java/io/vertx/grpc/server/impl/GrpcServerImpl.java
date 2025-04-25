@@ -26,6 +26,7 @@ import io.vertx.grpc.server.*;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 
@@ -42,10 +43,14 @@ public class GrpcServerImpl implements GrpcServer {
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
 
   private final List<Service> services = new ArrayList<>();
-  private final Map<String, MethodCallHandler<?, ?>> methodCallHandlers = new HashMap<>();
-  private final List<Mount<?, ?>> mounts = new ArrayList<>();
+  private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
+
+  private final List<GrpcHttpInvoker> invokers;
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
+
+    ServiceLoader<GrpcHttpInvoker> loader = ServiceLoader.load(GrpcHttpInvoker.class);
+    this.invokers = loader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
   }
 
@@ -56,24 +61,6 @@ public class GrpcServerImpl implements GrpcServer {
     Details(GrpcProtocol protocol, WireFormat format) {
       this.protocol = protocol;
       this.format = format;
-    }
-  }
-
-  private class Mount<Req, Resp> {
-    final MountPoint<Req, Resp> mountPoint;
-    final Handler<GrpcServerRequest<Req, Resp>> handler;
-    Mount(MountPoint<Req, Resp> mountPoint, Handler<GrpcServerRequest<Req, Resp>> handler) {
-      this.mountPoint = mountPoint;
-      this.handler = handler;
-    }
-    boolean invoke(HttpServerRequest httpRequest) {
-      GrpcInvocation<Req, Resp> invocation = mountPoint.accept(httpRequest);
-      if (invocation != null) {
-        GrpcServerImpl.this.handle(invocation, handler);
-        return true;
-      } else {
-        return false;
-      }
     }
   }
 
@@ -132,25 +119,28 @@ public class GrpcServerImpl implements GrpcServer {
       return;
     }
 
-    // Exact service lookup first
     GrpcMethodCall methodCall = new GrpcMethodCall(httpRequest.path());
-    MethodCallHandler<?, ?> mch = methodCallHandlers.get(methodCall.fullMethodName());
-    if (mch != null && mch.messageEncoder.accepts(details.format) && mch.messageDecoder.accepts(details.format)) {
-      handle(mch, httpRequest, methodCall, details.protocol, details.format);
-      return;
-    }
-
-    // Look at mounts (transcoding)
-    for (Mount<?, ?> mount : mounts) {
-      if (mount.invoke(httpRequest)) {
-        return;
+    String path = httpRequest.path();
+    while (true) {
+      List<MethodCallHandler<?, ?>> mchList = methodCallHandlers.get(path);
+      if (mchList != null) {
+        for (MethodCallHandler<?, ?> mch : mchList) {
+          if (handle(mch, httpRequest, methodCall, details.protocol, details.format)) {
+            return;
+          }
+        }
       }
+      int idx = path.lastIndexOf('/');
+      if (idx <= 0) {
+        break;
+      }
+      path = path.substring(0, idx);
     }
 
     // Generic handling
     Handler<GrpcServerRequest<Buffer, Buffer>> handler = requestHandler;
     if (handler != null) {
-      handle(new MethodCallHandler<>(GrpcMessageDecoder.IDENTITY, GrpcMessageEncoder.IDENTITY, handler), httpRequest, methodCall, details.protocol, details.format);
+      handle(new MethodCallHandler<>(null, GrpcMessageDecoder.IDENTITY, GrpcMessageEncoder.IDENTITY, handler), httpRequest, methodCall, details.protocol, details.format);
     } else {
       httpRequest.response().setStatusCode(500).end();
     }
@@ -179,12 +169,16 @@ public class GrpcServerImpl implements GrpcServer {
     handle(invocation.grpcRequest, invocation.grpcResponse, handler);
   }
 
-  private <Req, Resp> void handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall, GrpcProtocol protocol, WireFormat format) {
+  private <Req, Resp> boolean handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall, GrpcProtocol protocol, WireFormat format) {
     io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
+
     GrpcServerRequestImpl<Req, Resp> grpcRequest;
     GrpcServerResponseImpl<Req, Resp> grpcResponse;
     switch (protocol) {
       case HTTP_2:
+        if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
+          return false;
+        }
         grpcRequest = new Http2GrpcServerRequest<>(
           context,
           protocol,
@@ -202,6 +196,9 @@ public class GrpcServerImpl implements GrpcServer {
         break;
       case WEB:
       case WEB_TEXT:
+        if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
+          return false;
+        }
         grpcRequest = new WebGrpcServerRequest<>(
           context,
           protocol,
@@ -217,11 +214,27 @@ public class GrpcServerImpl implements GrpcServer {
           httpRequest.response(),
           method.messageEncoder);
         break;
+      case TRANSCODING:
+        grpcRequest = null;
+        grpcResponse = null;
+        for (GrpcHttpInvoker invoker : invokers) {
+          GrpcInvocation<Req, Resp> invocation = invoker.accept(httpRequest, method.method);
+          if (invocation != null) {
+            grpcRequest = invocation.grpcRequest;
+            grpcResponse = invocation.grpcResponse;
+            break;
+          }
+        }
+        break;
       default:
         throw new AssertionError();
     }
+    if (grpcRequest == null || grpcResponse == null) {
+      return false;
+    }
     grpcResponse.format(format);
     handle(grpcRequest, grpcResponse, method);
+    return true;
   }
 
   private <Req, Resp> void handle(GrpcServerRequestImpl<Req, Resp> grpcRequest,
@@ -248,19 +261,44 @@ public class GrpcServerImpl implements GrpcServer {
     return this;
   }
 
+  private <Req, Resp> void registerMethodCallHandler(String path, MethodCallHandler<Req, Resp> mch) {
+    methodCallHandlers.computeIfAbsent(path, k -> new ArrayList<>()).add(mch);
+  }
+
+  private <Req, Resp> void unregisterMethodCallHandler(String path, ServiceMethod<Req, Resp> serviceMethod) {
+    methodCallHandlers.computeIfPresent(path, (p, registrations) -> {
+      Iterator<MethodCallHandler<?, ?>> it = registrations.iterator();
+      while (it.hasNext()) {
+        MethodCallHandler<?, ?> mch = it.next();
+        if (mch.method.equals(serviceMethod)) {
+          it.remove();
+        }
+      }
+      return registrations.isEmpty() ? null : registrations;
+    });
+  }
+
   @Override
   public <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
     if (handler != null) {
-
+      MethodCallHandler<Req, Resp> p = new MethodCallHandler<>(serviceMethod, serviceMethod.decoder(), serviceMethod.encoder(), handler);
       if (serviceMethod instanceof MountPoint) {
         MountPoint<Req, Resp> mountPoint = (MountPoint<Req, Resp>) serviceMethod;
-        mounts.add(new Mount<>(mountPoint, handler));
-        return this;
+        List<String> paths = mountPoint.paths();
+        for (String path : paths) {
+          registerMethodCallHandler(path, p);
+        }
       }
-      MethodCallHandler<Req, Resp> p = new MethodCallHandler<>(serviceMethod.decoder(), serviceMethod.encoder(), handler);
-      methodCallHandlers.put(serviceMethod.fullMethodName(), p);
+      registerMethodCallHandler("/" + serviceMethod.fullMethodName(), p);
     } else {
-      methodCallHandlers.remove(serviceMethod.fullMethodName());
+      if (serviceMethod instanceof MountPoint) {
+        MountPoint<Req, Resp> mountPoint = (MountPoint<Req, Resp>) serviceMethod;
+        List<String> paths = mountPoint.paths();
+        for (String path : paths) {
+          unregisterMethodCallHandler(path, serviceMethod);
+        }
+      }
+      unregisterMethodCallHandler("/" + serviceMethod.fullMethodName(), serviceMethod);
     }
     return this;
   }
@@ -286,11 +324,13 @@ public class GrpcServerImpl implements GrpcServer {
 
   private static class MethodCallHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
 
+    final ServiceMethod<Req, Resp> method;
     final GrpcMessageDecoder<Req> messageDecoder;
     final GrpcMessageEncoder<Resp> messageEncoder;
     final Handler<GrpcServerRequest<Req, Resp>> handler;
 
-    MethodCallHandler(GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    MethodCallHandler(ServiceMethod<Req, Resp> method, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, Handler<GrpcServerRequest<Req, Resp>> handler) {
+      this.method = method;
       this.messageDecoder = messageDecoder;
       this.messageEncoder = messageEncoder;
       this.handler = handler;
