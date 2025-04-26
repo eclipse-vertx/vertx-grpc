@@ -83,7 +83,6 @@ public class VertxGrpcGeneratorImpl extends Generator {
           fileProto.getService(serviceNumber),
           typeMap,
           fileProto.getSourceCodeInfo().getLocationList(),
-          fileProto.getPackage() + "." + fileProto.getService(serviceNumber).getName(),
           serviceNumber
         );
         serviceContext.protoName = fileProto.getName();
@@ -109,7 +108,8 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return Strings.nullToEmpty(proto.getPackage());
   }
 
-  private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, String name, int serviceNumber) {
+  private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations,
+    int serviceNumber) {
     ServiceContext serviceContext = new ServiceContext();
     // Set Later
     //serviceContext.fileName = CLASS_PREFIX + serviceProto.getName() + "Grpc.java";
@@ -134,7 +134,6 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
     for (int methodNumber = 0; methodNumber < serviceProto.getMethodCount(); methodNumber++) {
       MethodContext methodContext = buildMethodContext(
-        name,
         serviceProto.getMethod(methodNumber),
         typeMap,
         locations,
@@ -146,7 +145,8 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return serviceContext;
   }
 
-  private MethodContext buildMethodContext(String serviceName, DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int methodNumber) {
+  private MethodContext buildMethodContext(DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations,
+    int methodNumber) {
     MethodContext methodContext = new MethodContext();
     methodContext.transcodingContext = new TranscodingContext();
 
@@ -188,11 +188,6 @@ public class VertxGrpcGeneratorImpl extends Generator {
     if (methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
       HttpRule httpRule = methodProto.getOptions().getExtension(AnnotationsProto.http);
       methodContext.transcodingContext = buildTranscodingContext(httpRule);
-    } else if (transcodingMode == VertxGrpcGenerator.TranscodingMode.ALL) {
-      // URL path should be in format /GRPC_SERVICE_FULL_NAME/METHOD_NAME
-      // See https://cloud.google.com/endpoints/docs/grpc/transcoding
-      methodContext.transcodingContext.path = serviceName + "/" + methodProto.getName();
-      methodContext.transcodingContext.method = "POST";
     }
 
     return methodContext;
@@ -297,9 +292,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
   );
 
   /**
-   * Adjust a method name prefix identifier to follow the JavaBean spec:
-   * - decapitalize the first letter
-   * - remove embedded underscores & capitalize the following letter
+   * Adjust a method name prefix identifier to follow the JavaBean spec: - decapitalize the first letter - remove embedded underscores & capitalize the following letter
    * <p>
    * Finally, if the result is a reserved java keyword, append an underscore.
    *
@@ -482,6 +475,22 @@ public class VertxGrpcGeneratorImpl extends Generator {
       } else {
         return methods.stream().filter(t -> t.transcodingContext != null && t.transcodingContext.option).collect(Collectors.toList());
       }
+    }
+
+    public List<MethodContext> transcodingOptions() {
+      if (transcodingMode == VertxGrpcGenerator.TranscodingMode.DISABLED) {
+        return Collections.emptyList();
+      }
+
+      return methods.stream().filter(t -> t.transcodingContext != null && t.transcodingContext.option).collect(Collectors.toList());
+    }
+
+    public List<MethodContext> transcodingOptionless() {
+      if (transcodingMode == VertxGrpcGenerator.TranscodingMode.DISABLED) {
+        return Collections.emptyList();
+      }
+
+      return methods.stream().filter(t -> t.transcodingContext != null && !t.transcodingContext.option).collect(Collectors.toList());
     }
   }
 

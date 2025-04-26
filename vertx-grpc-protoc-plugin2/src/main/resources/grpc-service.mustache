@@ -87,62 +87,56 @@ public class {{className}} extends {{serviceName}}Service implements Service {
 {{#allMethods}}
     all.add({{methodName}});
 {{/allMethods}}
+{{#transcodingMethods}}
+    all.add({{methodName}}TranscodingMethod);
+{{/transcodingMethods}}
     return all;
   }
 
+{{#transcodingOptions}}
+
+  private static final io.vertx.grpc.transcoding.MethodTranscodingOptions {{methodName}}_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
+    .setSelector("{{transcodingContext.selector}}")
+    .setHttpMethod(HttpMethod.valueOf("{{transcodingContext.method}}"))
+    .setPath("{{{transcodingContext.path}}}")
+    .setBody("{{{transcodingContext.body}}}")
+    .setResponseBody("{{{transcodingContext.responseBody}}}")
+    {{#transcodingContext.additionalBindings}}
+    .addAdditionalBinding(new io.vertx.grpc.transcoding.MethodTranscodingOptions()
+      .setSelector("{{selector}}")
+      .setHttpMethod(HttpMethod.valueOf("{{method}}"))
+      .setPath("{{{path}}}")
+      .setBody("{{{body}}}")
+      .setResponseBody("{{{responseBody}}}"))
+    {{/transcodingContext.additionalBindings}}
+  ;
+{{/transcodingOptions}}
+{{#transcodingOptions}}
+
   /**
-   * Transcoded server service methods.
+   * {{methodName}} transcoded RPC server service method.
    */
-  public static final class Transcoding {
+  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<{{inputType}}, {{outputType}}> {{methodName}}TranscodingMethod = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+    SERVICE_NAME,
+    "{{methodName}}",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder({{inputType}}.newBuilder()),
+    {{methodName}}_OPTIONS
+  );
+{{/transcodingOptions}}
 
-    /**
-     * @return a service binding all methods of the given {@code service} using transcoding options
-     */
-    public static Service of({{serviceName}}Service service) {
-      return builder(service).bind(all()).build();
-    }
-{{#transcodingMethods}}
+{{#transcodingOptionless}}
 
-    private static final io.vertx.grpc.transcoding.MethodTranscodingOptions {{methodName}}_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
-      .setSelector("{{transcodingContext.selector}}")
-      .setHttpMethod(HttpMethod.valueOf("{{transcodingContext.method}}"))
-      .setPath("{{{transcodingContext.path}}}")
-      .setBody("{{{transcodingContext.body}}}")
-      .setResponseBody("{{{transcodingContext.responseBody}}}")
-      {{#transcodingContext.additionalBindings}}
-      .addAdditionalBinding(new io.vertx.grpc.transcoding.MethodTranscodingOptions()
-        .setSelector("{{selector}}")
-        .setHttpMethod(HttpMethod.valueOf("{{method}}"))
-        .setPath("{{{path}}}")
-        .setBody("{{{body}}}")
-        .setResponseBody("{{{responseBody}}}"))
-      {{/transcodingContext.additionalBindings}}
-    ;
-{{/transcodingMethods}}
-{{#transcodingMethods}}
-
-    /**
-     * {{methodName}} transcoded RPC server service method.
-     */
-    public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
-      SERVICE_NAME,
-      "{{methodName}}",
-      GrpcMessageEncoder.encoder(),
-      GrpcMessageDecoder.decoder({{inputType}}.newBuilder()),
-      {{methodName}}_OPTIONS);
-{{/transcodingMethods}}
-
-    /**
-     * @return a mutable list of the known transcoded RPC server service methods.
-     */
-    public static java.util.List<ServiceMethod<?, ?>> all() {
-      java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
-{{#transcodingMethods}}
-      all.add({{methodName}});
-{{/transcodingMethods}}
-      return all;
-    }
-  }
+  /**
+  * {{methodName}} transcoded RPC server service method.
+  */
+  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<{{inputType}}, {{outputType}}> {{methodName}}TranscodingMethod = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+    SERVICE_NAME,
+    "{{methodName}}",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder({{inputType}}.newBuilder())
+  );
+{{/transcodingOptionless}}
 
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service

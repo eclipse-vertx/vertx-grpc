@@ -31,6 +31,10 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
 
   private final PathMatcher pathMatcher;
 
+  public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder) {
+    this(serviceName, methodName, encoder, decoder, null);
+  }
+
   public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder, MethodTranscodingOptions options) {
     this.serviceName = serviceName;
     this.methodName = methodName;
@@ -39,10 +43,13 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
     this.options = options;
 
     // Init
-    PathMatcherBuilder pmb = new PathMatcherBuilder();
-    PathMatcherUtility.registerByHttpRule(pmb, options, fullMethodName());
-
-    this.pathMatcher = pmb.build();
+    if (options != null) {
+      PathMatcherBuilder pmb = new PathMatcherBuilder();
+      PathMatcherUtility.registerByHttpRule(pmb, options, fullMethodName());
+      this.pathMatcher = pmb.build();
+    } else {
+      this.pathMatcher = null;
+    }
   }
 
   @Override
@@ -53,8 +60,8 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
   }
 
   private void computePaths(MethodTranscodingOptions options, Set<String> paths) {
-    if (options.getPath().equals(fullMethodName())) {
-      paths.add(options.getPath());
+    if (options == null || options.getPath().equals(fullMethodName())) {
+      paths.add(fullMethodName());
       return;
     }
 
@@ -80,7 +87,7 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
       return null;
     }
 
-    PathMatcherLookupResult res = pathMatcher.lookup(httpRequest.method().name(), httpRequest.path(), httpRequest.query());
+    PathMatcherLookupResult res = pathMatcher == null ? null : pathMatcher.lookup(httpRequest.method().name(), httpRequest.path(), httpRequest.query());
     if (res != null) {
       List<HttpVariableBinding> bindings = new ArrayList<>(res.getVariableBindings());
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
@@ -99,12 +106,12 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
         options.getResponseBody(),
         encoder);
       return new GrpcInvocation<>(grpcRequest, grpcResponse);
-    } else if (options.getPath().equals(fullMethodName())) {
+    } else if (options == null) {
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
       GrpcServerRequestImpl<I, O> grpcRequest = new TranscodingGrpcServerRequest<>(
         context,
         httpRequest,
-        options.getBody(),
+        null,
         new ArrayList<>(),
         decoder,
         new GrpcMethodCall("/" + methodName));
@@ -113,7 +120,7 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
         grpcRequest,
         GrpcProtocol.TRANSCODING,
         httpRequest.response(),
-        options.getResponseBody(),
+        null,
         encoder);
       return new GrpcInvocation<>(grpcRequest, grpcResponse);
     }
