@@ -27,7 +27,7 @@ public class ProtocPluginTest extends ProtocPluginTestBase {
 
   @Override
   protected GrpcClient grpcClient() {
-    return GrpcClient.client(vertx, new GrpcClientOptions());
+    return GrpcClient.client(vertx);
   }
 
   @Override
