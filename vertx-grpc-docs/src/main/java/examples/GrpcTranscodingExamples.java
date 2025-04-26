@@ -10,12 +10,12 @@ import io.vertx.grpc.server.Service;
 public class GrpcTranscodingExamples {
 
   public void transcodingRequestResponse(GrpcServer server) {
-    Service service = GreeterGrpcService.of(new GreeterGrpcService() {
+    Service service = new GreeterGrpcService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
         return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
       }
-    });
+    };
 
     server.addService(service);
   }

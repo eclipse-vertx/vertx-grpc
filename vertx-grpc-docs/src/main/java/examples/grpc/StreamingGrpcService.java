@@ -101,43 +101,9 @@ public class StreamingGrpcService extends StreamingService implements Service {
     all.add(Source);
     all.add(Sink);
     all.add(Pipe);
-    all.add(SourceTranscodingMethod);
-    all.add(SinkTranscodingMethod);
-    all.add(PipeTranscodingMethod);
     return all;
   }
 
-
-
-  /**
-  * Source transcoded RPC server service method.
-  */
-  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.Empty, examples.grpc.Item> SourceTranscodingMethod = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
-    SERVICE_NAME,
-    "Source",
-    GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.grpc.Empty.newBuilder())
-  );
-
-  /**
-  * Sink transcoded RPC server service method.
-  */
-  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.Item, examples.grpc.Empty> SinkTranscodingMethod = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
-    SERVICE_NAME,
-    "Sink",
-    GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.grpc.Item.newBuilder())
-  );
-
-  /**
-  * Pipe transcoded RPC server service method.
-  */
-  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.Item, examples.grpc.Item> PipeTranscodingMethod = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
-    SERVICE_NAME,
-    "Pipe",
-    GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.grpc.Item.newBuilder())
-  );
 
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service

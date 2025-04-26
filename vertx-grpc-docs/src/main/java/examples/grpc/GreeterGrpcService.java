@@ -65,21 +65,11 @@ public class GreeterGrpcService extends GreeterService implements Service {
   }
 
   /**
-   * SayHello protobuf RPC server service method.
-   */
-  public static final ServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHello = ServiceMethod.server(
-    SERVICE_NAME,
-    "SayHello",
-    GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.grpc.HelloRequest.newBuilder()));
-
-  /**
    * @return a mutable list of the known protobuf RPC server service methods.
    */
   public static java.util.List<ServiceMethod<?, ?>> all() {
     java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
     all.add(SayHello);
-    all.add(SayHelloTranscodingMethod);
     return all;
   }
 
@@ -95,14 +85,13 @@ public class GreeterGrpcService extends GreeterService implements Service {
   /**
    * SayHello transcoded RPC server service method.
    */
-  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHelloTranscodingMethod = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHello = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
     SERVICE_NAME,
     "SayHello",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.grpc.HelloRequest.newBuilder()),
     SayHello_OPTIONS
   );
-
 
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service

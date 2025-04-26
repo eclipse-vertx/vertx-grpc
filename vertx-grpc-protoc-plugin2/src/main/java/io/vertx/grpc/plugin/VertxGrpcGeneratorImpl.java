@@ -35,18 +35,13 @@ public class VertxGrpcGeneratorImpl extends Generator {
   private final boolean generateGrpcClient;
   private final boolean generateGrpcService;
   private final boolean generateGrpcIo;
+  private final boolean generateTranscoding;
 
-  private final VertxGrpcGenerator.TranscodingMode transcodingMode;
-
-  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo) {
-    this(generateGrpcClient, generateGrpcService, generateGrpcIo, VertxGrpcGenerator.TranscodingMode.OPTION);
-  }
-
-  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo, VertxGrpcGenerator.TranscodingMode transcodingMode) {
+  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo, boolean generateTranscoding) {
     this.generateGrpcClient = generateGrpcClient;
     this.generateGrpcService = generateGrpcService;
     this.generateGrpcIo = generateGrpcIo;
-    this.transcodingMode = transcodingMode;
+    this.generateTranscoding = generateTranscoding;
   }
 
   private String getServiceJavaDocPrefix() {
@@ -116,7 +111,6 @@ public class VertxGrpcGeneratorImpl extends Generator {
     //serviceContext.className = CLASS_PREFIX + serviceProto.getName() + "Grpc";
     serviceContext.serviceName = serviceProto.getName();
     serviceContext.deprecated = serviceProto.getOptions() != null && serviceProto.getOptions().getDeprecated();
-    serviceContext.transcodingMode = this.transcodingMode;
 
     List<DescriptorProtos.SourceCodeInfo.Location> allLocationsForService = locations.stream()
       .filter(location ->
@@ -185,7 +179,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
       methodContext.grpcCallsMethodName = "asyncBidiStreamingCall";
     }
 
-    if (methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
+    if (generateTranscoding && methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
       HttpRule httpRule = methodProto.getOptions().getExtension(AnnotationsProto.http);
       methodContext.transcodingContext = buildTranscodingContext(httpRule);
     }
@@ -440,7 +434,6 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String outerClassName;
     public boolean deprecated;
     public String javaDoc;
-    public VertxGrpcGenerator.TranscodingMode transcodingMode;
     public final List<MethodContext> methods = new ArrayList<>();
 
     public List<MethodContext> allMethods() {
@@ -467,30 +460,12 @@ public class VertxGrpcGeneratorImpl extends Generator {
       return methods.stream().filter(m -> m.isManyInput && m.isManyOutput).collect(Collectors.toList());
     }
 
+    public List<MethodContext> serviceMethods() {
+      return methods.stream().filter(m -> m.transcodingContext == null || !m.transcodingContext.option).collect(Collectors.toList());
+    }
+
     public List<MethodContext> transcodingMethods() {
-      if (transcodingMode == VertxGrpcGenerator.TranscodingMode.DISABLED) {
-        return Collections.emptyList();
-      } else if (transcodingMode == VertxGrpcGenerator.TranscodingMode.ALL) {
-        return methods;
-      } else {
-        return methods.stream().filter(t -> t.transcodingContext != null && t.transcodingContext.option).collect(Collectors.toList());
-      }
-    }
-
-    public List<MethodContext> transcodingOptions() {
-      if (transcodingMode == VertxGrpcGenerator.TranscodingMode.DISABLED) {
-        return Collections.emptyList();
-      }
-
       return methods.stream().filter(t -> t.transcodingContext != null && t.transcodingContext.option).collect(Collectors.toList());
-    }
-
-    public List<MethodContext> transcodingOptionless() {
-      if (transcodingMode == VertxGrpcGenerator.TranscodingMode.DISABLED) {
-        return Collections.emptyList();
-      }
-
-      return methods.stream().filter(t -> t.transcodingContext != null && !t.transcodingContext.option).collect(Collectors.toList());
     }
   }
 

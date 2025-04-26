@@ -1,6 +1,6 @@
 package io.vertx.grpc.it;
 
-import io.grpc.examples.helloworld.GreeterGrpcService;
+import io.grpc.examples.helloworld.*;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
@@ -8,9 +8,10 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.server.GrpcServer;
 import org.junit.Test;
 
@@ -23,10 +24,9 @@ public class TranscodingTest extends ProxyTestBase {
     HttpClient client = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHello, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
           call.response().end(helloReply);
         });
       })).listen(8080, "localhost");
@@ -58,10 +58,9 @@ public class TranscodingTest extends ProxyTestBase {
     HttpClient client = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloAgainTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloAgain, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
           call.response().end(helloReply);
         });
       })).listen(8080, "localhost");
@@ -93,10 +92,9 @@ public class TranscodingTest extends ProxyTestBase {
     HttpClient client = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHello, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
           call.response().end(helloReply);
         });
       })).listen(8080, "localhost");
@@ -126,10 +124,9 @@ public class TranscodingTest extends ProxyTestBase {
     HttpClient client = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHello, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
           call.response().end(helloReply);
         });
       })).listen(8080, "localhost");
@@ -161,10 +158,9 @@ public class TranscodingTest extends ProxyTestBase {
     HttpClient client = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHello, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
           call.response().end(helloReply);
         });
       })).listen(8080, "localhost");
@@ -194,10 +190,9 @@ public class TranscodingTest extends ProxyTestBase {
     HttpClient client = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHello, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
           call.response().end(helloReply);
         });
       })).listen(8080, "localhost");
@@ -227,10 +222,9 @@ public class TranscodingTest extends ProxyTestBase {
     HttpClient client = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloCustomTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloCustom, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
           call.response().end(helloReply);
         });
       })).listen(8080, "localhost");
@@ -262,10 +256,9 @@ public class TranscodingTest extends ProxyTestBase {
     HttpClient client = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloWithBodyTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloWithBody, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getRequest().getName())
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getRequest().getName()).build();
           call.response().end(helloReply);
         });
       })).listen(8080, "localhost");
@@ -297,10 +290,9 @@ public class TranscodingTest extends ProxyTestBase {
     HttpClient client = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloNestedTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloNested, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
           call.response().end(helloReply);
         });
       })).listen(8080, "localhost");
@@ -335,12 +327,10 @@ public class TranscodingTest extends ProxyTestBase {
     HttpClient client = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloWithResponseBOdyTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloWithResponseBOdy, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
-            .build();
-          io.grpc.examples.helloworld.HelloBodyResponse helloBodyResponse = io.grpc.examples.helloworld.HelloBodyResponse.newBuilder().setResponse(helloReply)
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+          HelloBodyResponse helloBodyResponse = HelloBodyResponse.newBuilder().setResponse(helloReply).build();
           call.response().end(helloBodyResponse);
         });
       })).listen(8080, "localhost");
@@ -372,10 +362,9 @@ public class TranscodingTest extends ProxyTestBase {
     HttpClient client = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloWithoutOptionsTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloWithoutOptions, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
           call.response().end(helloReply);
         });
       })).listen(8080, "localhost");
@@ -384,59 +373,65 @@ public class TranscodingTest extends ProxyTestBase {
 
     Async test = should.async();
 
-    server.onComplete(should.asyncAssertSuccess(v -> {
-      client.request(options).compose(req -> {
-        req.putHeader("Content-Type", "application/json");
-        req.putHeader("Accept", "application/json");
-        return req.send(createRequest("Julien"));
-      }).compose(resp -> {
-        should.assertEquals(200, resp.statusCode());
-        should.assertEquals("application/json", resp.getHeader("Content-Type"));
-        return resp.body();
-      }).onComplete(should.asyncAssertSuccess(body -> {
-        should.assertEquals("Hello Julien", getMessage(body.toString()));
-        test.complete();
-      }));
-    }));
+    server.onComplete(should.asyncAssertSuccess(v -> client.request(options).compose(req -> {
+      req.putHeader("Content-Type", "application/json");
+      req.putHeader("Accept", "application/json");
+      return req.send(createRequest("Julien"));
+    }).compose(resp -> {
+      should.assertEquals(200, resp.statusCode());
+      should.assertEquals("application/json", resp.getHeader("Content-Type"));
+      return resp.body();
+    }).onComplete(should.asyncAssertSuccess(body -> {
+      should.assertEquals("Hello Julien", getMessage(body.toString()));
+      test.complete();
+    }))));
 
     test.awaitSuccess();
   }
 
   @Test
   public void testUnaryCollisionWithoutOption(TestContext should) {
-    HttpClient client = vertx.createHttpClient();
+    HttpClient httpClient = vertx.createHttpClient();
 
     Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloWithoutOptionsTranscodingMethod, call -> {
+      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloWithoutOptions, call -> {
         call.handler(helloRequest -> {
-          io.grpc.examples.helloworld.HelloReply helloReply = io.grpc.examples.helloworld.HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName())
-            .build();
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
           call.response().end(helloReply);
         });
-      }).callHandler(GreeterGrpcService.SayHelloWithoutOptions, call -> {
-        call.handler(helloRequest -> call.response().status(GrpcStatus.INTERNAL).end());
       })).listen(8080, "localhost");
 
     RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/helloworld.Greeter/SayHelloWithoutOptions").setMethod(HttpMethod.POST);
 
-    Async test = should.async();
+    Async httpTest = should.async();
 
-    server.onComplete(should.asyncAssertSuccess(v -> {
-      client.request(options).compose(req -> {
-        req.putHeader("Content-Type", "application/json");
-        req.putHeader("Accept", "application/json");
-        return req.send(createRequest("Julien"));
-      }).compose(resp -> {
-        should.assertEquals(200, resp.statusCode());
-        should.assertEquals("application/json", resp.getHeader("Content-Type"));
-        return resp.body();
-      }).onComplete(should.asyncAssertSuccess(body -> {
-        should.assertEquals("Hello Julien", getMessage(body.toString()));
-        test.complete();
-      }));
-    }));
+    server.onComplete(should.asyncAssertSuccess(v -> httpClient.request(options).compose(req -> {
+      req.putHeader("Content-Type", "application/json");
+      req.putHeader("Accept", "application/json");
+      return req.send(createRequest("Julien"));
+    }).compose(resp -> {
+      should.assertEquals(200, resp.statusCode());
+      should.assertEquals("application/json", resp.getHeader("Content-Type"));
+      return resp.body();
+    }).onComplete(should.asyncAssertSuccess(body -> {
+      should.assertEquals("Hello Julien", getMessage(body.toString()));
+      httpTest.complete();
+    }))));
 
-    test.awaitSuccess();
+    httpTest.awaitSuccess();
+
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    GreeterGrpcClient greeterClient = GreeterGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(8080, "localhost"));
+
+    Async grpcTest = should.async();
+
+    server.onComplete(should.asyncAssertSuccess(v -> greeterClient.sayHelloWithoutOptions(HelloRequest.newBuilder().setName("Julien").build())
+      .onComplete(should.asyncAssertSuccess(reply -> {
+        should.assertEquals("Hello Julien", reply.getMessage());
+        grpcTest.complete();
+      }))));
+
+    grpcTest.awaitSuccess();
   }
 
   private String createRequest(String name) {
