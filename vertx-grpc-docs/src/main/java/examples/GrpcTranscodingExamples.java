@@ -4,9 +4,11 @@ import examples.grpc.GreeterGrpcService;
 import examples.grpc.HelloReply;
 import examples.grpc.HelloRequest;
 import io.vertx.core.Future;
+import io.vertx.docgen.Source;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
 
+@Source
 public class GrpcTranscodingExamples {
 
   public void transcodingRequestResponse(GrpcServer server) {
