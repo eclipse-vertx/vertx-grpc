@@ -15,6 +15,13 @@ public interface TranscodingServiceMethod<I, O> extends ServiceMethod<I, O> {
   static <Req, Resp> TranscodingServiceMethod<Req, Resp> server(ServiceName serviceName,
                                                                 String methodName,
                                                                 GrpcMessageEncoder<Resp> encoder,
+                                                                GrpcMessageDecoder<Req> decoder) {
+    return new TranscodingServiceMethodImpl<>(serviceName, methodName, encoder, decoder);
+  }
+
+  static <Req, Resp> TranscodingServiceMethod<Req, Resp> server(ServiceName serviceName,
+                                                                String methodName,
+                                                                GrpcMessageEncoder<Resp> encoder,
                                                                 GrpcMessageDecoder<Req> decoder,
                                                                 MethodTranscodingOptions options) {
     return new TranscodingServiceMethodImpl<>(serviceName, methodName, encoder, decoder, options);

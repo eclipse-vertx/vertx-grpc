@@ -92,6 +92,9 @@ service Greeter {
       response_body: "response"
     };
   }
+
+  // Sends a greeting without the options
+  rpc SayHelloWithoutOptions (HelloRequest) returns (HelloReply) {}
 }
 
 // The request message containing the user's name.

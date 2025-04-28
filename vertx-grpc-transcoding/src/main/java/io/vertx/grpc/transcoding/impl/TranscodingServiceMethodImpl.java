@@ -1,5 +1,6 @@
 package io.vertx.grpc.transcoding.impl;
 
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.grpc.common.GrpcMessageDecoder;
@@ -30,8 +31,11 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
 
   private final PathMatcher pathMatcher;
 
-  public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder, MethodTranscodingOptions options) {
+  public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder) {
+    this(serviceName, methodName, encoder, decoder, null);
+  }
 
+  public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder, MethodTranscodingOptions options) {
     this.serviceName = serviceName;
     this.methodName = methodName;
     this.encoder = encoder;
@@ -39,10 +43,13 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
     this.options = options;
 
     // Init
-    PathMatcherBuilder pmb = new PathMatcherBuilder();
-    PathMatcherUtility.registerByHttpRule(pmb, options, fullMethodName());
-
-    this.pathMatcher = pmb.build();
+    if (options != null) {
+      PathMatcherBuilder pmb = new PathMatcherBuilder();
+      PathMatcherUtility.registerByHttpRule(pmb, options, fullMethodName());
+      this.pathMatcher = pmb.build();
+    } else {
+      this.pathMatcher = null;
+    }
   }
 
   @Override
@@ -53,6 +60,11 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
   }
 
   private void computePaths(MethodTranscodingOptions options, Set<String> paths) {
+    if (options == null || options.getPath().equals(fullMethodName())) {
+      paths.add(fullMethodName());
+      return;
+    }
+
     HttpTemplate tmpl = HttpTemplate.parse(options.getPath());
     StringBuilder sb = new StringBuilder();
     for (String a : tmpl.getSegments()) {
@@ -71,7 +83,11 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
   }
 
   public GrpcInvocation<I, O> accept(HttpServerRequest httpRequest) {
-    PathMatcherLookupResult res = pathMatcher.lookup(httpRequest.method().name(), httpRequest.path(), httpRequest.query());
+    if (!httpRequest.getHeader(HttpHeaders.CONTENT_TYPE).equals(GrpcProtocol.TRANSCODING.mediaType())) {
+      return null;
+    }
+
+    PathMatcherLookupResult res = pathMatcher == null ? null : pathMatcher.lookup(httpRequest.method().name(), httpRequest.path(), httpRequest.query());
     if (res != null) {
       List<HttpVariableBinding> bindings = new ArrayList<>(res.getVariableBindings());
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
@@ -90,7 +106,25 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
         options.getResponseBody(),
         encoder);
       return new GrpcInvocation<>(grpcRequest, grpcResponse);
+    } else if (options == null) {
+      io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
+      GrpcServerRequestImpl<I, O> grpcRequest = new TranscodingGrpcServerRequest<>(
+        context,
+        httpRequest,
+        null,
+        new ArrayList<>(),
+        decoder,
+        new GrpcMethodCall("/" + methodName));
+      GrpcServerResponseImpl<I, O> grpcResponse = new TranscodingGrpcServerResponse<>(
+        context,
+        grpcRequest,
+        GrpcProtocol.TRANSCODING,
+        httpRequest.response(),
+        null,
+        encoder);
+      return new GrpcInvocation<>(grpcRequest, grpcResponse);
     }
+
     return null;
   }
 

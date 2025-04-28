@@ -65,15 +65,6 @@ public class GreeterGrpcService extends GreeterService implements Service {
   }
 
   /**
-   * SayHello protobuf RPC server service method.
-   */
-  public static final ServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHello = ServiceMethod.server(
-    SERVICE_NAME,
-    "SayHello",
-    GrpcMessageEncoder.encoder(),
-    GrpcMessageDecoder.decoder(examples.grpc.HelloRequest.newBuilder()));
-
-  /**
    * @return a mutable list of the known protobuf RPC server service methods.
    */
   public static java.util.List<ServiceMethod<?, ?>> all() {
@@ -82,45 +73,25 @@ public class GreeterGrpcService extends GreeterService implements Service {
     return all;
   }
 
+
+  private static final io.vertx.grpc.transcoding.MethodTranscodingOptions SayHello_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
+    .setSelector("")
+    .setHttpMethod(HttpMethod.valueOf("GET"))
+    .setPath("/v1/hello/{name}")
+    .setBody("")
+    .setResponseBody("")
+  ;
+
   /**
-   * Transcoded server service methods.
+   * SayHello transcoded RPC server service method.
    */
-  public static final class Transcoding {
-
-    /**
-     * @return a service binding all methods of the given {@code service} using transcoding options
-     */
-    public static Service of(GreeterService service) {
-      return builder(service).bind(all()).build();
-    }
-
-    private static final io.vertx.grpc.transcoding.MethodTranscodingOptions SayHello_OPTIONS = new io.vertx.grpc.transcoding.MethodTranscodingOptions()
-      .setSelector("")
-      .setHttpMethod(HttpMethod.valueOf("GET"))
-      .setPath("/v1/hello/{name}")
-      .setBody("")
-      .setResponseBody("")
-    ;
-
-    /**
-     * SayHello transcoded RPC server service method.
-     */
-    public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHello = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
-      SERVICE_NAME,
-      "SayHello",
-      GrpcMessageEncoder.encoder(),
-      GrpcMessageDecoder.decoder(examples.grpc.HelloRequest.newBuilder()),
-      SayHello_OPTIONS);
-
-    /**
-     * @return a mutable list of the known transcoded RPC server service methods.
-     */
-    public static java.util.List<ServiceMethod<?, ?>> all() {
-      java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
-      all.add(SayHello);
-      return all;
-    }
-  }
+  public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHello = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
+    SERVICE_NAME,
+    "SayHello",
+    GrpcMessageEncoder.encoder(),
+    GrpcMessageDecoder.decoder(examples.grpc.HelloRequest.newBuilder()),
+    SayHello_OPTIONS
+  );
 
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service

@@ -52,7 +52,6 @@ public abstract class ClientTest extends ClientTestBase {
 
   protected GrpcClient client;
 
-
   @Test
   public void testUnary(TestContext should) throws IOException {
     testUnary(should, "identity", "identity");

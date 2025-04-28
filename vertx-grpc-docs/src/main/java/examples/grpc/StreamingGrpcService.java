@@ -104,26 +104,6 @@ public class StreamingGrpcService extends StreamingService implements Service {
     return all;
   }
 
-  /**
-   * Transcoded server service methods.
-   */
-  public static final class Transcoding {
-
-    /**
-     * @return a service binding all methods of the given {@code service} using transcoding options
-     */
-    public static Service of(StreamingService service) {
-      return builder(service).bind(all()).build();
-    }
-
-    /**
-     * @return a mutable list of the known transcoded RPC server service methods.
-     */
-    public static java.util.List<ServiceMethod<?, ?>> all() {
-      java.util.List<ServiceMethod<?, ?>> all = new java.util.ArrayList<>();
-      return all;
-    }
-  }
 
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service

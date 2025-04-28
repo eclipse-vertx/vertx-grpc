@@ -35,11 +35,13 @@ public class VertxGrpcGeneratorImpl extends Generator {
   private final boolean generateGrpcClient;
   private final boolean generateGrpcService;
   private final boolean generateGrpcIo;
+  private final boolean generateTranscoding;
 
-  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo) {
+  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo, boolean generateTranscoding) {
     this.generateGrpcClient = generateGrpcClient;
     this.generateGrpcService = generateGrpcService;
     this.generateGrpcIo = generateGrpcIo;
+    this.generateTranscoding = generateTranscoding;
   }
 
   private String getServiceJavaDocPrefix() {
@@ -101,7 +103,8 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return Strings.nullToEmpty(proto.getPackage());
   }
 
-  private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int serviceNumber) {
+  private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations,
+    int serviceNumber) {
     ServiceContext serviceContext = new ServiceContext();
     // Set Later
     //serviceContext.fileName = CLASS_PREFIX + serviceProto.getName() + "Grpc.java";
@@ -136,8 +139,11 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return serviceContext;
   }
 
-  private MethodContext buildMethodContext(DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations, int methodNumber) {
+  private MethodContext buildMethodContext(DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations,
+    int methodNumber) {
     MethodContext methodContext = new MethodContext();
+    methodContext.transcodingContext = new TranscodingContext();
+
     methodContext.methodName = methodProto.getName();
     methodContext.vertxMethodName = mixedLower(methodProto.getName());
     methodContext.inputType = typeMap.toJavaTypeName(methodProto.getInputType());
@@ -146,7 +152,6 @@ public class VertxGrpcGeneratorImpl extends Generator {
     methodContext.isManyInput = methodProto.getClientStreaming();
     methodContext.isManyOutput = methodProto.getServerStreaming();
     methodContext.methodNumber = methodNumber;
-    methodContext.transcodingContext = new TranscodingContext();
 
     DescriptorProtos.SourceCodeInfo.Location methodLocation = locations.stream()
       .filter(location ->
@@ -174,7 +179,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
       methodContext.grpcCallsMethodName = "asyncBidiStreamingCall";
     }
 
-    if (methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
+    if (generateTranscoding && methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
       HttpRule httpRule = methodProto.getOptions().getExtension(AnnotationsProto.http);
       methodContext.transcodingContext = buildTranscodingContext(httpRule);
     }
@@ -211,6 +216,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
         break;
     }
 
+    transcodingContext.option = true;
     transcodingContext.selector = rule.getSelector();
     transcodingContext.body = rule.getBody();
     transcodingContext.responseBody = rule.getResponseBody();
@@ -280,9 +286,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
   );
 
   /**
-   * Adjust a method name prefix identifier to follow the JavaBean spec:
-   * - decapitalize the first letter
-   * - remove embedded underscores & capitalize the following letter
+   * Adjust a method name prefix identifier to follow the JavaBean spec: - decapitalize the first letter - remove embedded underscores & capitalize the following letter
    * <p>
    * Finally, if the result is a reserved java keyword, append an underscore.
    *
@@ -420,7 +424,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
    * Template class for proto Service objects.
    */
   private static class ServiceContext {
-    // CHECKSTYLE DISABLE VisibilityModifier FOR 8 LINES
+    // CHECKSTYLE DISABLE VisibilityModifier FOR 9 LINES
     public String fileName;
     public String protoName;
     public String packageName;
@@ -456,8 +460,12 @@ public class VertxGrpcGeneratorImpl extends Generator {
       return methods.stream().filter(m -> m.isManyInput && m.isManyOutput).collect(Collectors.toList());
     }
 
+    public List<MethodContext> serviceMethods() {
+      return methods.stream().filter(m -> m.transcodingContext == null || !m.transcodingContext.option).collect(Collectors.toList());
+    }
+
     public List<MethodContext> transcodingMethods() {
-      return methods.stream().filter(t -> t.transcodingContext != null && t.transcodingContext.path != null).collect(Collectors.toList());
+      return methods.stream().filter(t -> t.transcodingContext != null && t.transcodingContext.option).collect(Collectors.toList());
     }
   }
 
@@ -517,6 +525,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String method;
     public String selector;
     public String body;
+    public boolean option;
     public String responseBody;
     public List<TranscodingContext> additionalBindings = new ArrayList<>();
   }

@@ -2,32 +2,48 @@ package io.vertx.grpc.plugin;
 
 import com.google.api.AnnotationsProto;
 import com.salesforce.jprotoc.ProtocPlugin;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 import java.util.*;
+import java.util.concurrent.Callable;
 
-public class VertxGrpcGenerator {
+@Command(
+  name = "vertx-grpc-generator",
+  mixinStandardHelpOptions = true,
+  version = "vertx-grpc-generator 1.0",
+  description = "Generates Vert.x gRPC code from proto files."
+)
+public class VertxGrpcGenerator implements Callable<Integer> {
+
+  @Option(names = { "--grpc-client" }, description = "Generate gRPC client code")
+  private boolean generateClient = false;
+
+  @Option(names = { "--grpc-service" }, description = "Generate gRPC service code")
+  private boolean generateService = false;
+
+  @Option(names = { "--grpc-io" }, description = "Generate gRPC IO code")
+  private boolean generateIo = false;
+
+  @Option(names = { "--grpc-transcoding" }, description = "Whether to generate transcoding options for methods with HTTP annotations")
+  private boolean generateTranscoding = true;
+
+  @Override
+  public Integer call() {
+    if (!generateClient && !generateService && !generateIo) {
+      generateClient = true;
+      generateService = true;
+    }
+
+    VertxGrpcGeneratorImpl generator = new VertxGrpcGeneratorImpl(generateClient, generateService, generateIo, generateTranscoding);
+    ProtocPlugin.generate(List.of(generator), List.of(AnnotationsProto.http));
+
+    return 0;
+  }
 
   public static void main(String[] args) {
-    boolean generateClient = true;
-    boolean generateService = true;
-    boolean generateIo = false;
-    if (args.length > 0) {
-      generateClient = false;
-      generateService = false;
-      for (String arg : args) {
-        switch (arg) {
-          case "grpc-client":
-            generateClient = true;
-            break;
-          case "grpc-service":
-            generateService = true;
-            break;
-          case "grpc-io":
-            generateIo = true;
-            break;
-        }
-      }
-    }
-    ProtocPlugin.generate(List.of(new VertxGrpcGeneratorImpl(generateClient, generateService, generateIo)), List.of(AnnotationsProto.http));
+    int exitCode = new CommandLine(new VertxGrpcGenerator()).execute(args);
+    System.exit(exitCode);
   }
 }
