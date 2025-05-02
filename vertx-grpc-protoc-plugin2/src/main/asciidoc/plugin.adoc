@@ -54,7 +54,7 @@ If you’re using Apache Maven you need to add the plugin:
         <id>vertx-grpc-protoc-plugin2</id>
         <groupId>io.vertx</groupId>
         <artifactId>vertx-grpc-protoc-plugin2</artifactId>
-        <version>${stack.version}</version>
+        <version>${project.version}</version>
         <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
       </protocPlugin>
     </protocPlugins>
