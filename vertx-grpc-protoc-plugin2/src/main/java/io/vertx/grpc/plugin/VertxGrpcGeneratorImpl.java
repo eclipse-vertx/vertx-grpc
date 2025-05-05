@@ -32,16 +32,29 @@ public class VertxGrpcGeneratorImpl extends Generator {
   private static final int SERVICE_NUMBER_OF_PATHS = 2;
   private static final int METHOD_NUMBER_OF_PATHS = 4;
 
-  private final boolean generateGrpcClient;
-  private final boolean generateGrpcService;
-  private final boolean generateGrpcIo;
-  private final boolean generateTranscoding;
+  private final VertxGrpcGeneratorOptions options;
 
-  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo, boolean generateTranscoding) {
-    this.generateGrpcClient = generateGrpcClient;
-    this.generateGrpcService = generateGrpcService;
-    this.generateGrpcIo = generateGrpcIo;
-    this.generateTranscoding = generateTranscoding;
+  /**
+   * Creates a new instance with the specified options.
+   *
+   * @param options the generator options
+   */
+  public VertxGrpcGeneratorImpl(VertxGrpcGeneratorOptions options) {
+    this.options = options != null ? options : new VertxGrpcGeneratorOptions();
+  }
+
+  /**
+   * Creates a new instance with the specified options.
+   * This constructor is provided for backward compatibility.
+   *
+   * @param generateGrpcClient whether to generate gRPC client code
+   * @param generateGrpcService whether to generate gRPC service code
+   * @param generateGrpcIo whether to generate gRPC IO code
+   * @param generateTranscoding whether to generate transcoding options for methods with HTTP annotations
+   * @param servicePrefix prefix to add to generated service names
+   */
+  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo, boolean generateTranscoding, String servicePrefix) {
+    this(new VertxGrpcGeneratorOptions(generateGrpcClient, generateGrpcService, generateGrpcIo, generateTranscoding, servicePrefix));
   }
 
   private String getServiceJavaDocPrefix() {
@@ -80,6 +93,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
           fileProto.getSourceCodeInfo().getLocationList(),
           serviceNumber
         );
+        serviceContext.classPrefix = options.getServicePrefix();
         serviceContext.protoName = fileProto.getName();
         serviceContext.packageName = fileProto.getPackage();
         serviceContext.outerClassName = ProtoTypeMap.getJavaOuterClassname(fileProto);
@@ -179,7 +193,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
       methodContext.grpcCallsMethodName = "asyncBidiStreamingCall";
     }
 
-    if (generateTranscoding && methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
+    if (options.isGenerateTranscoding() && methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
       HttpRule httpRule = methodProto.getOptions().getExtension(AnnotationsProto.http);
       methodContext.transcodingContext = buildTranscodingContext(httpRule);
     }
@@ -331,56 +345,56 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
   private List<PluginProtos.CodeGeneratorResponse.File> buildFiles(ServiceContext context) {
     List<PluginProtos.CodeGeneratorResponse.File> files = new ArrayList<>();
-    if (generateGrpcClient || generateGrpcService) {
+    if (options.isGenerateGrpcClient() || options.isGenerateGrpcService()) {
       files.add(buildBaseFile(context));
     }
-    if (generateGrpcClient) {
+    if (options.isGenerateGrpcClient()) {
       files.add(buildClientFile(context));
       files.add(buildGrpcClientFile(context));
     }
-    if (generateGrpcService) {
+    if (options.isGenerateGrpcService()) {
       files.add(buildServiceFile(context));
       files.add(buildGrpcServiceFile(context));
     }
-    if (generateGrpcIo) {
+    if (options.isGenerateGrpcIo()) {
       files.add(buildGrpcIoFile(context));
     }
     return files;
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildBaseFile(ServiceContext context) {
-    context.fileName = context.serviceName + ".java";
-    context.className = context.serviceName;
+    context.fileName = context.classPrefix + context.serviceName + ".java";
+    context.className = context.classPrefix + context.serviceName;
     return buildFile(context, applyTemplate("base.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildClientFile(ServiceContext context) {
-    context.fileName = context.serviceName + "Client.java";
-    context.className = context.serviceName + "Client";
+    context.fileName = context.classPrefix + context.serviceName + "Client.java";
+    context.className = context.classPrefix + context.serviceName + "Client";
     return buildFile(context, applyTemplate("client.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildGrpcClientFile(ServiceContext context) {
-    context.fileName = context.serviceName + "GrpcClient.java";
-    context.className = context.serviceName + "GrpcClient";
+    context.fileName = context.classPrefix + context.serviceName + "GrpcClient.java";
+    context.className = context.classPrefix + context.serviceName + "GrpcClient";
     return buildFile(context, applyTemplate("grpc-client.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildServiceFile(ServiceContext context) {
-    context.fileName = context.serviceName + "Service.java";
-    context.className = context.serviceName + "Service";
+    context.fileName = context.classPrefix + context.serviceName + "Service.java";
+    context.className = context.classPrefix + context.serviceName + "Service";
     return buildFile(context, applyTemplate("service.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildGrpcServiceFile(ServiceContext context) {
-    context.fileName = context.serviceName + "GrpcService.java";
-    context.className = context.serviceName + "GrpcService";
+    context.fileName = context.classPrefix + context.serviceName + "GrpcService.java";
+    context.className = context.classPrefix + context.serviceName + "GrpcService";
     return buildFile(context, applyTemplate("grpc-service.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildGrpcIoFile(ServiceContext context) {
-    context.fileName = context.serviceName + "GrpcIo.java";
-    context.className = context.serviceName + "GrpcIo";
+    context.fileName = context.classPrefix + context.serviceName + "GrpcIo.java";
+    context.className = context.classPrefix + context.serviceName + "GrpcIo";
     return buildFile(context, applyTemplate("grpc-io.mustache", context));
   }
 
@@ -432,9 +446,14 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String className;
     public String serviceName;
     public String outerClassName;
+    public String classPrefix;
     public boolean deprecated;
     public String javaDoc;
     public final List<MethodContext> methods = new ArrayList<>();
+
+    public String prefixedServiceName() {
+      return classPrefix + serviceName;
+    }
 
     public List<MethodContext> allMethods() {
       return methods;

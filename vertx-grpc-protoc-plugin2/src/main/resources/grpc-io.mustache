@@ -37,7 +37,7 @@ public final class {{className}} {
   }
 
   {{#javaDoc}}{{{javaDoc}}}{{/javaDoc}}
-  public static final class {{serviceName}}Stub extends io.grpc.stub.AbstractStub<{{serviceName}}Stub> implements {{serviceName}}Client {
+  public static final class {{serviceName}}Stub extends io.grpc.stub.AbstractStub<{{serviceName}}Stub> implements {{prefixedServiceName}}Client {
     private final io.vertx.core.internal.ContextInternal context;
     private {{serviceName}}Grpc.{{serviceName}}Stub delegateStub;
 
@@ -90,7 +90,7 @@ public final class {{className}} {
   /**
    * @return a service binding the given {@code service}.
    */
-  public static io.grpc.BindableService bindableServiceOf({{serviceName}}Service service) {
+  public static io.grpc.BindableService bindableServiceOf({{prefixedServiceName}}Service service) {
     return new io.grpc.BindableService() {
       public io.grpc.ServerServiceDefinition bindService() {
         return serverServiceDefinition(service);
@@ -98,7 +98,7 @@ public final class {{className}} {
     };
   }
 
-  private static io.grpc.ServerServiceDefinition serverServiceDefinition({{serviceName}}Service service) {
+  private static io.grpc.ServerServiceDefinition serverServiceDefinition({{prefixedServiceName}}Service service) {
     String compression = null;
     return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
       {{#methods}}
@@ -123,11 +123,11 @@ public final class {{className}} {
           io.grpc.stub.ServerCalls.ClientStreamingMethod<Req, Resp>,
           io.grpc.stub.ServerCalls.BidiStreamingMethod<Req, Resp> {
 
-    private final {{serviceName}}Service serviceImpl;
+    private final {{prefixedServiceName}}Service serviceImpl;
     private final int methodId;
     private final String compression;
 
-    MethodHandlers({{serviceName}}Service serviceImpl, int methodId, String compression) {
+    MethodHandlers({{prefixedServiceName}}Service serviceImpl, int methodId, String compression) {
       this.serviceImpl = serviceImpl;
       this.methodId = methodId;
       this.compression = compression;

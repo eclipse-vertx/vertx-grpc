@@ -29,6 +29,9 @@ public class VertxGrpcGenerator implements Callable<Integer> {
   @Option(names = { "--grpc-transcoding" }, description = "Whether to generate transcoding options for methods with HTTP annotations")
   private boolean generateTranscoding = true;
 
+  @Option(names = { "--service-prefix" }, description = "Prefix to add to generated service names")
+  private String servicePrefix = "";
+
   @Override
   public Integer call() {
     if (!generateClient && !generateService && !generateIo) {
@@ -36,7 +39,8 @@ public class VertxGrpcGenerator implements Callable<Integer> {
       generateService = true;
     }
 
-    VertxGrpcGeneratorImpl generator = new VertxGrpcGeneratorImpl(generateClient, generateService, generateIo, generateTranscoding);
+    VertxGrpcGeneratorOptions options = new VertxGrpcGeneratorOptions(generateClient, generateService, generateIo, generateTranscoding, servicePrefix);
+    VertxGrpcGeneratorImpl generator = new VertxGrpcGeneratorImpl(options);
     ProtocPlugin.generate(List.of(generator), List.of(AnnotationsProto.http));
 
     return 0;
