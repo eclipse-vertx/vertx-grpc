@@ -82,3 +82,7 @@ public interface StreamingClient extends Streaming {
     });
   }
 }
+
+interface StreamingClientInternal extends StreamingClient {
+  void source(examples.grpc.Empty request, Completable<ReadStream<examples.grpc.Item>> completable);
+}

@@ -56,7 +56,7 @@ public interface GreeterGrpcClient extends GreeterClient {
 /**
  * The proxy implementation.
  */
-class GreeterGrpcClientImpl implements GreeterGrpcClient {
+class GreeterGrpcClientImpl implements GreeterGrpcClient, GreeterClientInternal {
 
   private final GrpcClient client;
   private final SocketAddress socketAddress;
@@ -70,6 +70,10 @@ class GreeterGrpcClientImpl implements GreeterGrpcClient {
     this.client = java.util.Objects.requireNonNull(client);
     this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
+  }
+
+  public GrpcClient grpcClient() {
+    return client;
   }
 
   public Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {

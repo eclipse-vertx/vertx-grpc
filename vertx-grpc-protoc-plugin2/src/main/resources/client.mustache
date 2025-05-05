@@ -101,3 +101,9 @@ public interface {{className}} extends {{serviceName}} {
   }
 {{/manyManyMethods}}
 }
+
+interface {{className}}Internal extends {{className}} {
+{{#unaryManyMethods}}
+  void {{vertxMethodName}}({{inputType}} request, Completable<ReadStream<{{outputType}}>> completable);
+{{/unaryManyMethods}}
+}

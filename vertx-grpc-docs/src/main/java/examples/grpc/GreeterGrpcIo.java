@@ -35,7 +35,7 @@ public final class GreeterGrpcIo {
   }
 
   
-  public static final class GreeterStub extends io.grpc.stub.AbstractStub<GreeterStub> implements GreeterClient {
+  public static final class GreeterStub extends io.grpc.stub.AbstractStub<GreeterStub> implements GreeterClientInternal {
     private final io.vertx.core.internal.ContextInternal context;
     private GreeterGrpc.GreeterStub delegateStub;
 
