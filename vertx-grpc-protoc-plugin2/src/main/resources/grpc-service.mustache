@@ -34,7 +34,7 @@ import java.util.List;
 {{/allMethods}}
  * </ul>
  */
-public class {{className}} extends {{serviceName}}Service implements Service {
+public class {{className}} extends {{prefixedServiceName}}Service implements Service {
 
   /**
    * {{serviceName}} service name.
@@ -64,7 +64,7 @@ public class {{className}} extends {{serviceName}}Service implements Service {
   /**
    * @return a service binding all methods of the given {@code service}
    */
-  public static Service of({{serviceName}}Service service) {
+  public static Service of({{prefixedServiceName}}Service service) {
     return builder(service).bind(all()).build();
   }
 {{#serviceMethods}}
@@ -125,7 +125,7 @@ public class {{className}} extends {{serviceName}}Service implements Service {
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
-  public static Builder builder({{serviceName}}Service service) {
+  public static Builder builder({{prefixedServiceName}}Service service) {
     return new Builder(service);
   }
 
@@ -135,9 +135,9 @@ public class {{className}} extends {{serviceName}}Service implements Service {
   public static class Builder implements ServiceBuilder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
-    private final {{serviceName}}Service instance;
+    private final {{prefixedServiceName}}Service instance;
 
-    private Builder({{serviceName}}Service instance) {
+    private Builder({{prefixedServiceName}}Service instance) {
       this.instance = instance;
     }
 
