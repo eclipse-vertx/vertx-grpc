@@ -13,13 +13,6 @@ public class VertxGrpcGeneratorOptions {
   private final String servicePrefix;
 
   /**
-   * Creates a new instance with default options.
-   */
-  public VertxGrpcGeneratorOptions() {
-    this(true, true, false, true, "");
-  }
-
-  /**
    * Creates a new instance with the specified options.
    *
    * @param generateGrpcClient whether to generate gRPC client code
@@ -28,7 +21,7 @@ public class VertxGrpcGeneratorOptions {
    * @param generateTranscoding whether to generate transcoding options for methods with HTTP annotations
    * @param servicePrefix prefix to add to generated service names
    */
-  public VertxGrpcGeneratorOptions(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo,
+  private VertxGrpcGeneratorOptions(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo,
                                   boolean generateTranscoding, String servicePrefix) {
     this.generateGrpcClient = generateGrpcClient;
     this.generateGrpcService = generateGrpcService;

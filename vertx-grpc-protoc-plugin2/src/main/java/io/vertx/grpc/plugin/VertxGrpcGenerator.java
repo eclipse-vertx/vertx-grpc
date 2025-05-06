@@ -39,8 +39,14 @@ public class VertxGrpcGenerator implements Callable<Integer> {
       generateService = true;
     }
 
-    VertxGrpcGeneratorOptions options = new VertxGrpcGeneratorOptions(generateClient, generateService, generateIo, generateTranscoding, servicePrefix);
-    VertxGrpcGeneratorImpl generator = new VertxGrpcGeneratorImpl(options);
+    VertxGrpcGeneratorOptions.Builder builder = VertxGrpcGeneratorOptions.builder()
+      .setGenerateGrpcClient(generateClient)
+      .setGenerateGrpcService(generateService)
+      .setGenerateGrpcIo(generateIo)
+      .setGenerateTranscoding(generateTranscoding)
+      .setServicePrefix(servicePrefix);
+
+    VertxGrpcGeneratorImpl generator = new VertxGrpcGeneratorImpl(builder.build());
     ProtocPlugin.generate(List.of(generator), List.of(AnnotationsProto.http));
 
     return 0;

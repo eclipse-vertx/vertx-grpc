@@ -40,21 +40,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
    * @param options the generator options
    */
   public VertxGrpcGeneratorImpl(VertxGrpcGeneratorOptions options) {
-    this.options = options != null ? options : new VertxGrpcGeneratorOptions();
-  }
-
-  /**
-   * Creates a new instance with the specified options.
-   * This constructor is provided for backward compatibility.
-   *
-   * @param generateGrpcClient whether to generate gRPC client code
-   * @param generateGrpcService whether to generate gRPC service code
-   * @param generateGrpcIo whether to generate gRPC IO code
-   * @param generateTranscoding whether to generate transcoding options for methods with HTTP annotations
-   * @param servicePrefix prefix to add to generated service names
-   */
-  public VertxGrpcGeneratorImpl(boolean generateGrpcClient, boolean generateGrpcService, boolean generateGrpcIo, boolean generateTranscoding, String servicePrefix) {
-    this(new VertxGrpcGeneratorOptions(generateGrpcClient, generateGrpcService, generateGrpcIo, generateTranscoding, servicePrefix));
+    this.options = options != null ? options : new VertxGrpcGeneratorOptions.Builder().build();
   }
 
   private String getServiceJavaDocPrefix() {
