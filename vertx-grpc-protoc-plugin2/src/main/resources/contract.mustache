@@ -1,6 +1,6 @@
-{{#javaPackageName}}
-package {{javaPackageName}};
-{{/javaPackageName}}
+{{#javaPackageFqn}}
+package {{javaPackageFqn}};
+{{/javaPackageFqn}}
 
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -26,9 +26,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * <p>Base definition {{serviceName}} service.</p>
+ * <p>Contract definition {{serviceName}} service.</p>
  */
-public interface {{className}} {
+public interface {{contractFqn}} {
 {{#unaryUnaryMethods}}
 
   Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);

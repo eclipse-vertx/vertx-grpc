@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * <p>Base definition Streaming service.</p>
+ * <p>Contract definition Streaming service.</p>
  */
 public interface Streaming {
 

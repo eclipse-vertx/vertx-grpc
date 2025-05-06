@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * <p>Base definition Greeter service.</p>
+ * <p>Contract definition Greeter service.</p>
  */
 public interface Greeter {
 

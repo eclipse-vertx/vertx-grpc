@@ -1,8 +1,8 @@
-{{#javaPackageName}}
-package {{javaPackageName}};
-{{/javaPackageName}}
+{{#javaPackageFqn}}
+package {{javaPackageFqn}};
+{{/javaPackageFqn}}
 
-import static {{javaPackageName}}.{{serviceName}}Grpc.getServiceDescriptor;
+import static {{javaPackageFqn}}.{{serviceName}}Grpc.getServiceDescriptor;
 import static io.grpc.stub.ServerCalls.asyncUnaryCall;
 import static io.grpc.stub.ServerCalls.asyncServerStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncClientStreamingCall;
@@ -18,9 +18,9 @@ import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 /**
  * gRPC/IO client/service in a Vert.x idiomatic way.
  */
-public final class {{className}} {
+public final class {{grpcIoFqn}} {
 
-  private {{className}}() {}
+  private {{grpcIoFqn}}() {}
 
   /**
    * Build a new stub.
@@ -37,7 +37,7 @@ public final class {{className}} {
   }
 
   {{#javaDoc}}{{{javaDoc}}}{{/javaDoc}}
-  public static final class {{serviceName}}Stub extends io.grpc.stub.AbstractStub<{{serviceName}}Stub> implements {{prefixedServiceName}}Client {
+  public static final class {{serviceName}}Stub extends io.grpc.stub.AbstractStub<{{serviceName}}Stub> implements {{clientFqn}} {
     private final io.vertx.core.internal.ContextInternal context;
     private {{serviceName}}Grpc.{{serviceName}}Stub delegateStub;
 
@@ -90,7 +90,7 @@ public final class {{className}} {
   /**
    * @return a service binding the given {@code service}.
    */
-  public static io.grpc.BindableService bindableServiceOf({{prefixedServiceName}}Service service) {
+  public static io.grpc.BindableService bindableServiceOf({{serviceFqn}} service) {
     return new io.grpc.BindableService() {
       public io.grpc.ServerServiceDefinition bindService() {
         return serverServiceDefinition(service);
@@ -98,12 +98,12 @@ public final class {{className}} {
     };
   }
 
-  private static io.grpc.ServerServiceDefinition serverServiceDefinition({{prefixedServiceName}}Service service) {
+  private static io.grpc.ServerServiceDefinition serverServiceDefinition({{serviceFqn}} service) {
     String compression = null;
     return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
       {{#methods}}
       .addMethod(
-        {{javaPackageName}}.{{serviceName}}Grpc.{{methodNameGetter}}(),
+        {{javaPackageFqn}}.{{serviceName}}Grpc.{{methodNameGetter}}(),
         {{grpcCallsMethodName}}(
                 new MethodHandlers<
                         {{inputType}},
