@@ -20,17 +20,21 @@ import io.vertx.grpc.common.WireFormat;
  */
 public class Http2GrpcMessageDeframer implements GrpcMessageDeframer {
 
-  private final long maxMessageSize;
   private final String encoding;
   private final WireFormat format;
+  private long maxMessageSize;
 
   private Buffer buffer;
   private long bytesToSkip;
 
-  public Http2GrpcMessageDeframer(long maxMessageSize, String encoding, WireFormat format) {
-    this.maxMessageSize = maxMessageSize;
+  public Http2GrpcMessageDeframer(String encoding, WireFormat format) {
     this.encoding = encoding;
     this.format = format;
+  }
+
+  @Override
+  public void maxMessageSize(long maxMessageSize) {
+    this.maxMessageSize = maxMessageSize;
   }
 
   public void update(Buffer chunk) {

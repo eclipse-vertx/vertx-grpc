@@ -8,6 +8,7 @@ module io.vertx.grpc.transcoding {
   requires io.vertx.grpc.common;
   requires io.vertx.grpc.server;
   requires static io.vertx.codegen.api;
+  requires io.netty.codec;
   exports io.vertx.grpc.transcoding;
   exports io.vertx.grpc.transcoding.impl.config to io.vertx.tests.transcoding;
   exports io.vertx.grpc.transcoding.impl to io.vertx.tests.transcoding;

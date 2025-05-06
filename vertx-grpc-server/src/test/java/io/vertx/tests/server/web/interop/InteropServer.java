@@ -55,7 +55,7 @@ public class InteropServer extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) {
-    GrpcServer grpcServer = GrpcServer.server(vertx, new GrpcServerOptions());
+    GrpcServer grpcServer = GrpcServer.server(vertx, new GrpcServerOptions().setMaxMessageSize(GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE * 2));
 
     grpcServer.callHandler(EMPTY_CALL, request -> {
       ServerTestBase.copyMetadata(request.headers(), request.response().headers(), "x-grpc-test-echo-initial");

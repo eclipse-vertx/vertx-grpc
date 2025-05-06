@@ -82,11 +82,10 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
             context,
             this,
             format,
-            maxMessageSize,
             status,
             httpResponse,
             messageDecoder);
-          grpcResponse.init(this);
+          grpcResponse.init(this, maxMessageSize);
           grpcResponse.invalidMessageHandler(invalidMsg -> {
             cancel();
             grpcResponse.tryFail(invalidMsg);
