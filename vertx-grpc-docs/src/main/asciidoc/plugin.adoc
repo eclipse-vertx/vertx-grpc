@@ -161,6 +161,8 @@ protobuf {
 
 This plugin will compile your proto files under `build/generated/source/proto/main` and make them available to your project.
 
+NOTE: the generator plugin is tech preview and can be subject to changes
+
 === Generated RPC files
 
 For each service definition, the plugin creates several Java RPC files, let's have a quick look at them:
