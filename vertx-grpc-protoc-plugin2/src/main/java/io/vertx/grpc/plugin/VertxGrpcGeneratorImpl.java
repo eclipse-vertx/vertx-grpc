@@ -32,15 +32,15 @@ public class VertxGrpcGeneratorImpl extends Generator {
   private static final int SERVICE_NUMBER_OF_PATHS = 2;
   private static final int METHOD_NUMBER_OF_PATHS = 4;
 
-  private final VertxGrpcGeneratorOptions options;
+  private final VertxGrpcGenerator options;
 
   /**
    * Creates a new instance with the specified options.
    *
    * @param options the generator options
    */
-  public VertxGrpcGeneratorImpl(VertxGrpcGeneratorOptions options) {
-    this.options = options != null ? options : new VertxGrpcGeneratorOptions.Builder().build();
+  public VertxGrpcGeneratorImpl(VertxGrpcGenerator options) {
+    this.options = options != null ? options : new VertxGrpcGenerator();
   }
 
   private String getServiceJavaDocPrefix() {
@@ -79,11 +79,11 @@ public class VertxGrpcGeneratorImpl extends Generator {
           fileProto.getSourceCodeInfo().getLocationList(),
           serviceNumber
         );
-        serviceContext.classPrefix = options.getServicePrefix();
+        serviceContext.classPrefix = options.servicePrefix;
         serviceContext.protoName = fileProto.getName();
         serviceContext.packageName = fileProto.getPackage();
-        serviceContext.outerClassName = ProtoTypeMap.getJavaOuterClassname(fileProto);
-        serviceContext.javaPackageName = extractPackageName(fileProto);
+        serviceContext.outerFqn = ProtoTypeMap.getJavaOuterClassname(fileProto);
+        serviceContext.javaPackageFqn = extractPackageFqn(fileProto);
         contexts.add(serviceContext);
       }
     });
@@ -91,7 +91,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     return contexts;
   }
 
-  private String extractPackageName(DescriptorProtos.FileDescriptorProto proto) {
+  private String extractPackageFqn(DescriptorProtos.FileDescriptorProto proto) {
     DescriptorProtos.FileOptions options = proto.getOptions();
     if (options != null) {
       String javaPackage = options.getJavaPackage();
@@ -105,12 +105,10 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
   private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations,
     int serviceNumber) {
-    ServiceContext serviceContext = new ServiceContext();
+    ServiceContext serviceContext = new ServiceContext(serviceProto, options.servicePrefix);
     // Set Later
     //serviceContext.fileName = CLASS_PREFIX + serviceProto.getName() + "Grpc.java";
     //serviceContext.className = CLASS_PREFIX + serviceProto.getName() + "Grpc";
-    serviceContext.serviceName = serviceProto.getName();
-    serviceContext.deprecated = serviceProto.getOptions() != null && serviceProto.getOptions().getDeprecated();
 
     List<DescriptorProtos.SourceCodeInfo.Location> allLocationsForService = locations.stream()
       .filter(location ->
@@ -179,7 +177,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
       methodContext.grpcCallsMethodName = "asyncBidiStreamingCall";
     }
 
-    if (options.isGenerateTranscoding() && methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
+    if (options.generateTranscoding && methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
       HttpRule httpRule = methodProto.getOptions().getExtension(AnnotationsProto.http);
       methodContext.transcodingContext = buildTranscodingContext(httpRule);
     }
@@ -331,56 +329,50 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
   private List<PluginProtos.CodeGeneratorResponse.File> buildFiles(ServiceContext context) {
     List<PluginProtos.CodeGeneratorResponse.File> files = new ArrayList<>();
-    if (options.isGenerateGrpcClient() || options.isGenerateGrpcService()) {
-      files.add(buildBaseFile(context));
+    if (options.generateClient || options.generateService) {
+      files.add(buildContractFile(context));
     }
-    if (options.isGenerateGrpcClient()) {
+    if (options.generateClient) {
       files.add(buildClientFile(context));
       files.add(buildGrpcClientFile(context));
     }
-    if (options.isGenerateGrpcService()) {
+    if (options.generateService) {
       files.add(buildServiceFile(context));
       files.add(buildGrpcServiceFile(context));
     }
-    if (options.isGenerateGrpcIo()) {
+    if (options.generateIo) {
       files.add(buildGrpcIoFile(context));
     }
     return files;
   }
 
-  private PluginProtos.CodeGeneratorResponse.File buildBaseFile(ServiceContext context) {
+  private PluginProtos.CodeGeneratorResponse.File buildContractFile(ServiceContext context) {
     context.fileName = context.classPrefix + context.serviceName + ".java";
-    context.className = context.classPrefix + context.serviceName;
-    return buildFile(context, applyTemplate("base.mustache", context));
+    return buildFile(context, applyTemplate("contract.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildClientFile(ServiceContext context) {
     context.fileName = context.classPrefix + context.serviceName + "Client.java";
-    context.className = context.classPrefix + context.serviceName + "Client";
     return buildFile(context, applyTemplate("client.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildGrpcClientFile(ServiceContext context) {
     context.fileName = context.classPrefix + context.serviceName + "GrpcClient.java";
-    context.className = context.classPrefix + context.serviceName + "GrpcClient";
     return buildFile(context, applyTemplate("grpc-client.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildServiceFile(ServiceContext context) {
     context.fileName = context.classPrefix + context.serviceName + "Service.java";
-    context.className = context.classPrefix + context.serviceName + "Service";
     return buildFile(context, applyTemplate("service.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildGrpcServiceFile(ServiceContext context) {
     context.fileName = context.classPrefix + context.serviceName + "GrpcService.java";
-    context.className = context.classPrefix + context.serviceName + "GrpcService";
     return buildFile(context, applyTemplate("grpc-service.mustache", context));
   }
 
   private PluginProtos.CodeGeneratorResponse.File buildGrpcIoFile(ServiceContext context) {
     context.fileName = context.classPrefix + context.serviceName + "GrpcIo.java";
-    context.className = context.classPrefix + context.serviceName + "GrpcIo";
     return buildFile(context, applyTemplate("grpc-io.mustache", context));
   }
 
@@ -393,7 +385,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
   }
 
   private String absoluteFileName(ServiceContext ctx) {
-    String dir = ctx.javaPackageName.replace('.', '/');
+    String dir = ctx.javaPackageFqn.replace('.', '/');
     if (Strings.isNullOrEmpty(dir)) {
       return ctx.fileName;
     } else {
@@ -428,14 +420,30 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String fileName;
     public String protoName;
     public String packageName;
-    public String javaPackageName;
-    public String className;
+    public String javaPackageFqn;
+    public String contractFqn;
+    public String serviceFqn;
+    public String clientFqn;
+    public String grpcClientFqn;
+    public String grpcServiceFqn;
+    public String grpcIoFqn;
     public String serviceName;
-    public String outerClassName;
+    public String outerFqn;
     public String classPrefix;
     public boolean deprecated;
     public String javaDoc;
     public final List<MethodContext> methods = new ArrayList<>();
+
+    public ServiceContext(DescriptorProtos.ServiceDescriptorProto proto, String classPrefix) {
+      this.serviceName = proto.getName();
+      this.deprecated = proto.getOptions() != null && proto.getOptions().getDeprecated();
+      this.contractFqn = classPrefix + serviceName;
+      this.clientFqn = classPrefix + serviceName + "Client";
+      this.serviceFqn = classPrefix + serviceName + "Service";
+      this.grpcClientFqn = classPrefix + serviceName + "GrpcClient";
+      this.grpcServiceFqn = classPrefix + serviceName + "GrpcService";
+      this.grpcIoFqn = classPrefix + serviceName + "GrpcIo";
+    }
 
     public String prefixedServiceName() {
       return classPrefix + serviceName;

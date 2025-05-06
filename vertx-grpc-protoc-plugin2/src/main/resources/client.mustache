@@ -1,6 +1,6 @@
-{{#javaPackageName}}
-package {{javaPackageName}};
-{{/javaPackageName}}
+{{#javaPackageFqn}}
+package {{javaPackageFqn}};
+{{/javaPackageFqn}}
 
 import io.vertx.core.Future;
 import io.vertx.core.Completable;
@@ -19,7 +19,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
  * <p>A client for invoking the {{serviceName}} gRPC service.</p>
  */
 @io.vertx.codegen.annotations.VertxGen
-public interface {{className}} extends {{prefixedServiceName}} {
+public interface {{clientFqn}} extends {{contractFqn}} {
 {{#unaryUnaryMethods}}
 
   /**

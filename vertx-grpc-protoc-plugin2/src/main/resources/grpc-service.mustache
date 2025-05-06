@@ -1,6 +1,6 @@
-{{#javaPackageName}}
-package {{javaPackageName}};
-{{/javaPackageName}}
+{{#javaPackageFqn}}
+package {{javaPackageFqn}};
+{{/javaPackageFqn}}
 
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -34,7 +34,7 @@ import java.util.List;
 {{/allMethods}}
  * </ul>
  */
-public class {{className}} extends {{prefixedServiceName}}Service implements Service {
+public class {{grpcServiceFqn}} extends {{serviceFqn}} implements Service {
 
   /**
    * {{serviceName}} service name.
@@ -44,7 +44,7 @@ public class {{className}} extends {{prefixedServiceName}}Service implements Ser
   /**
    * {{serviceName}} service descriptor.
    */
-  public static final Descriptors.ServiceDescriptor SERVICE_DESCRIPTOR = {{outerClassName}}.getDescriptor().findServiceByName("{{serviceName}}");
+  public static final Descriptors.ServiceDescriptor SERVICE_DESCRIPTOR = {{outerFqn}}.getDescriptor().findServiceByName("{{serviceName}}");
 
   @Override
   public ServiceName name() {
@@ -64,7 +64,7 @@ public class {{className}} extends {{prefixedServiceName}}Service implements Ser
   /**
    * @return a service binding all methods of the given {@code service}
    */
-  public static Service of({{prefixedServiceName}}Service service) {
+  public static Service of({{serviceFqn}} service) {
     return builder(service).bind(all()).build();
   }
 {{#serviceMethods}}
@@ -125,7 +125,7 @@ public class {{className}} extends {{prefixedServiceName}}Service implements Ser
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
-  public static Builder builder({{prefixedServiceName}}Service service) {
+  public static Builder builder({{serviceFqn}} service) {
     return new Builder(service);
   }
 
@@ -135,9 +135,9 @@ public class {{className}} extends {{prefixedServiceName}}Service implements Ser
   public static class Builder implements ServiceBuilder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
-    private final {{prefixedServiceName}}Service instance;
+    private final {{serviceFqn}} instance;
 
-    private Builder({{prefixedServiceName}}Service instance) {
+    private Builder({{serviceFqn}} instance) {
       this.instance = instance;
     }
 

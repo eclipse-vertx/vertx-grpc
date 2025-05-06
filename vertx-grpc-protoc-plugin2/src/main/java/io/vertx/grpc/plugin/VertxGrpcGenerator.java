@@ -18,22 +18,22 @@ import java.util.concurrent.Callable;
 public class VertxGrpcGenerator implements Callable<Integer> {
 
   @Option(names = { "--grpc-client" }, description = "Generate gRPC client code")
-  private boolean generateClient = false;
+  boolean generateClient = false;
 
   @Option(names = { "--grpc-service" }, description = "Generate gRPC service code")
-  private boolean generateService = false;
+  boolean generateService = false;
 
   @Option(names = { "--grpc-io" }, description = "Generate gRPC IO code")
-  private boolean generateIo = false;
+  boolean generateIo = false;
 
   @Option(names = { "--grpc-transcoding" }, description = "Whether to generate transcoding options for methods with HTTP annotations")
-  private boolean generateTranscoding = true;
+  boolean generateTranscoding = true;
 
   @Option(
     names = { "--service-prefix" },
     description = "Generate service classes with a prefix. For example, if you set it to `MyService`, the generated service class will be `MyServiceGreeterService` instead of `GreeterService`."
   )
-  private String servicePrefix = "";
+  String servicePrefix = "";
 
   @Override
   public Integer call() {
@@ -42,14 +42,7 @@ public class VertxGrpcGenerator implements Callable<Integer> {
       generateService = true;
     }
 
-    VertxGrpcGeneratorOptions.Builder builder = VertxGrpcGeneratorOptions.builder()
-      .setGenerateGrpcClient(generateClient)
-      .setGenerateGrpcService(generateService)
-      .setGenerateGrpcIo(generateIo)
-      .setGenerateTranscoding(generateTranscoding)
-      .setServicePrefix(servicePrefix);
-
-    VertxGrpcGeneratorImpl generator = new VertxGrpcGeneratorImpl(builder.build());
+    VertxGrpcGeneratorImpl generator = new VertxGrpcGeneratorImpl(this);
     ProtocPlugin.generate(List.of(generator), List.of(AnnotationsProto.http));
 
     return 0;
