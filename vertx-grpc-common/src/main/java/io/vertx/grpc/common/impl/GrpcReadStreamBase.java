@@ -95,8 +95,9 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     this.deframer = messageDeframer;
   }
 
-  public void init(GrpcWriteStreamBase<?, ?> ws) {
+  public void init(GrpcWriteStreamBase<?, ?> ws, long maxMessageSize) {
     this.ws = ws;
+    deframer.maxMessageSize(maxMessageSize);
     stream.handler(this);
     stream.endHandler(v -> {
       deframer.end();

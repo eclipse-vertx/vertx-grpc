@@ -10,8 +10,11 @@
  */
 package io.vertx.grpc.transcoding.impl;
 
+import io.netty.handler.codec.base64.Base64;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.MessageSizeOverflowException;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 
 /**
@@ -19,13 +22,21 @@ import io.vertx.grpc.common.impl.GrpcMessageDeframer;
  */
 public class TranscodingMessageDeframer implements GrpcMessageDeframer {
 
-  private Buffer buffer;
-
-  private boolean ended;
+  private long maxMessageSize;
   private boolean processed;
+  private Buffer buffer;
+  private Object result;
+
+  @Override
+  public void maxMessageSize(long maxMessageSize) {
+    this.maxMessageSize = maxMessageSize;
+  }
 
   @Override
   public void update(Buffer chunk) {
+    if (processed) {
+      return;
+    }
     if (buffer == null) {
       buffer = chunk;
     } else {
@@ -43,19 +54,29 @@ public class TranscodingMessageDeframer implements GrpcMessageDeframer {
         buffer.appendBuffer(chunk);
       }
     }
+    if (result == null && buffer.length() > maxMessageSize) {
+      result = new MessageSizeOverflowException(buffer.length());
+      buffer = null;
+      processed = true;
+    }
   }
 
   @Override
   public void end() {
-    ended = true;
+    if (!processed) {
+      result = GrpcMessage.message("identity", buffer == null ? Buffer.buffer() : buffer);
+      buffer = null;
+    }
   }
 
   @Override
   public Object next() {
-    if (!ended || processed) {
+    if (result != null) {
+      Object ret = result;
+      result = null;
+      return ret;
+    } else {
       return null;
     }
-    processed = true;
-    return GrpcMessage.message("identity", buffer == null ? Buffer.buffer() : buffer);
   }
 }

@@ -28,12 +28,21 @@ public class WebGrpcServerRequest<Req, Resp> extends GrpcServerRequestImpl<Req, 
 
   static class TextMessageDeframer implements GrpcMessageDeframer {
 
-    private boolean ended;
+    private long maxMessageSize;
     private boolean processed;
     private Buffer buffer;
+    private Object result;
+
+    @Override
+    public void maxMessageSize(long maxMessageSize) {
+      this.maxMessageSize = maxMessageSize;
+    }
 
     @Override
     public void update(Buffer chunk) {
+      if (processed) {
+        return;
+      }
       if (buffer == null) {
         buffer = chunk;
       } else {
@@ -51,30 +60,35 @@ public class WebGrpcServerRequest<Req, Resp> extends GrpcServerRequestImpl<Req, 
           buffer.appendBuffer(chunk);
         }
       }
+      if (result == null && buffer.length() > maxMessageSize) {
+        result = new MessageSizeOverflowException(buffer.length());
+        buffer = null;
+        processed = true;
+      }
     }
 
     @Override
     public void end() {
-      ended = true;
+      if (!processed) {
+        BufferInternal decoded = BufferInternal.buffer(Base64.decode(((BufferInternal)buffer).getByteBuf()));
+        buffer = null;
+        result = GrpcMessage.message("identity", decoded.slice(5, decoded.length()));
+      }
     }
 
     @Override
     public Object next() {
-      if (!ended || processed) {
+      if (result != null) {
+        Object ret = result;
+        result = null;
+        return ret;
+      } else {
         return null;
       }
-      processed = true;
-      if (buffer == null) {
-        return null;
-      }
-      BufferInternal decoded = BufferInternal.buffer(Base64.decode(((BufferInternal)buffer).getByteBuf()));
-      GrpcMessage ret = GrpcMessage.message("identity", decoded.slice(5, decoded.length()));
-      buffer = null;
-      return ret;
     }
   }
 
   public WebGrpcServerRequest(ContextInternal context, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
-    super(context, protocol, format, httpRequest, httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE)) ? new TextMessageDeframer() : new Http2GrpcMessageDeframer(maxMessageSize, httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format), messageDecoder, methodCall);
+    super(context, protocol, format, httpRequest, httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE)) ? new TextMessageDeframer() : new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format), messageDecoder, methodCall);
   }
 }

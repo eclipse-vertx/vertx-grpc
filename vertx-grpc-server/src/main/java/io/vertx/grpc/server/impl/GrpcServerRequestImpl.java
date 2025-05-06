@@ -89,9 +89,9 @@ public abstract class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBas
     return context;
   }
 
-  public void init(GrpcWriteStreamBase ws, boolean scheduleDeadline) {
+  public void init(GrpcWriteStreamBase ws, boolean scheduleDeadline, long maxMessageSize) {
     this.response = (GrpcServerResponseImpl<Req, Resp>) ws;
-    super.init(ws);
+    super.init(ws, maxMessageSize);
     if (timeout > 0L) {
       if (scheduleDeadline) {
         Timer timer = context.timer(timeout, TimeUnit.MILLISECONDS);

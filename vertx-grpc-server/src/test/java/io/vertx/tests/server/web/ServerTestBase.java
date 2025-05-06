@@ -307,6 +307,24 @@ public abstract class ServerTestBase extends GrpcTestBase {
   }
 
   @Test
+  public void testPayloadOverflow(TestContext should) {
+    int length = (int)(GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE + 1);
+    String payload = "A".repeat(length);
+    httpClient.request(HttpMethod.POST, TEST_SERVICE + "/UnaryCall").compose(req -> {
+      req.headers().addAll(requestHeaders());
+      EchoRequest echoRequest = EchoRequest.newBuilder().setPayload(payload).build();
+      return req.send(encode(echoRequest)).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> {
+      should.verify(v -> {
+        assertEquals(200, response.statusCode());
+        assertEquals("" + GrpcStatus.RESOURCE_EXHAUSTED, response.getHeader(GrpcHeaderNames.GRPC_STATUS));
+        Buffer body = decodeBody(response.body().result());
+        assertEquals(0, body.length());
+      });
+    }));
+  }
+
+  @Test
   public void testServerSideStreaming(TestContext should) {
     List<Integer> requestedSizes = Arrays.asList(157, 52, 16 * 1024, 1);
     httpClient.request(HttpMethod.POST, TEST_SERVICE + "/StreamingCall").compose(req -> {

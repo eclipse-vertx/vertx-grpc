@@ -17,6 +17,8 @@ import io.vertx.core.buffer.Buffer;
  */
 public interface GrpcMessageDeframer {
 
+  void maxMessageSize(long maxMessageSize);
+
   void update(Buffer chunk);
 
   void end();

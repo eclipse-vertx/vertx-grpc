@@ -30,7 +30,11 @@ public class TranscodingGrpcServerRequest<Req, Resp> extends GrpcServerRequestIm
   final String transcodingRequestBody;
   final List<HttpVariableBinding> bindings;
 
-  public TranscodingGrpcServerRequest(ContextInternal context, HttpServerRequest httpRequest, String transcodingRequestBody, List<HttpVariableBinding> bindings, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
+  public TranscodingGrpcServerRequest(ContextInternal context,
+                                      HttpServerRequest httpRequest,
+                                      String transcodingRequestBody,
+                                      List<HttpVariableBinding> bindings, GrpcMessageDecoder<Req> messageDecoder,
+                                      GrpcMethodCall methodCall) {
     super(context, GrpcProtocol.TRANSCODING, WireFormat.JSON, httpRequest, new TranscodingMessageDeframer(), new GrpcMessageDecoder<>() {
       @Override
       public Req decode(GrpcMessage msg) throws CodecException {

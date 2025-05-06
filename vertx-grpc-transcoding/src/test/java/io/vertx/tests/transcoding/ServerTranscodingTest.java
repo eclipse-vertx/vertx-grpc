@@ -24,6 +24,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 import io.vertx.grpc.transcoding.TranscodingServiceMethod;
@@ -284,6 +285,19 @@ public class ServerTranscodingTest extends GrpcTestBase {
       assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
       JsonObject body = decodeBody(response.body().result());
       assertEquals(payload, body.getString("payload"));
+    })));
+  }
+
+  @Test
+  public void testPayloadWithBodyOverflow(TestContext should) {
+    String body = "{\"payload\":\"" + "a".repeat((int)GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE - 13) + "\"}";
+    assertTrue(body.length() > GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE);
+    httpClient.request(HttpMethod.GET, "/hello").compose(req -> {
+      req.headers().addAll(HEADERS);
+      req.headers().set(HttpHeaders.CONTENT_LENGTH, String.valueOf(body.length()));
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(429, response.statusCode());
     })));
   }
 
