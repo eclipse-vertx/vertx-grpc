@@ -32,15 +32,15 @@ public class VertxGrpcGeneratorImpl extends Generator {
   private static final int SERVICE_NUMBER_OF_PATHS = 2;
   private static final int METHOD_NUMBER_OF_PATHS = 4;
 
-  private final VertxGrpcGeneratorOptions options;
+  private final VertxGrpcGenerator options;
 
   /**
    * Creates a new instance with the specified options.
    *
    * @param options the generator options
    */
-  public VertxGrpcGeneratorImpl(VertxGrpcGeneratorOptions options) {
-    this.options = options != null ? options : new VertxGrpcGeneratorOptions.Builder().build();
+  public VertxGrpcGeneratorImpl(VertxGrpcGenerator options) {
+    this.options = options != null ? options : new VertxGrpcGenerator();
   }
 
   private String getServiceJavaDocPrefix() {
@@ -79,7 +79,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
           fileProto.getSourceCodeInfo().getLocationList(),
           serviceNumber
         );
-        serviceContext.classPrefix = options.getServicePrefix();
+        serviceContext.classPrefix = options.servicePrefix;
         serviceContext.protoName = fileProto.getName();
         serviceContext.packageName = fileProto.getPackage();
         serviceContext.outerClassName = ProtoTypeMap.getJavaOuterClassname(fileProto);
@@ -179,7 +179,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
       methodContext.grpcCallsMethodName = "asyncBidiStreamingCall";
     }
 
-    if (options.isGenerateTranscoding() && methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
+    if (options.generateTranscoding && methodProto.getOptions().hasExtension(AnnotationsProto.http)) {
       HttpRule httpRule = methodProto.getOptions().getExtension(AnnotationsProto.http);
       methodContext.transcodingContext = buildTranscodingContext(httpRule);
     }
@@ -331,18 +331,18 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
   private List<PluginProtos.CodeGeneratorResponse.File> buildFiles(ServiceContext context) {
     List<PluginProtos.CodeGeneratorResponse.File> files = new ArrayList<>();
-    if (options.isGenerateGrpcClient() || options.isGenerateGrpcService()) {
+    if (options.generateClient || options.generateService) {
       files.add(buildBaseFile(context));
     }
-    if (options.isGenerateGrpcClient()) {
+    if (options.generateClient) {
       files.add(buildClientFile(context));
       files.add(buildGrpcClientFile(context));
     }
-    if (options.isGenerateGrpcService()) {
+    if (options.generateService) {
       files.add(buildServiceFile(context));
       files.add(buildGrpcServiceFile(context));
     }
-    if (options.isGenerateGrpcIo()) {
+    if (options.generateIo) {
       files.add(buildGrpcIoFile(context));
     }
     return files;
