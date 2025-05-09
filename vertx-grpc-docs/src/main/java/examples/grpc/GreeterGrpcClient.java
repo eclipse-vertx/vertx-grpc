@@ -16,13 +16,13 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the Greeter gRPC service.</p>
  */
-@io.vertx.codegen.annotations.VertxGen
+
 public interface GreeterGrpcClient extends GreeterClient {
 
   /**
    * SayHello protobuf RPC client service method.
    */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  
   ServiceMethod<examples.grpc.HelloReply, examples.grpc.HelloRequest> SayHello = ServiceMethod.client(
     ServiceName.create("examples.grpc", "Greeter"),
     "SayHello",
