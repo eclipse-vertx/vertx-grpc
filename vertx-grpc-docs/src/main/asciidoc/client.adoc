@@ -127,6 +127,7 @@ you need to pass `--vertx-codegen` option to the to the `vertx-grpc-protoc-plugi
   <version>${stack.version}</version>
   <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
   <args>
+    <arg>--grpc-client</arg>
     <arg>--vertx-codegen</arg>
   </args>
 </protocPlugin>
