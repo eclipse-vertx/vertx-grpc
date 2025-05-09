@@ -16,13 +16,11 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the Greeter gRPC service.</p>
  */
-
 public interface GreeterGrpcClient extends GreeterClient {
 
   /**
    * SayHello protobuf RPC client service method.
    */
-  
   ServiceMethod<examples.grpc.HelloReply, examples.grpc.HelloRequest> SayHello = ServiceMethod.client(
     ServiceName.create("examples.grpc", "Greeter"),
     "SayHello",

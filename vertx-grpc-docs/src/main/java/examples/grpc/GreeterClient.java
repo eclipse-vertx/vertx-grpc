@@ -16,7 +16,6 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the Greeter gRPC service.</p>
  */
-
 public interface GreeterClient extends Greeter {
 
   /**
@@ -25,6 +24,5 @@ public interface GreeterClient extends Greeter {
    * @param request the examples.grpc.HelloRequest request message
    * @return a future of the examples.grpc.HelloReply response message
    */
-  
   Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request);
 }

@@ -16,13 +16,11 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the Streaming gRPC service.</p>
  */
-
 public interface StreamingGrpcClient extends StreamingClient {
 
   /**
    * Source protobuf RPC client service method.
    */
-  
   ServiceMethod<examples.grpc.Item, examples.grpc.Empty> Source = ServiceMethod.client(
     ServiceName.create("examples.grpc", "Streaming"),
     "Source",
@@ -32,7 +30,6 @@ public interface StreamingGrpcClient extends StreamingClient {
   /**
    * Sink protobuf RPC client service method.
    */
-  
   ServiceMethod<examples.grpc.Empty, examples.grpc.Item> Sink = ServiceMethod.client(
     ServiceName.create("examples.grpc", "Streaming"),
     "Sink",
@@ -42,7 +39,6 @@ public interface StreamingGrpcClient extends StreamingClient {
   /**
    * Pipe protobuf RPC client service method.
    */
-  
   ServiceMethod<examples.grpc.Item, examples.grpc.Item> Pipe = ServiceMethod.client(
     ServiceName.create("examples.grpc", "Streaming"),
     "Pipe",
