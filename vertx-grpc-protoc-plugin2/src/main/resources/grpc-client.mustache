@@ -18,14 +18,14 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the {{serviceName}} gRPC service.</p>
  */
-@io.vertx.codegen.annotations.VertxGen
+{{vertxGeneratorAnnotations}}
 public interface {{grpcClientFqn}} extends {{clientFqn}} {
 {{#allMethods}}
 
   /**
    * {{methodName}} protobuf RPC client service method.
    */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  {{vertxGeneratorAnnotationIgnorePermitted}}
   ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}} = ServiceMethod.client(
     ServiceName.create("{{packageName}}", "{{serviceName}}"),
     "{{methodName}}",

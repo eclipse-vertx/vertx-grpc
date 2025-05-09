@@ -29,6 +29,9 @@ public class VertxGrpcGenerator implements Callable<Integer> {
   @Option(names = { "--grpc-transcoding" }, description = "Whether to generate transcoding options for methods with HTTP annotations")
   boolean generateTranscoding = true;
 
+  @Option(names = { "--vertx-annotations" }, description = "Whether to generate vertx generator annotations")
+  boolean generateVertxGeneratorAnnotations = true;
+
   @Option(
     names = { "--service-prefix" },
     description = "Generate service classes with a prefix. For example, if you set it to `MyService`, the generated service class will be `MyServiceGreeterService` instead of `GreeterService`."
