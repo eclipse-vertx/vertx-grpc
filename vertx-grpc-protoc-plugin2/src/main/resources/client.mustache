@@ -18,7 +18,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the {{serviceName}} gRPC service.</p>
  */
-@io.vertx.codegen.annotations.VertxGen
+{{vertxGeneratorAnnotations}}
 public interface {{clientFqn}} extends {{contractFqn}} {
 {{#unaryUnaryMethods}}
 
@@ -28,7 +28,7 @@ public interface {{clientFqn}} extends {{contractFqn}} {
    * @param request the {{inputType}} request message
    * @return a future of the {{outputType}} response message
    */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  {{vertxGeneratorAnnotationIgnorePermitted}}
   Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request);
 {{/unaryUnaryMethods}}
 {{#unaryManyMethods}}
@@ -39,7 +39,7 @@ public interface {{clientFqn}} extends {{contractFqn}} {
    * @param request the {{inputType}} request message
    * @return a future of the {{outputType}} response messages
    */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  {{vertxGeneratorAnnotationIgnorePermitted}}
   Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request);
 {{/unaryManyMethods}}
 {{#manyUnaryMethods}}
@@ -50,7 +50,7 @@ public interface {{clientFqn}} extends {{contractFqn}} {
    * @param completable a completable that will be passed a stream to which the {{inputType}} request messages can be written to.
    * @return a future of the {{outputType}} response message
    */
-  @io.vertx.codegen.annotations.GenIgnore
+  {{vertxGeneratorAnnotationIgnore}}
   Future<{{outputType}}> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable);
 
   /**
@@ -59,7 +59,7 @@ public interface {{clientFqn}} extends {{contractFqn}} {
    * @param streamOfMessages a stream of messages to be sent to the service
    * @return a future of the {{outputType}} response message
    */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  {{vertxGeneratorAnnotationIgnorePermitted}}
   default Future<{{outputType}}> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages) {
     io.vertx.core.streams.Pipe<{{inputType}}> pipe = streamOfMessages.pipe();
     return {{vertxMethodName}}((result, error) -> {
@@ -79,7 +79,7 @@ public interface {{clientFqn}} extends {{contractFqn}} {
    * @param compltable a completable that will be passed a stream to which the {{inputType}} request messages can be written to.
    * @return a future of the {{outputType}} response messages
    */
-  @io.vertx.codegen.annotations.GenIgnore
+  {{vertxGeneratorAnnotationIgnore}}
   Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable);
 
   /**
@@ -88,7 +88,7 @@ public interface {{clientFqn}} extends {{contractFqn}} {
     * @param streamOfMessages a stream of messages to be sent to the service
    * @return a future of the {{outputType}} response messages
    */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  {{vertxGeneratorAnnotationIgnorePermitted}}
   default Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(ReadStream<{{inputType}}> streamOfMessages) {
     io.vertx.core.streams.Pipe<{{inputType}}> pipe = streamOfMessages.pipe();
     return {{vertxMethodName}}((result, error) -> {
