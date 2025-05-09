@@ -16,7 +16,6 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the Streaming gRPC service.</p>
  */
-
 public interface StreamingClient extends Streaming {
 
   /**
@@ -25,7 +24,6 @@ public interface StreamingClient extends Streaming {
    * @param request the examples.grpc.Empty request message
    * @return a future of the examples.grpc.Item response messages
    */
-  
   Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request);
 
   /**
@@ -34,7 +32,6 @@ public interface StreamingClient extends Streaming {
    * @param completable a completable that will be passed a stream to which the examples.grpc.Item request messages can be written to.
    * @return a future of the examples.grpc.Empty response message
    */
-  
   Future<examples.grpc.Empty> sink(Completable<WriteStream<examples.grpc.Item>> completable);
 
   /**
@@ -43,7 +40,6 @@ public interface StreamingClient extends Streaming {
    * @param streamOfMessages a stream of messages to be sent to the service
    * @return a future of the examples.grpc.Empty response message
    */
-  
   default Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> streamOfMessages) {
     io.vertx.core.streams.Pipe<examples.grpc.Item> pipe = streamOfMessages.pipe();
     return sink((result, error) -> {
@@ -61,7 +57,6 @@ public interface StreamingClient extends Streaming {
    * @param compltable a completable that will be passed a stream to which the examples.grpc.Item request messages can be written to.
    * @return a future of the examples.grpc.Item response messages
    */
-  
   Future<ReadStream<examples.grpc.Item>> pipe(Completable<WriteStream<examples.grpc.Item>> completable);
 
   /**
@@ -70,7 +65,6 @@ public interface StreamingClient extends Streaming {
     * @param streamOfMessages a stream of messages to be sent to the service
    * @return a future of the examples.grpc.Item response messages
    */
-  
   default Future<ReadStream<examples.grpc.Item>> pipe(ReadStream<examples.grpc.Item> streamOfMessages) {
     io.vertx.core.streams.Pipe<examples.grpc.Item> pipe = streamOfMessages.pipe();
     return pipe((result, error) -> {

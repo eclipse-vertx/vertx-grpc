@@ -80,7 +80,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
           serviceNumber
         );
         serviceContext.classPrefix = options.servicePrefix;
-        serviceContext.vertxGeneratorAnnotations = options.generateVertxGeneratorAnnotations;
+        serviceContext.codegenEnabled = options.generateVertxGeneratorAnnotations;
         serviceContext.protoName = fileProto.getName();
         serviceContext.packageName = fileProto.getPackage();
         serviceContext.outerFqn = ProtoTypeMap.getJavaOuterClassname(fileProto);
@@ -431,7 +431,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String serviceName;
     public String outerFqn;
     public String classPrefix;
-    public boolean vertxGeneratorAnnotations;
+    public boolean codegenEnabled;
     public boolean deprecated;
     public String javaDoc;
     public final List<MethodContext> methods = new ArrayList<>();
@@ -481,18 +481,6 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
     public List<MethodContext> transcodingMethods() {
       return methods.stream().filter(t -> t.transcodingContext != null && t.transcodingContext.option).collect(Collectors.toList());
-    }
-
-    public String vertxGeneratorAnnotations() {
-      return vertxGeneratorAnnotations ? "@io.vertx.codegen.annotations.VertxGen" : "";
-    }
-
-    public String vertxGeneratorAnnotationIgnore() {
-      return vertxGeneratorAnnotations ? "@io.vertx.codegen.annotations.GenIgnore" : "";
-    }
-
-    public String vertxGeneratorAnnotationIgnorePermitted() {
-      return vertxGeneratorAnnotations ? "@io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)" : "";
     }
   }
 
