@@ -114,7 +114,25 @@ Streaming responses get a Vert.x `ReadStream` of messages sent by the service
 
 === RxJava client wrapper generation
 
-As seen above, the plugin generates a client service interface annotated with Vert.x codegen annotations.
+If you want to generate your client with Vert.x codegen annotations, you can use the option in `vertx-grpc-protoc-plugin2` to
+generate a client service interface annotated with Vert.x codegen annotations. To do this
+you need to pass `--vertx-codegen` option to the to the `vertx-grpc-protoc-plugin`:
+
+[source,xml]
+----
+<protocPlugin>
+  <id>vertx-grpc-protoc-plugin2</id>
+  <groupId>io.vertx</groupId>
+  <artifactId>vertx-grpc-protoc-plugin2</artifactId>
+  <version>${stack.version}</version>
+  <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
+  <args>
+    <arg>--vertx-codegen</arg>
+  </args>
+</protocPlugin>
+----
+
+The generated client service interface will be annotated with `@io.vertx.codegen.annotations.VertxGen`.
 
 [source,java]
 ----

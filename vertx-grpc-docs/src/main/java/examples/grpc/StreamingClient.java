@@ -16,7 +16,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the Streaming gRPC service.</p>
  */
-@io.vertx.codegen.annotations.VertxGen
+
 public interface StreamingClient extends Streaming {
 
   /**
@@ -25,7 +25,7 @@ public interface StreamingClient extends Streaming {
    * @param request the examples.grpc.Empty request message
    * @return a future of the examples.grpc.Item response messages
    */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  
   Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request);
 
   /**
@@ -34,7 +34,7 @@ public interface StreamingClient extends Streaming {
    * @param completable a completable that will be passed a stream to which the examples.grpc.Item request messages can be written to.
    * @return a future of the examples.grpc.Empty response message
    */
-  @io.vertx.codegen.annotations.GenIgnore
+  
   Future<examples.grpc.Empty> sink(Completable<WriteStream<examples.grpc.Item>> completable);
 
   /**
@@ -43,7 +43,7 @@ public interface StreamingClient extends Streaming {
    * @param streamOfMessages a stream of messages to be sent to the service
    * @return a future of the examples.grpc.Empty response message
    */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  
   default Future<examples.grpc.Empty> sink(ReadStream<examples.grpc.Item> streamOfMessages) {
     io.vertx.core.streams.Pipe<examples.grpc.Item> pipe = streamOfMessages.pipe();
     return sink((result, error) -> {
@@ -61,7 +61,7 @@ public interface StreamingClient extends Streaming {
    * @param compltable a completable that will be passed a stream to which the examples.grpc.Item request messages can be written to.
    * @return a future of the examples.grpc.Item response messages
    */
-  @io.vertx.codegen.annotations.GenIgnore
+  
   Future<ReadStream<examples.grpc.Item>> pipe(Completable<WriteStream<examples.grpc.Item>> completable);
 
   /**
@@ -70,7 +70,7 @@ public interface StreamingClient extends Streaming {
     * @param streamOfMessages a stream of messages to be sent to the service
    * @return a future of the examples.grpc.Item response messages
    */
-  @io.vertx.codegen.annotations.GenIgnore(io.vertx.codegen.annotations.GenIgnore.PERMITTED_TYPE)
+  
   default Future<ReadStream<examples.grpc.Item>> pipe(ReadStream<examples.grpc.Item> streamOfMessages) {
     io.vertx.core.streams.Pipe<examples.grpc.Item> pipe = streamOfMessages.pipe();
     return pipe((result, error) -> {
