@@ -75,35 +75,35 @@ public class VertxGrpcGeneratorImpl extends Generator {
       .forEach(parameter -> {
         Iterator<String> it = Splitter.on('=').trimResults().omitEmptyStrings().limit(2).split(parameter).iterator();
         switch (it.next()) {
-          case "client":
+          case "grpc-client":
             if (it.hasNext()) {
               options.generateClient = Boolean.parseBoolean(it.next());
             } else {
               options.generateClient = true;
             }
             break;
-          case "service":
+          case "grpc-service":
             if (it.hasNext()) {
               options.generateService = Boolean.parseBoolean(it.next());
             } else {
               options.generateService = true;
             }
             break;
-          case "io":
+          case "grpc-io":
             if (it.hasNext()) {
               options.generateIo = Boolean.parseBoolean(it.next());
             } else {
               options.generateIo = true;
             }
             break;
-          case "transcoding":
+          case "grpc-transcoding":
             if (it.hasNext()) {
               options.generateTranscoding = Boolean.parseBoolean(it.next());
             } else {
               options.generateTranscoding = true;
             }
             break;
-          case "prefix":
+          case "service-prefix":
             if (it.hasNext()) {
               options.servicePrefix = it.next();
             }
