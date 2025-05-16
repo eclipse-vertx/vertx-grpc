@@ -231,7 +231,7 @@ public class MessageWeaverTest {
     JsonObject message = new JsonObject()
       .put("field1", "value1");
 
-    assertThrows(IllegalStateException.class, () -> MessageWeaver.weaveResponseMessage(
+    assertThrows(IllegalArgumentException.class, () -> MessageWeaver.weaveResponseMessage(
       Buffer.buffer(message.encode()),
       "invalid.path"
     ));
@@ -242,12 +242,12 @@ public class MessageWeaverTest {
     assertThrows(DecodeException.class, () -> MessageWeaver.weaveRequestMessage(
       Buffer.buffer("invalid json"),
       new ArrayList<>(),
-      "*"
+      "invalid"
     ));
 
     assertThrows(DecodeException.class, () -> MessageWeaver.weaveResponseMessage(
       Buffer.buffer("invalid json"),
-      "*"
+      "invalid"
     ));
   }
 }
