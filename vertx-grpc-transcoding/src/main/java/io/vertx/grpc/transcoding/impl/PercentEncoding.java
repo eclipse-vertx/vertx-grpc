@@ -1,13 +1,9 @@
 package io.vertx.grpc.transcoding.impl;
 
-import java.util.regex.Pattern;
-
 /**
  * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/include/grpc_transcoding/percent_encoding.h">grpc-httpjson-transcoding</a>
  */
 public class PercentEncoding {
-
-  private static final Pattern ESCAPE_STRING_PATTERN = Pattern.compile("[^a-zA-Z0-9-_.~]");
 
   public enum UrlUnescapeSpec {
     ALL_CHARACTERS_EXCEPT_RESERVED,
@@ -97,10 +93,6 @@ public class PercentEncoding {
     return false;
   }
 
-  public static boolean isUrlEscapedString(String part) {
-    return isUrlEscapedString(part, UrlUnescapeSpec.ALL_CHARACTERS, false);
-  }
-
   public static String urlUnescapeString(String part, UrlUnescapeSpec unescapeSpec, boolean unescapePlus) {
     // Check whether we need to escape at all.
     if (!isUrlEscapedString(part, unescapeSpec, unescapePlus)) {
@@ -122,15 +114,5 @@ public class PercentEncoding {
     }
 
     return unescaped.toString();
-  }
-
-  /** Remove this in the future, if not needed */
-  private static String urlUnescapeString(String part) {
-    return urlUnescapeString(part, UrlUnescapeSpec.ALL_CHARACTERS, false);
-  }
-
-  /** Remove this in the future, if not needed */
-  private static String urlEscapeString(String str) {
-    return ESCAPE_STRING_PATTERN.matcher(str).replaceAll(m -> "%" + Integer.toHexString(m.group().charAt(0)).toUpperCase());
   }
 }
