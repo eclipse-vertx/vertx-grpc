@@ -80,6 +80,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
           serviceNumber
         );
         serviceContext.classPrefix = options.servicePrefix;
+        serviceContext.codegenEnabled = options.generateVertxGeneratorAnnotations;
         serviceContext.protoName = fileProto.getName();
         serviceContext.packageName = fileProto.getPackage();
         serviceContext.outerFqn = ProtoTypeMap.getJavaOuterClassname(fileProto);
@@ -430,6 +431,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public String serviceName;
     public String outerFqn;
     public String classPrefix;
+    public boolean codegenEnabled;
     public boolean deprecated;
     public String javaDoc;
     public final List<MethodContext> methods = new ArrayList<>();

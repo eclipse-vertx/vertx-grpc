@@ -15,7 +15,6 @@ import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceBuilder;
-import io.vertx.codegen.annotations.GenIgnore;
 
 import com.google.protobuf.Descriptors;
 
