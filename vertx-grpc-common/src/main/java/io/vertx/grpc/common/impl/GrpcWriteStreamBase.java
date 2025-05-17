@@ -224,39 +224,51 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     boolean compressed;
     if (message != null) {
       if (encoding != null) {
-        switch (encoding) {
-          case "gzip":
-            compressed = true;
-            if (message.encoding().equals("identity")) {
-              try {
-                payload = Utils.GZIP_ENCODER.apply(message.payload());
-              } catch (CodecException e) {
-                return Future.failedFuture(e);
-              }
-            } else {
-              if (!message.encoding().equals("gzip")) {
-                return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
-              }
-              payload = message.payload();
-            }
-            break;
-          case "identity":
-            compressed = false;
-            if (!message.encoding().equals("identity")) {
-              if (!message.encoding().equals("gzip")) {
-                return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
-              }
-              try {
-                payload = Utils.GZIP_DECODER.apply(message.payload());
-              } catch (CodecException e) {
-                return Future.failedFuture(e);
-              }
-            } else {
-              payload = message.payload();
-            }
-            break;
-          default:
+        if (message.encoding().equals(encoding)) {
+          // Message is already in the desired encoding
+          compressed = !encoding.equals("identity");
+          payload = message.payload();
+        } else if (message.encoding().equals("identity")) {
+          // Message is in identity encoding, need to compress
+          GrpcCompressor compressor = GrpcCompressorRegistry.getDefaultInstance().lookupCompressor(encoding);
+          if (compressor == null) {
             return Future.failedFuture("Encoding " + encoding + " is not supported");
+          }
+          compressed = !encoding.equals("identity");
+          try {
+            payload = compressor.compress(message.payload());
+          } catch (CodecException e) {
+            return Future.failedFuture(e);
+          }
+        } else {
+          // Message is in some other encoding, need to decompress first then compress
+          GrpcDecompressor decompressor = GrpcDecompressorRegistry.getDefaultInstance().lookupDecompressor(message.encoding());
+          if (decompressor == null) {
+            return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
+          }
+
+          Buffer decompressed;
+          try {
+            decompressed = decompressor.decompress(message.payload());
+          } catch (CodecException e) {
+            return Future.failedFuture(e);
+          }
+
+          if (encoding.equals("identity")) {
+            compressed = false;
+            payload = decompressed;
+          } else {
+            GrpcCompressor compressor = GrpcCompressorRegistry.getDefaultInstance().lookupCompressor(encoding);
+            if (compressor == null) {
+              return Future.failedFuture("Encoding " + encoding + " is not supported");
+            }
+            compressed = true;
+            try {
+              payload = compressor.compress(decompressed);
+            } catch (CodecException e) {
+              return Future.failedFuture(e);
+            }
+          }
         }
       } else {
         compressed = !message.encoding().equals("identity");
