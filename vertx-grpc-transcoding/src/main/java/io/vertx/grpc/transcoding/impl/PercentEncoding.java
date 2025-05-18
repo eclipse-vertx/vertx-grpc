@@ -17,6 +17,7 @@ public final class PercentEncoding {
   }
 
   // RFC 3986 reserved characters: gen-delims and sub-delims
+  // https://datatracker.ietf.org/doc/html/rfc3986#section-2.2
   private static final BitSet RESERVED_CHAR_SET = new BitSet(128);
   private static final BitSet HEX_DIGITS = new BitSet(128);
 
@@ -60,7 +61,6 @@ public final class PercentEncoding {
       return input; // Fast path for strings with no escape sequences
     }
 
-    // Determine the behavior based on unescapeSpec
     boolean preserveSlash = unescapeSpec == UrlUnescapeSpec.ALL_CHARACTERS_EXCEPT_SLASH;
     boolean preserveReserved = unescapeSpec == UrlUnescapeSpec.ALL_CHARACTERS_EXCEPT_RESERVED;
 
