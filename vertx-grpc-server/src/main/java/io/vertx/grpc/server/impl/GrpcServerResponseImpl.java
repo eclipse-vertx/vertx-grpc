@@ -24,6 +24,7 @@ import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.StatusException;
 
 import java.util.Map;
 import java.util.Objects;
@@ -91,6 +92,11 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     if (!requestEnded || !isTrailersSent()) {
       sendCancel();
     }
+  }
+
+  public void fail(Exception e) {
+    this.status = StatusException.mapStatus(e);
+    end();
   }
 
   public boolean isTrailersOnly() {

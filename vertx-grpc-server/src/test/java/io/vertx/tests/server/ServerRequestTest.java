@@ -26,6 +26,7 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.StatusException;
 import io.vertx.tests.common.grpc.Empty;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
@@ -92,19 +93,38 @@ public class ServerRequestTest extends ServerTest {
     should.assertEquals("Hello Julien", res.getMessage());
   }
 
-  @Override
-  public void testStatus(TestContext should) {
-
+  @Test
+  public void testStatus1(TestContext should) {
     startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
       call.handler(helloRequest -> {
         GrpcServerResponse<Request, Reply> response = call.response();
         response
-          .status(GrpcStatus.UNAVAILABLE)
+          .status(GrpcStatus.ALREADY_EXISTS)
           .end();
       });
     }));
 
-    super.testStatus(should);
+    super.testStatus(should, Status.ALREADY_EXISTS);
+  }
+
+  @Test
+  public void testStatus2(TestContext should) {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      throw new StatusException(GrpcStatus.ALREADY_EXISTS);
+    }));
+
+    super.testStatus(should, Status.ALREADY_EXISTS);
+  }
+
+  @Test
+  public void testStatus3(TestContext should) {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      call.handler(helloRequest -> {
+        throw new StatusException(GrpcStatus.ALREADY_EXISTS);
+      });
+    }));
+
+    super.testStatus(should, Status.ALREADY_EXISTS);
   }
 
   @Override

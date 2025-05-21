@@ -101,8 +101,7 @@ public abstract class ServerTest extends ServerTestBase {
     }
   }
 
-  @Test
-  public void testStatus(TestContext should) {
+  public void testStatus(TestContext should, Status expectedStatus) {
     Request request = Request.newBuilder().setName("Julien").build();
     channel = ManagedChannelBuilder.forAddress( "localhost", port)
       .usePlaintext()
@@ -111,7 +110,7 @@ public abstract class ServerTest extends ServerTestBase {
     try {
       stub.unary(request);
     } catch (StatusRuntimeException e) {
-      should.assertEquals(Status.UNAVAILABLE, e.getStatus());
+      should.assertEquals(expectedStatus, e.getStatus());
     }
   }
 

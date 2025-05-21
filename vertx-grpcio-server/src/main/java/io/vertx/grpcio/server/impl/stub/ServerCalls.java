@@ -13,24 +13,22 @@
  *
  * You may elect to redistribute this code under either of these licenses.
  */
-package io.vertx.grpcio.common.impl.stub;
+package io.vertx.grpcio.server.impl.stub;
 
 import io.grpc.Status;
-import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
-import io.vertx.core.AsyncResult;
 import io.vertx.core.Completable;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
+import io.vertx.grpc.server.StatusException;
+import io.vertx.grpcio.common.impl.stub.GrpcWriteStream;
+import io.vertx.grpcio.common.impl.stub.StreamObserverReadStream;
 
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 /**
  * @author Rogelio Orts
@@ -52,8 +50,6 @@ public final class ServerCalls {
           response.onError(prepareError(err));
         }
       });
-    } catch (UnsupportedOperationException e) {
-      response.onError(new StatusRuntimeException(Status.UNIMPLEMENTED));
     } catch (Throwable throwable) {
       response.onError(prepareError(throwable));
     }
@@ -64,8 +60,6 @@ public final class ServerCalls {
     try {
       GrpcWriteStream<O> responseWriteStream = new GrpcWriteStream<>(ctx, response);
       delegate.accept(request, responseWriteStream);
-    } catch (UnsupportedOperationException e) {
-      response.onError(new StatusRuntimeException(Status.UNIMPLEMENTED));
     } catch (Throwable throwable) {
       response.onError(prepareError(throwable));
     }
@@ -85,9 +79,6 @@ public final class ServerCalls {
     };
     try {
       delegate.accept(request, completable);
-    } catch (UnsupportedOperationException e) {
-      response.onError(new StatusRuntimeException(Status.UNIMPLEMENTED));
-      return request;
     } catch (Throwable throwable) {
       response.onError(prepareError(throwable));
       return request;
@@ -103,8 +94,6 @@ public final class ServerCalls {
     GrpcWriteStream<O> responseStream = new GrpcWriteStream<>(ctx, response);
     try {
       delegate.accept(request, responseStream);
-    } catch (UnsupportedOperationException e) {
-      response.onError(new StatusRuntimeException(Status.UNIMPLEMENTED));
     } catch (Throwable throwable) {
       response.onError(prepareError(throwable));
     }
@@ -119,7 +108,11 @@ public final class ServerCalls {
   }
 
   private static Throwable prepareError(Throwable throwable) {
-    if (throwable instanceof StatusException || throwable instanceof StatusRuntimeException) {
+    if (throwable instanceof StatusException) {
+      return new StatusRuntimeException(Status.fromCode(Status.Code.valueOf(((StatusException)throwable).status().name())));
+    } else if (throwable instanceof UnsupportedOperationException) {
+      return new StatusRuntimeException(Status.UNIMPLEMENTED);
+    } else if (throwable instanceof io.grpc.StatusException || throwable instanceof StatusRuntimeException) {
       return throwable;
     } else {
       return Status.fromThrowable(throwable).asException();

@@ -110,7 +110,7 @@ public final class GreeterGrpcIo {
     public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
         case METHODID_SAY_HELLO:
-          io.vertx.grpcio.common.impl.stub.ServerCalls.<examples.grpc.HelloRequest, examples.grpc.HelloReply>oneToOne(
+          io.vertx.grpcio.server.impl.stub.ServerCalls.<examples.grpc.HelloRequest, examples.grpc.HelloReply>oneToOne(
             (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext(),
             (examples.grpc.HelloRequest) request,
             (io.grpc.stub.StreamObserver<examples.grpc.HelloReply>) responseObserver,

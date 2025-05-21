@@ -122,7 +122,7 @@ public class ServerBridgeTest extends ServerTest {
     super.testUnary(should, "identity", "identity");
   }
 
-  @Override
+  @Test
   public void testStatus(TestContext should) {
 
     TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
@@ -137,7 +137,7 @@ public class ServerBridgeTest extends ServerTest {
     serverStub.bind(server);
     startServer(server);
 
-    super.testStatus(should);
+    super.testStatus(should, Status.UNAVAILABLE);
   }
 
   @Override

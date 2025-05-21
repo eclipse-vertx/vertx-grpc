@@ -15,6 +15,7 @@ import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceBuilder;
+import io.vertx.grpc.server.StatusException;
 
 import com.google.protobuf.Descriptors;
 
@@ -185,19 +186,13 @@ public class GreeterGrpcService extends GreeterService implements Service {
 
   private void handle_sayHello(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply> request) {
     request.handler(msg -> {
-      try {
-        instance.sayHello(msg, (res, err) -> {
-          if (err == null) {
-            request.response().end(res);
-          } else {
-            request.response().status(GrpcStatus.UNKNOWN).end();
-          }
-        });
-      } catch (UnsupportedOperationException err) {
-        request.response().status(GrpcStatus.UNIMPLEMENTED).end();
-      } catch (RuntimeException err) {
-        request.response().status(GrpcStatus.UNKNOWN).end();
-      }
+      instance.sayHello(msg, (res, err) -> {
+        if (err == null) {
+          request.response().end(res);
+        } else {
+          request.response().status(StatusException.mapStatus(err)).end();
+        }
+      });
     });
   }
     }

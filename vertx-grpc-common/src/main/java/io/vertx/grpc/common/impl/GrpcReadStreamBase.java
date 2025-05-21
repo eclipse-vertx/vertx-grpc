@@ -179,26 +179,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   }
 
   @Override
-  public S handler(@Nullable Handler<T> handler) {
-    if (handler != null) {
-      return messageHandler(msg -> {
-        T decoded;
-        try {
-          decoded = decodeMessage(msg);
-        } catch (CodecException e) {
-          Handler<InvalidMessageException> errorHandler = invalidMessageHandler;
-          if (errorHandler != null) {
-            InvalidMessagePayloadException impe = new InvalidMessagePayloadException(msg, e);
-            errorHandler.handle(impe);
-          }
-          return;
-        }
-        handler.handle(decoded);
-      });
-    } else {
-      return messageHandler(null);
-    }
-  }
+  public abstract S handler(@Nullable Handler<T> handler);
 
   @Override
   public final S endHandler(Handler<Void> endHandler) {

@@ -140,7 +140,7 @@ public final class {{grpcIoFqn}} {
         {{#methods}}
         {{^isManyInput}}
         case METHODID_{{methodNameUpperUnderscore}}:
-          io.vertx.grpcio.common.impl.stub.ServerCalls.<{{inputType}}, {{outputType}}>{{vertxCallsMethodName}}(
+          io.vertx.grpcio.server.impl.stub.ServerCalls.<{{inputType}}, {{outputType}}>{{vertxCallsMethodName}}(
             (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext(),
             ({{inputType}}) request,
             (io.grpc.stub.StreamObserver<{{outputType}}>) responseObserver,
@@ -162,7 +162,7 @@ public final class {{grpcIoFqn}} {
         {{#methods}}
         {{#isManyInput}}
         case METHODID_{{methodNameUpperUnderscore}}:
-          reqStreamObserver = (io.grpc.stub.StreamObserver<Req>) io.vertx.grpcio.common.impl.stub.ServerCalls.<{{inputType}}, {{outputType}}>{{vertxCallsMethodName}}(
+          reqStreamObserver = (io.grpc.stub.StreamObserver<Req>) io.vertx.grpcio.server.impl.stub.ServerCalls.<{{inputType}}, {{outputType}}>{{vertxCallsMethodName}}(
                   (io.vertx.core.internal.ContextInternal) io.vertx.core.Vertx.currentContext(),
                   (io.grpc.stub.StreamObserver<{{outputType}}>) responseObserver,
                   compression,
