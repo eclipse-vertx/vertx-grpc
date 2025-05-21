@@ -335,7 +335,7 @@ public class GrpcServerImpl implements GrpcServer {
       try {
         handler.handle(grpcRequest);
       } catch (Exception e) {
-        ((GrpcServerResponseImpl)grpcRequest.response()).fail(e);
+        grpcRequest.response().fail(e);
       }
     }
   }

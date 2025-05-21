@@ -18,33 +18,19 @@ import io.vertx.grpc.common.GrpcStatus;
  */
 public final class StatusException extends VertxException {
 
-  /**
-   * Map an exception to a GrpcStatus:
-   *
-   * <ul>
-   *   <li>{@link StatusException} returns {@link #status()}</li>
-   *   <li>{@link UnsupportedOperationException} returns {@link GrpcStatus#UNIMPLEMENTED}</li>
-   *   <li>otherwise returns {@link GrpcStatus#UNKNOWN}</li>
-   * </ul>
-   *
-   * @param t the exception to map
-   * @return the mapped status
-   */
-  public static GrpcStatus mapStatus(Throwable t) {
-    if (t instanceof StatusException) {
-      return ((StatusException)t).status();
-    } else if (t instanceof UnsupportedOperationException) {
-      return GrpcStatus.UNIMPLEMENTED;
-    } else {
-      return GrpcStatus.UNKNOWN;
-    }
-  }
-
   private final GrpcStatus status;
+  private final String message;
 
   public StatusException(GrpcStatus status) {
     super("Grpc status " + status.name());
     this.status = status;
+    this.message = null;
+  }
+
+  public StatusException(GrpcStatus status, String message) {
+    super("Grpc status " + status.name());
+    this.status = status;
+    this.message = message;
   }
 
   /**
@@ -52,5 +38,12 @@ public final class StatusException extends VertxException {
    */
   public GrpcStatus status() {
     return status;
+  }
+
+  /**
+   * @return the status message
+   */
+  public String message() {
+    return message;
   }
 }

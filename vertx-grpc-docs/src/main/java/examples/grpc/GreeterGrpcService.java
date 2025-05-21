@@ -190,7 +190,7 @@ public class GreeterGrpcService extends GreeterService implements Service {
         if (err == null) {
           request.response().end(res);
         } else {
-          request.response().status(StatusException.mapStatus(err)).end();
+          request.response().fail(err);
         }
       });
     });
