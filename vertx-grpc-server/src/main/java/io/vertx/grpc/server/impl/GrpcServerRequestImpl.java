@@ -23,6 +23,7 @@ import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.StatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -141,7 +142,11 @@ public abstract class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBas
           response.cancel();
           return;
         }
-        handler.handle(decoded);
+        try {
+          handler.handle(decoded);
+        } catch (Exception e) {
+          response.fail(e);
+        }
       });
     } else {
       return messageHandler(null);

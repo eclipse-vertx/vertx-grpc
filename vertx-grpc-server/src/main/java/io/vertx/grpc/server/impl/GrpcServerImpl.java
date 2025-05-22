@@ -332,7 +332,11 @@ public class GrpcServerImpl implements GrpcServer {
 
     @Override
     public void handle(GrpcServerRequest<Req, Resp> grpcRequest) {
-      handler.handle(grpcRequest);
+      try {
+        handler.handle(grpcRequest);
+      } catch (Exception e) {
+        grpcRequest.response().fail(e);
+      }
     }
   }
 }

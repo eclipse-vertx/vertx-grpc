@@ -26,11 +26,11 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.StatusException;
 import io.vertx.tests.common.grpc.Empty;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
 import io.vertx.tests.common.grpc.TestServiceGrpc;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -92,19 +92,64 @@ public class ServerRequestTest extends ServerTest {
     should.assertEquals("Hello Julien", res.getMessage());
   }
 
-  @Override
-  public void testStatus(TestContext should) {
-
+  @Test
+  public void testStatusUnary1(TestContext should) {
     startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
       call.handler(helloRequest -> {
         GrpcServerResponse<Request, Reply> response = call.response();
         response
-          .status(GrpcStatus.UNAVAILABLE)
+          .status(GrpcStatus.ALREADY_EXISTS)
+          .statusMessage("status-msg")
           .end();
       });
     }));
 
-    super.testStatus(should);
+    super.testStatusUnary(should, Status.ALREADY_EXISTS, "status-msg");
+  }
+
+  @Test
+  public void testStatusUnary2(TestContext should) {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      call.handler(helloRequest -> {
+        GrpcServerResponse<Request, Reply> response = call.response();
+        response
+          .status(GrpcStatus.ALREADY_EXISTS)
+          .end();
+      });
+    }));
+
+    super.testStatusUnary(should, Status.ALREADY_EXISTS, null);
+  }
+
+  @Test
+  public void testStatusUnary3(TestContext should) {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      throw new StatusException(GrpcStatus.ALREADY_EXISTS, "status-msg");
+    }));
+
+    super.testStatusUnary(should, Status.ALREADY_EXISTS, "status-msg");
+  }
+
+  @Test
+  public void testStatusUnary4(TestContext should) {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      call.handler(helloRequest -> {
+        throw new StatusException(GrpcStatus.ALREADY_EXISTS, "status-msg");
+      });
+    }));
+
+    super.testStatusUnary(should, Status.ALREADY_EXISTS, "status-msg");
+  }
+
+  @Test
+  public void testStatusStreaming(TestContext should) {
+    startServer(GrpcServer.server(vertx).callHandler(SOURCE, call -> {
+      call.response().write(Reply.newBuilder().setMessage("msg1").build());
+      call.response().write(Reply.newBuilder().setMessage("msg2").build());
+      call.response().fail(new StatusException(GrpcStatus.ALREADY_EXISTS));
+    }));
+
+    super.testStatusStreaming(should, Status.ALREADY_EXISTS, "msg1", "msg2");
   }
 
   @Override

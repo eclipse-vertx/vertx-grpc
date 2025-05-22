@@ -28,7 +28,7 @@ import java.util.Objects;
 /**
  * @author Rogelio Orts
  */
-class StreamObserverReadStream<T> implements StreamObserver<T>, ReadStream<T> {
+public class StreamObserverReadStream<T> implements StreamObserver<T>, ReadStream<T> {
 
   private static final EndOfStream END_SENTINEL = new EndOfStream(null);
 

@@ -15,6 +15,7 @@ import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceBuilder;
+import io.vertx.grpc.server.StatusException;
 
 import com.google.protobuf.Descriptors;
 
@@ -207,40 +208,22 @@ public class StreamingGrpcService extends StreamingService implements Service {
 
   private void handle_source(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item> request) {
     request.handler(msg -> {
-      try {
-        instance.source(msg, request.response());
-      } catch (UnsupportedOperationException e) {
-        request.response().status(GrpcStatus.UNIMPLEMENTED).end();
-      } catch (RuntimeException err) {
-        request.response().status(GrpcStatus.UNKNOWN).end();
-      }
+      instance.source(msg, request.response());
     });
   }
 
   private void handle_sink(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Empty> request) {
-    try {
-      instance.sink(request, (res, err) -> {
-        if (err == null) {
-          request.response().end(res);
-        } else {
-          request.response().status(GrpcStatus.UNKNOWN).end();
-        }
-      });
-    } catch (UnsupportedOperationException err) {
-      request.response().status(GrpcStatus.UNIMPLEMENTED).end();
-    } catch (RuntimeException err) {
-      request.response().status(GrpcStatus.UNKNOWN).end();
-    }
+    instance.sink(request, (res, err) -> {
+      if (err == null) {
+        request.response().end(res);
+      } else {
+        request.response().fail(err);
+      }
+    });
   }
 
   private void handle_pipe(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item> request) {
-    try {
-      instance.pipe(request, request.response());
-     } catch (UnsupportedOperationException err) {
-      request.response().status(GrpcStatus.UNIMPLEMENTED).end();
-     } catch (RuntimeException err) {
-      request.response().status(GrpcStatus.UNKNOWN).end();
-    }
+    instance.pipe(request, request.response());
   }
     }
   }

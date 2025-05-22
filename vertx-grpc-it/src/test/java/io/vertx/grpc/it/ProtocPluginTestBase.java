@@ -28,6 +28,7 @@ import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.server.StatusException;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
 import org.junit.Test;
@@ -717,5 +718,58 @@ public abstract class ProtocPluginTestBase extends ProxyTestBase {
     }));
 
     async.awaitSuccess(20_000);
+  }
+
+  @Test
+  public void testServerStatus1(TestContext should) throws Exception {
+    testServerStatus(should, new GreeterService() {
+      @Override
+      public Future<HelloReply> sayHello(HelloRequest request) {
+        throw new StatusException(GrpcStatus.NOT_FOUND);
+      }
+    });
+  }
+
+  @Test
+  public void testServerStatus2(TestContext should) throws Exception {
+    testServerStatus(should, new GreeterService() {
+      @Override
+      public Future<HelloReply> sayHello(HelloRequest request) {
+        return Future.failedFuture(new StatusException(GrpcStatus.NOT_FOUND));
+      }
+    });
+  }
+
+  private void testServerStatus(TestContext should, GreeterService service) throws Exception {
+
+    // Create gRPC Server
+    GrpcServer grpcServer = grpcServer();
+    grpcServer.addService(greeterService(service));
+    HttpServer httpServer = vertx.createHttpServer();
+    httpServer.requestHandler(grpcServer)
+      .listen(8080).toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+
+    // Create gRPC Client
+    GrpcClient grpcClient = grpcClient();
+    GreeterClient client = greeterClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    Async test = should.async();
+    client.sayHello(HelloRequest.newBuilder()
+        .setName("World")
+        .build())
+      .onComplete(should.asyncAssertFailure(reply -> {
+        if (reply instanceof InvalidStatusException) {
+          InvalidStatusException ise = (InvalidStatusException) reply;
+          should.assertEquals(GrpcStatus.NOT_FOUND, ise.actualStatus());
+          test.complete();
+        } else if (reply instanceof StatusRuntimeException) {
+          StatusRuntimeException sre = (StatusRuntimeException) reply;
+          should.assertEquals(Status.NOT_FOUND, sre.getStatus());
+          test.complete();
+        } else {
+          should.fail();
+        }
+      }));
+    test.awaitSuccess();
   }
 }

@@ -69,4 +69,18 @@ public interface GrpcServerResponse<Req, Resp> extends GrpcWriteStream<Resp> {
   default Future<Void> send(ReadStream<Resp> body) {
     return body.pipeTo(this);
   }
+
+  /**
+   * End the stream with an appropriate status message, when {@code failure} is
+   *
+   * <ul>
+   *   <li>{@link StatusException}, set status to {@link StatusException#status()} and status message to {@link StatusException#message()}</li>
+   *   <li>{@link UnsupportedOperationException} returns {@link GrpcStatus#UNIMPLEMENTED}</li>
+   *   <li>otherwise returns {@link GrpcStatus#UNKNOWN}</li>
+   * </ul>
+   *
+   * @param failure the failure
+   */
+  void fail(Throwable failure);
+
 }

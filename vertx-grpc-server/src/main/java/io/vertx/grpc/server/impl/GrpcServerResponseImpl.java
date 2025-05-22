@@ -24,6 +24,7 @@ import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.StatusException;
 
 import java.util.Map;
 import java.util.Objects;
@@ -93,6 +94,17 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     }
   }
 
+  public void fail(Throwable failure) {
+    if (failure instanceof StatusException) {
+      StatusException se = (StatusException) failure;
+      this.status = se.status();
+      this.statusMessage = se.message();
+    } else {
+      this.status = mapStatus(failure);
+    }
+    end();
+  }
+
   public boolean isTrailersOnly() {
     return trailersOnly;
   }
@@ -157,5 +169,15 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
 
   protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
     return GrpcMessageImpl.encode(message, compressed, trailer);
+  }
+
+  private static GrpcStatus mapStatus(Throwable t) {
+    if (t instanceof StatusException) {
+      return ((StatusException)t).status();
+    } else if (t instanceof UnsupportedOperationException) {
+      return GrpcStatus.UNIMPLEMENTED;
+    } else {
+      return GrpcStatus.UNKNOWN;
+    }
   }
 }

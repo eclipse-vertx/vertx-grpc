@@ -37,10 +37,7 @@ import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.tests.common.grpc.*;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -101,8 +98,7 @@ public abstract class ServerTest extends ServerTestBase {
     }
   }
 
-  @Test
-  public void testStatus(TestContext should) {
+  public void testStatusUnary(TestContext should, Status expectedStatus, String expectedStatusMessage) {
     Request request = Request.newBuilder().setName("Julien").build();
     channel = ManagedChannelBuilder.forAddress( "localhost", port)
       .usePlaintext()
@@ -110,8 +106,29 @@ public abstract class ServerTest extends ServerTestBase {
     TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
     try {
       stub.unary(request);
+      should.fail();
     } catch (StatusRuntimeException e) {
-      should.assertEquals(Status.UNAVAILABLE, e.getStatus());
+      should.assertEquals(expectedStatus.getCode(), e.getStatus().getCode());
+      should.assertEquals(expectedStatusMessage, e.getStatus().getDescription());
+    }
+  }
+
+  public void testStatusStreaming(TestContext should, Status expectedStatus, String... expectedReplies) {
+    channel = ManagedChannelBuilder.forAddress( "localhost", port)
+      .usePlaintext()
+      .build();
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+    List<String> replies = new ArrayList<>();
+    try {
+      Iterator<Reply> iterator = stub.source(Empty.getDefaultInstance());
+      while (iterator.hasNext()) {
+        Reply next = iterator.next();
+        replies.add(next.getMessage());
+      }
+      should.fail();
+    } catch (StatusRuntimeException e) {
+      should.assertEquals(expectedStatus, e.getStatus());
+      should.assertEquals(Arrays.asList(expectedReplies), replies);
     }
   }
 

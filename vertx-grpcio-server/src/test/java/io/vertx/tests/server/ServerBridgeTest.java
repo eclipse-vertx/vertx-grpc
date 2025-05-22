@@ -122,13 +122,13 @@ public class ServerBridgeTest extends ServerTest {
     super.testUnary(should, "identity", "identity");
   }
 
-  @Override
-  public void testStatus(TestContext should) {
+  @Test
+  public void testStatusUnary1(TestContext should) {
 
     TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
       public void unary(Request request, StreamObserver<Reply> responseObserver) {
-        responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+        responseObserver.onError(new StatusRuntimeException(Status.ALREADY_EXISTS.withDescription("status-msg")));
       }
     };
 
@@ -137,7 +137,45 @@ public class ServerBridgeTest extends ServerTest {
     serverStub.bind(server);
     startServer(server);
 
-    super.testStatus(should);
+    super.testStatusUnary(should, Status.ALREADY_EXISTS, "status-msg");
+  }
+
+  @Test
+  public void testStatusUnary2(TestContext should) {
+
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
+      @Override
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
+        responseObserver.onError(new RuntimeException("should-be-ignored"));
+      }
+    };
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(impl);
+    serverStub.bind(server);
+    startServer(server);
+
+    super.testStatusUnary(should, Status.UNKNOWN, null);
+  }
+
+  @Test
+  public void testStatusStreaming(TestContext should) {
+
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
+      @Override
+      public void source(Empty request, StreamObserver<Reply> responseObserver) {
+        responseObserver.onNext(Reply.newBuilder().setMessage("msg1").build());
+        responseObserver.onNext(Reply.newBuilder().setMessage("msg2").build());
+        responseObserver.onError(new StatusRuntimeException(Status.ALREADY_EXISTS));
+      }
+    };
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(impl);
+    serverStub.bind(server);
+    startServer(server);
+
+    super.testStatusStreaming(should, Status.ALREADY_EXISTS, "msg1", "msg2");
   }
 
   @Override
