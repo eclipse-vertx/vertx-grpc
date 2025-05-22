@@ -1,0 +1,49 @@
+name: CI matrix (5.x)
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
+jobs:
+  CI:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            jdk: 11
+          - os: ubuntu-latest
+            jdk: 21
+    uses: ./.github/workflows/ci.yml
+    with:
+      branch: ${{ github.event.pull_request.head.sha || github.ref_name }}
+      jdk: ${{ matrix.jdk }}
+      os: ${{ matrix.os }}
+    secrets: inherit
+  gRPC-Web-Interop:
+    name: Run gRPC-Web interop tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Checkout gRPC-Web
+        uses: actions/checkout@v2
+        with:
+          repository: grpc/grpc-web
+          ref: master
+          path: _grpc-web
+      - name: Install JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: 11
+          distribution: temurin
+      - name: Run tests
+        run: mvn -s .github/maven-ci-settings.xml -q clean verify -B -pl :vertx-grpc-server -am -Dgrpc-web.repo.path="$GITHUB_WORKSPACE/_grpc-web"
+  Deploy:
+    if: ${{ github.repository_owner == 'eclipse-vertx' && (github.event_name == 'push' || github.event_name == 'schedule') }}
+    needs: CI
+    uses: ./.github/workflows/deploy.yml
+    with:
+      branch: ${{ github.event.pull_request.head.sha || github.ref_name }}
+      jdk: 11
+    secrets: inherit
