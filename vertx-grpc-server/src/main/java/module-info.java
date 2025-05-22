@@ -10,9 +10,8 @@ module io.vertx.grpc.server {
   requires io.netty.codec;
   requires io.netty.buffer;
   requires com.google.protobuf;
-    requires java.desktop;
 
-    uses io.vertx.grpc.server.impl.GrpcHttpInvoker;
+  uses io.vertx.grpc.server.impl.GrpcHttpInvoker;
 
   exports io.vertx.grpc.server;
   exports io.vertx.grpc.server.impl to io.vertx.grpc.transcoding;

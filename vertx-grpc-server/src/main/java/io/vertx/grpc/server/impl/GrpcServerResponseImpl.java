@@ -26,7 +26,6 @@ import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.StatusException;
 
-import javax.swing.undo.StateEdit;
 import java.util.Map;
 import java.util.Objects;
 
