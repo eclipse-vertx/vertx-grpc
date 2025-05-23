@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          ref: ${{ inputs.branch }}
       - name: Checkout gRPC-Web
         uses: actions/checkout@v2
         with:
