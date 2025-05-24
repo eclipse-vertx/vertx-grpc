@@ -12,5 +12,6 @@ module io.vertx.grpc.common {
   requires static io.vertx.codegen.api;
   exports io.vertx.grpc.common;
   exports io.vertx.grpc.common.impl to io.vertx.tests.common, io.vertx.grpc.server, io.vertx.grpc.client, io.vertx.grpc.transcoding, io.vertx.tests.server, io.vertx.tests.client;
+  exports io.vertx.grpc.common.compression to io.vertx.grpc.client, io.vertx.grpc.server, io.vertx.grpc.transcoding, io.vertx.tests.client, io.vertx.tests.common, io.vertx.tests.server;
   provides VertxServiceProvider with io.vertx.grpc.common.impl.GrpcRequestLocalRegistration;
 }

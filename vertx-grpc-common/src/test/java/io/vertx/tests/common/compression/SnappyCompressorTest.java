@@ -8,20 +8,12 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.grpc.common.impl;
+package io.vertx.tests.common.compression;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+public class SnappyCompressorTest extends CompressorTestBase {
 
-public class Utils {
-  public static String utf8PercentEncode(String s) {
-    try {
-      return URLEncoder.encode(s, StandardCharsets.UTF_8)
-        .replace("+", "%20")
-        .replace("*", "%2A")
-        .replace("~", "%7E");
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+  @Override
+  protected String getEncodingName() {
+    return "snappy";
   }
 }
