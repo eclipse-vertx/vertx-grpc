@@ -22,7 +22,11 @@ import io.vertx.grpc.common.CodecException;
 
 import java.util.Queue;
 
-public class CompressionUtils {
+public final class CompressionUtils {
+
+  private CompressionUtils() {
+  }
+
   /**
    * Helper method to decode data using a specified decoder
    *
@@ -74,7 +78,7 @@ public class CompressionUtils {
    * @return the encoded buffer
    */
   public static Buffer encode(Buffer data, ChannelHandler encoder) {
-    if( data.length() == 0) {
+    if (data.length() == 0) {
       return BufferInternal.buffer();
     }
 
