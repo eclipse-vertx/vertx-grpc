@@ -10,12 +10,9 @@
  */
 package io.vertx.grpc.common;
 
-import io.vertx.grpc.common.compression.GzipCompressor;
-import io.vertx.grpc.common.compression.IdentityCompressor;
-import io.vertx.grpc.common.compression.SnappyCompressor;
-
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ServiceLoader;
 
 /**
  * Registry for gRPC compressors.
@@ -33,13 +30,9 @@ public class GrpcCompressorRegistry {
 
   private final Map<String, GrpcCompressor> compressors = new HashMap<>();
 
-  /**
-   * Creates a new registry with the default compressors (identity, gzip, and snappy).
-   */
   public GrpcCompressorRegistry() {
-    register(new IdentityCompressor());
-    register(new GzipCompressor());
-    register(new SnappyCompressor());
+    ServiceLoader<GrpcCompressor> loader = ServiceLoader.load(GrpcCompressor.class);
+    loader.stream().map(ServiceLoader.Provider::get).forEach(this::register);
   }
 
   /**
