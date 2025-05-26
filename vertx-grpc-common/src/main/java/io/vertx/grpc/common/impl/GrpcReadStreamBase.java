@@ -118,7 +118,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   protected final T decodeMessage(GrpcMessage msg) throws CodecException {
     String encoding = msg.encoding();
     if (!encoding.equals("identity")) {
-      GrpcDecompressor decompressor = GrpcDecompressorRegistry.getDefaultInstance().lookupDecompressor(encoding);
+      GrpcDecompressor decompressor = GrpcDecompressor.lookupDecompressor(encoding);
       if (decompressor == null) {
         throw new UnsupportedOperationException("Unsupported encoding: " + encoding);
       }

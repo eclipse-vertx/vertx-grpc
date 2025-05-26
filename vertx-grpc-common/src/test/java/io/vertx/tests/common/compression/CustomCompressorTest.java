@@ -13,16 +13,14 @@ package io.vertx.tests.common.compression;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcCompressor;
-import io.vertx.grpc.common.GrpcCompressorRegistry;
 import io.vertx.grpc.common.GrpcDecompressor;
-import io.vertx.grpc.common.GrpcDecompressorRegistry;
 
 public class CustomCompressorTest extends CompressorTestBase {
 
   /**
    * A simple custom compressor that reverses the bytes in the buffer.
    */
-  static class ReverseCompressor implements GrpcCompressor, GrpcDecompressor {
+  public static class ReverseCompressor implements GrpcCompressor, GrpcDecompressor {
     @Override
     public String encoding() {
       return "reverse";
@@ -48,12 +46,6 @@ public class CustomCompressorTest extends CompressorTestBase {
   @Override
   protected String getEncodingName() {
     return "reverse";
-  }
-
-  @Override
-  protected void registerCompressor() {
-    GrpcCompressorRegistry.getDefaultInstance().register(new ReverseCompressor());
-    GrpcDecompressorRegistry.getDefaultInstance().register(new ReverseCompressor());
   }
 
   @Override

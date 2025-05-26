@@ -358,12 +358,8 @@ public class GrpcServerExamples {
       }
     };
 
-    // Register the custom decompressor with the default registry
-    GrpcDecompressorRegistry.getDefaultInstance().register(myDecompressor);
-
-    // You can also create a custom registry if needed
-    GrpcDecompressorRegistry customRegistry = new GrpcDecompressorRegistry();
-    customRegistry.register(myDecompressor);
+    // Then you need to add:
+    // provides io.vertx.grpc.common.GrpcDecompressor with <package>.<class> to your module-info.java
   }
 
   public void customCompressor() {
@@ -382,11 +378,7 @@ public class GrpcServerExamples {
       }
     };
 
-    // Register the custom compressor with the default registry
-    GrpcCompressorRegistry.getDefaultInstance().register(myCompressor);
-
-    // You can also create a custom registry if needed
-    GrpcCompressorRegistry customRegistry = new GrpcCompressorRegistry();
-    customRegistry.register(myCompressor);
+    // Then you need to add:
+    // provides io.vertx.grpc.common.GrpcCompressor with <package>.<class> to your module-info.java
   }
 }
