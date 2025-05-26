@@ -13,11 +13,31 @@ package io.vertx.grpc.common;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.buffer.Buffer;
 
+import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 /**
  * A compressor for gRPC messages.
  */
 @VertxGen
 public interface GrpcCompressor {
+
+  static Set<GrpcCompressor> getDefaultCompressors() {
+    return ServiceLoader.load(GrpcCompressor.class).stream().map(ServiceLoader.Provider::get).collect(Collectors.toUnmodifiableSet());
+  }
+
+  static Set<String> getSupportedEncodings() {
+    return getDefaultCompressors().stream().map(GrpcCompressor::encoding).collect(Collectors.toUnmodifiableSet());
+  }
+
+  static GrpcCompressor lookupCompressor(String encoding) {
+    return ServiceLoader.load(GrpcCompressor.class).stream()
+      .filter(provider -> provider.get().encoding().equals(encoding))
+      .map(ServiceLoader.Provider::get)
+      .findFirst()
+      .orElse(null);
+  }
 
   /**
    * @return the encoding name of this compressor (e.g., "gzip")

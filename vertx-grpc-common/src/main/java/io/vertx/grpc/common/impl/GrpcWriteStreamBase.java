@@ -230,7 +230,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
           payload = message.payload();
         } else if (message.encoding().equals("identity")) {
           // Message is in identity encoding, need to compress
-          GrpcCompressor compressor = GrpcCompressorRegistry.getDefaultInstance().lookupCompressor(encoding);
+          GrpcCompressor compressor = GrpcCompressor.lookupCompressor(encoding);
           if (compressor == null) {
             return Future.failedFuture("Encoding " + encoding + " is not supported");
           }
@@ -242,7 +242,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
           }
         } else {
           // Message is in some other encoding, need to decompress first then compress
-          GrpcDecompressor decompressor = GrpcDecompressorRegistry.getDefaultInstance().lookupDecompressor(message.encoding());
+          GrpcDecompressor decompressor = GrpcDecompressor.lookupDecompressor(message.encoding());
           if (decompressor == null) {
             return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
           }
@@ -258,7 +258,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
             compressed = false;
             payload = decompressed;
           } else {
-            GrpcCompressor compressor = GrpcCompressorRegistry.getDefaultInstance().lookupCompressor(encoding);
+            GrpcCompressor compressor = GrpcCompressor.lookupCompressor(encoding);
             if (compressor == null) {
               return Future.failedFuture("Encoding " + encoding + " is not supported");
             }

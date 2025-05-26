@@ -14,9 +14,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.grpc.common.GrpcCompressor;
-import io.vertx.grpc.common.GrpcCompressorRegistry;
 import io.vertx.grpc.common.GrpcDecompressor;
-import io.vertx.grpc.common.GrpcDecompressorRegistry;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.WireFormat;
 import org.junit.Before;
@@ -31,16 +29,8 @@ public abstract class CompressorTestBase {
    */
   protected abstract String getEncodingName();
 
-  protected void registerCompressor() {
-  }
-
   protected boolean shouldReduceSize() {
     return true;
-  }
-
-  @Before
-  public void setUp() {
-    registerCompressor();
   }
 
   @Test
@@ -51,14 +41,14 @@ public abstract class CompressorTestBase {
     GrpcMessage message = GrpcMessage.message("identity", WireFormat.PROTOBUF, originalBuffer);
 
     // Compress the message using the specified compressor
-    GrpcCompressor compressor = GrpcCompressorRegistry.getDefaultInstance().lookupCompressor(getEncodingName());
+    GrpcCompressor compressor = GrpcCompressor.lookupCompressor(getEncodingName());
     should.assertNotNull(compressor, getEncodingName() + " compressor should be registered");
 
     Buffer compressed = compressor.compress(message.payload());
     GrpcMessage compressedMessage = GrpcMessage.message(getEncodingName(), message.format(), compressed);
 
     // Decompress the message
-    GrpcDecompressor decompressor = GrpcDecompressorRegistry.getDefaultInstance().lookupDecompressor(getEncodingName());
+    GrpcDecompressor decompressor = GrpcDecompressor.lookupDecompressor(getEncodingName());
     should.assertNotNull(decompressor, getEncodingName() + " decompressor should be registered");
 
     Buffer decompressed = decompressor.decompress(compressedMessage.payload());
@@ -77,7 +67,7 @@ public abstract class CompressorTestBase {
     GrpcMessage message = GrpcMessage.message("identity", WireFormat.PROTOBUF, originalBuffer);
 
     // Compress the message using the specified compressor
-    GrpcCompressor compressor = GrpcCompressorRegistry.getDefaultInstance().lookupCompressor(getEncodingName());
+    GrpcCompressor compressor = GrpcCompressor.lookupCompressor(getEncodingName());
     should.assertNotNull(compressor, getEncodingName() + " compressor should be registered");
 
     Buffer compressed = compressor.compress(message.payload());
@@ -89,7 +79,7 @@ public abstract class CompressorTestBase {
     }
 
     // Decompress the message
-    GrpcDecompressor decompressor = GrpcDecompressorRegistry.getDefaultInstance().lookupDecompressor(getEncodingName());
+    GrpcDecompressor decompressor = GrpcDecompressor.lookupDecompressor(getEncodingName());
     should.assertNotNull(decompressor, getEncodingName() + " decompressor should be registered");
 
     Buffer decompressed = decompressor.decompress(compressedMessage.payload());
@@ -104,14 +94,14 @@ public abstract class CompressorTestBase {
     GrpcMessage message = GrpcMessage.message("identity", WireFormat.PROTOBUF, originalBuffer);
 
     // Compress the message using the specified compressor
-    GrpcCompressor compressor = GrpcCompressorRegistry.getDefaultInstance().lookupCompressor(getEncodingName());
+    GrpcCompressor compressor = GrpcCompressor.lookupCompressor(getEncodingName());
     should.assertNotNull(compressor, getEncodingName() + " compressor should be registered");
 
     Buffer compressed = compressor.compress(message.payload());
     GrpcMessage compressedMessage = GrpcMessage.message(getEncodingName(), message.format(), compressed);
 
     // Decompress the message
-    GrpcDecompressor decompressor = GrpcDecompressorRegistry.getDefaultInstance().lookupDecompressor(getEncodingName());
+    GrpcDecompressor decompressor = GrpcDecompressor.lookupDecompressor(getEncodingName());
     should.assertNotNull(decompressor, getEncodingName() + " decompressor should be registered");
 
     Buffer decompressed = decompressor.decompress(compressedMessage.payload());

@@ -25,9 +25,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import io.vertx.grpc.common.GrpcCompressor;
-import io.vertx.grpc.common.GrpcCompressorRegistry;
 import io.vertx.grpc.common.GrpcDecompressor;
-import io.vertx.grpc.common.GrpcDecompressorRegistry;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -78,12 +76,12 @@ public abstract class GrpcTestBase {
   }
 
   public static Buffer snappyCompress(Buffer buffer) {
-    GrpcCompressor compressor = GrpcCompressorRegistry.getDefaultInstance().lookupCompressor("snappy");
+    GrpcCompressor compressor = GrpcCompressor.lookupCompressor("snappy");
     return compressor.compress(buffer);
   }
 
   public static Buffer snappyDecompress(Buffer buffer) {
-    GrpcDecompressor decompressor = GrpcDecompressorRegistry.getDefaultInstance().lookupDecompressor("snappy");
+    GrpcDecompressor decompressor = GrpcDecompressor.lookupDecompressor("snappy");
     return decompressor.decompress(buffer);
   }
 }

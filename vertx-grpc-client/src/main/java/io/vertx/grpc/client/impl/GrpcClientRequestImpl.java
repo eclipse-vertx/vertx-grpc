@@ -181,7 +181,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     if (encoding != null) {
       httpRequest.putHeader(GrpcHeaderNames.GRPC_ENCODING, encoding);
     }
-    httpRequest.putHeader(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, String.join(",", GrpcDecompressorRegistry.getDefaultInstance().getSupportedDecompressors()));
+    httpRequest.putHeader(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, String.join(",", GrpcDecompressor.getSupportedEncodings()));
     httpRequest.putHeader(HttpHeaderNames.TE, "trailers");
     httpRequest.setChunked(true);
     httpRequest.setURI(uri);
