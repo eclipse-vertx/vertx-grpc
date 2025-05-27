@@ -23,18 +23,19 @@ import java.util.stream.Collectors;
 @VertxGen
 public interface GrpcDecompressor {
 
-  static Set<GrpcDecompressor> getDefaultCompressors() {
-    return ServiceLoader.load(GrpcDecompressor.class).stream().map(ServiceLoader.Provider::get).collect(Collectors.toUnmodifiableSet());
+  Set<GrpcDecompressor> DECOMPRESSORS = ServiceLoader.load(GrpcDecompressor.class).stream().map(ServiceLoader.Provider::get).collect(Collectors.toUnmodifiableSet());
+
+  static Set<GrpcDecompressor> getDefaultDecompressors() {
+    return DECOMPRESSORS;
   }
 
   static Set<String> getSupportedEncodings() {
-    return getDefaultCompressors().stream().map(GrpcDecompressor::encoding).collect(Collectors.toUnmodifiableSet());
+    return getDefaultDecompressors().stream().map(GrpcDecompressor::encoding).collect(Collectors.toUnmodifiableSet());
   }
 
   static GrpcDecompressor lookupDecompressor(String encoding) {
-    return ServiceLoader.load(GrpcDecompressor.class).stream()
-      .filter(provider -> provider.get().encoding().equals(encoding))
-      .map(ServiceLoader.Provider::get)
+    return getDefaultDecompressors().stream()
+      .filter(decompressor -> decompressor.encoding().equals(encoding))
       .findFirst()
       .orElse(null);
   }

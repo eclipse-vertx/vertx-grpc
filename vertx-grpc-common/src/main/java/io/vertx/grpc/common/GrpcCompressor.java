@@ -23,8 +23,10 @@ import java.util.stream.Collectors;
 @VertxGen
 public interface GrpcCompressor {
 
+  Set<GrpcCompressor> COMPRESSORS = ServiceLoader.load(GrpcCompressor.class).stream().map(ServiceLoader.Provider::get).collect(Collectors.toUnmodifiableSet());
+
   static Set<GrpcCompressor> getDefaultCompressors() {
-    return ServiceLoader.load(GrpcCompressor.class).stream().map(ServiceLoader.Provider::get).collect(Collectors.toUnmodifiableSet());
+    return COMPRESSORS;
   }
 
   static Set<String> getSupportedEncodings() {
@@ -32,9 +34,8 @@ public interface GrpcCompressor {
   }
 
   static GrpcCompressor lookupCompressor(String encoding) {
-    return ServiceLoader.load(GrpcCompressor.class).stream()
-      .filter(provider -> provider.get().encoding().equals(encoding))
-      .map(ServiceLoader.Provider::get)
+    return getDefaultCompressors().stream()
+      .filter(compressor -> compressor.encoding().equals(encoding))
       .findFirst()
       .orElse(null);
   }
