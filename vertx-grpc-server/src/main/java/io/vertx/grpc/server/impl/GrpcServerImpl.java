@@ -35,11 +35,12 @@ import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
  */
 public class GrpcServerImpl implements GrpcServer {
 
-  private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("application/grpc(-web(-text)?)?(\\+(json|proto))?");
-
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
   private final GrpcServerOptions options;
+  // TODO: pass grpc server options
+  private final GrpcServerRequestInspector inspector = new GrpcServerRequestInspector();
+
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
 
   private final List<Service> services = new ArrayList<>();
@@ -48,67 +49,15 @@ public class GrpcServerImpl implements GrpcServer {
   private final List<GrpcHttpInvoker> invokers;
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
-
     ServiceLoader<GrpcHttpInvoker> loader = ServiceLoader.load(GrpcHttpInvoker.class);
     this.invokers = loader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
   }
 
-  // Internal pojo, the name does not matter much at the moment
-  private static class Details {
-    final GrpcProtocol protocol;
-    final WireFormat format;
-    Details(GrpcProtocol protocol, WireFormat format) {
-      this.protocol = protocol;
-      this.format = format;
-    }
-  }
-
-  private Details determine(String contentType) {
-    WireFormat format;
-    GrpcProtocol protocol;
-    if (contentType != null) {
-      Matcher matcher = CONTENT_TYPE_PATTERN.matcher(contentType);
-      if (matcher.matches()) {
-        if (matcher.group(1) != null) {
-          protocol = matcher.group(2) == null ? GrpcProtocol.WEB : GrpcProtocol.WEB_TEXT;
-        } else {
-          protocol = GrpcProtocol.HTTP_2;
-        }
-        if (matcher.group(3) != null) {
-          switch (matcher.group(4)) {
-            case "proto":
-              format = WireFormat.PROTOBUF;
-              break;
-            case "json":
-              format = WireFormat.JSON;
-              break;
-            default:
-              throw new UnsupportedOperationException("Not possible");
-          }
-        } else {
-          format = WireFormat.PROTOBUF;
-        }
-        return new Details(protocol, format);
-      } else {
-        if (GrpcProtocol.TRANSCODING.mediaType().equals(contentType)) {
-          protocol = GrpcProtocol.TRANSCODING;
-          format = WireFormat.JSON;
-          return new Details(protocol, format);
-        } else {
-          return null;
-        }
-      }
-    } else {
-      return null;
-    }
-  }
-
   @Override
   public void handle(HttpServerRequest httpRequest) {
-    String contentType = httpRequest.getHeader(CONTENT_TYPE);
-    Details details;
-    if (contentType != null && (details = determine(contentType)) != null) {
+    GrpcServerRequestInspector.RequestInspectionDetails details = inspector.inspect(httpRequest);
+    if (details != null) {
       int errorCode = validate(httpRequest.version(), details.protocol, details.format);
       if (errorCode > 0) {
         httpRequest.response().setStatusCode(errorCode).end();
