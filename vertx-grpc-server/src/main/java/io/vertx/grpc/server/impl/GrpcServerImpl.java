@@ -106,6 +106,7 @@ public class GrpcServerImpl implements GrpcServer {
       log.trace(protocol + " is not supported, sending error 415");
       return 415;
     }
+
     return -1;
   }
 
