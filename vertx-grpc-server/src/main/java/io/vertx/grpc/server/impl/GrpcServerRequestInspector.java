@@ -63,7 +63,7 @@ public class GrpcServerRequestInspector {
     return false;
   }
 
-  public static class RequestInspectionDetails {
+  public static final class RequestInspectionDetails {
     final GrpcProtocol protocol;
     final WireFormat format;
 
