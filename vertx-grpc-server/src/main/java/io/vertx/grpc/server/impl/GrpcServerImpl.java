@@ -210,13 +210,7 @@ public class GrpcServerImpl implements GrpcServer {
 
   private <Req, Resp> void unregisterMethodCallHandler(String path, ServiceMethod<Req, Resp> serviceMethod) {
     methodCallHandlers.computeIfPresent(path, (p, registrations) -> {
-      Iterator<MethodCallHandler<?, ?>> it = registrations.iterator();
-      while (it.hasNext()) {
-        MethodCallHandler<?, ?> mch = it.next();
-        if (mch.method.equals(serviceMethod)) {
-          it.remove();
-        }
-      }
+      registrations.removeIf(mch -> mch.method.equals(serviceMethod));
       return registrations.isEmpty() ? null : registrations;
     });
   }
