@@ -18,6 +18,7 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.GrpcRequestTransformer;
 import io.vertx.grpc.server.GrpcProtocol;
 
 import java.util.Map;
@@ -29,8 +30,8 @@ public class WebGrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req
   private final GrpcProtocol protocol;
   private final HttpServerResponse httpResponse;
 
-  public WebGrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
-    super(context, request, protocol, httpResponse, encoder);
+  public WebGrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, HttpServerResponse httpResponse, GrpcRequestTransformer transformer, GrpcMessageEncoder<Resp> encoder) {
+    super(context, request, protocol, httpResponse, encoder, transformer);
 
     this.protocol = protocol;
     this.httpResponse = httpResponse;

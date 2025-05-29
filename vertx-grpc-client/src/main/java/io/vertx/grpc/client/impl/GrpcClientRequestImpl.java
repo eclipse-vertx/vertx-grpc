@@ -51,9 +51,10 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   public GrpcClientRequestImpl(HttpClientRequest httpRequest,
                                long maxMessageSize,
                                boolean scheduleDeadline,
+                               GrpcRequestTransformer transformer,
                                GrpcMessageEncoder<Req> messageEncoder,
                                GrpcMessageDecoder<Resp> messageDecoder) {
-    super( ((PromiseInternal<?>)httpRequest.response()).context(), "application/grpc", httpRequest, messageEncoder);
+    super( ((PromiseInternal<?>)httpRequest.response()).context(), "application/grpc", httpRequest, messageEncoder, transformer);
     this.httpRequest = httpRequest;
     this.scheduleDeadline = scheduleDeadline;
     this.timeout = 0L;

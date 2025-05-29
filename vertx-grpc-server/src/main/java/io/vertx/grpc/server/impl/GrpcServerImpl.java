@@ -58,10 +58,6 @@ public class GrpcServerImpl implements GrpcServer {
     this.decompressors = decompressorServiceLoader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
 
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
-    /*this.inspector = new GrpcServerRequestInspector(options.isCompressionEnabled(),
-      GrpcCompressor.getSupportedEncodings().stream().filter(algorithm -> options.getCompressionAlgorithms().contains(algorithm)).collect(Collectors.toUnmodifiableSet()),
-      GrpcDecompressor.getSupportedEncodings().stream().filter(algorithm -> options.getCompressionAlgorithms().contains(algorithm)).collect(Collectors.toUnmodifiableSet())
-    );*/
   }
 
   @Override

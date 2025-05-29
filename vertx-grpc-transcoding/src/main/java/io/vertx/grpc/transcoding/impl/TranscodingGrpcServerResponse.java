@@ -17,6 +17,7 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.GrpcRequestTransformer;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.server.GrpcProtocol;
@@ -29,8 +30,8 @@ public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponse
   private final HttpServerResponse httpResponse;
   private final String transcodingResponseBody;
 
-  public TranscodingGrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, HttpServerResponse httpResponse, String transcodingResponseBody, GrpcMessageEncoder<Resp> encoder) {
-    super(context, request, protocol, httpResponse, encoder);
+  public TranscodingGrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, GrpcRequestTransformer transformer, HttpServerResponse httpResponse, String transcodingResponseBody, GrpcMessageEncoder<Resp> encoder) {
+    super(context, request, protocol, httpResponse, encoder, transformer);
 
     this.request = (TranscodingGrpcServerRequest<Req, Resp>) request;
     this.httpResponse = httpResponse;
