@@ -38,8 +38,6 @@ public class GrpcServerImpl implements GrpcServer {
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
   private final GrpcServerOptions options;
-  // TODO: pass grpc server options
-  private final GrpcServerRequestInspector inspector = new GrpcServerRequestInspector();
 
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
 
@@ -52,13 +50,17 @@ public class GrpcServerImpl implements GrpcServer {
     ServiceLoader<GrpcHttpInvoker> loader = ServiceLoader.load(GrpcHttpInvoker.class);
     this.invokers = loader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
+    /*this.inspector = new GrpcServerRequestInspector(options.isCompressionEnabled(),
+      GrpcCompressor.getSupportedEncodings().stream().filter(algorithm -> options.getCompressionAlgorithms().contains(algorithm)).collect(Collectors.toUnmodifiableSet()),
+      GrpcDecompressor.getSupportedEncodings().stream().filter(algorithm -> options.getCompressionAlgorithms().contains(algorithm)).collect(Collectors.toUnmodifiableSet())
+    );*/
   }
 
   @Override
   public void handle(HttpServerRequest httpRequest) {
-    GrpcServerRequestInspector.RequestInspectionDetails details = inspector.inspect(httpRequest);
+    GrpcServerRequestInspector.RequestInspectionDetails details = GrpcServerRequestInspector.inspect(httpRequest);
     if (details != null) {
-      int errorCode = validate(httpRequest.version(), details.protocol, details.format);
+      int errorCode = validate(details);
       if (errorCode > 0) {
         httpRequest.response().setStatusCode(errorCode).end();
         return;
@@ -95,16 +97,28 @@ public class GrpcServerImpl implements GrpcServer {
     }
   }
 
-  private int validate(HttpVersion version, GrpcProtocol protocol, WireFormat format) {
+  private int validate(GrpcServerRequestInspector.RequestInspectionDetails details) {
     // Check HTTP version compatibility
-    if (!protocol.accepts(version)) {
-      log.trace(protocol.name() + " not supported on " + version + ", sending error 415");
+    if (!details.protocol.accepts(details.version)) {
+      log.trace(details.protocol.name() + " not supported on " + details.version + ", sending error 415");
       return 415;
     }
     // Check config
-    if (!options.isProtocolEnabled(protocol)) {
-      log.trace(protocol + " is not supported, sending error 415");
+    if (!options.isProtocolEnabled(details.protocol)) {
+      log.trace(details.protocol + " is not supported, sending error 415");
       return 415;
+    }
+
+    // Check encoding
+    if(!options.getCompressionAlgorithms().contains(details.encoding)) {
+      log.trace("Compression algorithm " + details.encoding + " is not implemented, sending error 404");
+      return 404;
+    }
+
+    // Check if we support at least one of the accepted encodings
+    if(details.acceptEncodings.stream().noneMatch(options.getCompressionAlgorithms()::contains)) {
+      log.trace("None of the accepted encodings " + details.acceptEncodings + " is implemented, sending error 404");
+      return 404;
     }
 
     return -1;
