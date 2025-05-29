@@ -10,6 +10,7 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.*;
 
 import java.util.Objects;
+import java.util.Optional;
 
 import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
@@ -19,7 +20,8 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private final GrpcMessageEncoder<T> messageEncoder;
   private final WriteStream<Buffer> writeStream;
 
-  protected String mediaType;
+  protected final String mediaType;
+
   protected String encoding;
   protected WireFormat format;
   private boolean headersSent;
@@ -162,11 +164,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   }
 
   private GrpcMessage encodeMessage(T message) {
-    WireFormat f = format;
-    if (f == null) {
-      f = WireFormat.PROTOBUF;
-    }
-    return messageEncoder.encode(message, f);
+    return messageEncoder.encode(message, Optional.ofNullable(format).orElse(WireFormat.PROTOBUF));
   }
 
   @Override
