@@ -1,3 +1,5 @@
+import io.vertx.grpc.common.impl.IdentityCompressor;
+
 module io.vertx.grpc.common {
 
   requires static io.vertx.codegen.api;
@@ -16,9 +18,8 @@ module io.vertx.grpc.common {
 
   exports io.vertx.grpc.common;
   exports io.vertx.grpc.common.impl to io.vertx.tests.common, io.vertx.grpc.server, io.vertx.grpc.client, io.vertx.grpc.transcoding, io.vertx.tests.server, io.vertx.tests.client;
-  exports io.vertx.grpc.common.compression to io.vertx.grpc.client, io.vertx.grpc.server, io.vertx.grpc.transcoding, io.vertx.tests.client, io.vertx.tests.common, io.vertx.tests.server;
 
   provides io.vertx.core.spi.VertxServiceProvider with io.vertx.grpc.common.impl.GrpcRequestLocalRegistration;
-  provides io.vertx.grpc.common.GrpcCompressor with io.vertx.grpc.common.compression.GzipCompressor, io.vertx.grpc.common.compression.IdentityCompressor, io.vertx.grpc.common.compression.SnappyCompressor;
-  provides io.vertx.grpc.common.GrpcDecompressor with io.vertx.grpc.common.compression.GzipCompressor, io.vertx.grpc.common.compression.IdentityCompressor, io.vertx.grpc.common.compression.SnappyCompressor;
+  provides io.vertx.grpc.common.GrpcCompressor with IdentityCompressor;
+  provides io.vertx.grpc.common.GrpcDecompressor with IdentityCompressor;
 }

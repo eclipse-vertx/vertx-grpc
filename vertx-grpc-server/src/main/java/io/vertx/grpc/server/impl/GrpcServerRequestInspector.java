@@ -88,8 +88,12 @@ public final class GrpcServerRequestInspector {
       acceptEncoding = DEFAULT_ACCEPT_ENCODING;
     }
 
+    if(!acceptEncoding.contains(encoding)) {
+      acceptEncoding += "," + encoding;
+    }
+
     builder.encoding(encoding);
-    builder.acceptEncodings(Arrays.stream(acceptEncoding.split(",")).collect(Collectors.toUnmodifiableSet()));
+    builder.acceptEncodings(Arrays.stream(acceptEncoding.split(",")).map(String::trim).collect(Collectors.toUnmodifiableSet()));
   }
 
   public static final class RequestInspectionDetails {

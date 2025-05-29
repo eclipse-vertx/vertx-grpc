@@ -129,6 +129,8 @@ public class ServerMessageEncodingTest extends ServerTestBase {
           }));
       }));
     }));
+
+    done.awaitSuccess(5000);
   }
 
   @Test

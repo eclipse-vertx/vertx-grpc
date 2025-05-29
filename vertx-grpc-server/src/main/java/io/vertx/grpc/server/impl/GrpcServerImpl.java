@@ -45,10 +45,18 @@ public class GrpcServerImpl implements GrpcServer {
   private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
 
   private final List<GrpcHttpInvoker> invokers;
+  private final List<GrpcCompressor> compressors;
+  private final List<GrpcDecompressor> decompressors;
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
-    ServiceLoader<GrpcHttpInvoker> loader = ServiceLoader.load(GrpcHttpInvoker.class);
-    this.invokers = loader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
+    ServiceLoader<GrpcHttpInvoker> invokerServiceLoader = ServiceLoader.load(GrpcHttpInvoker.class);
+    ServiceLoader<GrpcCompressor> compressorServiceLoader = ServiceLoader.load(GrpcCompressor.class);
+    ServiceLoader<GrpcDecompressor> decompressorServiceLoader = ServiceLoader.load(GrpcDecompressor.class);
+
+    this.invokers = invokerServiceLoader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
+    this.compressors = compressorServiceLoader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
+    this.decompressors = decompressorServiceLoader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
+
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
     /*this.inspector = new GrpcServerRequestInspector(options.isCompressionEnabled(),
       GrpcCompressor.getSupportedEncodings().stream().filter(algorithm -> options.getCompressionAlgorithms().contains(algorithm)).collect(Collectors.toUnmodifiableSet()),

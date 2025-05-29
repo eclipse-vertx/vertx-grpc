@@ -14,7 +14,4 @@ open module io.vertx.tests.common {
 
   exports io.vertx.tests.common;
   exports io.vertx.tests.common.grpc;
-
-  provides io.vertx.grpc.common.GrpcCompressor with io.vertx.tests.common.compression.CustomCompressorTest.ReverseCompressor;
-  provides io.vertx.grpc.common.GrpcDecompressor with io.vertx.tests.common.compression.CustomCompressorTest.ReverseCompressor;
 }

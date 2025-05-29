@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.tests.common.compression;
+package io.vertx.tests.compression;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.unit.TestContext;
