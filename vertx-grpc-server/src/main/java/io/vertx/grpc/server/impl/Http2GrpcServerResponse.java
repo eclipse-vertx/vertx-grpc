@@ -13,16 +13,18 @@ package io.vertx.grpc.server.impl;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.grpc.common.GrpcDecompressor;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.GrpcRequestTransformer;
 import io.vertx.grpc.server.GrpcProtocol;
 
 public class Http2GrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req,Resp> {
 
   private final HttpServerResponse httpResponse;
 
-  public Http2GrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
-    super(context, request, protocol, httpResponse, encoder);
+  public Http2GrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, HttpServerResponse httpResponse, GrpcRequestTransformer transformer, GrpcMessageEncoder<Resp> encoder) {
+    super(context, request, protocol, httpResponse, encoder, transformer);
 
     this.httpResponse = httpResponse;
   }
@@ -31,7 +33,7 @@ public class Http2GrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<R
   protected void encodeGrpcHeaders(MultiMap grpcHeaders, MultiMap httpHeaders) {
     super.encodeGrpcHeaders(grpcHeaders, httpHeaders);
     httpHeaders.set(GrpcHeaderNames.GRPC_ENCODING, encoding);
-    httpHeaders.set(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, "gzip");
+    httpHeaders.set(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, String.join(",", GrpcDecompressor.getSupportedEncodings()));
   }
 
   @Override

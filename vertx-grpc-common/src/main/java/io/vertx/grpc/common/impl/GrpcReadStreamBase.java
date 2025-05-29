@@ -116,16 +116,13 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   }
 
   protected final T decodeMessage(GrpcMessage msg) throws CodecException {
-    switch (msg.encoding()) {
-      case "identity":
-        // Nothing to do
-        break;
-      case "gzip": {
-        msg = GrpcMessage.message("identity", msg.format(), Utils.GZIP_DECODER.apply(msg.payload()));
-        break;
+    String encoding = msg.encoding();
+    if (!encoding.equals("identity")) {
+      GrpcDecompressor decompressor = GrpcDecompressor.lookupDecompressor(encoding);
+      if (decompressor == null) {
+        throw new UnsupportedOperationException("Unsupported encoding: " + encoding);
       }
-      default:
-        throw new UnsupportedOperationException();
+      msg = GrpcMessage.message("identity", msg.format(), decompressor.decompress(msg.payload()));
     }
     return messageDecoder.decode(msg);
   }

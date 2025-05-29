@@ -13,6 +13,7 @@ package io.vertx.grpc.it;
 import io.grpc.examples.helloworld.*;
 import io.grpc.testing.integration.*;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.server.Service;

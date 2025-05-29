@@ -15,10 +15,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcHeaderNames;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Utils;
@@ -46,8 +43,9 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
                                 GrpcServerRequestImpl<Req, Resp> request,
                                 GrpcProtocol protocol,
                                 HttpServerResponse httpResponse,
-                                GrpcMessageEncoder<Resp> encoder) {
-    super(context, protocol.mediaType(), httpResponse, encoder);
+                                GrpcMessageEncoder<Resp> encoder,
+                                GrpcRequestTransformer transformer) {
+    super(context, protocol.mediaType(), httpResponse, encoder, transformer);
     this.request = request;
     this.httpResponse = httpResponse;
     this.protocol = protocol;

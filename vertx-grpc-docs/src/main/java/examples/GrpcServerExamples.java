@@ -341,4 +341,44 @@ public class GrpcServerExamples {
       .requestHandler(grpcServer)
       .listen();
   }
+
+  public void customDecompressor() {
+    // Create a custom decompressor
+    GrpcDecompressor myDecompressor = new GrpcDecompressor() {
+      @Override
+      public String encoding() {
+        return "my-custom-encoding";
+      }
+
+      @Override
+      public Buffer decompress(Buffer data) throws CodecException {
+        // Implement your custom decompression logic here
+        // This is just a placeholder example
+        return Buffer.buffer(data.getBytes());
+      }
+    };
+
+    // Then you need to add:
+    // provides io.vertx.grpc.common.GrpcDecompressor with <package>.<class> to your module-info.java
+  }
+
+  public void customCompressor() {
+    // Create a custom compressor
+    GrpcCompressor myCompressor = new GrpcCompressor() {
+      @Override
+      public String encoding() {
+        return "my-custom-encoding";
+      }
+
+      @Override
+      public Buffer compress(Buffer data) throws CodecException {
+        // Implement your custom compression logic here
+        // This is just a placeholder example
+        return Buffer.buffer(data.getBytes());
+      }
+    };
+
+    // Then you need to add:
+    // provides io.vertx.grpc.common.GrpcCompressor with <package>.<class> to your module-info.java
+  }
 }

@@ -10,16 +10,20 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.*;
 
 import java.util.Objects;
+import java.util.Optional;
 
 import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
 public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T> implements GrpcWriteStream<T> {
 
   protected final ContextInternal context;
+
   private final GrpcMessageEncoder<T> messageEncoder;
+  private final GrpcRequestTransformer transformer;
   private final WriteStream<Buffer> writeStream;
 
-  protected String mediaType;
+  protected final String mediaType;
+
   protected String encoding;
   protected WireFormat format;
   private boolean headersSent;
@@ -32,10 +36,11 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcError> errorHandler;
 
-  public GrpcWriteStreamBase(ContextInternal context, String mediaType, WriteStream<Buffer> writeStream, GrpcMessageEncoder<T> messageEncoder) {
+  public GrpcWriteStreamBase(ContextInternal context, String mediaType, WriteStream<Buffer> writeStream, GrpcMessageEncoder<T> messageEncoder, GrpcRequestTransformer transformer) {
     this.context = context;
     this.writeStream = writeStream;
     this.messageEncoder = messageEncoder;
+    this.transformer = transformer;
     this.mediaType = mediaType;
   }
 
@@ -162,11 +167,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   }
 
   private GrpcMessage encodeMessage(T message) {
-    WireFormat f = format;
-    if (f == null) {
-      f = WireFormat.PROTOBUF;
-    }
-    return messageEncoder.encode(message, f);
+    return messageEncoder.encode(message, Optional.ofNullable(format).orElse(WireFormat.PROTOBUF));
   }
 
   @Override
@@ -184,8 +185,11 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   }
 
   protected abstract void setHeaders(String contentType, MultiMap headers, boolean isEnd);
+
   protected abstract void setTrailers(MultiMap trailers);
+
   protected abstract Future<Void> sendMessage(Buffer message, boolean compressed);
+
   protected abstract Future<Void> sendEnd();
 
   protected String contentType(WireFormat wireFormat) {
@@ -220,52 +224,13 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
         return context.failedFuture("Message format does not match the response format");
       }
     }
-    Buffer payload;
-    boolean compressed;
-    if (message != null) {
-      if (encoding != null) {
-        switch (encoding) {
-          case "gzip":
-            compressed = true;
-            if (message.encoding().equals("identity")) {
-              try {
-                payload = Utils.GZIP_ENCODER.apply(message.payload());
-              } catch (CodecException e) {
-                return Future.failedFuture(e);
-              }
-            } else {
-              if (!message.encoding().equals("gzip")) {
-                return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
-              }
-              payload = message.payload();
-            }
-            break;
-          case "identity":
-            compressed = false;
-            if (!message.encoding().equals("identity")) {
-              if (!message.encoding().equals("gzip")) {
-                return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
-              }
-              try {
-                payload = Utils.GZIP_DECODER.apply(message.payload());
-              } catch (CodecException e) {
-                return Future.failedFuture(e);
-              }
-            } else {
-              payload = message.payload();
-            }
-            break;
-          default:
-            return Future.failedFuture("Encoding " + encoding + " is not supported");
-        }
-      } else {
-        compressed = !message.encoding().equals("identity");
-        payload = message.payload();
-      }
-    } else {
-      compressed = false;
-      payload = null;
-    }
+
+    return transformer.apply(message).compose(payload -> writePayload(payload.payload(), end));
+  }
+
+  private Future<Void> writePayload(Buffer payload, boolean end) {
+    boolean compressed = encoding != null && !encoding.equals("identity");
+
     if (!headersSent) {
       headersSent = true;
       String contentType = contentType(format);
