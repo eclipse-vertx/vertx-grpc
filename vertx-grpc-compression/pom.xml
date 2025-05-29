@@ -25,50 +25,14 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>vertx-grpc-client</artifactId>
+  <artifactId>vertx-grpc-compression</artifactId>
 
-  <name>Vert.x gRPC Client</name>
+  <name>Vert.x gRPC Compression</name>
 
   <dependencies>
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-grpc-common</artifactId>
     </dependency>
-
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpc-common</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpc-compression</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-protobuf</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-stub</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <!-- Self signed certificate generation -->
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-jdk15on</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-netty-shaded</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
-
 </project>

@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.grpc.common.compression;
+package io.vertx.grpc.common.impl;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.CodecException;

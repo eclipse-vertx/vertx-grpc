@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.grpc.common.compression;
+package io.vertx.grpc.compression;
 
 import io.netty.handler.codec.compression.SnappyFrameDecoder;
 import io.netty.handler.codec.compression.SnappyFrameEncoder;

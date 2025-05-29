@@ -8,12 +8,12 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.tests.common.compression;
+package io.vertx.tests.compression;
 
-public class GzipCompressorTest extends CompressorTestBase {
+public class SnappyCompressorTest extends CompressorTestBase {
 
   @Override
   protected String getEncodingName() {
-    return "gzip";
+    return "snappy";
   }
 }
