@@ -1,11 +1,11 @@
 package io.vertx.grpc.it;
 
 import io.grpc.examples.helloworld.*;
+import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.RequestOptions;
+import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.*;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.SocketAddress;
@@ -13,33 +13,64 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpcio.server.GrpcIoServer;
 import org.junit.Test;
 
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+
+import static org.junit.Assert.assertEquals;
 
 public class TranscodingTest extends ProxyTestBase {
 
   @Test
   public void testUnaryBasic(TestContext should) {
-    HttpClient client = vertx.createHttpClient();
-
-    Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHello, call -> {
+    testUnaryBasic(should, server -> {
+      server.callHandler(GreeterGrpcService.SayHello, call -> {
         call.handler(helloRequest -> {
           HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
           call.response().end(helloReply);
         });
-      })).listen(8080, "localhost");
+      });
+    }, new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/Julien").setMethod(HttpMethod.GET), Buffer.buffer());
+  }
 
-    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/Julien").setMethod(HttpMethod.GET);
+  @Test
+  public void testIoUnaryBasic(TestContext should) {
+    testUnaryBasic(should, server -> {
+      server.callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
+        call.handler(helloRequest -> {
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+          call.response().end(helloReply);
+        });
+      });
+    }, new RequestOptions()
+        .setHost("localhost")
+        .setPort(8080)
+        .setURI("/helloworld.Greeter/SayHello")
+        .setMethod(HttpMethod.POST),
+      Buffer.buffer(new JsonObject().put("name", "Julien").encode()));
+  }
+
+  public void testUnaryBasic(TestContext should, Consumer<GrpcIoServer> setup, RequestOptions request, Buffer requestBody) {
+    HttpClient client = vertx.createHttpClient();
+
+    GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
+
+    setup.accept(grpcServer);
+
+    Future<HttpServer> server = vertx.createHttpServer()
+      .requestHandler(grpcServer).listen(8080, "localhost");
 
     Async test = should.async();
 
     server.onComplete(should.asyncAssertSuccess(v -> {
-      client.request(options).compose(req -> {
+      client.request(request).compose(req -> {
         req.putHeader("Content-Type", "application/json");
         req.putHeader("Accept", "application/json");
-        return req.send();
+        return req.send(requestBody);
       }).compose(resp -> {
         should.assertEquals(200, resp.statusCode());
         should.assertEquals("application/json", resp.getHeader("Content-Type"));
@@ -358,35 +389,61 @@ public class TranscodingTest extends ProxyTestBase {
   }
 
   @Test
-  public void testUnaryWithoutOption(TestContext should) {
+  public void testUnaryWithoutOption() {
+    testUnaryWithoutOption(server -> server.callHandler(GreeterGrpcService.SayHelloWithoutOptions, call -> {
+      call.handler(helloRequest -> {
+        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        call.response().end(helloReply);
+      });
+    }));
+  }
+
+  @Test
+  public void testIoUnaryWithoutOption1() {
+    testUnaryWithoutOption(server -> server.callHandler(GreeterGrpc.getSayHelloWithoutOptionsMethod(), call -> {
+      call.handler(helloRequest -> {
+        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        call.response().end(helloReply);
+      });
+    }));
+  }
+
+  @Test
+  public void testIoUnaryWithoutOption2() {
+    testUnaryWithoutOption(server -> {
+      server.addService(new io.grpc.examples.helloworld.GreeterGrpc.GreeterImplBase() {
+        @Override
+        public void sayHelloWithoutOptions(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + request.getName()).build();
+          responseObserver.onNext(helloReply);
+          responseObserver.onCompleted();
+        }
+      });
+    });
+  }
+
+  private void testUnaryWithoutOption(Consumer<GrpcIoServer> wirer) {
     HttpClient client = vertx.createHttpClient();
 
-    Future<HttpServer> server = vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloWithoutOptions, call -> {
-        call.handler(helloRequest -> {
-          HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
-          call.response().end(helloReply);
-        });
-      })).listen(8080, "localhost");
+    GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
+
+    wirer.accept(grpcServer);
+
+    vertx.createHttpServer()
+      .requestHandler(grpcServer
+      ).listen(8080, "localhost")
+      .await();
 
     RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/helloworld.Greeter/SayHelloWithoutOptions").setMethod(HttpMethod.POST);
 
-    Async test = should.async();
-
-    server.onComplete(should.asyncAssertSuccess(v -> client.request(options).compose(req -> {
+    Buffer res = client.request(options).compose(req -> {
       req.putHeader("Content-Type", "application/json");
       req.putHeader("Accept", "application/json");
       return req.send(createRequest("Julien"));
-    }).compose(resp -> {
-      should.assertEquals(200, resp.statusCode());
-      should.assertEquals("application/json", resp.getHeader("Content-Type"));
-      return resp.body();
-    }).onComplete(should.asyncAssertSuccess(body -> {
-      should.assertEquals("Hello Julien", getMessage(body.toString()));
-      test.complete();
-    }))));
-
-    test.awaitSuccess();
+    }).expecting(HttpResponseExpectation.SC_OK)
+      .expecting(HttpResponseExpectation.JSON).compose(HttpClientResponse::body)
+      .await();
+    assertEquals("Hello Julien", getMessage(res.toString()));
   }
 
   @Test

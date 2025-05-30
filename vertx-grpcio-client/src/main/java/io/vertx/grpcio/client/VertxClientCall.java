@@ -14,6 +14,7 @@ import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
 import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
@@ -146,7 +147,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
             }
           }
         });
-        writeAdapter.init(request, new BridgeMessageEncoder<>(methodDescriptor.getRequestMarshaller(), compressor));
+        writeAdapter.init(request, WireFormat.PROTOBUF, new BridgeMessageEncoder<>(methodDescriptor.getRequestMarshaller(), compressor));
       } else {
         doClose(Status.UNAVAILABLE, new Metadata());
       }

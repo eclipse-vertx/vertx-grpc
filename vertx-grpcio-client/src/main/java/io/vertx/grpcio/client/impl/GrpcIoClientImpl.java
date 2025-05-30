@@ -23,6 +23,8 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpcio.client.GrpcIoClient;
+import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
+import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -39,15 +41,15 @@ public class GrpcIoClientImpl extends GrpcClientImpl implements GrpcIoClient {
 
   @Override
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(MethodDescriptor<Req, Resp> service) {
-    GrpcMessageDecoder<Resp> messageDecoder = io.vertx.grpcio.common.impl.Utils.unmarshaller(service.getResponseMarshaller());
-    GrpcMessageEncoder<Req> messageEncoder = io.vertx.grpcio.common.impl.Utils.marshaller(service.getRequestMarshaller());
+    GrpcMessageDecoder<Resp> messageDecoder = new BridgeMessageDecoder<>(service.getResponseMarshaller(), null);
+    GrpcMessageEncoder<Req> messageEncoder = new BridgeMessageEncoder<>(service.getRequestMarshaller(), null);
     ServiceMethod<Resp, Req> serviceMethod = ServiceMethod.client(ServiceName.create(service.getServiceName()), service.getBareMethodName(), messageEncoder, messageDecoder);
     return request(serviceMethod);
   }
 
   @Override public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, MethodDescriptor<Req, Resp> service) {
-    GrpcMessageDecoder<Resp> messageDecoder = io.vertx.grpcio.common.impl.Utils.unmarshaller(service.getResponseMarshaller());
-    GrpcMessageEncoder<Req> messageEncoder = io.vertx.grpcio.common.impl.Utils.marshaller(service.getRequestMarshaller());
+    GrpcMessageDecoder<Resp> messageDecoder = new BridgeMessageDecoder<>(service.getResponseMarshaller(), null);
+    GrpcMessageEncoder<Req> messageEncoder = new BridgeMessageEncoder<>(service.getRequestMarshaller(), null);
     ServiceMethod<Resp, Req> serviceMethod = ServiceMethod.client(ServiceName.create(service.getServiceName()), service.getBareMethodName(), messageEncoder, messageDecoder);
     return request(server, serviceMethod);
   }

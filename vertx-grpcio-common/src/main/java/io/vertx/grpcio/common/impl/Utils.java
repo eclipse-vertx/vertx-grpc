@@ -19,12 +19,9 @@ import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.netty.util.AsciiString;
 import io.vertx.core.MultiMap;
-import io.vertx.core.VertxException;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.grpc.common.*;
 
+import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -68,55 +65,18 @@ public class Utils {
     return InternalMetadata.newMetadata(array);
   }
 
-  public static <T> GrpcMessageDecoder<T> unmarshaller(MethodDescriptor.Marshaller<T> desc) {
-    return new GrpcMessageDecoder<T>() {
-      @Override
-      public T decode(GrpcMessage msg) {
-        assert msg.format() == WireFormat.PROTOBUF;
-        ByteArrayInputStream in = new ByteArrayInputStream(msg.payload().getBytes());
-        try {
-          return desc.parse(in);
-        } finally {
-          try {
-            in.close();
-          } catch (IOException ignore) {
-          }
-        }
-      }
-      @Override
-      public boolean accepts(WireFormat format) {
-        return format == WireFormat.PROTOBUF;
-      }
-    };
-  }
-
-  public static <T> GrpcMessageEncoder<T> marshaller(MethodDescriptor.Marshaller<T> desc) {
-    return new GrpcMessageEncoder<T>() {
-      @Override
-      public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
-        assert format == WireFormat.PROTOBUF;
-        Buffer encoded = Buffer.buffer();
-        InputStream stream = desc.stream(msg);
-        byte[] tmp = new byte[256];
-        int i;
-        try {
-          while ((i = stream.read(tmp)) != -1) {
-            encoded.appendBytes(tmp, 0, i);
-          }
-        } catch (IOException e) {
-          throw new VertxException(e);
-        }
-        return GrpcMessage.message("identity", encoded);
-      }
-      @Override
-      public boolean accepts(WireFormat format) {
-        return format == WireFormat.PROTOBUF;
-      }
-    };
-  }
-
   public static <T extends MessageOrBuilder> MethodDescriptor.Marshaller<T> marshallerFor(Supplier<Message.Builder> b) {
-    return new MethodDescriptor.Marshaller<T>() {
+    return new MethodDescriptor.PrototypeMarshaller<T>() {
+      @Nullable
+      @Override
+      public T getMessagePrototype() {
+        Message.Builder builder = b.get();
+        return (T) builder.build();
+      }
+      @Override
+      public Class<T> getMessageClass() {
+        throw new UnsupportedOperationException();
+      }
       @Override
       public InputStream stream(T value) {
         String res;
