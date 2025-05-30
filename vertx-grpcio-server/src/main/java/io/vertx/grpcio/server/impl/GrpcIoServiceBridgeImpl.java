@@ -184,7 +184,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
         }
       });
       readAdapter.init(req, new BridgeMessageDecoder<>(methodDef.getMethodDescriptor().getRequestMarshaller(), decompressor));
-      writeAdapter.init(req.response(), new BridgeMessageEncoder<>(methodDef.getMethodDescriptor().getResponseMarshaller(), compressor));
+      writeAdapter.init(req.response(), req.format(), new BridgeMessageEncoder<>(methodDef.getMethodDescriptor().getResponseMarshaller(), compressor));
     }
 
     private Attributes createAttributes() {
