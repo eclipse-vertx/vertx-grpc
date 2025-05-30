@@ -17,6 +17,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.*;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
+import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
+import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
 import io.vertx.grpcio.common.impl.Utils;
 import io.vertx.grpcio.server.GrpcIoServer;
 
@@ -38,8 +40,8 @@ public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
     ServiceMethod<Req, Resp> serviceMethod = ServiceMethod.server(ServiceName.create(
       methodDesc.getServiceName()),
       methodDesc.getBareMethodName(),
-      Utils.marshaller(methodDesc.getResponseMarshaller()),
-      Utils.unmarshaller(methodDesc.getRequestMarshaller())
+      new BridgeMessageEncoder<>(methodDesc.getResponseMarshaller(), null),
+      new BridgeMessageDecoder<>(methodDesc.getRequestMarshaller(), null)
     );
     return (GrpcIoServerImpl) callHandler(serviceMethod, handler);
   }

@@ -53,7 +53,7 @@ public interface GrpcMessageDecoder<T> {
               throw new CodecException(e);
             }
           default:
-            throw new IllegalArgumentException("Invalid wire format: ");
+            throw new IllegalArgumentException("Invalid wire format: " + msg.format());
         }
       }
       @Override

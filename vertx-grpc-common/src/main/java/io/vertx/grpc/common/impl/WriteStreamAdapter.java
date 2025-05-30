@@ -19,6 +19,7 @@ import io.vertx.grpc.common.WireFormat;
  */
 public class WriteStreamAdapter<T> {
 
+  private WireFormat wireFormat;
   private GrpcWriteStream<T> stream;
   private boolean ready;
   private GrpcMessageEncoder<T> encoder;
@@ -29,9 +30,10 @@ public class WriteStreamAdapter<T> {
   protected void handleReady() {
   }
 
-  public final void init(GrpcWriteStream<T> stream, GrpcMessageEncoder<T> encoder) {
+  public final void init(GrpcWriteStream<T> stream, WireFormat wireFormat, GrpcMessageEncoder<T> encoder) {
     synchronized (this) {
       this.stream = stream;
+      this.wireFormat = wireFormat;
       this.encoder = encoder;
     }
     stream.drainHandler(v -> {
@@ -45,7 +47,7 @@ public class WriteStreamAdapter<T> {
   }
 
   public final void write(T msg) {
-    stream.writeMessage(encoder.encode(msg, WireFormat.PROTOBUF));
+    stream.writeMessage(encoder.encode(msg, wireFormat));
     synchronized (this) {
       ready = !stream.writeQueueFull();
     }

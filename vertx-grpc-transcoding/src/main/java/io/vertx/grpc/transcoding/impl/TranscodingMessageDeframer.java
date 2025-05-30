@@ -10,11 +10,10 @@
  */
 package io.vertx.grpc.transcoding.impl;
 
-import io.netty.handler.codec.base64.Base64;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.MessageSizeOverflowException;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 
 /**
@@ -64,7 +63,7 @@ public class TranscodingMessageDeframer implements GrpcMessageDeframer {
   @Override
   public void end() {
     if (!processed) {
-      result = GrpcMessage.message("identity", buffer == null ? Buffer.buffer() : buffer);
+      result = GrpcMessage.message("identity", WireFormat.JSON, buffer == null ? Buffer.buffer() : buffer);
       buffer = null;
     }
   }
