@@ -28,7 +28,7 @@ import java.util.Set;
 public class GrpcServerOptions {
 
   /**
-   *
+   * The default set of enabled protocols = {@code [HTTP/2, TRANSCODING, WEB, WEB_TEXT]}
    */
   public static final Set<GrpcProtocol> DEFAULT_ENABLED_PROTOCOLS = Collections.unmodifiableSet(EnumSet.allOf(GrpcProtocol.class));
 
@@ -80,20 +80,43 @@ public class GrpcServerOptions {
     GrpcServerOptionsConverter.fromJson(json, this);
   }
 
+  /**
+   * Determines if the specified gRPC protocol is enabled in the current server configuration.
+   *
+   * @param protocol the gRPC protocol to check
+   * @return true if the protocol is enabled; false otherwise
+   */
   public boolean isProtocolEnabled(GrpcProtocol protocol) {
     return enabledProtocols.contains(protocol);
   }
 
+  /**
+   * Adds a gRPC protocol to the list of enabled protocols for the server.
+   *
+   * @param protocol the gRPC protocol to enable
+   * @return a reference to this GrpcServerOptions instance, allowing method chaining
+   */
   public GrpcServerOptions addEnabledProtocol(GrpcProtocol protocol) {
     enabledProtocols.add(protocol);
     return this;
   }
 
+  /**
+   * Removes the specified gRPC protocol from the set of enabled protocols.
+   *
+   * @param protocol the gRPC protocol to be removed
+   * @return a reference to this, so the API can be used fluently
+   */
   public GrpcServerOptions removeEnabledProtocol(GrpcProtocol protocol) {
     enabledProtocols.remove(protocol);
     return this;
   }
 
+  /**
+   * Retrieves the set of gRPC protocols that are currently enabled for the server.
+   *
+   * @return a set of enabled gRPC protocols defined by {@link GrpcProtocol}
+   */
   public Set<GrpcProtocol> getEnabledProtocols() {
     return enabledProtocols;
   }

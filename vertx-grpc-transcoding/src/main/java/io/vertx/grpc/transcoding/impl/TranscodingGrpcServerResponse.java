@@ -13,6 +13,7 @@ package io.vertx.grpc.transcoding.impl;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
@@ -41,8 +42,8 @@ public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponse
   protected Future<Void> sendMessage(Buffer message, boolean compressed) {
     try {
       BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(message, transcodingResponseBody);
-      httpResponse.putHeader("content-length", Integer.toString(transcoded.length()));
-      httpResponse.putHeader("content-type", GrpcProtocol.TRANSCODING.mediaType());
+      httpResponse.putHeader(HttpHeaders.CONTENT_LENGTH, Integer.toString(transcoded.length()));
+      httpResponse.putHeader(HttpHeaders.CONTENT_TYPE, GrpcProtocol.TRANSCODING.mediaType());
       return httpResponse.write(transcoded);
     } catch (Exception e) {
       httpResponse.setStatusCode(500).end();

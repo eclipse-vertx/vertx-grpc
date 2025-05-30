@@ -48,68 +48,16 @@ public class GrpcServerImpl implements GrpcServer {
   private final List<GrpcHttpInvoker> invokers;
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
-
     ServiceLoader<GrpcHttpInvoker> loader = ServiceLoader.load(GrpcHttpInvoker.class);
     this.invokers = loader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
   }
 
-  // Internal pojo, the name does not matter much at the moment
-  private static class Details {
-    final GrpcProtocol protocol;
-    final WireFormat format;
-    Details(GrpcProtocol protocol, WireFormat format) {
-      this.protocol = protocol;
-      this.format = format;
-    }
-  }
-
-  private Details determine(String contentType) {
-    WireFormat format;
-    GrpcProtocol protocol;
-    if (contentType != null) {
-      Matcher matcher = CONTENT_TYPE_PATTERN.matcher(contentType);
-      if (matcher.matches()) {
-        if (matcher.group(1) != null) {
-          protocol = matcher.group(2) == null ? GrpcProtocol.WEB : GrpcProtocol.WEB_TEXT;
-        } else {
-          protocol = GrpcProtocol.HTTP_2;
-        }
-        if (matcher.group(3) != null) {
-          switch (matcher.group(4)) {
-            case "proto":
-              format = WireFormat.PROTOBUF;
-              break;
-            case "json":
-              format = WireFormat.JSON;
-              break;
-            default:
-              throw new UnsupportedOperationException("Not possible");
-          }
-        } else {
-          format = WireFormat.PROTOBUF;
-        }
-        return new Details(protocol, format);
-      } else {
-        if (GrpcProtocol.TRANSCODING.mediaType().equals(contentType)) {
-          protocol = GrpcProtocol.TRANSCODING;
-          format = WireFormat.JSON;
-          return new Details(protocol, format);
-        } else {
-          return null;
-        }
-      }
-    } else {
-      return null;
-    }
-  }
-
   @Override
   public void handle(HttpServerRequest httpRequest) {
-    String contentType = httpRequest.getHeader(CONTENT_TYPE);
-    Details details;
-    if (contentType != null && (details = determine(contentType)) != null) {
-      int errorCode = validate(httpRequest.version(), details.protocol, details.format);
+    GrpcServerRequestInspector.RequestInspectionDetails details = GrpcServerRequestInspector.inspect(httpRequest);
+    if (details != null) {
+      int errorCode = validate(details);
       if (errorCode > 0) {
         httpRequest.response().setStatusCode(errorCode).end();
         return;
@@ -146,17 +94,19 @@ public class GrpcServerImpl implements GrpcServer {
     }
   }
 
-  private int validate(HttpVersion version, GrpcProtocol protocol, WireFormat format) {
+  private int validate(GrpcServerRequestInspector.RequestInspectionDetails details) {
     // Check HTTP version compatibility
-    if (!protocol.accepts(version)) {
-      log.trace(protocol.name() + " not supported on " + version + ", sending error 415");
+    if (!details.protocol.accepts(details.version)) {
+      log.trace(details.protocol.name() + " not supported on " + details.version + ", sending error 415");
       return 415;
     }
+
     // Check config
-    if (!options.isProtocolEnabled(protocol)) {
-      log.trace(protocol + " is not supported, sending error 415");
+    if (!options.isProtocolEnabled(details.protocol)) {
+      log.trace(details.protocol + " is not supported, sending error 415");
       return 415;
     }
+
     return -1;
   }
 
@@ -261,18 +211,13 @@ public class GrpcServerImpl implements GrpcServer {
 
   private <Req, Resp> void unregisterMethodCallHandler(String path, ServiceMethod<Req, Resp> serviceMethod) {
     methodCallHandlers.computeIfPresent(path, (p, registrations) -> {
-      Iterator<MethodCallHandler<?, ?>> it = registrations.iterator();
-      while (it.hasNext()) {
-        MethodCallHandler<?, ?> mch = it.next();
-        if (mch.method.equals(serviceMethod)) {
-          it.remove();
-        }
-      }
+      registrations.removeIf(mch -> mch.method.equals(serviceMethod));
       return registrations.isEmpty() ? null : registrations;
     });
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
     if (handler != null) {
       MethodCallHandler<Req, Resp> p = new MethodCallHandler<>(serviceMethod, serviceMethod.decoder(), serviceMethod.encoder(), handler);
