@@ -24,6 +24,7 @@
     <jprotoc.version>1.2.2</jprotoc.version>
     <protoc.version>4.29.3</protoc.version>
     <protobuf.version>4.29.3</protobuf.version>
+    <jmh.version>1.37</jmh.version>
   </properties>
 
   <dependencyManagement>
