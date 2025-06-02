@@ -14,7 +14,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpVersion;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
@@ -24,11 +23,7 @@ import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.*;
 
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -41,27 +36,21 @@ public class GrpcServerImpl implements GrpcServer {
 
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
 
+  private final List<GrpcHttpInvoker> invokers;
   private final List<Service> services = new ArrayList<>();
   private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
 
-  private final List<GrpcHttpInvoker> invokers;
-  private final List<GrpcCompressor> compressors;
-  private final List<GrpcDecompressor> decompressors;
+  private final Map<String, GrpcCompressor> compressors;
+  private final Map<String, GrpcDecompressor> decompressors;
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
     ServiceLoader<GrpcHttpInvoker> invokerServiceLoader = ServiceLoader.load(GrpcHttpInvoker.class);
-    ServiceLoader<GrpcCompressor> compressorServiceLoader = ServiceLoader.load(GrpcCompressor.class);
-    ServiceLoader<GrpcDecompressor> decompressorServiceLoader = ServiceLoader.load(GrpcDecompressor.class);
 
     this.invokers = invokerServiceLoader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
-    this.compressors = compressorServiceLoader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
-    this.decompressors = decompressorServiceLoader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
+    this.compressors = options.getCompressionOptions().getCompressors();
+    this.decompressors = options.getCompressionOptions().getDecompressors();
 
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
-    /*this.inspector = new GrpcServerRequestInspector(options.isCompressionEnabled(),
-      GrpcCompressor.getSupportedEncodings().stream().filter(algorithm -> options.getCompressionAlgorithms().contains(algorithm)).collect(Collectors.toUnmodifiableSet()),
-      GrpcDecompressor.getSupportedEncodings().stream().filter(algorithm -> options.getCompressionAlgorithms().contains(algorithm)).collect(Collectors.toUnmodifiableSet())
-    );*/
   }
 
   @Override
@@ -118,13 +107,13 @@ public class GrpcServerImpl implements GrpcServer {
     }
 
     // Check encoding
-    if(!options.getCompressionAlgorithms().contains(details.encoding)) {
+    if (!decompressors.containsKey(details.encoding)) {
       log.trace("Compression algorithm " + details.encoding + " is not implemented, sending error 404");
       return 404;
     }
 
     // Check if we support at least one of the accepted encodings
-    if(details.acceptEncodings.stream().noneMatch(options.getCompressionAlgorithms()::contains)) {
+    if (!details.acceptEncodings.isEmpty() && details.acceptEncodings.stream().noneMatch(decompressors::containsKey)) {
       log.trace("None of the accepted encodings " + details.acceptEncodings + " is implemented, sending error 404");
       return 404;
     }
@@ -204,8 +193,8 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   private <Req, Resp> void handle(GrpcServerRequestImpl<Req, Resp> grpcRequest,
-                                  GrpcServerResponseImpl<Req, Resp> grpcResponse,
-                                  Handler<GrpcServerRequest<Req, Resp>> handler) {
+    GrpcServerResponseImpl<Req, Resp> grpcResponse,
+    Handler<GrpcServerRequest<Req, Resp>> handler) {
     if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
       long deadline = System.currentTimeMillis() + grpcRequest.timeout;
       grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
@@ -289,7 +278,8 @@ public class GrpcServerImpl implements GrpcServer {
     final GrpcMessageEncoder<Resp> messageEncoder;
     final Handler<GrpcServerRequest<Req, Resp>> handler;
 
-    MethodCallHandler(ServiceMethod<Req, Resp> method, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    MethodCallHandler(ServiceMethod<Req, Resp> method, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder,
+      Handler<GrpcServerRequest<Req, Resp>> handler) {
       this.method = method;
       this.messageDecoder = messageDecoder;
       this.messageEncoder = messageEncoder;

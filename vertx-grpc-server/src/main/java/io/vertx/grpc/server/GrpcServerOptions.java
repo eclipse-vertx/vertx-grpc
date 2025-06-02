@@ -14,11 +14,10 @@ import io.vertx.codegen.annotations.DataObject;
 import io.vertx.codegen.annotations.Unstable;
 import io.vertx.codegen.json.annotations.JsonGen;
 import io.vertx.core.json.JsonObject;
-import io.vertx.grpc.common.GrpcCompressor;
-import io.vertx.grpc.common.GrpcDecompressor;
 
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -35,14 +34,9 @@ public class GrpcServerOptions {
   public static final Set<GrpcProtocol> DEFAULT_ENABLED_PROTOCOLS = Collections.unmodifiableSet(EnumSet.allOf(GrpcProtocol.class));
 
   /**
-   * Whether the server supports compression, by default = {@code false}
+   *
    */
-  public static final boolean DEFAULT_COMPRESSION_ENABLED = false;
-
-  /**
-   * The default compression algorithms accepted by the server = {@code empty}
-   */
-  public static final Set<String> DEFAULT_COMPRESSION_ALGORITHMS = Collections.unmodifiableSet(GrpcDecompressor.getSupportedEncodings());
+  public static final GrpcServerCompressionOptions DEFAULT_COMPRESSION = new GrpcServerCompressionOptions();
 
   /**
    * Whether the server schedule deadline automatically when a request carrying a timeout is received, by default = {@code false}
@@ -60,8 +54,7 @@ public class GrpcServerOptions {
   public static final long DEFAULT_MAX_MESSAGE_SIZE = 256 * 1024;
 
   private Set<GrpcProtocol> enabledProtocols;
-  private boolean compressionEnabled;
-  private Set<String> compressionAlgorithms;
+  private GrpcServerCompressionOptions compressionOptions;
   private boolean scheduleDeadlineAutomatically;
   private boolean deadlinePropagation;
   private long maxMessageSize;
@@ -71,8 +64,7 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions() {
     enabledProtocols = EnumSet.copyOf(DEFAULT_ENABLED_PROTOCOLS);
-    compressionEnabled = DEFAULT_COMPRESSION_ENABLED;
-    compressionAlgorithms = DEFAULT_COMPRESSION_ALGORITHMS;
+    compressionOptions = DEFAULT_COMPRESSION;
     scheduleDeadlineAutomatically = DEFAULT_SCHEDULE_DEADLINE_AUTOMATICALLY;
     deadlinePropagation = DEFAULT_PROPAGATE_DEADLINE;
     maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
@@ -83,8 +75,7 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions(GrpcServerOptions other) {
     enabledProtocols = EnumSet.copyOf(other.enabledProtocols);
-    compressionEnabled = other.compressionEnabled;
-    compressionAlgorithms = other.compressionAlgorithms;
+    compressionOptions = new GrpcServerCompressionOptions(other.compressionOptions);
     scheduleDeadlineAutomatically = other.scheduleDeadlineAutomatically;
     deadlinePropagation = other.deadlinePropagation;
     maxMessageSize = other.maxMessageSize;
@@ -116,61 +107,13 @@ public class GrpcServerOptions {
     return enabledProtocols;
   }
 
-  /**
-   * @return whether the server supports compression
-   */
-  public boolean isCompressionEnabled() {
-    return compressionEnabled;
+  public GrpcServerCompressionOptions getCompressionOptions() {
+    return compressionOptions;
   }
 
-  /**
-   * Set whether the server supports compression.
-   *
-   * @param compressionEnabled whether to enable compression
-   * @return a reference to this, so the API can be used fluently
-   */
-  public GrpcServerOptions setCompressionEnabled(boolean compressionEnabled) {
-    this.compressionEnabled = compressionEnabled;
-    return this;
-  }
-
-  /**
-   * @return the compression algorithms accepted by the server
-   */
-  public Set<String> getCompressionAlgorithms() {
-    return compressionAlgorithms;
-  }
-
-  /**
-   * Set the compression algorithms accepted by the server.
-   *
-   * @param compressionAlgorithms the compression algorithms
-   * @return a reference to this, so the API can be used fluently
-   */
-  public GrpcServerOptions setCompressionAlgorithms(Set<String> compressionAlgorithms) {
-    this.compressionAlgorithms = compressionAlgorithms;
-    return this;
-  }
-
-  /**
-   * Add a compression algorithm accepted by the server.
-   *
-   * @param compressionAlgorithm the compression algorithm
-   * @return a reference to this, so the API can be used fluently
-   */
-  public GrpcServerOptions addCompressionAlgorithm(String compressionAlgorithm) {
-    this.compressionAlgorithms.add(compressionAlgorithm);
-    return this;
-  }
-
-  /**
-   * Remove a compression algorithm accepted by the server.
-   *
-   * @param compressionAlgorithm the compression algorithm
-   * @return a reference to this, so the API can be used fluently
-   */
-  public GrpcServerOptions removeCompressionAlgorithm(String compressionAlgorithm) {
-    this.compressionAlgorithms.remove(compressionAlgorithm);
+  public GrpcServerOptions setCompressionOptions(GrpcServerCompressionOptions compressionOptions) {
+    Objects.requireNonNull(compressionOptions, "compressionOptions must not be null");
+    this.compressionOptions = compressionOptions;
     return this;
   }
 
@@ -218,7 +161,6 @@ public class GrpcServerOptions {
     return this;
   }
 
-
   /**
    * @return the maximum message size in bytes accepted by the server
    */
@@ -228,6 +170,7 @@ public class GrpcServerOptions {
 
   /**
    * Set the maximum message size in bytes accepted from a client, the maximum value is {@code 0xFFFFFFFF}
+   *
    * @param maxMessageSize the size
    * @return a reference to this, so the API can be used fluently
    */

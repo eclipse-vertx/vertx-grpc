@@ -22,19 +22,9 @@ public class GrpcServerOptionsConverter {
             });
           }
           break;
-        case "compressionEnabled":
-          if (member.getValue() instanceof Boolean) {
-            obj.setCompressionEnabled((Boolean)member.getValue());
-          }
-          break;
-        case "compressionAlgorithms":
-          if (member.getValue() instanceof JsonArray) {
-            java.util.LinkedHashSet<java.lang.String> list =  new java.util.LinkedHashSet<>();
-            ((Iterable<Object>)member.getValue()).forEach( item -> {
-              if (item instanceof String)
-                list.add((String)item);
-            });
-            obj.setCompressionAlgorithms(list);
+        case "compressionOptions":
+          if (member.getValue() instanceof JsonObject) {
+            obj.setCompressionOptions(new io.vertx.grpc.server.GrpcServerCompressionOptions((io.vertx.core.json.JsonObject)member.getValue()));
           }
           break;
         case "scheduleDeadlineAutomatically":
@@ -66,11 +56,8 @@ public class GrpcServerOptionsConverter {
       obj.getEnabledProtocols().forEach(item -> array.add(item.name()));
       json.put("enabledProtocols", array);
     }
-    json.put("compressionEnabled", obj.isCompressionEnabled());
-    if (obj.getCompressionAlgorithms() != null) {
-      JsonArray array = new JsonArray();
-      obj.getCompressionAlgorithms().forEach(item -> array.add(item));
-      json.put("compressionAlgorithms", array);
+    if (obj.getCompressionOptions() != null) {
+      json.put("compressionOptions", obj.getCompressionOptions().toJson());
     }
     json.put("scheduleDeadlineAutomatically", obj.getScheduleDeadlineAutomatically());
     json.put("deadlinePropagation", obj.getDeadlinePropagation());
