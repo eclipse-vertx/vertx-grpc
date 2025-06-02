@@ -29,10 +29,6 @@ public interface GrpcCompressor {
     return COMPRESSORS;
   }
 
-  static Set<String> getSupportedEncodings() {
-    return getDefaultCompressors().stream().map(GrpcCompressor::encoding).collect(Collectors.toUnmodifiableSet());
-  }
-
   static GrpcCompressor lookupCompressor(String encoding) {
     return getDefaultCompressors().stream()
       .filter(compressor -> compressor.encoding().equals(encoding))

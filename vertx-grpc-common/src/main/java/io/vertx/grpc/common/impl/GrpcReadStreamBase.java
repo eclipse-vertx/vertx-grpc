@@ -22,6 +22,8 @@ import io.vertx.core.internal.concurrent.InboundMessageQueue;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
 
+import java.util.Map;
+
 import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
 /**
@@ -47,6 +49,8 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   };
 
   protected final ContextInternal context;
+  protected final Map<String, GrpcDecompressor> decompressors;
+
   private final String encoding;
   private final WireFormat format;
   private final ReadStream<Buffer> stream;
@@ -66,7 +70,8 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
                                String encoding,
                                WireFormat format,
                                GrpcMessageDeframer messageDeframer,
-                               GrpcMessageDecoder<T> messageDecoder) {
+                               GrpcMessageDecoder<T> messageDecoder,
+                               Map<String, GrpcDecompressor> decompressors) {
     ContextInternal ctx = (ContextInternal) context;
     this.context = ctx;
     this.encoding = encoding;
@@ -91,6 +96,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
       }
     };
     this.messageDecoder = messageDecoder;
+    this.decompressors = decompressors;
     this.end = ctx.promise();
     this.deframer = messageDeframer;
   }
@@ -118,7 +124,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   protected final T decodeMessage(GrpcMessage msg) throws CodecException {
     String encoding = msg.encoding();
     if (!encoding.equals("identity")) {
-      GrpcDecompressor decompressor = GrpcDecompressor.lookupDecompressor(encoding);
+      GrpcDecompressor decompressor = this.decompressors.get(encoding);
       if (decompressor == null) {
         throw new UnsupportedOperationException("Unsupported encoding: " + encoding);
       }

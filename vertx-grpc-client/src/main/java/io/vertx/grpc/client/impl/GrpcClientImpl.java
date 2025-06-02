@@ -24,12 +24,11 @@ import io.vertx.core.net.Address;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.client.GrpcClientRequest;
-import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.GrpcLocal;
+import io.vertx.grpc.common.*;
 
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -45,6 +44,9 @@ public class GrpcClientImpl implements GrpcClient {
   private final TimeUnit timeoutUnit;
   private final String compressionEncoding;
 
+  private final Map<String, GrpcCompressor> compressors;
+  private final Map<String, GrpcDecompressor> decompressors;
+
   public GrpcClientImpl(Vertx vertx, HttpClient client) {
     this(vertx, new GrpcClientOptions(), client, false);
   }
@@ -58,6 +60,9 @@ public class GrpcClientImpl implements GrpcClient {
     this.timeoutUnit = grpcOptions.getTimeoutUnit();
     this.compressionEncoding = grpcOptions.getCompressionEncoding();
     this.closeClient = close;
+
+    this.compressors = GrpcCompressor.getDefaultCompressors().stream().collect(Collectors.toUnmodifiableMap(GrpcCompressor::encoding, c -> c));
+    this.decompressors = GrpcDecompressor.getDefaultDecompressors().stream().collect(Collectors.toUnmodifiableMap(GrpcDecompressor::encoding, d -> d));
   }
 
   public Vertx vertx() {
@@ -72,7 +77,10 @@ public class GrpcClientImpl implements GrpcClient {
           maxMessageSize,
           scheduleDeadlineAutomatically,
           GrpcMessageEncoder.IDENTITY,
-          GrpcMessageDecoder.IDENTITY);
+          GrpcMessageDecoder.IDENTITY,
+          this.compressors,
+          this.decompressors
+        );
         grpcRequest.init();
         grpcRequest.encoding(compressionEncoding);
         configureTimeout(grpcRequest);
@@ -126,7 +134,10 @@ public class GrpcClientImpl implements GrpcClient {
           maxMessageSize,
           scheduleDeadlineAutomatically,
           method.encoder(),
-          method.decoder());
+          method.decoder(),
+          this.compressors,
+          this.decompressors
+        );
         call.init();
         call.encoding(compressionEncoding);
         call.serviceName(method.serviceName());

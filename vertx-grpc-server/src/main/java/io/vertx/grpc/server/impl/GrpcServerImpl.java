@@ -141,13 +141,18 @@ public class GrpcServerImpl implements GrpcServer {
           format,
           httpRequest,
           method.messageDecoder,
-          methodCall);
+          this.decompressors,
+          methodCall
+        );
         grpcResponse = new Http2GrpcServerResponse<>(
           context,
           grpcRequest,
           protocol,
           httpRequest.response(),
-          method.messageEncoder);
+          method.messageEncoder,
+          this.compressors,
+          this.decompressors
+        );
         break;
       case WEB:
       case WEB_TEXT:
@@ -161,13 +166,18 @@ public class GrpcServerImpl implements GrpcServer {
           options.getMaxMessageSize(),
           httpRequest,
           method.messageDecoder,
-          methodCall);
+          this.decompressors,
+          methodCall
+        );
         grpcResponse = new WebGrpcServerResponse<>(
           context,
           grpcRequest,
           protocol,
           httpRequest.response(),
-          method.messageEncoder);
+          method.messageEncoder,
+          this.compressors,
+          this.decompressors
+        );
         break;
       case TRANSCODING:
         grpcRequest = null;

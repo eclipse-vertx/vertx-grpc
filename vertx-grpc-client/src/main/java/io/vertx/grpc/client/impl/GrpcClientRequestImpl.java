@@ -52,8 +52,10 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
                                long maxMessageSize,
                                boolean scheduleDeadline,
                                GrpcMessageEncoder<Req> messageEncoder,
-                               GrpcMessageDecoder<Resp> messageDecoder) {
-    super( ((PromiseInternal<?>)httpRequest.response()).context(), "application/grpc", httpRequest, messageEncoder);
+                               GrpcMessageDecoder<Resp> messageDecoder,
+                               Map<String, GrpcCompressor> compressors,
+                               Map<String, GrpcDecompressor> decompressors) {
+    super( ((PromiseInternal<?>)httpRequest.response()).context(), "application/grpc", httpRequest, messageEncoder, compressors, decompressors);
     this.httpRequest = httpRequest;
     this.scheduleDeadline = scheduleDeadline;
     this.timeout = 0L;
@@ -84,7 +86,8 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
             format,
             status,
             httpResponse,
-            messageDecoder);
+            messageDecoder,
+            decompressors);
           grpcResponse.init(this, maxMessageSize);
           grpcResponse.invalidMessageHandler(invalidMsg -> {
             cancel();
