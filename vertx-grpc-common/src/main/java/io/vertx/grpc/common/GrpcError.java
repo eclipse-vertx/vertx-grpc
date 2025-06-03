@@ -47,7 +47,7 @@ public enum GrpcError {
    * @return the gRPC error or {@code null} when none applies
    */
   public static GrpcError mapHttp2ErrorCode(long code) {
-    switch ((int) code) {
+    switch ((int)code) {
       case 0x00:
         // NO_ERROR
       case 0x01:
