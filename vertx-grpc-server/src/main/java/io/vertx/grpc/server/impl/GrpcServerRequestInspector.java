@@ -9,7 +9,7 @@ import io.vertx.grpc.server.GrpcProtocol;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public final class GrpcServerRequestInspector {
+final class GrpcServerRequestInspector {
 
   private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("application/grpc(-web(-text)?)?(\\+(json|proto))?");
 
@@ -61,7 +61,7 @@ public final class GrpcServerRequestInspector {
     return false;
   }
 
-  public static final class RequestInspectionDetails {
+  static final class RequestInspectionDetails {
     final HttpVersion version;
     final GrpcProtocol protocol;
     final WireFormat format;
@@ -73,7 +73,7 @@ public final class GrpcServerRequestInspector {
     }
   }
 
-  private static final class RequestInspectionDetailsBuilder {
+  static final class RequestInspectionDetailsBuilder {
     private HttpVersion version;
     private GrpcProtocol protocol;
     private WireFormat format;
