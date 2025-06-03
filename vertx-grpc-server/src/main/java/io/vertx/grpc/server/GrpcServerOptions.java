@@ -14,6 +14,7 @@ import io.vertx.codegen.annotations.DataObject;
 import io.vertx.codegen.annotations.Unstable;
 import io.vertx.codegen.json.annotations.JsonGen;
 import io.vertx.core.json.JsonObject;
+import io.vertx.grpc.common.GrpcCompressionOptions;
 
 import java.util.Collections;
 import java.util.EnumSet;
@@ -23,9 +24,9 @@ import java.util.Set;
 /**
  * Configuration for a {@link GrpcServer}.
  */
+@Unstable
 @DataObject
 @JsonGen(publicConverter = false)
-@Unstable
 public class GrpcServerOptions {
 
   /**
@@ -34,9 +35,9 @@ public class GrpcServerOptions {
   public static final Set<GrpcProtocol> DEFAULT_ENABLED_PROTOCOLS = Collections.unmodifiableSet(EnumSet.allOf(GrpcProtocol.class));
 
   /**
-   *
+   * The default compression options
    */
-  public static final GrpcServerCompressionOptions DEFAULT_COMPRESSION = new GrpcServerCompressionOptions();
+  public static final GrpcCompressionOptions DEFAULT_COMPRESSION = new GrpcCompressionOptions();
 
   /**
    * Whether the server schedule deadline automatically when a request carrying a timeout is received, by default = {@code false}
@@ -54,7 +55,7 @@ public class GrpcServerOptions {
   public static final long DEFAULT_MAX_MESSAGE_SIZE = 256 * 1024;
 
   private Set<GrpcProtocol> enabledProtocols;
-  private GrpcServerCompressionOptions compressionOptions;
+  private GrpcCompressionOptions compressionOptions;
   private boolean scheduleDeadlineAutomatically;
   private boolean deadlinePropagation;
   private long maxMessageSize;
@@ -75,7 +76,7 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions(GrpcServerOptions other) {
     enabledProtocols = EnumSet.copyOf(other.enabledProtocols);
-    compressionOptions = new GrpcServerCompressionOptions(other.compressionOptions);
+    compressionOptions = new GrpcCompressionOptions(other.compressionOptions);
     scheduleDeadlineAutomatically = other.scheduleDeadlineAutomatically;
     deadlinePropagation = other.deadlinePropagation;
     maxMessageSize = other.maxMessageSize;
@@ -130,13 +131,12 @@ public class GrpcServerOptions {
     return enabledProtocols;
   }
 
-  public GrpcServerCompressionOptions getCompressionOptions() {
+  public GrpcCompressionOptions getCompressionOptions() {
     return compressionOptions;
   }
 
-  public GrpcServerOptions setCompressionOptions(GrpcServerCompressionOptions compressionOptions) {
-    Objects.requireNonNull(compressionOptions, "compressionOptions must not be null");
-    this.compressionOptions = compressionOptions;
+  public GrpcServerOptions setCompressionOptions(GrpcCompressionOptions compressionOptions) {
+    this.compressionOptions = Objects.requireNonNull(compressionOptions, "compressionOptions must not be null");
     return this;
   }
 

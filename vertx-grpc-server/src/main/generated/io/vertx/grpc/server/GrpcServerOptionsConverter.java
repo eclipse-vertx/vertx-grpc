@@ -24,7 +24,7 @@ public class GrpcServerOptionsConverter {
           break;
         case "compressionOptions":
           if (member.getValue() instanceof JsonObject) {
-            obj.setCompressionOptions(new io.vertx.grpc.server.GrpcServerCompressionOptions((io.vertx.core.json.JsonObject)member.getValue()));
+            obj.setCompressionOptions(new io.vertx.grpc.common.GrpcCompressionOptions((io.vertx.core.json.JsonObject)member.getValue()));
           }
           break;
         case "scheduleDeadlineAutomatically":

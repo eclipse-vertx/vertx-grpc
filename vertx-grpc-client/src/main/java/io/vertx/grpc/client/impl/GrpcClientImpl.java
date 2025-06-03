@@ -14,9 +14,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.VertxInternal;
@@ -28,7 +26,6 @@ import io.vertx.grpc.common.*;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -42,8 +39,8 @@ public class GrpcClientImpl implements GrpcClient {
   private final long maxMessageSize;
   private final int timeout;
   private final TimeUnit timeoutUnit;
-  private final String compressionEncoding;
 
+  private final String compressionAlgorithm;
   private final Map<String, GrpcCompressor> compressors;
   private final Map<String, GrpcDecompressor> decompressors;
 
@@ -58,11 +55,11 @@ public class GrpcClientImpl implements GrpcClient {
     this.maxMessageSize = grpcOptions.getMaxMessageSize();
     this.timeout = grpcOptions.getTimeout();
     this.timeoutUnit = grpcOptions.getTimeoutUnit();
-    this.compressionEncoding = grpcOptions.getCompressionEncoding();
     this.closeClient = close;
 
-    this.compressors = GrpcCompressor.getDefaultCompressors().stream().collect(Collectors.toUnmodifiableMap(GrpcCompressor::encoding, c -> c));
-    this.decompressors = GrpcDecompressor.getDefaultDecompressors().stream().collect(Collectors.toUnmodifiableMap(GrpcDecompressor::encoding, d -> d));
+    this.compressionAlgorithm = grpcOptions.getCompression().getCompressionAlgorithm();
+    this.compressors = grpcOptions.getCompression().getCompressors();
+    this.decompressors = grpcOptions.getCompression().getDecompressors();
   }
 
   public Vertx vertx() {
@@ -82,7 +79,7 @@ public class GrpcClientImpl implements GrpcClient {
           this.decompressors
         );
         grpcRequest.init();
-        grpcRequest.encoding(compressionEncoding);
+        grpcRequest.encoding(this.compressionAlgorithm);
         configureTimeout(grpcRequest);
         return grpcRequest;
       });
@@ -139,7 +136,7 @@ public class GrpcClientImpl implements GrpcClient {
           this.decompressors
         );
         call.init();
-        call.encoding(compressionEncoding);
+        call.encoding(this.compressionAlgorithm);
         call.serviceName(method.serviceName());
         call.methodName(method.methodName());
         configureTimeout(call);
@@ -152,7 +149,7 @@ public class GrpcClientImpl implements GrpcClient {
     if (closeClient) {
       return client.close();
     } else {
-      return ((VertxInternal)vertx).getOrCreateContext().succeededFuture();
+      return ((VertxInternal) vertx).getOrCreateContext().succeededFuture();
     }
   }
 }

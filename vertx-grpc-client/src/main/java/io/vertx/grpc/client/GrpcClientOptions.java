@@ -11,6 +11,9 @@
 package io.vertx.grpc.client;
 
 import io.vertx.codegen.annotations.DataObject;
+import io.vertx.codegen.annotations.Unstable;
+import io.vertx.codegen.json.annotations.JsonGen;
+import io.vertx.core.json.JsonObject;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -18,7 +21,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * Options configuring a gRPC client.
  */
+@Unstable
 @DataObject
+@JsonGen(publicConverter = false)
 public class GrpcClientOptions {
 
   /**
@@ -42,25 +47,25 @@ public class GrpcClientOptions {
   public static final long DEFAULT_MAX_MESSAGE_SIZE = 256 * 1024;
 
   /**
-   * The default compression encoding = {@code "identity"} (no compression).
+   * The default compression options
    */
-  public static final String DEFAULT_COMPRESSION_ENCODING = "identity";
+  public static final GrpcClientCompressionOptions DEFAULT_COMPRESSION = new GrpcClientCompressionOptions();
 
   private boolean scheduleDeadlineAutomatically;
   private int timeout;
   private TimeUnit timeoutUnit;
   private long maxMessageSize;
-  private String compressionEncoding;
+  private GrpcClientCompressionOptions compression;
 
   /**
    * Default constructor.
    */
   public GrpcClientOptions() {
-    scheduleDeadlineAutomatically = DEFAULT_SCHEDULE_DEADLINE_AUTOMATICALLY;
-    timeout = DEFAULT_TIMEOUT;
-    timeoutUnit = DEFAULT_TIMEOUT_UNIT;
+    this.scheduleDeadlineAutomatically = DEFAULT_SCHEDULE_DEADLINE_AUTOMATICALLY;
+    this.timeout = DEFAULT_TIMEOUT;
+    this.timeoutUnit = DEFAULT_TIMEOUT_UNIT;
     this.maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
-    this.compressionEncoding = DEFAULT_COMPRESSION_ENCODING;
+    this.compression = DEFAULT_COMPRESSION;
   }
 
   /**
@@ -69,11 +74,21 @@ public class GrpcClientOptions {
    * @param other the options to copy
    */
   public GrpcClientOptions(GrpcClientOptions other) {
-    scheduleDeadlineAutomatically = other.scheduleDeadlineAutomatically;
-    timeout = other.timeout;
-    timeoutUnit = other.timeoutUnit;
-    maxMessageSize = other.maxMessageSize;
-    compressionEncoding = other.compressionEncoding;
+    this.scheduleDeadlineAutomatically = other.scheduleDeadlineAutomatically;
+    this.timeout = other.timeout;
+    this.timeoutUnit = other.timeoutUnit;
+    this.maxMessageSize = other.maxMessageSize;
+    this.compression = new GrpcClientCompressionOptions(other.compression);
+  }
+
+  /**
+   * Create a client options from JSON.
+   *
+   * @param json the JSON
+   */
+  public GrpcClientOptions(JsonObject json) {
+    this();
+    GrpcClientOptionsConverter.fromJson(json, this);
   }
 
   /**
@@ -168,21 +183,34 @@ public class GrpcClientOptions {
   }
 
   /**
-   * @return the compression encoding used by the client
+   * @return the compression options
    */
-  public String getCompressionEncoding() {
-    return compressionEncoding;
+  public GrpcClientCompressionOptions getCompression() {
+    return compression;
   }
 
   /**
-   * Set the compression encoding to be used by the client.
-   * Supported values include "identity" (no compression), "gzip", and "snappy".
+   * Set the compression options.
    *
-   * @param compressionEncoding the compression encoding
+   * @param compression the compression options
    * @return a reference to this, so the API can be used fluently
    */
-  public GrpcClientOptions setCompressionEncoding(String compressionEncoding) {
-    this.compressionEncoding = Objects.requireNonNull(compressionEncoding, "Compression encoding cannot be null");
+  public GrpcClientOptions setCompression(GrpcClientCompressionOptions compression) {
+    this.compression = Objects.requireNonNull(compression);
     return this;
+  }
+
+  /**
+   * @return a JSON representation of options
+   */
+  public JsonObject toJson() {
+    JsonObject json = new JsonObject();
+    GrpcClientOptionsConverter.toJson(this, json);
+    return json;
+  }
+
+  @Override
+  public String toString() {
+    return toJson().encode();
   }
 }

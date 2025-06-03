@@ -1,6 +1,8 @@
 module io.vertx.grpc.common {
 
   requires static io.vertx.codegen.api;
+  requires static io.vertx.codegen.json;
+  requires static io.vertx.docgen;
 
   requires io.vertx.core;
   requires io.netty.common;

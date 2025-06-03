@@ -18,6 +18,7 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientCompressionOptions;
 import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
@@ -59,7 +60,7 @@ public class CompressionTest extends ProtocPluginTestBase {
     httpServer.requestHandler(grpcServer).listen(8080).toCompletionStage().toCompletableFuture().get(20, java.util.concurrent.TimeUnit.SECONDS);
 
     // Create gRPC Client with invalid compression
-    GrpcClient grpcClient = GrpcClient.client(vertx, new GrpcClientOptions().setCompressionEncoding("invalid"));
+    GrpcClient grpcClient = GrpcClient.client(vertx, new GrpcClientOptions().setCompression(new GrpcClientCompressionOptions().setCompressionAlgorithm("invalid")));
     GreeterClient client = greeterClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
@@ -90,7 +91,7 @@ public class CompressionTest extends ProtocPluginTestBase {
     httpServer.requestHandler(grpcServer).listen(8080).toCompletionStage().toCompletableFuture().get(20, java.util.concurrent.TimeUnit.SECONDS);
 
     // Create gRPC Client with the specified compression
-    GrpcClient grpcClient = GrpcClient.client(vertx, new GrpcClientOptions().setCompressionEncoding(compressionType));
+    GrpcClient grpcClient = GrpcClient.client(vertx, new GrpcClientOptions().setCompression(new GrpcClientCompressionOptions().setCompressionAlgorithm(compressionType)));
     GreeterClient client = greeterClient(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
 
     Async test = should.async();
