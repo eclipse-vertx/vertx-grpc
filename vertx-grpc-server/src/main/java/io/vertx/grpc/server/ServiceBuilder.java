@@ -3,6 +3,11 @@ package io.vertx.grpc.server;
 import io.vertx.core.Handler;
 import io.vertx.grpc.common.ServiceMethod;
 
+/**
+ * A builder for creating and configuring a {@link Service}. This interface allows you to bind
+ * service methods to their respective handlers, which define how requests to those methods
+ * are processed.
+ */
 public interface ServiceBuilder {
 
   /**
@@ -14,6 +19,11 @@ public interface ServiceBuilder {
    */
   <Req, Resp> ServiceBuilder bind(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
 
+  /**
+   * Constructs and returns a {@link Service} instance based on the current configuration of the builder.
+   *
+   * @return a configured {@link Service} instance
+   */
   Service build();
 
 }

@@ -14,6 +14,10 @@ import io.vertx.codegen.annotations.VertxGen;
 
 /**
  * gRPC error, a subset of {@link GrpcStatus} elements.
+ * <ul>
+ *  <li>The list of codes is taken from <a href="https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#http2-transport-mapping">spec</a>.</ul>
+ *  <li>And the list of http/2 codes is taken from <a href="https://datatracker.ietf.org/doc/html/rfc9113#name-error-codes">spec</a>.</ul>
+ * </ul>
  */
 @VertxGen
 public enum GrpcError {
@@ -38,6 +42,7 @@ public enum GrpcError {
 
   /**
    * Map the HTTP/2 code to the gRPC error.
+   *
    * @param code the HTTP/2 code
    * @return the gRPC error or {@code null} when none applies
    */
