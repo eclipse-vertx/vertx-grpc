@@ -31,7 +31,7 @@ public final class StreamingGrpcIo {
    * Build a new stub.
    */
   public static StreamingStub newStub(io.vertx.core.Vertx vertx, io.grpc.Channel channel) {
-    return new StreamingStub(vertx, channel);
+    return new StreamingStub(vertx.getOrCreateContext(), channel);
   }
 
   
@@ -39,21 +39,21 @@ public final class StreamingGrpcIo {
     private final io.vertx.core.internal.ContextInternal context;
     private StreamingGrpc.StreamingStub delegateStub;
 
-    private StreamingStub(io.vertx.core.Vertx vertx, io.grpc.Channel channel) {
+    private StreamingStub(io.vertx.core.Context context, io.grpc.Channel channel) {
       super(channel);
       this.delegateStub = StreamingGrpc.newStub(channel);
-      this.context = (io.vertx.core.internal.ContextInternal)vertx.getOrCreateContext();
+      this.context = (io.vertx.core.internal.ContextInternal)context;
     }
 
-    private StreamingStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+    private StreamingStub(io.vertx.core.Context context, io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
       this.delegateStub = StreamingGrpc.newStub(channel).build(channel, callOptions);
-      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
+      this.context = (io.vertx.core.internal.ContextInternal)context;
     }
 
     @Override
     protected StreamingStub build(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
-      return new StreamingStub(channel, callOptions);
+      return new StreamingStub(context, channel, callOptions);
     }
 
     

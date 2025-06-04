@@ -102,7 +102,7 @@ public class ProtocPluginStubTest extends ProtocPluginTestBase {
     GrpcIoClient grpcClient = grpcClient();
 
     AtomicBoolean clientInterception = new AtomicBoolean();
-    Channel channel = ClientInterceptors.intercept(new GrpcIoClientChannel(grpcClient, SocketAddress.inetSocketAddress(port, "localhost")), new ClientInterceptor() {
+    ClientInterceptor clientInterceptor = new ClientInterceptor() {
       @Override
       public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
         return new ForwardingClientCall.SimpleForwardingClientCall<>(next.newCall(method, callOptions)) {
@@ -113,19 +113,27 @@ public class ProtocPluginStubTest extends ProtocPluginTestBase {
           }
         };
       }
-    });
+    };
 
-    GreeterClient client = GreeterGrpcIo.newStub(vertx, channel);
+    GrpcIoClientChannel channel = new GrpcIoClientChannel(grpcClient, SocketAddress.inetSocketAddress(port, "localhost"));
+    for (int i = 0;i < 2;i++) {
+      GreeterClient client;
+      if (i == 0) {
+        client = GreeterGrpcIo.newStub(vertx, ClientInterceptors.intercept(new GrpcIoClientChannel(grpcClient, SocketAddress.inetSocketAddress(port, "localhost")), clientInterceptor));
+      } else {
+        client = GreeterGrpcIo.newStub(vertx, channel).withInterceptors(clientInterceptor);
+      }
+      Async test = should.async();
+      client.sayHello(HelloRequest.newBuilder()
+          .setName("World")
+          .build())
+        .onComplete(should.asyncAssertSuccess(reply -> {
+          should.assertEquals("Hello World", reply.getMessage());
+          test.complete();
+        }));
+      test.awaitSuccess();
+    }
 
-    Async test = should.async();
-    client.sayHello(HelloRequest.newBuilder()
-        .setName("World")
-        .build())
-      .onComplete(should.asyncAssertSuccess(reply -> {
-        should.assertEquals("Hello World", reply.getMessage());
-        test.complete();
-      }));
-    test.awaitSuccess();
 
     assertTrue(serverInterception.get());
     assertTrue(clientInterception.get());
