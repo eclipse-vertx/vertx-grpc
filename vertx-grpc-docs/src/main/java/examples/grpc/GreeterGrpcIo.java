@@ -31,7 +31,7 @@ public final class GreeterGrpcIo {
    * Build a new stub.
    */
   public static GreeterStub newStub(io.vertx.core.Vertx vertx, io.grpc.Channel channel) {
-    return new GreeterStub(vertx, channel);
+    return new GreeterStub(vertx.getOrCreateContext(), channel);
   }
 
   
@@ -39,21 +39,21 @@ public final class GreeterGrpcIo {
     private final io.vertx.core.internal.ContextInternal context;
     private GreeterGrpc.GreeterStub delegateStub;
 
-    private GreeterStub(io.vertx.core.Vertx vertx, io.grpc.Channel channel) {
+    private GreeterStub(io.vertx.core.Context context, io.grpc.Channel channel) {
       super(channel);
       this.delegateStub = GreeterGrpc.newStub(channel);
-      this.context = (io.vertx.core.internal.ContextInternal)vertx.getOrCreateContext();
+      this.context = (io.vertx.core.internal.ContextInternal)context;
     }
 
-    private GreeterStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+    private GreeterStub(io.vertx.core.Context context, io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
       this.delegateStub = GreeterGrpc.newStub(channel).build(channel, callOptions);
-      this.context = (io.vertx.core.internal.ContextInternal) ((GrpcIoClientImpl)((GrpcIoClientChannel)getChannel()).client()).vertx().getOrCreateContext();
+      this.context = (io.vertx.core.internal.ContextInternal)context;
     }
 
     @Override
     protected GreeterStub build(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
-      return new GreeterStub(channel, callOptions);
+      return new GreeterStub(context, channel, callOptions);
     }
 
     

@@ -100,6 +100,7 @@ public class GrpcServerImpl implements GrpcServer {
       log.trace(details.protocol.name() + " not supported on " + details.version + ", sending error 415");
       return 415;
     }
+
     // Check config
     if (!options.isProtocolEnabled(details.protocol)) {
       log.trace(details.protocol + " is not supported, sending error 415");
@@ -203,8 +204,8 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   private <Req, Resp> void handle(GrpcServerRequestImpl<Req, Resp> grpcRequest,
-    GrpcServerResponseImpl<Req, Resp> grpcResponse,
-    Handler<GrpcServerRequest<Req, Resp>> handler) {
+                                  GrpcServerResponseImpl<Req, Resp> grpcResponse,
+                                  Handler<GrpcServerRequest<Req, Resp>> handler) {
     if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
       long deadline = System.currentTimeMillis() + grpcRequest.timeout;
       grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
@@ -238,6 +239,7 @@ public class GrpcServerImpl implements GrpcServer {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
     if (handler != null) {
       MethodCallHandler<Req, Resp> p = new MethodCallHandler<>(serviceMethod, serviceMethod.decoder(), serviceMethod.encoder(), handler);
@@ -288,8 +290,7 @@ public class GrpcServerImpl implements GrpcServer {
     final GrpcMessageEncoder<Resp> messageEncoder;
     final Handler<GrpcServerRequest<Req, Resp>> handler;
 
-    MethodCallHandler(ServiceMethod<Req, Resp> method, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder,
-      Handler<GrpcServerRequest<Req, Resp>> handler) {
+    MethodCallHandler(ServiceMethod<Req, Resp> method, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, Handler<GrpcServerRequest<Req, Resp>> handler) {
       this.method = method;
       this.messageDecoder = messageDecoder;
       this.messageEncoder = messageEncoder;

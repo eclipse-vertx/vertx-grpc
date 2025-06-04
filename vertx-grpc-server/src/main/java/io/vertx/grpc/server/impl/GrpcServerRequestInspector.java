@@ -13,7 +13,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public final class GrpcServerRequestInspector {
+final class GrpcServerRequestInspector {
 
   private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("application/grpc(-web(-text)?)?(\\+(json|proto))?");
   private static final String DEFAULT_ENCODING = "identity";
@@ -96,14 +96,14 @@ public final class GrpcServerRequestInspector {
     builder.acceptEncodings(Arrays.stream(acceptEncoding.split(",")).map(String::trim).collect(Collectors.toUnmodifiableSet()));
   }
 
-  public static final class RequestInspectionDetails {
+  static final class RequestInspectionDetails {
     final HttpVersion version;
     final GrpcProtocol protocol;
     final WireFormat format;
     final String encoding;
     final Set<String> acceptEncodings;
 
-    private RequestInspectionDetails(HttpVersion version, GrpcProtocol protocol, WireFormat format, String encoding, Set<String> acceptEncodings) {
+    RequestInspectionDetails(HttpVersion version, GrpcProtocol protocol, WireFormat format, String encoding, Set<String> acceptEncodings) {
       this.version = version;
       this.protocol = protocol;
       this.format = format;
@@ -112,7 +112,7 @@ public final class GrpcServerRequestInspector {
     }
   }
 
-  private static final class RequestInspectionDetailsBuilder {
+  static final class RequestInspectionDetailsBuilder {
     private HttpVersion version;
     private GrpcProtocol protocol;
     private WireFormat format;
