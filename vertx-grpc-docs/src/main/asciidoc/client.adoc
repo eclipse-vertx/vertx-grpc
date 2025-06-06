@@ -388,7 +388,7 @@ You can also specify the JSON wire format when creating an idiomatic client
 
 === Compression
 
-You can compress request messages by setting the request encoding *prior* before sending any message
+You can compress request messages by setting a compression algorithm when creating the client, or per message.
 
 [source,java]
 ----

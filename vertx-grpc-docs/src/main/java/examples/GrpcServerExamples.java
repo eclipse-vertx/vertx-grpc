@@ -169,13 +169,22 @@ public class GrpcServerExamples {
     });
   }
 
-  public void responseCompression(GrpcServerResponse<Empty, Item> response) {
-    response.encoding("gzip");
+  public void responseCompression(Vertx vertx) {
+    GrpcCompressionOptions compressionOptions = new GrpcCompressionOptions();
 
-    // Write items after encoding has been defined
-    response.write(Item.newBuilder().setValue("item-1").build());
-    response.write(Item.newBuilder().setValue("item-2").build());
-    response.write(Item.newBuilder().setValue("item-3").build());
+    compressionOptions.setCompressionEnabled(true);
+    compressionOptions.addCompressionAlgorithm("gzip");
+    compressionOptions.addDecompressionAlgorithm("gzip");
+
+    GrpcServer server = GrpcServer.server(vertx, new GrpcServerOptions().setCompressionOptions(compressionOptions));
+
+    // Create a response
+    server.callHandler(GreeterGrpcService.SayHello, request -> {
+      request.handler(hello -> {
+        // Handle hello message
+        request.response().encoding("gzip").end(HelloReply.newBuilder().setMessage("Hello " + hello.getName()).build());
+      });
+    });
   }
 
   public void protobufLevelAPI(GrpcServer server) {

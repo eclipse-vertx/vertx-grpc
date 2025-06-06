@@ -312,7 +312,7 @@ Anemic JSON is also supported with Vert.x `JsonObject`
 
 === Compression
 
-You can compress response messages by setting the response encoding *prior* before sending any message
+You can compress response messages by setting the compression algorithm when creating the server, or per message.
 
 [source,java]
 ----
