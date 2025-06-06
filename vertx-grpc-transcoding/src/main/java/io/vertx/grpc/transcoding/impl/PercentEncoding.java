@@ -16,8 +16,9 @@ public final class PercentEncoding {
     ALL_CHARACTERS
   }
 
-  // RFC 3986 reserved characters: gen-delims and sub-delims
+  // RFC 3986/RFC 6570 reserved characters: gen-delims and sub-delims
   // https://datatracker.ietf.org/doc/html/rfc3986#section-2.2
+  // https://datatracker.ietf.org/doc/html/rfc6570#section-2.2
   private static final BitSet RESERVED_CHAR_SET = new BitSet(128);
   private static final BitSet HEX_DIGITS = new BitSet(128);
 
