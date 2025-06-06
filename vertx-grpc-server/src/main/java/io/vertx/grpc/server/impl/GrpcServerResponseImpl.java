@@ -10,18 +10,15 @@
  */
 package io.vertx.grpc.server.impl;
 
+import com.google.common.net.UrlEscapers;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcHeaderNames;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
-import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.StatusException;
@@ -46,8 +43,10 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
                                 GrpcServerRequestImpl<Req, Resp> request,
                                 GrpcProtocol protocol,
                                 HttpServerResponse httpResponse,
-                                GrpcMessageEncoder<Resp> encoder) {
-    super(context, protocol.mediaType(), httpResponse, encoder);
+                                GrpcMessageEncoder<Resp> encoder,
+                                Map<String, GrpcCompressor> compressors,
+                                Map<String, GrpcDecompressor> decompressors) {
+    super(context, protocol.mediaType(), httpResponse, encoder, compressors, decompressors);
     this.request = request;
     this.httpResponse = httpResponse;
     this.protocol = protocol;
@@ -150,7 +149,7 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     if (status != GrpcStatus.OK) {
       String msg = statusMessage;
       if (msg != null && !httpHeaders.contains(GrpcHeaderNames.GRPC_MESSAGE)) {
-        httpTrailers.set(GrpcHeaderNames.GRPC_MESSAGE, Utils.utf8PercentEncode(msg));
+        httpTrailers.set(GrpcHeaderNames.GRPC_MESSAGE, UrlEscapers.urlFragmentEscaper().escape(msg));
       }
     } else {
       httpTrailers.remove(GrpcHeaderNames.GRPC_MESSAGE);
