@@ -19,12 +19,8 @@ import io.vertx.grpc.server.GrpcProtocol;
 
 public class Http2GrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req,Resp> {
 
-  private final HttpServerResponse httpResponse;
-
   public Http2GrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
     super(context, request, protocol, httpResponse, encoder);
-
-    this.httpResponse = httpResponse;
   }
 
   @Override
@@ -32,16 +28,5 @@ public class Http2GrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<R
     super.encodeGrpcHeaders(grpcHeaders, httpHeaders);
     httpHeaders.set(GrpcHeaderNames.GRPC_ENCODING, encoding);
     httpHeaders.set(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, "gzip");
-  }
-
-  @Override
-  protected void setTrailers(MultiMap grpcTrailers) {
-    MultiMap httpTrailers;
-    if (isTrailersOnly()) {
-      httpTrailers = httpResponse.headers();
-    } else {
-      httpTrailers = httpResponse.trailers();
-    }
-    encodeGrpcTrailers(grpcTrailers, httpTrailers);
   }
 }
