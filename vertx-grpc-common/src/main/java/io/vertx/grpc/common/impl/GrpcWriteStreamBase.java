@@ -183,10 +183,12 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return writeMessage(null, true);
   }
 
-  protected abstract void setHeaders(String contentType, MultiMap headers, boolean isEnd);
+  protected abstract void setHeaders(String contentType, MultiMap headers);
   protected abstract void setTrailers(MultiMap trailers);
+
   protected abstract Future<Void> sendMessage(Buffer message, boolean compressed);
   protected abstract Future<Void> sendEnd();
+  protected abstract Future<Void> sendHead();
 
   protected String contentType(WireFormat wireFormat) {
     if (wireFormat != null) {
@@ -203,15 +205,16 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return mediaType;
   }
 
-  private Future<Void> writeMessage(GrpcMessage message, boolean end) {
+  public final Future<Void> writeHead() {
+    return writeMessage(null, false);
+  }
+
+  protected Future<Void> writeMessage(GrpcMessage message, boolean end) {
     if (error != null) {
       throw new IllegalStateException("The stream is failed: " + error);
     }
     if (trailersSent) {
       throw new IllegalStateException("The stream has been closed");
-    }
-    if (message == null && !end) {
-      throw new IllegalStateException();
     }
     if (message != null) {
       if (format == null) {
@@ -269,19 +272,21 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     if (!headersSent) {
       headersSent = true;
       String contentType = contentType(format);
-      setHeaders(contentType, headers, end);
+      setHeaders(contentType, headers);
     }
     if (end) {
-      if (!trailersSent) {
-        trailersSent = true;
-      }
+      trailersSent = true;
       if (payload != null) {
         sendMessage(payload, compressed);
       }
       setTrailers(trailers);
       return sendEnd();
     } else {
-      return sendMessage(payload, compressed);
+      if (message != null) {
+        return sendMessage(payload, compressed);
+      } else {
+        return sendHead();
+      }
     }
   }
 }

@@ -24,6 +24,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonObject;
@@ -339,24 +340,84 @@ public abstract class ServerTest extends ServerTestBase {
     items.cancel("cancelled", new Exception());
   }
 
-  @Test
-  public void testTrailersOnly(TestContext should) {
-    Request request = Request.newBuilder().setName("Julien").build();
-    channel = ManagedChannelBuilder.forAddress( "localhost", port)
+  protected void testEarlyHeaders(TestContext should, GrpcStatus status, Runnable continuation) {
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
       .usePlaintext()
       .build();
-    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
-    try {
-      stub.unary(request);
-    } catch (StatusRuntimeException e) {
-      Metadata trailers = e.getTrailers();
-      should.assertEquals("custom_response_trailer_value", trailers.get(Metadata.Key.of("custom_response_trailer", Metadata.ASCII_STRING_MARSHALLER)));
-      assertEquals(should, new byte[] { 0,1,2 }, trailers.get(Metadata.Key.of("custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER)));
-      should.assertEquals("grpc-custom_response_trailer_value", trailers.get(Metadata.Key.of("grpc-custom_response_trailer", Metadata.ASCII_STRING_MARSHALLER)));
-      assertEquals(should, new byte[] { 2,1,0 }, trailers.get(Metadata.Key.of("grpc-custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER)));
-      should.assertEquals(Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
-      should.assertEquals("grpc-status-message-value +*~", e.getStatus().getDescription());
-    }
+
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setHttp2ClearTextUpgrade(false)
+      .setProtocolVersion(HttpVersion.HTTP_2));
+    Async async = should.async();
+    client.request(HttpMethod.POST, port, "localhost", "/io.vertx.tests.common.grpc.tests.TestService/Unary")
+      .onComplete(should.asyncAssertSuccess(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
+        req.response().onComplete(should.asyncAssertSuccess(resp -> {
+          should.assertNull(resp.getHeader(GrpcHeaderNames.GRPC_STATUS));
+          resp.handler(buff -> {
+            should.fail();
+          });
+          vertx.setTimer(200, id -> {
+            resp.handler(null);
+            resp.endHandler(v -> {
+              MultiMap trailers = resp.trailers();
+              should.assertEquals("" + status.code, trailers.get(GrpcHeaderNames.GRPC_STATUS));
+              async.complete();
+            });
+            continuation.run();
+          });
+        }));
+        GrpcMessage msg = TestConstants.REQUEST_ENC.encode(Request.newBuilder().setName("test").build(), WireFormat.PROTOBUF);
+        req.end(GrpcMessageImpl.encode(msg));
+      }));
+
+    async.awaitSuccess();
+  }
+
+  @Test
+  public void testTrailersOnly(TestContext should) {
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setHttp2ClearTextUpgrade(false)
+      .setProtocolVersion(HttpVersion.HTTP_2));
+    Async async = should.async();
+    client.request(HttpMethod.POST, port, "localhost", "/io.vertx.tests.common.grpc.tests.TestService/Source")
+      .onComplete(should.asyncAssertSuccess(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
+        req.response().onComplete(should.asyncAssertSuccess(resp -> {
+          should.assertEquals("3", resp.getHeader("grpc-status"));
+          resp.endHandler(v -> {
+            should.assertNull(resp.getTrailer("grpc-status"));
+            async.complete();
+          });
+        }));
+        GrpcMessage msg = TestConstants.EMPTY_ENC.encode(Empty.getDefaultInstance(), WireFormat.PROTOBUF);
+        req.end(GrpcMessageImpl.encode(msg));
+      }));
+
+    async.awaitSuccess();
+  }
+
+  @Test
+  public void testDistinctHeadersAndTrailers(TestContext should) {
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setHttp2ClearTextUpgrade(false)
+      .setProtocolVersion(HttpVersion.HTTP_2));
+    Async async = should.async();
+    client.request(HttpMethod.POST, port, "localhost", "/io.vertx.tests.common.grpc.tests.TestService/Source")
+      .onComplete(should.asyncAssertSuccess(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
+        req.response().onComplete(should.asyncAssertSuccess(resp -> {
+          should.assertNull(resp.getHeader("grpc-status"));
+          resp.endHandler(v -> {
+            should.assertEquals("0", resp.getTrailer("grpc-status"));
+            async.complete();
+          });
+        }));
+        GrpcMessage msg = TestConstants.EMPTY_ENC.encode(Empty.getDefaultInstance(), WireFormat.PROTOBUF);
+        req.end(GrpcMessageImpl.encode(msg));
+      }));
+
+    async.awaitSuccess();
   }
 
   @Test

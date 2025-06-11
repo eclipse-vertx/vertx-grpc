@@ -16,14 +16,15 @@ import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpcio.common.impl.Utils;
 import io.vertx.grpcio.server.GrpcIoServer;
 import io.vertx.grpcio.server.GrpcIoServiceBridge;
 import io.vertx.tests.common.grpc.*;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -380,45 +381,93 @@ public class ServerBridgeTest extends ServerTest {
     super.testMetadata(should);
   }
 
-  // Cannot compile because of https://github.com/protocolbuffers/protobuf/issues/16452
-  // see also https://github.com/protocolbuffers/protobuf/issues/17247
-  // see also https://github.com/grpc/grpc-java/issues/11015
-  // waiting for https://github.com/protocolbuffers/protobuf/commit/4d8be99f2bef888921fee52e400a27e72593e1b2 to be released
-  @Ignore
-  @Override
-  public void testTrailersOnly(TestContext should) {
+  @Test
+  public void testEarlyHeadersOk(TestContext should) {
+    testEarlyHeaders(GrpcStatus.OK, should);
   }
 
-/*
+  @Test
+  public void testEarlyHeadersInvalidArgument(TestContext should) {
+    testEarlyHeaders(GrpcStatus.INVALID_ARGUMENT, should);
+  }
+
+  private void testEarlyHeaders(GrpcStatus status, TestContext should) {
+
+    AtomicReference<Runnable> continuation = new AtomicReference<>();
+
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
+      @Override
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
+        continuation.set(() -> {
+          responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
+          if (status == GrpcStatus.OK) {
+            responseObserver.onCompleted();
+          } else {
+            responseObserver.onError(new StatusRuntimeException(Status.fromCodeValue(status.code)));
+          }
+        });
+      }
+    };
+
+    Metadata.Key<String> HEADER = Metadata.Key.of("xx-acme-header", Metadata.ASCII_STRING_MARSHALLER);
+
+    ServerServiceDefinition def = ServerInterceptors.intercept(impl, new ServerInterceptor() {
+      @Override
+      public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+        ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT> wrappedServerCall = new ForwardingServerCall.SimpleForwardingServerCall<>(call) {
+          @Override
+          public void sendHeaders(Metadata headers) {
+            // Already done
+          }
+        };
+        Metadata metadata = new Metadata();
+        metadata.put(HEADER, "whatever");
+        call.sendHeaders(metadata);
+        return next.startCall(wrappedServerCall, headers);
+      }
+    });
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    server.addService(GrpcIoServiceBridge.bridge(def));
+    startServer(server);
+
+    super.testEarlyHeaders(should, status, () -> continuation.get().run());
+  }
+
   @Override
   public void testTrailersOnly(TestContext should) {
 
     TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        Metadata md = new Metadata();
-        md.put(Metadata.Key.of("custom_response_trailer", io.grpc.Metadata.ASCII_STRING_MARSHALLER), "custom_response_trailer_value");
-        md.put(Metadata.Key.of("custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER), new byte[]{0,1,2});
-        md.put(Metadata.Key.of("grpc-custom_response_trailer", io.grpc.Metadata.ASCII_STRING_MARSHALLER), "grpc-custom_response_trailer_value");
-        md.put(Metadata.Key.of("grpc-custom_response_trailer-bin", io.grpc.Metadata.BINARY_BYTE_MARSHALLER), new byte[]{2,1,0});
-        final StatusRuntimeException t =
-          StatusProto.toStatusRuntimeException(
-            com.google.rpc.Status.newBuilder()
-              .setCode(Code.INVALID_ARGUMENT_VALUE)
-              .setMessage("grpc-status-message-value +*~")
-              .build(), md);
+      public void source(Empty request, StreamObserver<Reply> responseObserver) {
+        final StatusRuntimeException t = new StatusRuntimeException(Status.INVALID_ARGUMENT);
         responseObserver.onError(t);
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    IoGrpcServiceBridge serverStub = IoGrpcServiceBridge.bridge(impl);
-    serverStub.bind(server);
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    server.addService(impl);
     startServer(server);
 
     super.testTrailersOnly(should);
   }
-*/
+
+  @Override
+  public void testDistinctHeadersAndTrailers(TestContext should) {
+
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
+      @Override
+      public void source(Empty request, StreamObserver<Reply> responseObserver) {
+        responseObserver.onCompleted();
+      }
+    };
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    server.addService(impl);
+    startServer(server);
+
+    super.testDistinctHeadersAndTrailers(should);
+  }
 
   @Test
   public void testHandleCancel(TestContext should) {
