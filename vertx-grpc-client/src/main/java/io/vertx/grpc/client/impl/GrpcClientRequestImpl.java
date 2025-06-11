@@ -103,6 +103,11 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
+  protected Future<Void> sendHead() {
+    return httpRequest.sendHead();
+  }
+
+  @Override
   public GrpcClientRequest<Req, Resp> serviceName(ServiceName serviceName) {
     this.serviceName = serviceName;
     return this;
@@ -158,7 +163,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected void setHeaders(String contentType, MultiMap headers, boolean isEnd) {
+  protected void setHeaders(String contentType, MultiMap headers) {
     ServiceName serviceName = this.serviceName;
     String methodName = this.methodName;
     if (serviceName == null) {

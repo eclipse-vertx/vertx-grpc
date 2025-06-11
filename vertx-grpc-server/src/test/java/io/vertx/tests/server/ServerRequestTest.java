@@ -41,6 +41,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -322,17 +323,44 @@ public class ServerRequestTest extends ServerTest {
     super.testHandleCancel(should);
   }
 
+  @Test
+  public void testEarlyHeadersOk(TestContext should) {
+    testEarlyHeaders(GrpcStatus.OK, should);
+  }
+
+  @Test
+  public void testEarlyHeadersInvalidArgument(TestContext should) {
+    testEarlyHeaders(GrpcStatus.INVALID_ARGUMENT, should);
+  }
+
+  private void testEarlyHeaders(GrpcStatus status, TestContext should) {
+
+    AtomicReference<Runnable> continuation = new AtomicReference<>();
+
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      GrpcServerResponse<Request, Reply> response = call.response();
+
+      MultiMap headers = response.headers();
+
+      headers.set("xx-acme-header", "whatever");
+
+      continuation.set(() -> {
+        response.status(status);
+        response.end(Reply.newBuilder().setMessage("the message").build());
+      });
+
+      response.writeHead();
+    }));
+
+    super.testEarlyHeaders(should, status, () -> continuation.get().run());
+  }
+
   @Override
   public void testTrailersOnly(TestContext should) {
 
-    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+    startServer(GrpcServer.server(vertx).callHandler(SOURCE, call -> {
       call.handler(helloRequest -> {
-        GrpcServerResponse<Request, Reply> response = call.response();
-        response.statusMessage("grpc-status-message-value +*~");
-        response.trailers().set("custom_response_trailer", "custom_response_trailer_value");
-        response.trailers().set("custom_response_trailer-bin", Base64.getEncoder().encodeToString(new byte[] { 0,1,2 }));
-        response.trailers().set("grpc-custom_response_trailer", "grpc-custom_response_trailer_value");
-        response.trailers().set("grpc-custom_response_trailer-bin", Base64.getEncoder().encodeToString(new byte[] { 2,1,0 }));
+        GrpcServerResponse<Empty, Reply> response = call.response();
         response
           .status(GrpcStatus.INVALID_ARGUMENT)
           .end();
@@ -340,6 +368,19 @@ public class ServerRequestTest extends ServerTest {
     }));
 
     super.testTrailersOnly(should);
+  }
+
+  @Override
+  public void testDistinctHeadersAndTrailers(TestContext should) {
+
+    startServer(GrpcServer.server(vertx).callHandler(SOURCE, call -> {
+      call.handler(helloRequest -> {
+        GrpcServerResponse<Empty, Reply> response = call.response();
+        response.end();
+      });
+    }));
+
+    super.testDistinctHeadersAndTrailers(should);
   }
 
   @Test
