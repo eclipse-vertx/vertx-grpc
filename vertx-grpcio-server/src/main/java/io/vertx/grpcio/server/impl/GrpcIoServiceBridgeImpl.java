@@ -223,7 +223,9 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
 
     @Override
     public void sendHeaders(Metadata headers) {
-      io.vertx.grpcio.common.impl.Utils.writeMetadata(headers, req.response().headers());
+      GrpcServerResponse<Req, Resp> response = req.response();
+      io.vertx.grpcio.common.impl.Utils.writeMetadata(headers, response.headers());
+      response.writeHead();
     }
 
     @Override

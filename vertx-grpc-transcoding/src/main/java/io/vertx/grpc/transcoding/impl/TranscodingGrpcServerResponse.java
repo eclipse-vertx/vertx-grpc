@@ -12,7 +12,9 @@ package io.vertx.grpc.transcoding.impl;
 
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
@@ -28,6 +30,7 @@ public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponse
   private final TranscodingGrpcServerRequest<Req, Resp> request;
   private final HttpServerResponse httpResponse;
   private final String transcodingResponseBody;
+  private Promise<Void> head;
 
   public TranscodingGrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, HttpServerResponse httpResponse, String transcodingResponseBody, GrpcMessageEncoder<Resp> encoder) {
     super(context, request, protocol, httpResponse, encoder);
@@ -38,16 +41,27 @@ public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponse
   }
 
   @Override
+  protected Future<Void> sendHead() {
+    head = context.promise();
+    return head.future();
+  }
+
+  @Override
   protected Future<Void> sendMessage(Buffer message, boolean compressed) {
+    Future<Void> res;
     try {
       BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(message, transcodingResponseBody);
-      httpResponse.putHeader("content-length", Integer.toString(transcoded.length()));
-      httpResponse.putHeader("content-type", GrpcProtocol.TRANSCODING.mediaType());
-      return httpResponse.write(transcoded);
+      httpResponse.putHeader(HttpHeaders.CONTENT_LENGTH, Integer.toString(transcoded.length()));
+      httpResponse.putHeader(HttpHeaders.CONTENT_TYPE, GrpcProtocol.TRANSCODING.mediaType());
+      res = httpResponse.write(transcoded);
     } catch (Exception e) {
       httpResponse.setStatusCode(500).end();
-      return Future.failedFuture(e);
+      res = context.failedFuture(e);
     }
+    if (head != null) {
+      res.onComplete(head);
+    }
+    return res;
   }
 
   @Override

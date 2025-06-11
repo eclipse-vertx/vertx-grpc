@@ -11,6 +11,7 @@
 package io.vertx.grpc.server.impl;
 
 import io.netty.handler.codec.base64.Base64;
+import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
@@ -28,12 +29,25 @@ public class WebGrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req
 
   private final GrpcProtocol protocol;
   private final HttpServerResponse httpResponse;
+  private Buffer trailers;
 
   public WebGrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
     super(context, request, protocol, httpResponse, encoder);
 
     this.protocol = protocol;
     this.httpResponse = httpResponse;
+  }
+
+  private void appendToTrailers(MultiMap entries) {
+    if (trailers == null) {
+      trailers = Buffer.buffer();
+    }
+    for (Map.Entry<String, String> trailer : entries) {
+      trailers.appendString(trailer.getKey())
+        .appendByte((byte) ':')
+        .appendString(trailer.getValue())
+        .appendString("\r\n");
+    }
   }
 
   @Override
@@ -46,10 +60,9 @@ public class WebGrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req
   }
 
   @Override
-  protected void setHeaders(String contentType, MultiMap grpcHeaders, boolean isEnd) {
-    super.setHeaders(contentType, grpcHeaders, isEnd);
-    // We need chunked to get response trailers to be sent
+  protected void setHeaders(String contentType, MultiMap grpcHeaders) {
     httpResponse.setChunked(!isTrailersOnly());
+    super.setHeaders(contentType, grpcHeaders);
   }
 
   @Override
@@ -57,16 +70,21 @@ public class WebGrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req
     if (isTrailersOnly()) {
       encodeGrpcTrailers(grpcTrailers, httpResponse.headers());
     } else {
-      MultiMap httpTrailers = HttpHeaders.headers();
-      encodeGrpcTrailers(grpcTrailers, httpTrailers);
-      Buffer buffer = Buffer.buffer();
-      for (Map.Entry<String, String> trailer : httpTrailers) {
-        buffer.appendString(trailer.getKey())
-          .appendByte((byte) ':')
-          .appendString(trailer.getValue())
-          .appendString("\r\n");
-      }
-      httpResponse.write(encodeMessage(buffer, false, true));
+      MultiMap buffer = HttpHeaders.headers();
+      super.encodeGrpcStatus(buffer);
+      appendToTrailers(buffer);
+      appendToTrailers(grpcTrailers);
+    }
+  }
+
+  @Override
+  protected Future<Void> sendEnd() {
+    if (trailers != null) {
+      Future<Void> ret = httpResponse.end(encodeMessage(trailers, false, true));
+      trailers = null;
+      return ret;
+    } else {
+      return httpResponse.end();
     }
   }
 }
