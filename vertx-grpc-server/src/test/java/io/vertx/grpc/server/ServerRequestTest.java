@@ -29,6 +29,7 @@ import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.InvalidMessagePayloadException;
 import io.vertx.grpc.common.MessageSizeOverflowException;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -38,6 +39,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -274,17 +276,44 @@ public class ServerRequestTest extends ServerTest {
     super.testHandleCancel(should);
   }
 
+  @Test
+  public void testEarlyHeadersOk(TestContext should) {
+    testEarlyHeaders(GrpcStatus.OK, should);
+  }
+
+  @Test
+  public void testEarlyHeadersInvalidArgument(TestContext should) {
+    testEarlyHeaders(GrpcStatus.INVALID_ARGUMENT, should);
+  }
+
+  private void testEarlyHeaders(GrpcStatus status, TestContext should) {
+
+    AtomicReference<Runnable> continuation = new AtomicReference<>();
+
+    startServer(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
+      GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+
+      MultiMap headers = response.headers();
+
+      headers.set("xx-acme-header", "whatever");
+
+      continuation.set(() -> {
+        response.status(status);
+        response.end(HelloReply.newBuilder().setMessage("the message").build());
+      });
+
+      response.writeHead();
+    }));
+
+    super.testEarlyHeaders(should, status, () -> continuation.get().run());
+  }
+
   @Override
   public void testTrailersOnly(TestContext should) {
 
     startServer(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
       call.handler(helloRequest -> {
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
-        response.statusMessage("grpc-status-message-value +*~");
-        response.trailers().set("custom_response_trailer", "custom_response_trailer_value");
-        response.trailers().set("custom_response_trailer-bin", Base64.getEncoder().encodeToString(new byte[] { 0,1,2 }));
-        response.trailers().set("grpc-custom_response_trailer", "grpc-custom_response_trailer_value");
-        response.trailers().set("grpc-custom_response_trailer-bin", Base64.getEncoder().encodeToString(new byte[] { 2,1,0 }));
         response
           .status(GrpcStatus.INVALID_ARGUMENT)
           .end();
@@ -292,6 +321,19 @@ public class ServerRequestTest extends ServerTest {
     }));
 
     super.testTrailersOnly(should);
+  }
+
+  @Override
+  public void testDistinctHeadersAndTrailers(TestContext should) {
+
+    startServer(GrpcServer.server(vertx).callHandler(StreamingGrpc.getSourceMethod(), call -> {
+      call.handler(helloRequest -> {
+        GrpcServerResponse<Empty, Item> response = call.response();
+        response.end();
+      });
+    }));
+
+    super.testDistinctHeadersAndTrailers(should);
   }
 
   @Test

@@ -122,6 +122,20 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   }
 
   @Override
+  public Future<Void> writeHead() {
+    if (cancelled) {
+      throw new IllegalStateException("The stream has been cancelled");
+    }
+    if (headersSent) {
+      throw new IllegalStateException("The stream headers have already been sent");
+    }
+    headersSent = true;
+    MultiMap responseHeaders = httpResponse.headers();
+    setResponseHeaders(responseHeaders);
+    return httpResponse.writeHead();
+  }
+
+  @Override
   public GrpcServerResponse<Req, Resp> setWriteQueueMaxSize(int maxSize) {
     httpResponse.setWriteQueueMaxSize(maxSize);
     return this;
@@ -154,6 +168,17 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     if (!requestEnded || !trailersSent) {
       httpResponse.reset(GrpcError.CANCELLED.http2ResetCode);
     }
+  }
+
+  private void setResponseHeaders(MultiMap responseHeaders) {
+    if (headers != null && headers.size() > 0) {
+      for (Map.Entry<String, String> header : headers) {
+        responseHeaders.add(header.getKey(), header.getValue());
+      }
+    }
+    responseHeaders.set("content-type", "application/grpc");
+    responseHeaders.set("grpc-encoding", encoding);
+    responseHeaders.set("grpc-accept-encoding", "gzip");
   }
 
   private Future<Void> writeMessage(GrpcMessage message, boolean end) {
@@ -196,14 +221,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     MultiMap responseHeaders = httpResponse.headers();
     if (!headersSent) {
       headersSent = true;
-      if (headers != null && headers.size() > 0) {
-        for (Map.Entry<String, String> header : headers) {
-          responseHeaders.add(header.getKey(), header.getValue());
-        }
-      }
-      responseHeaders.set("content-type", "application/grpc");
-      responseHeaders.set("grpc-encoding", encoding);
-      responseHeaders.set("grpc-accept-encoding", "gzip");
+      setResponseHeaders(responseHeaders);
     }
 
     if (end) {

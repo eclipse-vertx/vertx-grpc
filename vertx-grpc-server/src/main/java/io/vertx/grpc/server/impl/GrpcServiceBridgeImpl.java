@@ -172,7 +172,9 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge, GrpcIoServiceBr
 
     @Override
     public void sendHeaders(Metadata headers) {
-      Utils.writeMetadata(headers, req.response().headers());
+      GrpcServerResponse<Req, Resp> response = req.response();
+      Utils.writeMetadata(headers, response.headers());
+      response.writeHead();
     }
 
     @Override

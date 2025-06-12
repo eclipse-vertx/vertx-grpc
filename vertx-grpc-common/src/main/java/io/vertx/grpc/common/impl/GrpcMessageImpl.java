@@ -37,9 +37,12 @@ public class GrpcMessageImpl implements GrpcMessage {
   }
 
   public static Buffer encode(GrpcMessage message) {
-    ByteBuf bbuf = message.payload().getByteBuf();
+    return encode(message.payload(), !message.encoding().equals("identity"));
+  }
+
+  public static Buffer encode(Buffer message, boolean compressed) {
+    ByteBuf bbuf = message.getByteBuf();
     int len = bbuf.readableBytes();
-    boolean compressed = !message.encoding().equals("identity");
     ByteBuf prefix = Unpooled.buffer(5, 5);
     prefix.writeByte(compressed ? 1 : 0);      // Compression flag
     prefix.writeInt(len);                      // Length

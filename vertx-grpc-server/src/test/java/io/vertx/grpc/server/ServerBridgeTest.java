@@ -10,7 +10,6 @@
  */
 package io.vertx.grpc.server;
 
-import com.google.rpc.Code;
 import io.grpc.Attributes;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ForwardingServerCallListener;
@@ -35,9 +34,14 @@ import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpcio.server.GrpcIoServiceBridge;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -356,33 +360,95 @@ public class ServerBridgeTest extends ServerTest {
     super.testMetadata(should);
   }
 
+  @Test
+  public void testEarlyHeadersOk(TestContext should) {
+    testEarlyHeaders(GrpcStatus.OK, should);
+  }
+
+  @Test
+  public void testEarlyHeadersInvalidArgument(TestContext should) {
+    testEarlyHeaders(GrpcStatus.INVALID_ARGUMENT, should);
+  }
+
+  private void testEarlyHeaders(GrpcStatus status, TestContext should) {
+
+    AtomicReference<Runnable> continuation = new AtomicReference<>();
+
+    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
+      @Override
+      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
+        continuation.set(() -> {
+          responseObserver.onNext(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+          if (status == GrpcStatus.OK) {
+            responseObserver.onCompleted();
+          } else {
+            responseObserver.onError(new StatusRuntimeException(Status.fromCodeValue(status.code)));
+          }
+        });
+      }
+    };
+
+    Metadata.Key<String> HEADER = Metadata.Key.of("xx-acme-header", Metadata.ASCII_STRING_MARSHALLER);
+
+    ServerServiceDefinition def = ServerInterceptors.intercept(impl, new ServerInterceptor() {
+      @Override
+      public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+        ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT> wrappedServerCall = new ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>(call) {
+          @Override
+          public void sendHeaders(Metadata headers) {
+            // Already done
+          }
+        };
+        Metadata metadata = new Metadata();
+        metadata.put(HEADER, "whatever");
+        call.sendHeaders(metadata);
+        return next.startCall(wrappedServerCall, headers);
+      }
+    });
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(def);
+    serverStub.bind(server);
+    startServer(server);
+
+    super.testEarlyHeaders(should, status, () -> continuation.get().run());
+  }
+
   @Override
   public void testTrailersOnly(TestContext should) {
 
     GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
       @Override
       public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        Metadata md = new Metadata();
-        md.put(Metadata.Key.of("custom_response_trailer", io.grpc.Metadata.ASCII_STRING_MARSHALLER), "custom_response_trailer_value");
-        md.put(Metadata.Key.of("custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER), new byte[]{0,1,2});
-        md.put(Metadata.Key.of("grpc-custom_response_trailer", io.grpc.Metadata.ASCII_STRING_MARSHALLER), "grpc-custom_response_trailer_value");
-        md.put(Metadata.Key.of("grpc-custom_response_trailer-bin", io.grpc.Metadata.BINARY_BYTE_MARSHALLER), new byte[]{2,1,0});
-        final StatusRuntimeException t =
-          StatusProto.toStatusRuntimeException(
-            com.google.rpc.Status.newBuilder()
-              .setCode(Code.INVALID_ARGUMENT_VALUE)
-              .setMessage("grpc-status-message-value +*~")
-              .build(), md);
+        final StatusRuntimeException t = new StatusRuntimeException(Status.INVALID_ARGUMENT);
         responseObserver.onError(t);
       }
     };
 
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(impl);
     serverStub.bind(server);
     startServer(server);
 
     super.testTrailersOnly(should);
+  }
+
+  @Override
+  public void testDistinctHeadersAndTrailers(TestContext should) {
+
+    StreamingGrpc.StreamingImplBase impl = new StreamingGrpc.StreamingImplBase() {
+      @Override
+      public void source(Empty request, StreamObserver<Item> responseObserver) {
+        responseObserver.onCompleted();
+      }
+    };
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(impl);
+    serverStub.bind(server);
+    startServer(server);
+
+    super.testDistinctHeadersAndTrailers(should);
   }
 
   @Test
