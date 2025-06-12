@@ -276,13 +276,11 @@ public class ServerRequestTest extends ServerTest {
     super.testHandleCancel(should);
   }
 
-  @Ignore
   @Test
   public void testEarlyHeadersOk(TestContext should) {
     testEarlyHeaders(GrpcStatus.OK, should);
   }
 
-  @Ignore
   @Test
   public void testEarlyHeadersInvalidArgument(TestContext should) {
     testEarlyHeaders(GrpcStatus.INVALID_ARGUMENT, should);
@@ -304,7 +302,7 @@ public class ServerRequestTest extends ServerTest {
         response.end(HelloReply.newBuilder().setMessage("the message").build());
       });
 
-//      response.writeHead();
+      response.writeHead();
     }));
 
     super.testEarlyHeaders(should, status, () -> continuation.get().run());

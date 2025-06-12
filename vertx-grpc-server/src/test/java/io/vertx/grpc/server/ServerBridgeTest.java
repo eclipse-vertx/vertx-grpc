@@ -10,7 +10,6 @@
  */
 package io.vertx.grpc.server;
 
-import com.google.rpc.Code;
 import io.grpc.Attributes;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ForwardingServerCallListener;
@@ -361,44 +360,11 @@ public class ServerBridgeTest extends ServerTest {
     super.testMetadata(should);
   }
 
-/*
-  @Override
-  public void testTrailersOnly(TestContext should) {
-
-    GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
-      @Override
-      public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
-        Metadata md = new Metadata();
-        md.put(Metadata.Key.of("custom_response_trailer", io.grpc.Metadata.ASCII_STRING_MARSHALLER), "custom_response_trailer_value");
-        md.put(Metadata.Key.of("custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER), new byte[]{0,1,2});
-        md.put(Metadata.Key.of("grpc-custom_response_trailer", io.grpc.Metadata.ASCII_STRING_MARSHALLER), "grpc-custom_response_trailer_value");
-        md.put(Metadata.Key.of("grpc-custom_response_trailer-bin", io.grpc.Metadata.BINARY_BYTE_MARSHALLER), new byte[]{2,1,0});
-        final StatusRuntimeException t =
-          StatusProto.toStatusRuntimeException(
-            com.google.rpc.Status.newBuilder()
-              .setCode(Code.INVALID_ARGUMENT_VALUE)
-              .setMessage("grpc-status-message-value +*~")
-              .build(), md);
-        responseObserver.onError(t);
-      }
-    };
-
-    GrpcServer server = GrpcServer.server(vertx);
-    GrpcServiceBridge serverStub = GrpcServiceBridge.bridge(impl);
-    serverStub.bind(server);
-    startServer(server);
-
-    super.testTrailersOnly(should);
-  }
-*/
-
-  @Ignore
   @Test
   public void testEarlyHeadersOk(TestContext should) {
     testEarlyHeaders(GrpcStatus.OK, should);
   }
 
-  @Ignore
   @Test
   public void testEarlyHeadersInvalidArgument(TestContext should) {
     testEarlyHeaders(GrpcStatus.INVALID_ARGUMENT, should);
