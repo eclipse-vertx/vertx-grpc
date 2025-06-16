@@ -79,9 +79,9 @@ public abstract class ServerTestBase extends GrpcTestBase {
 
   private static final String GRPC_STATUS = "grpc-status";
   private static final String STATUS_OK = GRPC_STATUS + ":" + 0 + "\r\n";
-  private static final String TRAILERS_AND_STATUS = TRAILER_TEXT_KEY + ":" + TRAILER_TEXT_VALUE + "\r\n" +
-                                                    TRAILER_BIN_KEY + ":" + TRAILER_BIN_VALUE + "\r\n" +
-                                                    STATUS_OK;
+  private static final String TRAILERS_AND_STATUS = STATUS_OK +
+                                                    TRAILER_TEXT_KEY + ":" + TRAILER_TEXT_VALUE + "\r\n" +
+                                                    TRAILER_BIN_KEY + ":" + TRAILER_BIN_VALUE + "\r\n";
 
   private static final Empty EMPTY_DEFAULT_INSTANCE = Empty.getDefaultInstance();
 

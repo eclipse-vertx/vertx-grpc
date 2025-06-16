@@ -62,6 +62,13 @@ public interface GrpcServerResponse<Req, Resp> extends GrpcWriteStream<Resp> {
   @Override
   GrpcServerResponse<Req, Resp> drainHandler(@Nullable Handler<Void> handler);
 
+  /**
+   * Send the response headers.
+   *
+   * @return a future notified by the success or failure of the write
+   */
+  Future<Void> writeHead();
+
   default Future<Void> send(Resp item) {
     return end(item);
   }

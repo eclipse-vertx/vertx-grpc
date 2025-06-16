@@ -33,7 +33,6 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
 
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
-  private final GrpcProtocol protocol;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
   private boolean trailersOnly;
@@ -49,7 +48,6 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     super(context, protocol.mediaType(), httpResponse, encoder, compressors, decompressors);
     this.request = request;
     this.httpResponse = httpResponse;
-    this.protocol = protocol;
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
@@ -104,6 +102,7 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     end();
   }
 
+  // TODO : remove this
   public boolean isTrailersOnly() {
     return trailersOnly;
   }
@@ -118,11 +117,13 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
       .onSuccess(v -> handleError(GrpcError.CANCELLED));
   }
 
-  protected void setHeaders(String contentType, MultiMap grpcHeaders, boolean isEnd) {
-    trailersOnly = status != GrpcStatus.OK && isEnd;
+  protected void setHeaders(String contentType, MultiMap grpcHeaders) {
     MultiMap httpHeaders = httpResponse.headers();
     httpHeaders.set("content-type", contentType);
     encodeGrpcHeaders(grpcHeaders, httpHeaders);
+    if (trailersOnly) {
+      encodeGrpcStatus(httpHeaders);
+    }
   }
 
   protected void encodeGrpcHeaders(MultiMap grpcHeaders, MultiMap httpHeaders) {
@@ -134,25 +135,40 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
   }
 
   protected void setTrailers(MultiMap grpcTrailers) {
+    MultiMap httpTrailers;
+    if (trailersOnly) {
+      httpTrailers = httpResponse.headers();
+    } else {
+      httpTrailers = httpResponse.trailers();
+    }
+    encodeGrpcTrailers(grpcTrailers, httpTrailers);
+    encodeGrpcStatus(httpTrailers);
   }
 
   protected void encodeGrpcTrailers(MultiMap grpcTrailers, MultiMap httpTrailers) {
-    MultiMap httpHeaders = httpResponse.headers();
     if (grpcTrailers != null && !grpcTrailers.isEmpty()) {
-      for (Map.Entry<String, String> trailer : grpcTrailers) {
-        httpTrailers.add(trailer.getKey(), trailer.getValue());
+      for (Map.Entry<String, String> header : grpcTrailers) {
+        httpTrailers.add(header.getKey(), header.getValue());
       }
     }
-    if (!httpHeaders.contains(GrpcHeaderNames.GRPC_STATUS)) {
-      httpTrailers.set(GrpcHeaderNames.GRPC_STATUS, status.toString());
+  }
+
+  /**
+   * Encode grpc status and status message in the specified {@code entries} map.
+   *
+   * @param entries the map updated with grpc specific headers
+   */
+  protected void encodeGrpcStatus(MultiMap entries) {
+    if (!entries.contains(GrpcHeaderNames.GRPC_STATUS)) {
+      entries.set(GrpcHeaderNames.GRPC_STATUS, status.toString());
     }
     if (status != GrpcStatus.OK) {
       String msg = statusMessage;
-      if (msg != null && !httpHeaders.contains(GrpcHeaderNames.GRPC_MESSAGE)) {
-        httpTrailers.set(GrpcHeaderNames.GRPC_MESSAGE, UrlEscapers.urlFragmentEscaper().escape(msg));
+      if (msg != null && !entries.contains(GrpcHeaderNames.GRPC_MESSAGE)) {
+        entries.set(GrpcHeaderNames.GRPC_MESSAGE, UrlEscapers.urlFragmentEscaper().escape(msg));
       }
     } else {
-      httpTrailers.remove(GrpcHeaderNames.GRPC_MESSAGE);
+      entries.remove(GrpcHeaderNames.GRPC_MESSAGE);
     }
   }
 
@@ -164,6 +180,11 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
   protected Future<Void> sendEnd() {
     request.cancelTimeout();
     return httpResponse.end();
+  }
+
+  @Override
+  protected Future<Void> sendHead() {
+    return httpResponse.writeHead();
   }
 
   protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
@@ -178,5 +199,16 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     } else {
       return GrpcStatus.UNKNOWN;
     }
+  }
+
+  private boolean headersSent;
+
+  @Override
+  protected Future<Void> writeMessage(GrpcMessage message, boolean end) {
+    if (!headersSent) {
+      headersSent = true;
+      trailersOnly = status != GrpcStatus.OK && end;
+    }
+    return super.writeMessage(message, end);
   }
 }

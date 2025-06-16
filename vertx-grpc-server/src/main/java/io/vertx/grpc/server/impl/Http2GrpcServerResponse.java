@@ -23,8 +23,6 @@ import java.util.Map;
 
 public class Http2GrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req, Resp> {
 
-  private final HttpServerResponse httpResponse;
-
   public Http2GrpcServerResponse(ContextInternal context,
                                  GrpcServerRequestImpl<Req, Resp> request,
                                  GrpcProtocol protocol,
@@ -33,8 +31,6 @@ public class Http2GrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<R
                                  Map<String, GrpcCompressor> compressors,
                                  Map<String, GrpcDecompressor> decompressors) {
     super(context, request, protocol, httpResponse, encoder, compressors, decompressors);
-
-    this.httpResponse = httpResponse;
   }
 
   @Override
@@ -42,16 +38,5 @@ public class Http2GrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<R
     super.encodeGrpcHeaders(grpcHeaders, httpHeaders);
     httpHeaders.set(GrpcHeaderNames.GRPC_ENCODING, encoding);
     httpHeaders.set(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, String.join(",", decompressors.keySet()));
-  }
-
-  @Override
-  protected void setTrailers(MultiMap grpcTrailers) {
-    MultiMap httpTrailers;
-    if (isTrailersOnly()) {
-      httpTrailers = httpResponse.headers();
-    } else {
-      httpTrailers = httpResponse.trailers();
-    }
-    encodeGrpcTrailers(grpcTrailers, httpTrailers);
   }
 }
