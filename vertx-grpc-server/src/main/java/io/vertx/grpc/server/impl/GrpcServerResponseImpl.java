@@ -147,7 +147,7 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     encodeGrpcStatus(httpTrailers);
   }
 
-  protected void encodeGrpcTrailers(MultiMap grpcTrailers, MultiMap httpTrailers) {
+  protected final void encodeGrpcTrailers(MultiMap grpcTrailers, MultiMap httpTrailers) {
     if (grpcTrailers != null && !grpcTrailers.isEmpty()) {
       for (Map.Entry<String, String> header : grpcTrailers) {
         httpTrailers.add(header.getKey(), header.getValue());
