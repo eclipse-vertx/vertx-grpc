@@ -68,12 +68,16 @@ public class WebGrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req
   @Override
   protected void setTrailers(MultiMap grpcTrailers) {
     if (isTrailersOnly()) {
-      encodeGrpcTrailers(grpcTrailers, httpResponse.headers());
+      if (grpcTrailers != null) {
+        encodeGrpcTrailers(grpcTrailers, httpResponse.headers());
+      }
     } else {
       MultiMap buffer = HttpHeaders.headers();
       super.encodeGrpcStatus(buffer);
       appendToTrailers(buffer);
-      appendToTrailers(grpcTrailers);
+      if (grpcTrailers != null) {
+        appendToTrailers(grpcTrailers);
+      }
     }
   }
 
