@@ -11,6 +11,7 @@
   <packaging>pom</packaging>
 
   <artifactId>vertx-grpc-aggregator</artifactId>
+  <name>Vert.x gRPC Aggregator</name>
   <version>4.5.16-SNAPSHOT</version>
 
   <scm>

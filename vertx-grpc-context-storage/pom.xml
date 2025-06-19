@@ -16,8 +16,7 @@
 
   <name>Vert.x gRPC Context Storage implementation</name>
   <description>This modules provides an io.grpc.override.ContextStorageOverride implementation which uses Vert.x local
-    context data maps.
-  </description>
+    context data maps.</description>
 
   <properties>
     <doc.skip>false</doc.skip>
