@@ -1,136 +1,125 @@
 package io.vertx.grpc.transcoding.impl;
 
-import java.util.regex.Pattern;
+import java.util.BitSet;
 
 /**
- * @author Based on <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/include/grpc_transcoding/percent_encoding.h">grpc-httpjson-transcoding</a>
+ * Highly optimized utility class for handling percent encoding in URLs.
  */
-public class PercentEncoding {
+public final class PercentEncoding {
 
-  private static final Pattern ESCAPE_STRING_PATTERN = Pattern.compile("[^a-zA-Z0-9-_.~]");
-
+  /**
+   * Specifies how to handle reserved characters during URL unescaping.
+   */
   public enum UrlUnescapeSpec {
     ALL_CHARACTERS_EXCEPT_RESERVED,
     ALL_CHARACTERS_EXCEPT_SLASH,
     ALL_CHARACTERS
   }
 
-  private static boolean isReservedChar(char c) {
-    // Reserved characters according to RFC 6570
-    switch (c) {
-      case '!':
-      case '#':
-      case '$':
-      case '&':
-      case '\'':
-      case '(':
-      case ')':
-      case '*':
-      case '+':
-      case ',':
-      case '/':
-      case ':':
-      case ';':
-      case '=':
-      case '?':
-      case '@':
-      case '[':
-      case ']':
-        return true;
-      default:
-        return false;
+  // RFC 3986/RFC 6570 reserved characters: gen-delims and sub-delims
+  // https://datatracker.ietf.org/doc/html/rfc3986#section-2.2
+  // https://datatracker.ietf.org/doc/html/rfc6570#section-2.2
+  private static final BitSet RESERVED_CHAR_SET = new BitSet(128);
+  private static final BitSet HEX_DIGITS = new BitSet(128);
+
+  // Precomputed hex values
+  private static final int[] HEX_VALUES = new int[128];
+
+  static {
+    // Initialize the BitSet of reserved characters
+    for (char c : "!#$&'()*+,/:;=?@[]".toCharArray()) {
+      RESERVED_CHAR_SET.set(c);
+    }
+
+    // Initialize hex digits lookup
+    for (char c = '0'; c <= '9'; c++) {
+      HEX_DIGITS.set(c);
+      HEX_VALUES[c] = c - '0';
+    }
+    for (char c = 'A'; c <= 'F'; c++) {
+      HEX_DIGITS.set(c);
+      HEX_VALUES[c] = c - 'A' + 10;
+    }
+    for (char c = 'a'; c <= 'f'; c++) {
+      HEX_DIGITS.set(c);
+      HEX_VALUES[c] = c - 'a' + 10;
     }
   }
 
-  private static boolean asciiIsxdigit(char c) {
-    return ('a' <= c && c <= 'f')
-      || ('A' <= c && c <= 'F')
-      || ('0' <= c && c <= '9');
+  private PercentEncoding() {
   }
 
-  private static int hexDigitToInt(char c) {
-    /* Assume ASCII. */
-    int x = (int) c;
-    if (x > '9') {
-      x += 9;
+  /**
+   * Unescapes a URL-encoded string according to the specified unescaping rules.
+   *
+   * @param input The string to unescape
+   * @param unescapeSpec The unescaping specification
+   * @param unescapePlus Whether to unescape '+' to space
+   * @return The unescaped string
+   */
+  public static String urlUnescapeString(String input, UrlUnescapeSpec unescapeSpec, boolean unescapePlus) {
+    if (input == null || input.isEmpty() || input.indexOf('%') == -1 && (!unescapePlus || input.indexOf('+') == -1)) {
+      return input; // Fast path for strings with no escape sequences
     }
-    return x & 0xf;
-  }
 
-  private static int getEscapedChar(String src, int i, UrlUnescapeSpec unescapeSpec, boolean unescapePlus, char[] out) {
-    if (unescapePlus && src.charAt(i) == '+') {
-      out[0] = ' ';
-      return 1;
-    }
-    if (i + 2 < src.length() && src.charAt(i) == '%') {
-      if (asciiIsxdigit(src.charAt(i + 1)) && asciiIsxdigit(src.charAt(i + 2))) {
-        char c =
-          (char) ((hexDigitToInt(src.charAt(i + 1)) << 4) | hexDigitToInt(src.charAt(i + 2)));
-        switch (unescapeSpec) {
-          case ALL_CHARACTERS_EXCEPT_RESERVED:
-            if (isReservedChar(c)) {
-              return 0;
-            }
-            break;
-          case ALL_CHARACTERS_EXCEPT_SLASH:
-            if (c == '/') {
-              return 0;
-            }
-            break;
-          case ALL_CHARACTERS:
-            break;
+    boolean preserveSlash = unescapeSpec == UrlUnescapeSpec.ALL_CHARACTERS_EXCEPT_SLASH;
+    boolean preserveReserved = unescapeSpec == UrlUnescapeSpec.ALL_CHARACTERS_EXCEPT_RESERVED;
+
+    // Preallocate a buffer of the same size (we'll never need more than this)
+    int length = input.length();
+    char[] buffer = new char[length];
+    int pos = 0;
+
+    for (int i = 0; i < length; i++) {
+      char c = input.charAt(i);
+
+      if (c == '+' && unescapePlus) {
+        buffer[pos++] = ' ';
+      } else if (c == '%' && i + 2 < length) {
+        // Check if this is a valid percent encoding
+        char h1 = input.charAt(i + 1);
+        char h2 = input.charAt(i + 2);
+
+        if (isHexDigit(h1) && isHexDigit(h2)) {
+          // Decode the hex value
+          int decoded = (hexDigitToInt(h1) << 4) | hexDigitToInt(h2);
+
+          // Handle preservation rules
+          if ((preserveSlash && decoded == '/') || (preserveReserved && decoded < 128 && RESERVED_CHAR_SET.get(decoded))) {
+            // Copy the original percent sequence
+            buffer[pos++] = '%';
+            buffer[pos++] = h1;
+            buffer[pos++] = h2;
+          } else {
+            // Use the decoded character
+            buffer[pos++] = (char) decoded;
+          }
+
+          i += 2; // Skip the two hex digits
+        } else {
+          // Not a valid percent encoding, copy as-is
+          buffer[pos++] = c;
         }
-        out[0] = c;
-        return 3;
-      }
-    }
-    return 0;
-  }
-
-  public static boolean isUrlEscapedString(String part, UrlUnescapeSpec unescapeSpec, boolean unescapePlus) {
-    char[] ch = new char[1];
-    for (int i = 0; i < part.length(); ++i) {
-      if (getEscapedChar(part, i, unescapeSpec, unescapePlus, ch) > 0) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  public static boolean isUrlEscapedString(String part) {
-    return isUrlEscapedString(part, UrlUnescapeSpec.ALL_CHARACTERS, false);
-  }
-
-  public static String urlUnescapeString(String part, UrlUnescapeSpec unescapeSpec, boolean unescapePlus) {
-    // Check whether we need to escape at all.
-    if (!isUrlEscapedString(part, unescapeSpec, unescapePlus)) {
-      return part;
-    }
-
-    StringBuilder unescaped = new StringBuilder(part.length());
-    char[] ch = new char[1];
-
-    for (int i = 0; i < part.length(); ) {
-      int skip = getEscapedChar(part, i, unescapeSpec, unescapePlus, ch);
-      if (skip > 0) {
-        unescaped.append(ch[0]);
-        i += skip;
       } else {
-        unescaped.append(part.charAt(i));
-        i += 1;
+        // Regular character, copy as-is
+        buffer[pos++] = c;
       }
     }
 
-    return unescaped.toString();
+    return new String(buffer, 0, pos);
   }
 
-  /** Remove this in the future, if not needed */
-  private static String urlUnescapeString(String part) {
-    return urlUnescapeString(part, UrlUnescapeSpec.ALL_CHARACTERS, false);
+  /**
+   * Check if a character is a valid hex digit.
+   */
+  private static boolean isHexDigit(char c) {
+    return c < 128 && HEX_DIGITS.get(c);
   }
 
-  /** Remove this in the future, if not needed */
-  private static String urlEscapeString(String str) {
-    return ESCAPE_STRING_PATTERN.matcher(str).replaceAll(m -> "%" + Integer.toHexString(m.group().charAt(0)).toUpperCase());
+  /**
+   * Convert a hex digit to its integer value using precomputed lookup.
+   */
+  private static int hexDigitToInt(char c) {
+    return (c < 128) ? HEX_VALUES[c] : -1;
   }
 }
