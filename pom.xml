@@ -13,6 +13,8 @@
   <artifactId>vertx-grpc-aggregator</artifactId>
   <version>5.0.1-SNAPSHOT</version>
 
+  <name>Vert.x gRPC Aggregator</name>
+
   <scm>
     <connection>scm:git:git@github.com:eclipse-vertx/vertx-grpc.git</connection>
     <developerConnection>scm:git:git@github.com:eclipse-vertx/vertx-grpc.git</developerConnection>
