@@ -391,11 +391,9 @@ public class ServerRequestTest extends ServerTest {
     startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
       GrpcServerResponse<Request, Reply> response = call.response();
       response.cancel();
-      try {
-        response.write(Reply.newBuilder().build());
-      } catch (IllegalStateException e) {
+      response.write(Reply.newBuilder().build()).onComplete(should.asyncAssertFailure(err -> {
         test.complete();
-      }
+      }));
     }));
 
     channel = ManagedChannelBuilder.forAddress("localhost", port)
