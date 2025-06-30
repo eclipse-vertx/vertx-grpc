@@ -8,4 +8,4 @@ to write gRPC middlewares like reverse proxies.
 
 # License
 
-Eclipse Public License - Version 1.0 / Apache License - Version 2.0
+Eclipse Public License - Version 2.0 / Apache License - Version 2.0
