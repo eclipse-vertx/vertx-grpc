@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2023 Contributors to the Eclipse Foundation
+ * Copyright (c) 2011-2025 Contributors to the Eclipse Foundation
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
@@ -8,30 +8,43 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.grpc.common.impl;
+package io.vertx.grpc.compression;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.compression.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.CodecException;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Queue;
-import java.util.function.Function;
 
-public class Utils {
+public final class CompressionUtils {
 
-  public static final Function<Buffer, Buffer> GZIP_DECODER = data -> {
-    EmbeddedChannel channel = new EmbeddedChannel(ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP));
+  private CompressionUtils() {
+  }
+
+  /**
+   * Helper method to decode data using a specified decoder
+   *
+   * @param data the data to decode
+   * @param decoder the decoder to use
+   * @param errorMessage the error message to use if decoding fails
+   * @return the decoded buffer
+   * @throws CodecException if decoding fails
+   */
+  public static Buffer decode(Buffer data, ChannelHandler decoder, String errorMessage) {
+    if (data.length() == 0) {
+      return BufferInternal.buffer();
+    }
+
+    EmbeddedChannel channel = new EmbeddedChannel(decoder);
     channel.config().setAllocator(BufferInternal.buffer().getByteBuf().alloc());
     try {
-      ChannelFuture fut = channel.writeOneInbound(((BufferInternal)data).getByteBuf());
+      ChannelFuture fut = channel.writeOneInbound(((BufferInternal) data).getByteBuf());
       if (fut.isSuccess()) {
         Buffer decoded = null;
         while (true) {
@@ -46,7 +59,7 @@ public class Utils {
           }
         }
         if (decoded == null) {
-          throw new CodecException("Invalid GZIP input");
+          throw new CodecException(errorMessage);
         }
         return decoded;
       } else {
@@ -55,12 +68,21 @@ public class Utils {
     } finally {
       channel.close();
     }
-  };
+  }
 
-  public static final Function<Buffer, Buffer> GZIP_ENCODER = data -> {
+  /**
+   * Helper method to encode data using a specified encoder
+   *
+   * @param data the data to encode
+   * @param encoder the encoder to use
+   * @return the encoded buffer
+   */
+  public static Buffer encode(Buffer data, ChannelHandler encoder) {
+    if (data.length() == 0) {
+      return BufferInternal.buffer();
+    }
+
     CompositeByteBuf composite = Unpooled.compositeBuffer();
-    GzipOptions options = StandardCompressionOptions.gzip();
-    ZlibEncoder encoder = ZlibCodecFactory.newZlibEncoder(ZlibWrapper.GZIP, options.compressionLevel(), options.windowBits(), options.memLevel());
     EmbeddedChannel channel = new EmbeddedChannel(encoder);
     channel.config().setAllocator(BufferInternal.buffer().getByteBuf().alloc());
     channel.writeOutbound(((BufferInternal) data).getByteBuf());
@@ -72,16 +94,5 @@ public class Utils {
     }
     channel.close();
     return BufferInternal.buffer(composite);
-  };
-
-  public static String utf8PercentEncode(String s) {
-    try {
-      return URLEncoder.encode(s, StandardCharsets.UTF_8.name())
-        .replace("+", "%20")
-        .replace("*", "%2A")
-        .replace("~", "%7E");
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 }
