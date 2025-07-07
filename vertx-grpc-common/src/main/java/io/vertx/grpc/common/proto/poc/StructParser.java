@@ -1,9 +1,10 @@
-package io.vertx.grpc.common.proto;
+package io.vertx.grpc.common.proto.poc;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.grpc.common.proto.ProtoDecoder;
 
 /**
  * A parser for struct.proto schema that decodes to Vert.x JSon.
@@ -32,24 +33,44 @@ public class StructParser {
       assertTrue(decoder.readTag());
       assertEquals(1, decoder.fieldNumber());
       assertEquals(2, decoder.wireType());
-      assertTrue(decoder.readVarInt());
+      assertTrue(decoder.readVarInt()); // LEN
       int end = decoder.index() + decoder.int32Value();
-      // Read key
-      assertTrue(decoder.readTag());
-      assertEquals(1, decoder.fieldNumber());
-      assertEquals(2, decoder.wireType());
-      assertTrue(decoder.readVarInt());
-      int keyLength = decoder.int32Value();
-      String key = decoder.readString(keyLength);
-      // Read value
-      assertTrue(decoder.readTag());
-      assertEquals(2, decoder.fieldNumber());
-      assertEquals(2, decoder.wireType());
-      assertTrue(decoder.readVarInt());
-      int valueLength = decoder.int32Value();
-      Object value = parseValue(decoder);
-      object.put(key, value);
+      int backup = decoder.len();
+      decoder.len(end);
+      String key = null;
+      Object value = null;
+      try {
+        while (decoder.isReadable()) {
+          assertTrue(decoder.readTag());
+          switch (decoder.fieldNumber()) {
+            case 1:
+              // Read key
+              assertEquals(1, decoder.fieldNumber());
+              assertEquals(2, decoder.wireType());
+              assertTrue(decoder.readVarInt());
+              int keyLength = decoder.int32Value(); // LEN
+              key = decoder.readString(keyLength);
+              break;
+            case 2:
+              // Read value
+              assertEquals(2, decoder.fieldNumber());
+              assertEquals(2, decoder.wireType());
+              assertTrue(decoder.readVarInt());
+              int valueLength = decoder.int32Value(); // LEN
+              value = parseValue(decoder);
+              break;
+            default:
+              throw new AssertionError();
+          }
+        }
+        object.put(key, value);
+      } finally {
+        decoder.len(backup);
+      }
       assertEquals(end, decoder.index());
+
+
+
     }
     return object;
   }
@@ -59,7 +80,7 @@ public class StructParser {
     while (decoder.isReadable()) {
       assertTrue(decoder.readTag());
       assertEquals(1, decoder.fieldNumber());
-      assertEquals(2, decoder.wireType());
+      assertEquals(2, decoder.wireType()); // LEN
       assertTrue(decoder.readVarInt());
       Object o = parseValue(decoder);
       value.add(o);

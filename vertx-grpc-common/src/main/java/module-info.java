@@ -14,6 +14,9 @@ module io.vertx.grpc.common {
   exports io.vertx.grpc.common;
   exports io.vertx.grpc.common.proto;
   exports io.vertx.grpc.common.impl to io.vertx.tests.common, io.vertx.grpc.server, io.vertx.grpc.client, io.vertx.grpc.transcoding, io.vertx.tests.server, io.vertx.tests.client;
+  exports io.vertx.grpc.common.proto.schema;
+  exports io.vertx.grpc.common.proto.json;
+  exports io.vertx.grpc.common.proto.poc;
 
   provides io.vertx.core.spi.VertxServiceProvider with io.vertx.grpc.common.impl.GrpcRequestLocalRegistration;
 }
