@@ -78,8 +78,9 @@ public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponse
   }
 
   @Override
-  protected void sendCancel() {
+  protected boolean sendCancel() {
     httpResponse.setStatusCode(400);
     httpResponse.end();
+    return true;
   }
 }

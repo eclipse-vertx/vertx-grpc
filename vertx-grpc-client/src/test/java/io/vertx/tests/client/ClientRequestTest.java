@@ -293,15 +293,19 @@ public class ClientRequestTest extends ClientTest {
 
     super.testClientStreamingCompletedBeforeHalfClose(should);
 
-    Async done = should.async();
+    Async done = should.async(2);
     client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), SINK)
       .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.exceptionHandler(err -> {
+          should.assertTrue(callRequest.isCancelled());
+          done.countDown();
+        });
         callRequest.response().onComplete(should.asyncAssertFailure(failure -> {
           should.assertEquals(GrpcErrorException.class, failure.getClass());
           GrpcErrorException f = (GrpcErrorException) failure;
           should.assertEquals(GrpcStatus.CANCELLED, f.status());
-          done.complete();
+          done.countDown();
         }));
         callRequest.write(Request.newBuilder().setName("the-value").build());
       }));
@@ -469,12 +473,17 @@ public class ClientRequestTest extends ClientTest {
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), SINK)
       .onComplete(should.asyncAssertSuccess(callRequest -> {
         callRequest.write(Request.getDefaultInstance());
-        cf.whenComplete((v, t) -> {
-          callRequest.cancel();
-          try {
-            callRequest.write(Request.getDefaultInstance());
-          } catch (IllegalStateException ignore) {
-          }
+        io.vertx.core.Context ctx = vertx.getOrCreateContext();
+        cf.whenComplete((v1, t) -> {
+          ctx.runOnContext(v2 -> {
+            should.assertFalse(callRequest.isCancelled());
+            callRequest.cancel();
+            should.assertTrue(callRequest.isCancelled());
+            try {
+              callRequest.write(Request.getDefaultInstance());
+            } catch (IllegalStateException ignore) {
+            }
+          });
         });
       }));
   }

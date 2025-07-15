@@ -29,6 +29,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -182,10 +183,9 @@ public class ServerMessageEncodingTest extends ServerTestBase {
       req.handler(msg -> {
         should.fail();
       });
-    }, req -> req.response().onComplete(should.asyncAssertFailure(err -> {
-      should.assertEquals(StreamResetException.class, err.getClass());
-      StreamResetException reset = (StreamResetException) err;
-      should.assertEquals(GrpcError.CANCELLED.http2ResetCode, reset.getCode());
+    }, req -> req.response().onComplete(should.asyncAssertSuccess(resp -> {
+      should.assertEquals(200, resp.statusCode());
+      should.assertEquals("" + GrpcStatus.CANCELLED.code, resp.getHeader("grpc-status"));
     })));
   }
 

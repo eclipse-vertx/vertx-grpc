@@ -46,7 +46,6 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private TimeUnit timeoutUnit;
   private String timeoutHeader;
   private Timer deadline;
-  private boolean cancelled;
 
   public GrpcClientRequestImpl(HttpClientRequest httpRequest,
                                long maxMessageSize,
@@ -225,31 +224,11 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  public void cancel() {
-    if (cancelled) {
-      return;
-    }
-    cancelled = true;
-    context.execute(() -> {
-      boolean responseEnded;
-      if (response.failed()) {
-        return;
-      } else if (response.succeeded()) {
-        GrpcClientResponse<Req, Resp> resp = response.result();
-        if (resp.end().failed()) {
-          return;
-        } else {
-          responseEnded = resp.end().succeeded();
-        }
-      } else {
-        responseEnded = false;
-      }
-      if (!isTrailersSent() || !responseEnded) {
-        httpRequest
-          .reset(GrpcError.CANCELLED.http2ResetCode)
-          .onSuccess(v -> handleError(GrpcError.CANCELLED));
-      }
-    });
+  protected boolean sendCancel() {
+    httpRequest
+      .reset(GrpcError.CANCELLED.http2ResetCode)
+      .onSuccess(v -> handleError(GrpcError.CANCELLED));
+    return true;
   }
 
   @Override
