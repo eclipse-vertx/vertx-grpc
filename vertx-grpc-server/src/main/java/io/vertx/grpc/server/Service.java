@@ -2,6 +2,7 @@ package io.vertx.grpc.server;
 
 import com.google.protobuf.Descriptors;
 import io.vertx.codegen.annotations.GenIgnore;
+import io.vertx.core.Future;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.impl.ServiceBuilderImpl;
 
@@ -49,6 +50,13 @@ public interface Service {
    * @param server the gRPC server to bind this service to
    */
   void bind(GrpcServer server);
+
+  /**
+   * Close the service.
+   */
+  default Future<Void> close() {
+    return Future.succeededFuture();
+  }
 
   /**
    * Get a list of all method descriptors for this service.
