@@ -13,6 +13,7 @@ package io.vertx.tests.server;
 import io.grpc.*;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
 import io.vertx.core.buffer.Buffer;
@@ -384,16 +385,33 @@ public class ServerRequestTest extends ServerTest {
   }
 
   @Test
-  public void testCancel(TestContext should) {
+  public void testCancel1(TestContext should) {
+    testCancel(should, GrpcWriteStream::cancel);
+  }
+
+  @Test
+  public void testCancel2(TestContext should) {
+    testCancel(should, response -> {
+      response.status(GrpcStatus.CANCELLED);
+      response.end();
+    });
+  }
+
+  private void testCancel(TestContext should, Handler<GrpcServerResponse<?, ?>> cancellator) {
 
     Async test = should.async();
 
     startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
       GrpcServerResponse<Request, Reply> response = call.response();
-      response.cancel();
-      response.write(Reply.newBuilder().build()).onComplete(should.asyncAssertFailure(err -> {
+      should.assertFalse(call.response().isCancelled());
+      cancellator.handle(response);
+      should.assertTrue(call.response().isCancelled());
+      try {
+        response.write(Reply.newBuilder().build());
+        should.fail();
+      } catch (IllegalStateException expected) {
         test.complete();
-      }));
+      }
     }));
 
     channel = ManagedChannelBuilder.forAddress("localhost", port)

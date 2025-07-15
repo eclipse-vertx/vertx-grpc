@@ -74,6 +74,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
       }
     }
     super.handleEnd();
+    request.handleStatus(status);
     if (!request.isTrailersSent()) {
       request.cancel();
     }
