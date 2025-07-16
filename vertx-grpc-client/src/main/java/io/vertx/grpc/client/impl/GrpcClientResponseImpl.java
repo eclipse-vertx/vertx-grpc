@@ -18,6 +18,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpClientResponse;
 
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
@@ -51,6 +52,11 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
     this.request = request;
     this.httpResponse = httpResponse;
     this.status = status;
+  }
+
+  @Override
+  public GrpcClientRequest<Req, Resp> request() {
+    return request;
   }
 
   @Override
