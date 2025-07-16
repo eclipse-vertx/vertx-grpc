@@ -12,6 +12,7 @@ package io.vertx.grpc.plugin;
 
 import com.google.api.AnnotationsProto;
 import com.google.api.HttpRule;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.html.HtmlEscapers;
 import com.google.protobuf.DescriptorProtos;
@@ -20,11 +21,7 @@ import com.salesforce.jprotoc.Generator;
 import com.salesforce.jprotoc.GeneratorException;
 import com.salesforce.jprotoc.ProtoTypeMap;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class VertxGrpcGeneratorImpl extends Generator {
@@ -58,6 +55,8 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
   @Override
   public List<PluginProtos.CodeGeneratorResponse.File> generateFiles(PluginProtos.CodeGeneratorRequest request) throws GeneratorException {
+    this.parseParameter(request);
+
     ProtoTypeMap typeMap = ProtoTypeMap.of(request.getProtoFileList());
 
     List<DescriptorProtos.FileDescriptorProto> protosToGenerate = request.getProtoFileList().stream()
@@ -66,6 +65,54 @@ public class VertxGrpcGeneratorImpl extends Generator {
 
     List<ServiceContext> services = findServices(protosToGenerate, typeMap);
     return generateFiles(services);
+  }
+
+  private void parseParameter(PluginProtos.CodeGeneratorRequest request) {
+    Splitter.on(',')
+      .trimResults()
+      .omitEmptyStrings()
+      .split(request.getParameter())
+      .forEach(parameter -> {
+        Iterator<String> it = Splitter.on('=').trimResults().omitEmptyStrings().limit(2).split(parameter).iterator();
+        switch (it.next()) {
+          case "grpc-client":
+            if (it.hasNext()) {
+              options.generateClient = Boolean.parseBoolean(it.next());
+            } else {
+              options.generateClient = true;
+            }
+            break;
+          case "grpc-service":
+            if (it.hasNext()) {
+              options.generateService = Boolean.parseBoolean(it.next());
+            } else {
+              options.generateService = true;
+            }
+            break;
+          case "grpc-io":
+            if (it.hasNext()) {
+              options.generateIo = Boolean.parseBoolean(it.next());
+            } else {
+              options.generateIo = true;
+            }
+            break;
+          case "grpc-transcoding":
+            if (it.hasNext()) {
+              options.generateTranscoding = Boolean.parseBoolean(it.next());
+            } else {
+              options.generateTranscoding = true;
+            }
+            break;
+          case "service-prefix":
+            if (it.hasNext()) {
+              options.servicePrefix = it.next();
+            }
+        }
+      });
+    if (options.generateIo) {
+      options.generateClient = true;
+      options.generateService = true;
+    }
   }
 
   private List<ServiceContext> findServices(List<DescriptorProtos.FileDescriptorProto> protos, ProtoTypeMap typeMap) {
@@ -105,7 +152,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
   }
 
   private ServiceContext buildServiceContext(DescriptorProtos.ServiceDescriptorProto serviceProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations,
-    int serviceNumber) {
+                                             int serviceNumber) {
     ServiceContext serviceContext = new ServiceContext(serviceProto, options.servicePrefix);
     // Set Later
     //serviceContext.fileName = CLASS_PREFIX + serviceProto.getName() + "Grpc.java";
@@ -139,7 +186,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
   }
 
   private MethodContext buildMethodContext(DescriptorProtos.MethodDescriptorProto methodProto, ProtoTypeMap typeMap, List<DescriptorProtos.SourceCodeInfo.Location> locations,
-    int methodNumber) {
+                                           int methodNumber) {
     MethodContext methodContext = new MethodContext();
     methodContext.transcodingContext = new TranscodingContext();
 
