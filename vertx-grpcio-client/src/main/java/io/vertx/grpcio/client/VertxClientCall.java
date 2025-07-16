@@ -9,6 +9,7 @@ import io.grpc.Deadline;
 import io.grpc.Metadata;
 import io.grpc.Status;
 import io.vertx.core.Future;
+import io.vertx.core.MultiMap;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
@@ -130,7 +131,14 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
                 if (grpcResponse.statusMessage() != null) {
                   status = status.withDescription(grpcResponse.statusMessage());
                 }
-                trailers = io.vertx.grpcio.common.impl.Utils.readMetadata(grpcResponse.trailers());
+                MultiMap responseTrailers;
+                boolean trailersOnly = grpcResponse.trailers().isEmpty();
+                if (trailersOnly) {
+                  responseTrailers = grpcResponse.headers();
+                } else {
+                  responseTrailers = grpcResponse.trailers();
+                }
+                trailers = io.vertx.grpcio.common.impl.Utils.readMetadata(responseTrailers);
               } else {
                 status = Status.fromThrowable(ar.cause());
                 trailers = new Metadata();
