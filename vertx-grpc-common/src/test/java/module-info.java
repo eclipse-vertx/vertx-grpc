@@ -8,6 +8,7 @@ open module io.vertx.tests.common {
   requires io.grpc;
   requires io.grpc.protobuf;
   requires io.grpc.stub;
+  requires com.google.protobuf.util;
   exports io.vertx.tests.common;
   exports io.vertx.tests.common.grpc;
 }
