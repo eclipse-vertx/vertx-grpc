@@ -22,10 +22,9 @@ import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Utils;
+import io.vertx.grpc.server.GrpcErrorInfoProvider;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
-import io.vertx.grpc.server.StatusException;
-
 import java.util.Map;
 import java.util.Objects;
 
@@ -79,10 +78,17 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
   }
 
   public void fail(Throwable failure) {
-    if (failure instanceof StatusException) {
-      StatusException se = (StatusException) failure;
-      this.status = se.status();
-      this.statusMessage = se.message();
+    if (failure instanceof GrpcErrorInfoProvider) {
+      GrpcErrorInfoProvider infoPro = (GrpcErrorInfoProvider) failure;
+      this.status = infoPro.status();
+      this.statusMessage = infoPro.message();
+      MultiMap errorTrailers = infoPro.trailers();
+      if (errorTrailers != null && !errorTrailers.isEmpty()) {
+        MultiMap grpcTrailers = trailers();
+        for (Map.Entry<String, String> header : errorTrailers) {
+          grpcTrailers.add(header.getKey(), header.getValue());
+        }
+      }
     } else {
       this.status = mapStatus(failure);
     }
@@ -185,8 +191,8 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
   }
 
   private static GrpcStatus mapStatus(Throwable t) {
-    if (t instanceof StatusException) {
-      return ((StatusException)t).status();
+    if (t instanceof GrpcErrorInfoProvider) {
+      return ((GrpcErrorInfoProvider) t).status();
     } else if (t instanceof UnsupportedOperationException) {
       return GrpcStatus.UNIMPLEMENTED;
     } else {

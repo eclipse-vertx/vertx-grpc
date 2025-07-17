@@ -10,40 +10,46 @@
  */
 package io.vertx.grpc.server;
 
+import io.vertx.core.MultiMap;
 import io.vertx.core.VertxException;
 import io.vertx.grpc.common.GrpcStatus;
 
 /**
  * A glorified GOTO forcing a response status.
  */
-public final class StatusException extends VertxException {
+public final class StatusException extends VertxException implements GrpcErrorInfoProvider {
 
   private final GrpcStatus status;
   private final String message;
+  private final MultiMap trailers;
 
   public StatusException(GrpcStatus status) {
-    super("Grpc status " + status.name());
-    this.status = status;
-    this.message = null;
+    this(status, null, null);
   }
 
   public StatusException(GrpcStatus status, String message) {
+    this(status, message, null);
+  }
+
+  public StatusException(GrpcStatus status, String message, MultiMap trailers) {
     super("Grpc status " + status.name());
     this.status = status;
     this.message = message;
+    this.trailers = trailers;
   }
 
-  /**
-   * @return the status
-   */
+  @Override
   public GrpcStatus status() {
     return status;
   }
 
-  /**
-   * @return the status message
-   */
+  @Override
   public String message() {
     return message;
+  }
+
+  @Override
+  public MultiMap trailers() {
+    return trailers;
   }
 }

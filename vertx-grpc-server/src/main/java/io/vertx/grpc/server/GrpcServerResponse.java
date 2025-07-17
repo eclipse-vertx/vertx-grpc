@@ -81,7 +81,8 @@ public interface GrpcServerResponse<Req, Resp> extends GrpcWriteStream<Resp> {
    * End the stream with an appropriate status message, when {@code failure} is
    *
    * <ul>
-   *   <li>{@link StatusException}, set status to {@link StatusException#status()} and status message to {@link StatusException#message()}</li>
+   *   <li>{@link StatusException}, set status to {@link StatusException#status()}, status message to {@link StatusException#message()} and associated metadata to {@link StatusException#trailers()}</li>
+   *   <li>Use any exception implementing {@link GrpcErrorInfoProvider} to propagate meaningful and rich error context to gRPC clients without coupling to a specific exception class.</li>
    *   <li>{@link UnsupportedOperationException} returns {@link GrpcStatus#UNIMPLEMENTED}</li>
    *   <li>otherwise returns {@link GrpcStatus#UNKNOWN}</li>
    * </ul>
