@@ -142,6 +142,7 @@ public class ClientRequestTest extends ClientTest {
             should.assertTrue(err instanceof InvalidStatusException);
             should.assertEquals(GrpcStatus.OK, ((InvalidStatusException)err).expectedStatus());
             should.assertEquals(GrpcStatus.UNAVAILABLE, ((InvalidStatusException)err).actualStatus());
+            should.assertEquals("error-value", ((InvalidStatusException)err).metadata().get("error-data"));
             latch2.complete();
           }));
         }));

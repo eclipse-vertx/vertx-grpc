@@ -291,8 +291,10 @@ public abstract class ClientTest extends ClientTestBase {
     TestServiceGrpc.TestServiceImplBase called = new TestServiceGrpc.TestServiceImplBase() {
       @Override
       public void unary(Request request, StreamObserver<Reply> responseObserver) {
-        responseObserver.onError(Status.UNAVAILABLE
-          .withDescription("~Greeter temporarily unavailable...~").asRuntimeException());
+        Metadata metadata = new Metadata();
+        metadata.put(Metadata.Key.of("error-data", Metadata.ASCII_STRING_MARSHALLER), "error-value");
+        var re = Status.UNAVAILABLE.withDescription("~Greeter temporarily unavailable...~").asRuntimeException(metadata);
+        responseObserver.onError(re);
       }
     };
     startServer(called);

@@ -144,6 +144,21 @@ public class ServerRequestTest extends ServerTest {
   }
 
   @Test
+  public void testStatusUnary5(TestContext should) {
+
+    MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
+    trailers.add("error-data", "error-value");
+
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      call.handler(helloRequest -> {
+        throw new StatusException(GrpcStatus.ALREADY_EXISTS, "status-msg", trailers);
+      });
+    }));
+
+    super.testStatusUnary(should, Status.ALREADY_EXISTS, "status-msg", trailers);
+  }
+
+  @Test
   public void testStatusStreaming(TestContext should) {
     startServer(GrpcServer.server(vertx).callHandler(SOURCE, call -> {
       call.response().write(Reply.newBuilder().setMessage("msg1").build());
