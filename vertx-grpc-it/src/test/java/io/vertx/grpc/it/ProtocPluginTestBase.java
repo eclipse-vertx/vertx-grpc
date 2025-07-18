@@ -11,12 +11,14 @@
 package io.vertx.grpc.it;
 
 import com.google.protobuf.ByteString;
+import io.grpc.Metadata;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.examples.helloworld.*;
 import io.grpc.testing.integration.*;
 import io.vertx.core.Completable;
 import io.vertx.core.Future;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.net.SocketAddress;
@@ -27,7 +29,9 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.InvalidStatusException;
+import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.StatusException;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
@@ -740,6 +744,18 @@ public abstract class ProtocPluginTestBase extends ProxyTestBase {
     });
   }
 
+  @Test
+  public void testServerStatus3(TestContext should) throws Exception {
+    testServerStatus(should, new GreeterService() {
+      @Override
+      public Future<HelloReply> sayHello(HelloRequest request) {
+        MultiMap errorContext = MultiMap.caseInsensitiveMultiMap();
+        errorContext.add("error-info", "error-data");
+        return Future.failedFuture(new StatusException(GrpcStatus.INTERNAL, "error message", errorContext));
+      }
+    });
+  }
+
   private void testServerStatus(TestContext should, GreeterService service) throws Exception {
 
     // Create gRPC Server
@@ -760,11 +776,25 @@ public abstract class ProtocPluginTestBase extends ProxyTestBase {
       .onComplete(should.asyncAssertFailure(reply -> {
         if (reply instanceof InvalidStatusException) {
           InvalidStatusException ise = (InvalidStatusException) reply;
-          should.assertEquals(GrpcStatus.NOT_FOUND, ise.actualStatus());
+          MultiMap metadata = ise.metadata();
+          if (!metadata.contains("error-info")) { // testServerStatus1, testServerStatus2
+            should.assertEquals(GrpcStatus.NOT_FOUND, ise.actualStatus());
+          } else { // testServerStatus3
+            should.assertEquals(GrpcStatus.INTERNAL, ise.actualStatus());
+            should.assertEquals( "error-data", metadata.get("error-info"));
+            should.assertEquals(Utils.utf8PercentEncode("error message"), metadata.get(GrpcHeaderNames.GRPC_MESSAGE));
+          }
           test.complete();
         } else if (reply instanceof StatusRuntimeException) {
           StatusRuntimeException sre = (StatusRuntimeException) reply;
-          should.assertEquals(Status.NOT_FOUND, sre.getStatus());
+          Metadata metadata = sre.getTrailers();
+          Metadata.Key key = Metadata.Key.of("error-info", Metadata.ASCII_STRING_MARSHALLER);
+          if (!metadata.containsKey(key)) { // testServerStatus1, testServerStatus2
+            should.assertEquals(Status.NOT_FOUND, sre.getStatus());
+          } else { // testServerStatus3
+            should.assertEquals(Status.INTERNAL, sre.getStatus());
+            should.assertEquals( "error-data", metadata.get(key));
+          }
           test.complete();
         } else {
           should.fail();

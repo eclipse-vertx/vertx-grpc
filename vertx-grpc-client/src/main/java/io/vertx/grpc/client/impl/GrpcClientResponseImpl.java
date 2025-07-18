@@ -112,7 +112,13 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
         }
         @Override
         public Throwable describe(Void value) {
-          return new InvalidStatusException(GrpcStatus.OK, status());
+          MultiMap metadata;
+          if (httpResponse.trailers().isEmpty()) { // TODO: Check if any payload has been parsed (needs GrpcReadStream modification)
+            metadata = httpResponse.headers(); // trailersOnly response
+          } else {
+            metadata = httpResponse.trailers();
+          }
+          return new InvalidStatusException(GrpcStatus.OK, status(), metadata);
         }
       });
   }
