@@ -153,21 +153,28 @@ public class ContextStorageTest {
     should.assertNull(key2.get());
   }
 
+  @SuppressWarnings("removal")
   @Test
   public void testNestedDuplicate(TestContext should) {
     Async async = should.async();
     io.vertx.core.internal.ContextInternal context = ((ContextInternal)vertx.getOrCreateContext()).duplicate();
     context.putLocal("local", "local-value-1");
+    CopiableObject value = new CopiableObject();
+    context.putLocal(MockContextStorage.CONTEXT_LOCAL, value);
     context.runOnContext(v1 -> {
       should.assertEquals("local-value-1", context.getLocal("local"));
+      should.assertEquals(value, context.getLocal(MockContextStorage.CONTEXT_LOCAL));
       Context ctx1 = Context.ROOT.withValue(key1, "value-1");
       ctx1.run(() -> {
         io.vertx.core.internal.ContextInternal current = (ContextInternal) vertx.getOrCreateContext();
         should.assertNotEquals(context, current);
         should.assertEquals("local-value-1", current.getLocal("local"));
+        should.assertEquals(value, current.getLocal(MockContextStorage.CONTEXT_LOCAL).ref);
         current.putLocal("local", "local-value-2");
+        current.putLocal(MockContextStorage.CONTEXT_LOCAL, new CopiableObject());
       });
       should.assertEquals("local-value-1", context.getLocal("local"));
+      should.assertEquals(value, context.getLocal(MockContextStorage.CONTEXT_LOCAL));
       async.complete();
     });
     async.awaitSuccess();

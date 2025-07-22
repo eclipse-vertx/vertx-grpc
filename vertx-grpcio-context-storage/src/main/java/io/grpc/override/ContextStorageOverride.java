@@ -21,20 +21,12 @@ public class ContextStorageOverride extends Context.Storage {
     // Do not remove, empty constructor required by gRPC
   }
 
-  private static ContextInternal duplicate(ContextInternal context) {
-    ContextInternal dup = context.duplicate();
-    if (context.isDuplicate()) {
-      dup.localContextData().putAll(context.localContextData()); // For now hand rolled  but should be handled by context duplication
-    }
-    return dup;
-  }
-
   @Override
   public Context doAttach(Context toAttach) {
     ContextInternal vertxContext = vertxContext();
     Context toRestoreLater;
     if (vertxContext != null) {
-      ContextInternal next = duplicate(vertxContext);
+      ContextInternal next = vertxContext.duplicate(true);
       ContextInternal prev = next.beginDispatch();
       next.putLocal(ContextStorageService.CONTEXT_LOCAL, SAME_THREAD, new GrpcStorage(toAttach, prev));
       GrpcStorage local = next.getLocal(ContextStorageService.CONTEXT_LOCAL, SAME_THREAD);
