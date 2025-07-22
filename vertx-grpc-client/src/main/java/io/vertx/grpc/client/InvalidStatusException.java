@@ -10,6 +10,7 @@
  */
 package io.vertx.grpc.client;
 
+import io.vertx.core.MultiMap;
 import io.vertx.core.VertxException;
 import io.vertx.grpc.common.GrpcStatus;
 
@@ -20,11 +21,13 @@ public final class InvalidStatusException extends VertxException {
 
   private final GrpcStatus expected;
   private final GrpcStatus actual;
+  private final MultiMap metadata;
 
-  public InvalidStatusException(GrpcStatus expected, GrpcStatus actual) {
+  public InvalidStatusException(GrpcStatus expected, GrpcStatus actual, MultiMap metadata) {
     super("Invalid status: actual:" + actual.name() + ", expected:" + expected.name());
     this.expected = expected;
     this.actual = actual;
+    this.metadata = metadata;
   }
 
   /**
@@ -40,4 +43,12 @@ public final class InvalidStatusException extends VertxException {
   public GrpcStatus actualStatus() {
     return actual;
   }
+
+  /**
+   * @return the server trailers
+   */
+  public MultiMap metadata() {
+    return metadata;
+  }
+
 }

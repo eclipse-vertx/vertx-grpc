@@ -15,16 +15,19 @@
  */
 package io.vertx.grpcio.server.impl.stub;
 
+import io.grpc.Metadata;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Completable;
+import io.vertx.core.MultiMap;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.server.StatusException;
+import io.vertx.grpcio.common.impl.Utils;
 import io.vertx.grpcio.common.impl.stub.GrpcWriteStream;
 import io.vertx.grpcio.common.impl.stub.StreamObserverReadStream;
 
@@ -69,7 +72,7 @@ public final class ServerCalls {
     trySetCompression(response, compression);
     StreamObserverReadStream<I> request = new StreamObserverReadStream<>(ctx, (CallStreamObserver<?>) response);
     request.init();
-    Completable<O> completable = (res,err) -> {
+    Completable<O> completable = (res, err) -> {
       if (err == null) {
         response.onNext(res);
         response.onCompleted();
@@ -109,7 +112,14 @@ public final class ServerCalls {
 
   private static Throwable prepareError(Throwable throwable) {
     if (throwable instanceof StatusException) {
-      return new StatusRuntimeException(Status.fromCode(Status.Code.valueOf(((StatusException)throwable).status().name())));
+      StatusException se = (StatusException) throwable;
+      Status status = Status.fromCode(Status.Code.valueOf(se.status().name()));
+      Metadata metadata = null;
+      MultiMap trailers = se.trailers();
+      if (trailers != null) {
+        metadata = Utils.readMetadata(trailers);
+      }
+      return new StatusRuntimeException(status, metadata);
     } else if (throwable instanceof UnsupportedOperationException) {
       return new StatusRuntimeException(Status.UNIMPLEMENTED);
     } else if (throwable instanceof io.grpc.StatusException || throwable instanceof StatusRuntimeException) {

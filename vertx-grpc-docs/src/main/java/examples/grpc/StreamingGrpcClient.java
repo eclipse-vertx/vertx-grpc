@@ -3,6 +3,7 @@ package examples.grpc;
 import io.vertx.core.Future;
 import io.vertx.core.Completable;
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.core.streams.ReadStream;
@@ -93,7 +94,13 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
       req.format(wireFormat);
       return req.end(request).compose(v -> req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-          return Future.failedFuture(new io.vertx.grpc.client.InvalidStatusException(GrpcStatus.OK, resp.status()));
+            MultiMap metadata;
+            if (resp.trailers().isEmpty()) { // TODO: Check if any payload has been parsed (needs GrpcReadStream modification)
+              metadata = resp.headers(); // trailersOnly response
+            } else {
+              metadata = resp.trailers();
+            }
+          return Future.failedFuture(new io.vertx.grpc.client.InvalidStatusException(GrpcStatus.OK, resp.status(), metadata));
         } else {
           return Future.succeededFuture(resp);
         }
@@ -125,7 +132,13 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
      .compose(req -> {
         return req.response().flatMap(resp -> {
           if (resp.status() != null && resp.status() != GrpcStatus.OK) {
-            return Future.failedFuture(new io.vertx.grpc.client.InvalidStatusException(GrpcStatus.OK, resp.status()));
+            MultiMap metadata;
+            if (resp.trailers().isEmpty()) { // TODO: Check if any payload has been parsed (needs GrpcReadStream modification)
+              metadata = resp.headers(); // trailersOnly response
+            } else {
+              metadata = resp.trailers();
+            }
+            return Future.failedFuture(new io.vertx.grpc.client.InvalidStatusException(GrpcStatus.OK, resp.status(), metadata));
           } else {
             return Future.succeededFuture(resp);
           }
