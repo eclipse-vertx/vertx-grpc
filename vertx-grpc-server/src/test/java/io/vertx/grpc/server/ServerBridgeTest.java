@@ -32,6 +32,7 @@ import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcStatus;
@@ -40,6 +41,8 @@ import io.vertx.grpcio.server.GrpcIoServiceBridge;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -520,5 +523,80 @@ public class ServerBridgeTest extends ServerTest {
     HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
     HelloReply res = stub.sayHello(request);
     should.assertEquals(1, testAttributesStep.get());
+  }
+
+  @Test
+  public void testResumeFlowControlOnServerClose(TestContext should) throws Exception {
+    StreamingGrpc.StreamingImplBase impl = new StreamingGrpc.StreamingImplBase() {
+      @Override
+      public StreamObserver<Item> sink(StreamObserver<Empty> responseObserver) {
+        io.vertx.core.Context context = Vertx.currentContext();
+        context.exceptionHandler(err -> {
+
+        });
+        return new StreamObserver<Item>() {
+          boolean errorSent;
+          @Override
+          public void onNext(Item value) {
+            if (errorSent) {
+              should.fail();
+              return;
+            }
+            errorSent = true;
+            responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+          }
+          @Override
+          public void onError(Throwable t) {
+          }
+          @Override
+          public void onCompleted() {
+          }
+        };
+      }
+    };
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(impl);
+    serverStub.bind(server);
+    startServer(server);
+
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+
+    StreamingGrpc.StreamingStub stub = StreamingGrpc.newStub(channel);
+
+    for (int i = 0; i < 3; i++) {
+      System.out.println(i);
+      CountDownLatch finishLatch = new CountDownLatch(1);
+      StreamObserver<Item> requestObserver = stub.sink(new StreamObserver<Empty>() {
+        @Override
+        public void onNext(Empty response) {
+        }
+        @Override
+        public void onError(Throwable t) {
+          finishLatch.countDown();
+        }
+        @Override
+        public void onCompleted() {
+        }
+      });
+      int n = 6000;
+      Item req = Item.newBuilder().setValue("1234567890").build();
+      try {
+        for (int j = 0; j < n; j++) {
+          requestObserver.onNext(req);
+          if (finishLatch.getCount() == 0) {
+            return;
+          }
+        }
+      } catch (RuntimeException e) {
+        should.fail(e);
+      }
+      requestObserver.onCompleted();
+      if (!finishLatch.await(10, TimeUnit.SECONDS)) {
+        should.fail();
+      }
+    }
   }
 }

@@ -113,7 +113,9 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge, GrpcIoServiceBr
         }
         @Override
         protected void handleMessage(Req msg) {
-          listener.onMessage(msg);
+          if (!closed) {
+            listener.onMessage(msg);
+          }
         }
       };
       this.writeAdapter = new WriteStreamAdapter<Resp>() {
@@ -189,6 +191,7 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge, GrpcIoServiceBr
         throw new IllegalStateException("Already closed");
       }
       closed = true;
+      readAdapter.request(Integer.MAX_VALUE);
       GrpcServerResponse<Req, Resp> response = req.response();
       if (status == Status.OK && methodDef.getMethodDescriptor().getType().serverSendsOneMessage() && messagesSent == 0) {
         response.status(GrpcStatus.UNAVAILABLE).end();
