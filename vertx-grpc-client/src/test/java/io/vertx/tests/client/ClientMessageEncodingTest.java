@@ -93,6 +93,8 @@ public class ClientMessageEncodingTest extends ClientTestBase {
         }));
         callRequest.endMessage(msg);
       }));
+
+    test.await(5000L);
   }
 
   @Test

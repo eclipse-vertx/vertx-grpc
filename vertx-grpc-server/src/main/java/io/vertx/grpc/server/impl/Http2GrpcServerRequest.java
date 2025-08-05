@@ -12,6 +12,7 @@ package io.vertx.grpc.server.impl;
 
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.grpc.common.GrpcDecompressor;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.WireFormat;
@@ -19,9 +20,11 @@ import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
 
+import java.util.Map;
+
 public class Http2GrpcServerRequest<Req, Resp> extends GrpcServerRequestImpl<Req, Resp> {
 
-  public Http2GrpcServerRequest(ContextInternal context, GrpcProtocol protocol, WireFormat format, HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
-    super(context, protocol, format, httpRequest, new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format), messageDecoder, methodCall);
+  public Http2GrpcServerRequest(ContextInternal context, GrpcProtocol protocol, WireFormat format, HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, Map<String, GrpcDecompressor> decompressors, GrpcMethodCall methodCall) {
+    super(context, protocol, format, httpRequest, new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format), messageDecoder, methodCall, decompressors);
   }
 }

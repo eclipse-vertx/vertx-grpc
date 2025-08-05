@@ -216,13 +216,22 @@ public class GrpcClientExamples {
       });
   }
 
-  public void requestCompression(GrpcClientRequest<Item, Empty> request) {
-    request.encoding("gzip");
+  public void requestCompression(Vertx vertx) {
+    GrpcClientCompressionOptions compressionOptions = new GrpcClientCompressionOptions();
 
-    // Write items after encoding has been defined
-    request.write(Item.newBuilder().setValue("item-1").build());
-    request.write(Item.newBuilder().setValue("item-2").build());
-    request.write(Item.newBuilder().setValue("item-3").build());
+    compressionOptions.setCompressionEnabled(true);
+    compressionOptions.addCompressionAlgorithm("gzip");
+    compressionOptions.addDecompressionAlgorithm("gzip");
+    compressionOptions.setCompressionAlgorithm("gzip");
+
+    GrpcClient client = GrpcClient.client(vertx, new GrpcClientOptions().setCompression(compressionOptions));
+
+    SocketAddress server = SocketAddress.inetSocketAddress(443, "example.com");
+    Future<GrpcClientRequest<HelloRequest, HelloReply>> fut = client.request(server, GreeterGrpcClient.SayHello);
+    fut.onSuccess(request -> {
+      // The end method calls the service
+      request.encoding("gzip").end(HelloRequest.newBuilder().setName("Bob").build());
+    });
   }
 
   public void requestWithDeadline(Vertx vertx) {
