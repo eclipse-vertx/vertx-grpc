@@ -68,4 +68,9 @@ public interface GrpcWriteStream<T> extends WriteStream<T> {
    */
   void cancel();
 
+  /**
+   * @return whether the stream is cancelled
+   */
+  boolean isCancelled();
+
 }

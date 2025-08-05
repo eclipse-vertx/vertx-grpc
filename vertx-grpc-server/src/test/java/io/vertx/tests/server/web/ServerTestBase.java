@@ -103,17 +103,31 @@ public abstract class ServerTestBase extends GrpcTestBase {
     grpcServer.callHandler(UNARY_CALL, request -> {
       request.handler(requestMsg -> {
         GrpcServerResponse<EchoRequest, EchoResponse> response = request.response();
-        copyHeaders(request.headers(), response.headers());
-        copyTrailers(request.headers(), response.trailers());
         String payload = requestMsg.getPayload();
-        if ("boom".equals(payload)) {
-          response.trailers().set("x-error-trailer", "boom");
-          response.status(GrpcStatus.INTERNAL).end();
-        } else {
-          EchoResponse responseMsg = EchoResponse.newBuilder()
-            .setPayload(payload)
-            .build();
-          response.end(responseMsg);
+        switch (payload) {
+          case "vanilla": {
+            EchoResponse responseMsg = EchoResponse.newBuilder()
+              .setPayload(payload)
+              .build();
+            response.end(responseMsg);
+            break;
+          }
+          case "boom": {
+            copyHeaders(request.headers(), response.headers());
+            copyTrailers(request.headers(), response.trailers());
+            response.trailers().set("x-error-trailer", "boom");
+            response.status(GrpcStatus.INTERNAL).end();
+            break;
+          }
+          default: {
+            copyHeaders(request.headers(), response.headers());
+            copyTrailers(request.headers(), response.trailers());
+            EchoResponse responseMsg = EchoResponse.newBuilder()
+              .setPayload(payload)
+              .build();
+            response.end(responseMsg);
+            break;
+          }
         }
       });
     });
@@ -320,6 +334,41 @@ public abstract class ServerTestBase extends GrpcTestBase {
         assertEquals("" + GrpcStatus.RESOURCE_EXHAUSTED, response.getHeader(GrpcHeaderNames.GRPC_STATUS));
         Buffer body = decodeBody(response.body().result());
         assertEquals(0, body.length());
+      });
+    }));
+  }
+
+  @Test
+  public void testNoTrailers(TestContext should) {
+    String payload = "vanilla";
+    httpClient.request(HttpMethod.POST, TEST_SERVICE + "/UnaryCall").compose(req -> {
+      req.headers().addAll(requestHeaders());
+      EchoRequest echoRequest = EchoRequest.newBuilder().setPayload(payload).build();
+      return req.send(encode(echoRequest)).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> {
+      should.verify(v -> {
+
+        assertEquals(200, response.statusCode());
+        MultiMap headers = response.headers();
+        assertTrue(headers.contains(CONTENT_TYPE, responseContentType(), true));
+
+        Buffer body = decodeBody(response.body().result());
+        int pos = 0;
+
+        Buffer prefix = body.getBuffer(pos, PREFIX_SIZE);
+        assertEquals(0x00, prefix.getUnsignedByte(0)); // Uncompressed message
+        int len = prefix.getInt(1);
+        pos += PREFIX_SIZE;
+
+        EchoResponse echoResponse = parseEchoResponse(body.getBuffer(pos, pos + len));
+        assertEquals(payload, echoResponse.getPayload());
+        pos += len;
+
+        Buffer trailer = body.getBuffer(pos, body.length());
+        assertEquals(0x80, trailer.getUnsignedByte(0)); // Uncompressed trailer
+        len = trailer.getInt(1);
+        assertEquals(STATUS_OK, trailer.getBuffer(PREFIX_SIZE, PREFIX_SIZE + len).toString());
+
       });
     }));
   }

@@ -18,6 +18,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpClientResponse;
 
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
@@ -59,6 +60,11 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
   }
 
   @Override
+  public GrpcClientRequest<Req, Resp> request() {
+    return request;
+  }
+
+  @Override
   public MultiMap headers() {
     return httpResponse.headers();
   }
@@ -79,6 +85,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
       }
     }
     super.handleEnd();
+    request.handleStatus(status);
     if (!request.isTrailersSent()) {
       request.cancel();
     }

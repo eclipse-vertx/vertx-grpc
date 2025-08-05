@@ -10,6 +10,9 @@
  */
 package io.vertx.grpc.server.impl;
 
+import io.vertx.core.Closeable;
+import io.vertx.core.Completable;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -28,7 +31,7 @@ import java.util.stream.Collectors;
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class GrpcServerImpl implements GrpcServer {
+public class GrpcServerImpl implements GrpcServer, Closeable {
 
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
@@ -43,6 +46,8 @@ public class GrpcServerImpl implements GrpcServer {
   private final Map<String, GrpcCompressor> compressors;
   private final Map<String, GrpcDecompressor> decompressors;
 
+  private boolean closing;
+
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
     ServiceLoader<GrpcHttpInvoker> invokerServiceLoader = ServiceLoader.load(GrpcHttpInvoker.class);
 
@@ -51,6 +56,24 @@ public class GrpcServerImpl implements GrpcServer {
     this.decompressors = options.getCompressionOptions().getDecompressors();
 
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
+  }
+
+  @Override
+  public void close(Completable<Void> completion) {
+    List<Service> toClose;
+    synchronized (this) {
+      closing = true;
+      toClose = new ArrayList<>(services);
+      services.clear();
+    }
+    List<Future<Void>> futures = toClose
+      .stream()
+      .map(Service::close)
+      .collect(Collectors.toList());
+    Future
+      .all(futures)
+      .<Void>mapEmpty()
+      .onComplete(completion);
   }
 
   @Override
@@ -120,10 +143,6 @@ public class GrpcServerImpl implements GrpcServer {
     }
 
     return -1;
-  }
-
-  private <Req, Resp> void handle(GrpcInvocation<Req, Resp> invocation, Handler<GrpcServerRequest<Req, Resp>> handler) {
-    handle(invocation.grpcRequest, invocation.grpcResponse, handler);
   }
 
   private <Req, Resp> boolean handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall, GrpcProtocol protocol, WireFormat format) {
@@ -222,7 +241,10 @@ public class GrpcServerImpl implements GrpcServer {
     grpcRequest.context().dispatch(grpcRequest, handler);
   }
 
-  public GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {
+  public synchronized GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {
+    if (closing) {
+      throw new IllegalStateException("Server closed");
+    }
     this.requestHandler = handler;
     return this;
   }
@@ -240,7 +262,10 @@ public class GrpcServerImpl implements GrpcServer {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+  public synchronized <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    if (closing) {
+      throw new IllegalStateException("Server closed");
+    }
     if (handler != null) {
       MethodCallHandler<Req, Resp> p = new MethodCallHandler<>(serviceMethod, serviceMethod.decoder(), serviceMethod.encoder(), handler);
       if (serviceMethod instanceof MountPoint) {
@@ -266,13 +291,18 @@ public class GrpcServerImpl implements GrpcServer {
 
   @Override
   public GrpcServer addService(Service service) {
-    for (Service s : this.services) {
-      if (s.name().equals(service.name())) {
-        throw new IllegalStateException("Duplicated name: " + service.name().name());
+    synchronized (this) {
+      if (closing) {
+        throw new IllegalStateException("Server closed");
       }
-    }
+      for (Service s : this.services) {
+        if (s.name().equals(service.name())) {
+          throw new IllegalStateException("Duplicated name: " + service.name().name());
+        }
+      }
 
-    this.services.add(service);
+      this.services.add(service);
+    }
     service.bind(this);
 
     return this;

@@ -30,6 +30,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private boolean headersSent;
   private boolean trailersSent;
   private GrpcError error;
+  private boolean cancelled;
 
   private MultiMap headers;
   private MultiMap trailers;
@@ -52,9 +53,8 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
         StreamResetException reset = (StreamResetException) err;
         GrpcError error = mapHttp2ErrorCode(reset.getCode());
         handleError(error);
-      } else {
-        handleException(err);
       }
+      handleException(err);
     });
   }
 
@@ -65,6 +65,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
   public void handleError(GrpcError error) {
     if (this.error == null) {
+      cancelled |= error == GrpcError.CANCELLED;
       this.error = error;
       Handler<GrpcError> handler = errorHandler;
       if (handler != null) {
@@ -77,6 +78,22 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {
       handler.handle(err);
+    }
+  }
+
+  public void handleStatus(GrpcStatus status) {
+    cancelled |= status == GrpcStatus.CANCELLED;
+  }
+
+  @Override
+  public boolean isCancelled() {
+    return cancelled;
+  }
+
+  @Override
+  public void cancel() {
+    if (!cancelled) {
+      cancelled = sendCancel();
     }
   }
 
@@ -108,10 +125,6 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
   public boolean isTrailersSent() {
     return trailersSent;
-  }
-
-  public boolean isCancelled() {
-    return error == GrpcError.CANCELLED;
   }
 
   @Override
@@ -192,6 +205,8 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   protected abstract Future<Void> sendMessage(Buffer message, boolean compressed);
   protected abstract Future<Void> sendEnd();
   protected abstract Future<Void> sendHead();
+  protected abstract boolean sendCancel();
+
 
   protected String contentType(WireFormat wireFormat) {
     if (wireFormat != null) {

@@ -17,6 +17,10 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.GrpcHeaderNames;
+import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
@@ -36,7 +40,6 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
   private boolean trailersOnly;
-  private boolean cancelled;
 
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
@@ -51,13 +54,18 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
-    Objects.requireNonNull(status);
-    this.status = status;
+    if (isTrailersSent()) {
+      throw new IllegalStateException("Trailers have already been sent");
+    }
+    this.status = Objects.requireNonNull(status);
     return this;
   }
 
   @Override
   public GrpcServerResponse<Req, Resp> statusMessage(String msg) {
+    if (isTrailersSent()) {
+      throw new IllegalStateException("Trailers have already been sent");
+    }
     this.statusMessage = msg;
     return this;
   }
@@ -70,24 +78,6 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
       } else {
         cancel();
       }
-    }
-  }
-
-  @Override
-  public void cancel() {
-    if (cancelled) {
-      return;
-    }
-    cancelled = true;
-    Future<Void> fut = request.end();
-    boolean requestEnded;
-    if (fut.failed()) {
-      return;
-    } else {
-      requestEnded = fut.succeeded();
-    }
-    if (!requestEnded || !isTrailersSent()) {
-      sendCancel();
     }
   }
 
@@ -111,10 +101,15 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     return status;
   }
 
-  protected void sendCancel() {
-    httpResponse
-      .reset(GrpcError.CANCELLED.http2ResetCode)
-      .onSuccess(v -> handleError(GrpcError.CANCELLED));
+  protected boolean sendCancel() {
+    if (!isTrailersSent()) {
+      status(GrpcStatus.CANCELLED);
+      end();
+      return true;
+    } else {
+      // Can this happen ?
+      return false;
+    }
   }
 
   protected void setHeaders(String contentType, MultiMap grpcHeaders) {
@@ -145,7 +140,7 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     encodeGrpcStatus(httpTrailers);
   }
 
-  protected void encodeGrpcTrailers(MultiMap grpcTrailers, MultiMap httpTrailers) {
+  protected final void encodeGrpcTrailers(MultiMap grpcTrailers, MultiMap httpTrailers) {
     if (grpcTrailers != null && !grpcTrailers.isEmpty()) {
       for (Map.Entry<String, String> header : grpcTrailers) {
         httpTrailers.add(header.getKey(), header.getValue());
@@ -178,6 +173,7 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
   }
 
   protected Future<Void> sendEnd() {
+    handleStatus(status);
     request.cancelTimeout();
     return httpResponse.end();
   }

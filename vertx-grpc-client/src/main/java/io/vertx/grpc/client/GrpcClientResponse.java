@@ -32,6 +32,11 @@ import io.vertx.grpc.common.GrpcStatus;
 public interface GrpcClientResponse<Req, Resp> extends GrpcReadStream<Resp> {
 
   /**
+   * @return the associated client request
+   */
+  GrpcClientRequest<Req, Resp> request();
+
+  /**
    * @return the gRPC status or {@code null} when the status has not yet been received
    */
   @CacheReturn
