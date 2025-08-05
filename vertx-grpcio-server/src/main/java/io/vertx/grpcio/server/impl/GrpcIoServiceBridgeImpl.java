@@ -154,11 +154,13 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
         }
         @Override
         protected void handleMessage(Req msg) {
-          Context previous = context.attach();
-          try {
-            listener.onMessage(msg);
-          } finally {
-            context.detach(previous);
+          if (!closed) {
+            Context previous = context.attach();
+            try {
+              listener.onMessage(msg);
+            } finally {
+              context.detach(previous);
+            }
           }
         }
       };
@@ -240,6 +242,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
         throw new IllegalStateException("Already closed");
       }
       closed = true;
+      readAdapter.request(Integer.MAX_VALUE);
       GrpcServerResponse<Req, Resp> response = req.response();
       if (status == Status.OK && methodDef.getMethodDescriptor().getType().serverSendsOneMessage() && messagesSent == 0) {
         response.status(GrpcStatus.UNAVAILABLE).end();
