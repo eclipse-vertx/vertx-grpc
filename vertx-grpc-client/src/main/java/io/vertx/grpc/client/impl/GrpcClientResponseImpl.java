@@ -26,6 +26,7 @@ import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -41,14 +42,18 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
                                 GrpcClientRequestImpl<Req, Resp> request,
                                 WireFormat format,
                                 GrpcStatus status,
-                                HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
+                                HttpClientResponse httpResponse,
+                                GrpcMessageDecoder<Resp> messageDecoder,
+                                Map<String, GrpcDecompressor> decompressors) {
     super(
       context,
       httpResponse,
       httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING),
       format,
       new Http2GrpcMessageDeframer(httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING), format),
-      messageDecoder);
+      messageDecoder,
+      decompressors
+    );
     this.request = request;
     this.httpResponse = httpResponse;
     this.status = status;

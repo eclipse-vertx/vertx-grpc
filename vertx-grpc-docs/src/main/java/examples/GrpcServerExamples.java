@@ -169,13 +169,22 @@ public class GrpcServerExamples {
     });
   }
 
-  public void responseCompression(GrpcServerResponse<Empty, Item> response) {
-    response.encoding("gzip");
+  public void responseCompression(Vertx vertx) {
+    GrpcCompressionOptions compressionOptions = new GrpcCompressionOptions();
 
-    // Write items after encoding has been defined
-    response.write(Item.newBuilder().setValue("item-1").build());
-    response.write(Item.newBuilder().setValue("item-2").build());
-    response.write(Item.newBuilder().setValue("item-3").build());
+    compressionOptions.setCompressionEnabled(true);
+    compressionOptions.addCompressionAlgorithm("gzip");
+    compressionOptions.addDecompressionAlgorithm("gzip");
+
+    GrpcServer server = GrpcServer.server(vertx, new GrpcServerOptions().setCompressionOptions(compressionOptions));
+
+    // Create a response
+    server.callHandler(GreeterGrpcService.SayHello, request -> {
+      request.handler(hello -> {
+        // Handle hello message
+        request.response().encoding("gzip").end(HelloReply.newBuilder().setMessage("Hello " + hello.getName()).build());
+      });
+    });
   }
 
   public void protobufLevelAPI(GrpcServer server) {
@@ -340,5 +349,45 @@ public class GrpcServerExamples {
     vertx.createHttpServer(options)
       .requestHandler(grpcServer)
       .listen();
+  }
+
+  public void customDecompressor() {
+    // Create a custom decompressor
+    GrpcDecompressor myDecompressor = new GrpcDecompressor() {
+      @Override
+      public String encoding() {
+        return "my-custom-encoding";
+      }
+
+      @Override
+      public Buffer decompress(Buffer data) throws CodecException {
+        // Implement your custom decompression logic here
+        // This is just a placeholder example
+        return Buffer.buffer(data.getBytes());
+      }
+    };
+
+    // Then you need to add:
+    // provides io.vertx.grpc.common.GrpcDecompressor with <package>.<class> to your module-info.java
+  }
+
+  public void customCompressor() {
+    // Create a custom compressor
+    GrpcCompressor myCompressor = new GrpcCompressor() {
+      @Override
+      public String encoding() {
+        return "my-custom-encoding";
+      }
+
+      @Override
+      public Buffer compress(Buffer data) throws CodecException {
+        // Implement your custom compression logic here
+        // This is just a placeholder example
+        return Buffer.buffer(data.getBytes());
+      }
+    };
+
+    // Then you need to add:
+    // provides io.vertx.grpc.common.GrpcCompressor with <package>.<class> to your module-info.java
   }
 }

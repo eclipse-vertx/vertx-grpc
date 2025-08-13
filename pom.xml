@@ -198,6 +198,7 @@
 
   <modules>
     <module>vertx-grpc-common</module>
+    <module>vertx-grpc-compression</module>
     <module>vertx-grpc-transcoding</module>
     <module>vertx-grpc-server</module>
     <module>vertx-grpc-reflection</module>

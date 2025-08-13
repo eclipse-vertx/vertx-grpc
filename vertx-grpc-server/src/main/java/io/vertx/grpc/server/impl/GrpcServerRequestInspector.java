@@ -3,15 +3,21 @@ package io.vertx.grpc.server.impl;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
+import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.server.GrpcProtocol;
 
+import java.util.Arrays;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 final class GrpcServerRequestInspector {
 
   private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("application/grpc(-web(-text)?)?(\\+(json|proto))?");
+  private static final String DEFAULT_ENCODING = "identity";
+  private static final String DEFAULT_ACCEPT_ENCODING = "identity";
 
   private GrpcServerRequestInspector() {
   }
@@ -21,6 +27,8 @@ final class GrpcServerRequestInspector {
     if (!determineContentType(request.getHeader(HttpHeaders.CONTENT_TYPE), builder)) {
       return null;
     }
+
+    determineEncoding(request, builder);
 
     return builder.build();
   }
@@ -61,15 +69,46 @@ final class GrpcServerRequestInspector {
     return false;
   }
 
+  private static void determineEncoding(HttpServerRequest request, RequestInspectionDetailsBuilder builder) {
+    String encoding = request.getHeader(HttpHeaders.CONTENT_ENCODING);
+    if (request.getHeader(GrpcHeaderNames.GRPC_ENCODING) != null) {
+      encoding = request.getHeader(GrpcHeaderNames.GRPC_ENCODING);
+    }
+
+    String acceptEncoding = request.getHeader(HttpHeaders.ACCEPT_ENCODING);
+    if (request.getHeader(GrpcHeaderNames.GRPC_ACCEPT_ENCODING) != null) {
+      acceptEncoding = request.getHeader(GrpcHeaderNames.GRPC_ACCEPT_ENCODING);
+    }
+
+    if (encoding == null) {
+      encoding = DEFAULT_ENCODING;
+    }
+
+    if (acceptEncoding == null) {
+      acceptEncoding = DEFAULT_ACCEPT_ENCODING;
+    }
+
+    if(!acceptEncoding.contains(encoding)) {
+      acceptEncoding += "," + encoding;
+    }
+
+    builder.encoding(encoding);
+    builder.acceptEncodings(Arrays.stream(acceptEncoding.split(",")).map(String::trim).collect(Collectors.toUnmodifiableSet()));
+  }
+
   static final class RequestInspectionDetails {
     final HttpVersion version;
     final GrpcProtocol protocol;
     final WireFormat format;
+    final String encoding;
+    final Set<String> acceptEncodings;
 
-    private RequestInspectionDetails(HttpVersion version, GrpcProtocol protocol, WireFormat format) {
+    RequestInspectionDetails(HttpVersion version, GrpcProtocol protocol, WireFormat format, String encoding, Set<String> acceptEncodings) {
       this.version = version;
       this.protocol = protocol;
       this.format = format;
+      this.encoding = encoding;
+      this.acceptEncodings = acceptEncodings;
     }
   }
 
@@ -77,6 +116,8 @@ final class GrpcServerRequestInspector {
     private HttpVersion version;
     private GrpcProtocol protocol;
     private WireFormat format;
+    private String encoding;
+    private Set<String> acceptEncodings;
 
     RequestInspectionDetailsBuilder() {
     }
@@ -96,8 +137,18 @@ final class GrpcServerRequestInspector {
       return this;
     }
 
+    RequestInspectionDetailsBuilder encoding(String encoding) {
+      this.encoding = encoding;
+      return this;
+    }
+
+    RequestInspectionDetailsBuilder acceptEncodings(Set<String> acceptEncodings) {
+      this.acceptEncodings = acceptEncodings;
+      return this;
+    }
+
     RequestInspectionDetails build() {
-      return new RequestInspectionDetails(version, protocol, format);
+      return new RequestInspectionDetails(version, protocol, format, encoding, acceptEncodings);
     }
   }
 }

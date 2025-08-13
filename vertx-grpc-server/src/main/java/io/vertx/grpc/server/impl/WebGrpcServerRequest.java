@@ -22,6 +22,8 @@ import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
 
+import java.util.Map;
+
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 
 public class WebGrpcServerRequest<Req, Resp> extends GrpcServerRequestImpl<Req, Resp> {
@@ -88,7 +90,7 @@ public class WebGrpcServerRequest<Req, Resp> extends GrpcServerRequestImpl<Req, 
     }
   }
 
-  public WebGrpcServerRequest(ContextInternal context, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, GrpcMethodCall methodCall) {
-    super(context, protocol, format, httpRequest, httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE)) ? new TextMessageDeframer() : new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format), messageDecoder, methodCall);
+  public WebGrpcServerRequest(ContextInternal context, GrpcProtocol protocol, WireFormat format, long maxMessageSize, HttpServerRequest httpRequest, GrpcMessageDecoder<Req> messageDecoder, Map<String, GrpcDecompressor> decompressors, GrpcMethodCall methodCall) {
+    super(context, protocol, format, httpRequest, httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE)) ? new TextMessageDeframer() : new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format), messageDecoder, methodCall, decompressors);
   }
 }

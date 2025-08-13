@@ -1,0 +1,3 @@
+io.vertx.grpc.compression.GzipCompressor
+io.vertx.grpc.common.impl.IdentityCompressor
+io.vertx.grpc.compression.SnappyCompressor

@@ -9,7 +9,9 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.*;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
@@ -19,7 +21,10 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private final GrpcMessageEncoder<T> messageEncoder;
   private final WriteStream<Buffer> writeStream;
 
-  protected String mediaType;
+  protected final String mediaType;
+  protected final Map<String, GrpcCompressor> compressors;
+  protected final Map<String, GrpcDecompressor> decompressors;
+
   protected String encoding;
   protected WireFormat format;
   private boolean headersSent;
@@ -33,11 +38,13 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcError> errorHandler;
 
-  public GrpcWriteStreamBase(ContextInternal context, String mediaType, WriteStream<Buffer> writeStream, GrpcMessageEncoder<T> messageEncoder) {
+  public GrpcWriteStreamBase(ContextInternal context, String mediaType, WriteStream<Buffer> writeStream, GrpcMessageEncoder<T> messageEncoder, Map<String, GrpcCompressor> compressors, Map<String, GrpcDecompressor> decompressors) {
     this.context = context;
     this.writeStream = writeStream;
     this.messageEncoder = messageEncoder;
     this.mediaType = mediaType;
+    this.compressors = compressors;
+    this.decompressors = decompressors;
   }
 
   public void init() {
@@ -175,11 +182,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   }
 
   private GrpcMessage encodeMessage(T message) {
-    WireFormat f = format;
-    if (f == null) {
-      f = WireFormat.PROTOBUF;
-    }
-    return messageEncoder.encode(message, f);
+    return messageEncoder.encode(message, Optional.ofNullable(format).orElse(WireFormat.PROTOBUF));
   }
 
   @Override
@@ -242,39 +245,51 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     boolean compressed;
     if (message != null) {
       if (encoding != null) {
-        switch (encoding) {
-          case "gzip":
-            compressed = true;
-            if (message.encoding().equals("identity")) {
-              try {
-                payload = Utils.GZIP_ENCODER.apply(message.payload());
-              } catch (CodecException e) {
-                return Future.failedFuture(e);
-              }
-            } else {
-              if (!message.encoding().equals("gzip")) {
-                return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
-              }
-              payload = message.payload();
-            }
-            break;
-          case "identity":
-            compressed = false;
-            if (!message.encoding().equals("identity")) {
-              if (!message.encoding().equals("gzip")) {
-                return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
-              }
-              try {
-                payload = Utils.GZIP_DECODER.apply(message.payload());
-              } catch (CodecException e) {
-                return Future.failedFuture(e);
-              }
-            } else {
-              payload = message.payload();
-            }
-            break;
-          default:
+        if (message.encoding().equals(encoding)) {
+          // Message is already in the desired encoding
+          compressed = !encoding.equals("identity");
+          payload = message.payload();
+        } else if (message.encoding().equals("identity")) {
+          // Message is in identity encoding, need to compress
+          GrpcCompressor compressor = compressors.get(encoding);
+          if (compressor == null) {
             return Future.failedFuture("Encoding " + encoding + " is not supported");
+          }
+          compressed = !encoding.equals("identity");
+          try {
+            payload = compressor.compress(message.payload());
+          } catch (CodecException e) {
+            return Future.failedFuture(e);
+          }
+        } else {
+          // Message is in some other encoding, need to decompress first then compress
+          GrpcDecompressor decompressor = decompressors.get(message.encoding());
+          if (decompressor == null) {
+            return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
+          }
+
+          Buffer decompressed;
+          try {
+            decompressed = decompressor.decompress(message.payload());
+          } catch (CodecException e) {
+            return Future.failedFuture(e);
+          }
+
+          if (encoding.equals("identity")) {
+            compressed = false;
+            payload = decompressed;
+          } else {
+            GrpcCompressor compressor = compressors.get(encoding);
+            if (compressor == null) {
+              return Future.failedFuture("Encoding " + encoding + " is not supported");
+            }
+            compressed = true;
+            try {
+              payload = compressor.compress(decompressed);
+            } catch (CodecException e) {
+              return Future.failedFuture(e);
+            }
+          }
         }
       } else {
         compressed = !message.encoding().equals("identity");

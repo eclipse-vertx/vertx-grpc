@@ -14,9 +14,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.VertxInternal;
@@ -24,11 +22,9 @@ import io.vertx.core.net.Address;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.client.GrpcClientRequest;
-import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.GrpcLocal;
+import io.vertx.grpc.common.*;
 
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -44,6 +40,10 @@ public class GrpcClientImpl implements GrpcClient {
   private final int timeout;
   private final TimeUnit timeoutUnit;
 
+  private final String compressionAlgorithm;
+  private final Map<String, GrpcCompressor> compressors;
+  private final Map<String, GrpcDecompressor> decompressors;
+
   public GrpcClientImpl(Vertx vertx, HttpClient client) {
     this(vertx, new GrpcClientOptions(), client, false);
   }
@@ -52,10 +52,14 @@ public class GrpcClientImpl implements GrpcClient {
     this.vertx = vertx;
     this.client = client;
     this.scheduleDeadlineAutomatically = grpcOptions.getScheduleDeadlineAutomatically();
-    this.maxMessageSize = grpcOptions.getMaxMessageSize();;
+    this.maxMessageSize = grpcOptions.getMaxMessageSize();
     this.timeout = grpcOptions.getTimeout();
     this.timeoutUnit = grpcOptions.getTimeoutUnit();
     this.closeClient = close;
+
+    this.compressionAlgorithm = grpcOptions.getCompression().getCompressionAlgorithm();
+    this.compressors = grpcOptions.getCompression().getCompressors();
+    this.decompressors = grpcOptions.getCompression().getDecompressors();
   }
 
   public Vertx vertx() {
@@ -70,8 +74,12 @@ public class GrpcClientImpl implements GrpcClient {
           maxMessageSize,
           scheduleDeadlineAutomatically,
           GrpcMessageEncoder.IDENTITY,
-          GrpcMessageDecoder.IDENTITY);
+          GrpcMessageDecoder.IDENTITY,
+          this.compressors,
+          this.decompressors
+        );
         grpcRequest.init();
+        grpcRequest.encoding(this.compressionAlgorithm);
         configureTimeout(grpcRequest);
         return grpcRequest;
       });
@@ -123,8 +131,12 @@ public class GrpcClientImpl implements GrpcClient {
           maxMessageSize,
           scheduleDeadlineAutomatically,
           method.encoder(),
-          method.decoder());
+          method.decoder(),
+          this.compressors,
+          this.decompressors
+        );
         call.init();
+        call.encoding(this.compressionAlgorithm);
         call.serviceName(method.serviceName());
         call.methodName(method.methodName());
         configureTimeout(call);
@@ -137,7 +149,7 @@ public class GrpcClientImpl implements GrpcClient {
     if (closeClient) {
       return client.close();
     } else {
-      return ((VertxInternal)vertx).getOrCreateContext().succeededFuture();
+      return ((VertxInternal) vertx).getOrCreateContext().succeededFuture();
     }
   }
 }

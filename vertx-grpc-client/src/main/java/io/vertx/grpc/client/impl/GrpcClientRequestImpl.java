@@ -51,8 +51,10 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
                                long maxMessageSize,
                                boolean scheduleDeadline,
                                GrpcMessageEncoder<Req> messageEncoder,
-                               GrpcMessageDecoder<Resp> messageDecoder) {
-    super( ((PromiseInternal<?>)httpRequest.response()).context(), "application/grpc", httpRequest, messageEncoder);
+                               GrpcMessageDecoder<Resp> messageDecoder,
+                               Map<String, GrpcCompressor> compressors,
+                               Map<String, GrpcDecompressor> decompressors) {
+    super( ((PromiseInternal<?>)httpRequest.response()).context(), "application/grpc", httpRequest, messageEncoder, compressors, decompressors);
     this.httpRequest = httpRequest;
     this.scheduleDeadline = scheduleDeadline;
     this.timeout = 0L;
@@ -83,7 +85,8 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
             format,
             status,
             httpResponse,
-            messageDecoder);
+            messageDecoder,
+            decompressors);
           grpcResponse.init(this, maxMessageSize);
           grpcResponse.invalidMessageHandler(invalidMsg -> {
             cancel();
@@ -185,7 +188,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     if (encoding != null) {
       httpRequest.putHeader(GrpcHeaderNames.GRPC_ENCODING, encoding);
     }
-    httpRequest.putHeader(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, "gzip");
+    httpRequest.putHeader(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, String.join(",", GrpcDecompressor.getSupportedEncodings()));
     httpRequest.putHeader(HttpHeaderNames.TE, "trailers");
     httpRequest.setChunked(true);
     httpRequest.setURI(uri);
