@@ -8,8 +8,10 @@ This server provides a gRPC request/response oriented API as well as a generated
 
 To use Vert.x gRPC Server, add the following dependency to the _dependencies_ section of your build descriptor:
 
-* Maven (in your `pom.xml`):
-
+[tabs]
+====
+pom.xml::
++
 [source,xml,subs="+attributes"]
 ----
 <dependency>
@@ -19,14 +21,16 @@ To use Vert.x gRPC Server, add the following dependency to the _dependencies_ se
 </dependency>
 ----
 
-* Gradle (in your `build.gradle` file):
-
+build.gradle::
++
 [source,groovy,subs="+attributes"]
 ----
 dependencies {
   compile 'io.vertx:vertx-grpc-server:${maven.version}'
 }
 ----
+====
+
 
 === Creating a gRPC server
 
@@ -362,8 +366,10 @@ Support for the https://grpc.io/docs/guides/reflection/[gRPC reflection service]
 
 To use the Reflection service, add the following dependency:
 
-* Maven (in your `pom.xml`):
-
+[tabs]
+====
+pom.xml::
++
 [source,xml,subs="+attributes"]
 ----
 <dependency>
@@ -373,14 +379,15 @@ To use the Reflection service, add the following dependency:
 </dependency>
 ----
 
-* Gradle (in your `build.gradle` file):
-
+build.gradle::
++
 [source,groovy,subs="+attributes"]
 ----
 dependencies {
   compile 'io.vertx:vertx-grpc-reflection:${maven.version}'
 }
 ----
+====
 
 You can then deploy the reflection service in your server:
 
@@ -404,8 +411,10 @@ It implements two RPCs:
 
 To use the Health Service, add the following dependency:
 
-* Maven (in your `pom.xml`):
-
+[tabs]
+====
+pom.xml::
++
 [source,xml,subs="+attributes"]
 ----
 <dependency>
@@ -415,14 +424,15 @@ To use the Health Service, add the following dependency:
 </dependency>
 ----
 
-* Gradle (in your `build.gradle` file):
-
+build.gradle::
++
 [source,groovy,subs="+attributes"]
 ----
 dependencies {
   compile 'io.vertx:vertx-grpc-health:${maven.version}'
 }
 ----
+====
 
 Here's how to create and bind a Health service to your gRPC server:
 

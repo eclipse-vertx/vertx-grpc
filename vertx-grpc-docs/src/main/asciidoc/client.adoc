@@ -6,8 +6,10 @@ The Vert.x gRPC Client provides a gRPC request/response oriented API as well as 
 
 To use Vert.x gRPC Client, add the following dependency to the _dependencies_ section of your build descriptor:
 
-* Maven (in your `pom.xml`):
-
+[tabs]
+====
+pom.xml::
++
 [source,xml,subs="+attributes"]
 ----
 <dependency>
@@ -17,14 +19,15 @@ To use Vert.x gRPC Client, add the following dependency to the _dependencies_ se
 </dependency>
 ----
 
-* Gradle (in your `build.gradle` file):
-
+build.gradle::
++
 [source,groovy,subs="+attributes"]
 ----
 dependencies {
   compile 'io.vertx:vertx-grpc-client:${maven.version}'
 }
 ----
+====
 
 === Creating a gRPC client
 

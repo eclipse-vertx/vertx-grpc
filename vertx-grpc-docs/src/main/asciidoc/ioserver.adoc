@@ -8,8 +8,10 @@ This server provides compatibility with the _grpc-java_ generated stub approach 
 
 To use Vert.x gRPC/IO Server, add the following dependency to the _dependencies_ section of your build descriptor:
 
-* Maven (in your `pom.xml`):
-
+[tabs]
+====
+pom.xml::
++
 [source,xml,subs="+attributes"]
 ----
 <dependency>
@@ -19,14 +21,15 @@ To use Vert.x gRPC/IO Server, add the following dependency to the _dependencies_
 </dependency>
 ----
 
-* Gradle (in your `build.gradle` file):
-
+build.gradle::
++
 [source,groovy,subs="+attributes"]
 ----
 dependencies {
   compile 'io.vertx:vertx-grpcio-server:${maven.version}'
 }
 ----
+====
 
 === Service bridge
 

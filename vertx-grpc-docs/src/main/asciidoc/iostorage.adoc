@@ -23,8 +23,10 @@ It is not propagated if, for example, you invoke a stub on a non-Vert.x thread o
 
 To use Vert.x gRPC Context Storage, add the following dependency to the _dependencies_ section of your build descriptor:
 
-* Maven (in your `pom.xml`):
-
+[tabs]
+====
+pom.xml::
++
 [source,xml,subs="+attributes"]
 ----
 <dependency>
@@ -34,11 +36,12 @@ To use Vert.x gRPC Context Storage, add the following dependency to the _depende
 </dependency>
 ----
 
-* Gradle (in your `build.gradle` file):
-
+build.gradle::
++
 [source,groovy,subs="+attributes"]
 ----
 dependencies {
   compile 'io.vertx:vertx-grpc-context-storage:${maven.version}'
 }
 ----
+====
