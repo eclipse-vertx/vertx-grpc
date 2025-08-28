@@ -15,10 +15,12 @@ NOTE: transcoding is in tech preview in Vert.x 5.0 until the API becomes stable.
 
 === Using transcoding
 
-To use Vert.x gRPC transcoding, add the following dependency to the _dependencies_ section of your build descriptor:
+To use the Transcoding, add the following dependency:
 
-* Maven (in your `pom.xml`):
-
+[tabs]
+====
+pom.xml::
++
 [source,xml,subs="+attributes"]
 ----
 <dependency>
@@ -28,14 +30,15 @@ To use Vert.x gRPC transcoding, add the following dependency to the _dependencie
 </dependency>
 ----
 
-* Gradle (in your `build.gradle` file):
-
+build.gradle::
++
 [source,groovy,subs="+attributes"]
 ----
 dependencies {
   compile 'io.vertx:vertx-grpc-transcoding:${maven.version}'
 }
 ----
+====
 
 === Idiomatic transcoding generation
 
