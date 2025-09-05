@@ -391,7 +391,7 @@ You can also specify the JSON wire format when creating an idiomatic client
 
 === Compression
 
-You can compress request messages by setting the request encoding *prior* before sending any message
+You can compress request messages by setting a compression algorithm when creating the client, or per message.
 
 [source,java]
 ----
@@ -400,7 +400,8 @@ You can compress request messages by setting the request encoding *prior* before
 
 === Decompression
 
-Decompression is achieved transparently by the client when the server sends encoded responses.
+Decompression is achieved by client if it has access to proper decompressors and if the proper decompression algorithm is
+registered in `GrpcClientCompressionOptions`.
 
 === Message level API
 

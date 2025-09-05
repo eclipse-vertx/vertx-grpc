@@ -316,18 +316,46 @@ Anemic JSON is also supported with Vert.x `JsonObject`
 
 === Compression
 
-You can compress response messages by setting the response encoding *prior* before sending any message
+You can compress response messages by setting the compression algorithm when creating the server, or per message.
 
 [source,java]
 ----
 {@link examples.GrpcServerExamples#responseCompression}
 ----
 
+By default, Vert.x gRPC supports three compression types:
+- `identity` (no compression)
+- `gzip` compression
+- `snappy` compression
+
+You can add support for custom encoding by implementing the `GrpcCompressor` interface and registering it with the `GrpcCompressorRegistry`:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#customCompressor}
+----
+
+After registering your custom compressor, the server will be able to compress messages that use your custom encoding.
+
 NOTE: Compression is not supported over the gRPC-Web protocol.
 
 === Decompression
 
 Decompression is done transparently by the server when the client send encoded requests.
+
+By default, Vert.x gRPC supports three compression types:
+- `identity` (no decompression)
+- `gzip` decompression
+- `snappy` decompression
+
+You can add support for custom encoding by implementing the `GrpcDecompressor` interface and registering it with the `GrpcDecompressorRegistry`:
+
+[source,java]
+----
+{@link examples.GrpcServerExamples#customDecompressor}
+----
+
+After registering your custom decompressor, the server will be able to decompress messages that use your custom encoding.
 
 NOTE: Decompression is not supported over the gRPC-Web protocol.
 

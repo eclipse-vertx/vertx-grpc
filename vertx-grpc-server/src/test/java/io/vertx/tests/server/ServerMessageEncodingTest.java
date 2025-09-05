@@ -69,6 +69,21 @@ public class ServerMessageEncodingTest extends ServerTestBase {
     testEncode(should, "identity", GrpcMessage.message("identity", Buffer.buffer("Hello World")), false);
   }
 
+  @Test
+  public void testSnappyResponseCompress(TestContext should) {
+    testEncode(should, "snappy", GrpcMessage.message("identity", Buffer.buffer("Hello World")), true);
+  }
+
+  @Test
+  public void testSnappyResponsePassThrough(TestContext should) {
+    testEncode(should, "snappy", GrpcMessage.message("snappy", GrpcTestBase.snappyCompress(Buffer.buffer("Hello World"))), true);
+  }
+
+  @Test
+  public void testIdentityResponseUnsnappy(TestContext should) {
+    testEncode(should, "identity", GrpcMessage.message("snappy", GrpcTestBase.snappyCompress(Buffer.buffer("Hello World"))), false);
+  }
+
   private void testEncode(TestContext should, String encoding, GrpcMessage msg, boolean compressed) {
 
     Buffer expected = Buffer.buffer("Hello World");
@@ -104,13 +119,19 @@ public class ServerMessageEncodingTest extends ServerTestBase {
             int len = body.getInt(1);
             Buffer received = body.slice(5, 5 + len);
             if (compressed) {
-              received = GrpcTestBase.unzip(received);
+              if (encoding.equals("gzip")) {
+                received = GrpcTestBase.unzip(received);
+              } else if (encoding.equals("snappy")) {
+                received = GrpcTestBase.snappyDecompress(received);
+              }
             }
             should.assertEquals(expected, received);
             done.complete();
           }));
       }));
     }));
+
+    done.awaitSuccess(5000);
   }
 
   @Test
