@@ -157,11 +157,7 @@ Alternatively, you can use the newer `io.github.ascopes` protobuf plugin:
 </plugin>
 ----
 
-This alternative plugin provides:
-
-1. **Simplified configuration** - Uses `protocVersion` instead of platform-specific artifacts
-2. **JVM-based plugins** - Uses `jvmMavenPlugins` for better integration with Maven
-3. **Modern approach** - More recent plugin with improved features and maintenance
+This plugin uses `protocVersion` instead of platform-specific artifacts and takes care of downloading protoc based on your platform and version on its own.
 
 For more details, see the https://ascopes.github.io/protobuf-maven-plugin/[ascopes protobuf-maven-plugin documentation].
 
