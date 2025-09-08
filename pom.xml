@@ -109,6 +109,12 @@
         <scope>test</scope>
       </dependency>
       <dependency>
+        <groupId>dev.jbang</groupId>
+        <artifactId>jash</artifactId>
+        <version>0.0.3</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-netty-shaded</artifactId>
         <version>${grpc.version}</version>

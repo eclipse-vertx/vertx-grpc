@@ -10,6 +10,7 @@
  */
 package io.vertx.grpc.it;
 
+import dev.jbang.jash.Jash;
 import io.grpc.examples.helloworld.GreeterGrpcService;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloWorldProto;
@@ -23,10 +24,11 @@ import io.vertx.grpc.server.Service;
 import io.vertx.tests.common.GrpcTestBase;
 import org.junit.Test;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.stream.Collectors;
+
+import static dev.jbang.jash.Jash.$;
 
 /**
  * This test requires grpcurl to be installed on the system.
@@ -118,46 +120,13 @@ public class ReflectionTest extends GrpcTestBase {
   private Future<String> executeGrpcurl(String args) {
     return vertx.executeBlocking(() -> {
       try {
-        // Build the command - use an array to avoid shell escaping issues
-        String[] cmdArray = {
-          "sh", "-c", "grpcurl -plaintext localhost:" + port + " " + args
-        };
+        String command = "grpcurl -plaintext localhost:" + port + " " + args;
+        System.out.println("[grpcurl] Executing command: " + command);
 
-        System.out.println("[grpcurl] Executing command: " + String.join(" ", cmdArray));
-
-        // Create the process
-        Process process = Runtime.getRuntime().exec(cmdArray);
-
-        // Read the output
-        StringBuilder output = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-          String line;
-          while ((line = reader.readLine()) != null) {
-            output.append(line).append("\n");
-          }
+        try (Jash process = $(command).withTimeout(Duration.of(10, ChronoUnit.SECONDS))) {
+          return process.stream().collect(Collectors.joining("\n"));
         }
-
-        // Wait for the process to complete
-        if (!process.waitFor(10, TimeUnit.SECONDS)) {
-          process.destroyForcibly();
-          throw new RuntimeException("grpcurl command timed out: " + String.join(" ", cmdArray));
-        }
-
-        // Check the exit code
-        int exitCode = process.exitValue();
-        if (exitCode != 0) {
-          StringBuilder errorOutput = new StringBuilder();
-          try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-              errorOutput.append(line).append("\n");
-            }
-          }
-          throw new RuntimeException("grpcurl command failed with exit code " + exitCode + ": " + errorOutput);
-        }
-
-        return output.toString();
-      } catch (IOException | InterruptedException e) {
+      } catch (Exception e) {
         throw new RuntimeException("Failed to execute grpcurl command", e);
       }
     });
