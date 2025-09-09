@@ -116,9 +116,7 @@
       <plugin>
         <groupId>io.github.ascopes</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <version>3.8.2</version>
         <configuration>
-          <protocVersion>${protoc.version}</protocVersion>
           <binaryMavenPlugins>
             <binaryMavenPlugin>
               <groupId>io.grpc</groupId>
