@@ -40,20 +40,9 @@
       <version>2.50.0</version>
     </dependency>
     <dependency>
-      <groupId>com.salesforce.servicelibs</groupId>
-      <artifactId>jprotoc</artifactId>
-      <version>${jprotoc.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.annotation</groupId>
-          <artifactId>javax.annotation-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId>
-      <version>4.7.5</version>
+      <groupId>com.github.spullara.mustache.java</groupId>
+      <artifactId>compiler</artifactId>
+      <version>0.9.14</version>
     </dependency>
   </dependencies>
 
