@@ -79,6 +79,11 @@
       <artifactId>bcpkix-jdk15on</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>dev.jbang</groupId>
+      <artifactId>jash</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
