@@ -13,5 +13,6 @@ open module io.vertx.tests.transcoding {
   requires io.vertx.tests.server;
   requires com.google.protobuf;
   requires com.google.protobuf.util;
+  requires jmh.core;
   exports io.vertx.tests.transcoding;
 }
