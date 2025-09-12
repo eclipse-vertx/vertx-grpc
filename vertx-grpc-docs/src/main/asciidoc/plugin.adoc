@@ -38,7 +38,7 @@ Using the definition above we need to compile it.
 
 You can compile the proto file using the `protoc` compiler if you https://github.com/google/protobuf/tree/master/java#installation---without-maven[like], or you can integrate it in your build.
 
-If you're using Apache Maven you can choose from 2 plugins `io.github.ascopes` (Recommended) or `org.xolstice.maven.plugin`:
+If you're using Apache Maven you can choose from 2 plugins `io.github.ascopes:protobuf-maven-plugin` (Recommended) or `org.xolstice.maven.plugin:protobuf-maven-plugin`:
 
 [source,xml]
 ----
@@ -119,7 +119,7 @@ For more details, see the https://ascopes.github.io/protobuf-maven-plugin/[ascop
 </plugin>
 ----
 
-NOTE: The xolstice is no longer supported as per https://github.com/xolstice/protobuf-maven-plugin/issues/121#issuecomment-2832430955. Users are encouraged to use ascopes plugin.
+NOTE: The `org.xolstice.maven.plugin:protobuf-maven-plugin` is no longer supported as per https://github.com/xolstice/protobuf-maven-plugin/issues/121#issuecomment-2832430955. Users are encouraged to use `io.github.ascopes:protobuf-maven-plugin` instead.
 
 For more details, see the https://www.xolstice.org/protobuf-maven-plugin/[xolstice protobuf-maven-plugin documentation].
 
