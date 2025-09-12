@@ -12,6 +12,7 @@ import io.vertx.grpc.plugin.protoc.ProtocFileWriter;
 import io.vertx.grpc.plugin.protoc.ProtocRequestConverter;
 import io.vertx.grpc.plugin.template.MustacheTemplateEngine;
 import io.vertx.grpc.plugin.template.TemplateEngine;
+import picocli.CommandLine;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -37,6 +38,18 @@ public class VertxGrpcGenerator {
 
       // Read protoc request from stdin
       PluginProtos.CodeGeneratorRequest request = PluginProtos.CodeGeneratorRequest.parseFrom(ByteStreams.toByteArray(System.in), extensionRegistry);
+
+      // Override options if there are any args present
+      if (args.length > 0) {
+        if (!request.getParameter().isBlank()) {
+          throw new IllegalArgumentException("Cannot specify both parameter and args");
+        }
+
+        VertxGrpcGeneratorCommand command = new VertxGrpcGeneratorCommand();
+        new CommandLine(command).execute(args);
+
+        request = request.toBuilder().setParameter(command.toString()).build();
+      }
 
       // Process the request
       PluginProtos.CodeGeneratorResponse response = processRequest(request);

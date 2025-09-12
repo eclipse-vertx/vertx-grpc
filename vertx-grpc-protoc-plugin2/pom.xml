@@ -44,6 +44,11 @@
       <artifactId>compiler</artifactId>
       <version>0.9.14</version>
     </dependency>
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <version>4.7.5</version>
+    </dependency>
   </dependencies>
 
   <build>

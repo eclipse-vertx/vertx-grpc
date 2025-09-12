@@ -95,6 +95,19 @@
               <options>grpc-client=true,grpc-service=true,grpc-io=true</options>
             </jvmMavenPlugin>
           </jvmMavenPlugins>
+          <!--jvmMavenPlugins>
+            <jvmMavenPlugin>
+              <groupId>io.vertx</groupId>
+              <artifactId>vertx-grpc-protoc-plugin2</artifactId>
+              <version>${project.version}</version>
+              <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
+              <jvmArgs>
+                <jvmArg>-grpc-client</jvmArg>
+                <jvmArg>-grpc-service</jvmArg>
+                <jvmArg>-grpc-io</jvmArg>
+              </jvmArgs>
+            </jvmMavenPlugin>
+          </jvmMavenPlugins-->
         </configuration>
         <executions>
           <execution>
