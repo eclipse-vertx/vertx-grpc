@@ -16,6 +16,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.core.internal.logging.Logger;
@@ -82,6 +83,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         return;
       }
     } else {
+      log.trace("invalid content-type header " + httpRequest.getHeader(HttpHeaders.CONTENT_TYPE) + ", sending error 415");
       httpRequest.response().setStatusCode(415).end();
       return;
     }
@@ -116,7 +118,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
   private int validate(GrpcServerRequestInspector.RequestInspectionDetails details) {
     // Check HTTP version compatibility
     if (!details.protocol.accepts(details.version)) {
-      log.trace(details.protocol.name() + " not supported on " + details.version + ", sending error 415");
+      log.trace(details.protocol.mediaType() + " not supported on " + details.version + ", sending error 415");
       return 415;
     }
 
