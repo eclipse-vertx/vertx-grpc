@@ -13,52 +13,35 @@ package io.vertx.tests.server;
 import io.vertx.core.http.*;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcHeaderNames;
-import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import org.junit.Test;
 
-public class ProtocolSupportTest extends ServerTestBase {
+public class InvalidContentTypeHeaderTest extends ServerTestBase {
 
   private HttpClient client;
 
   @Test
-  public void testDisableHTTP2(TestContext should) {
-    testDisableProtocol(should, "application/grpc", GrpcProtocol.HTTP_2, HttpVersion.HTTP_2);
+  public void testInvalidContentTypeHttp2(TestContext should) {
+    testInvalidContentType(should, "application/invalid-grpc");
   }
 
   @Test
-  public void testInvalidHTTP2(TestContext should) {
-    testDisableProtocol(should, "application/grpc", null, HttpVersion.HTTP_1_1);
+  public void testInvalidContentTypeWeb(TestContext should) {
+    testInvalidContentType(should, "application/invalid-grpc-web");
   }
 
   @Test
-  public void testDisableWeb(TestContext should) {
-    testDisableProtocol(should, "application/grpc-web", GrpcProtocol.WEB, HttpVersion.HTTP_2);
+  public void testInvalidContentTypeNull(TestContext should) {
+    testInvalidContentType(should, null);
   }
 
-  @Test
-  public void testDisableWebHttp11(TestContext should) {
-    testDisableProtocol(should, "application/grpc-web", GrpcProtocol.WEB, HttpVersion.HTTP_1_1);
-  }
+  private void testInvalidContentType(TestContext should, String contentType) {
 
-  @Test
-  public void testDisableWebText(TestContext should) {
-    testDisableProtocol(should, "application/grpc-web-text", GrpcProtocol.WEB_TEXT, HttpVersion.HTTP_1_1);
-  }
-
-  private void testDisableProtocol(TestContext should, String contentType, GrpcProtocol protocol, HttpVersion version) {
-
-    GrpcServerOptions options;
-    if (protocol != null) {
-      options = new GrpcServerOptions().removeEnabledProtocol(protocol);
-    } else {
-      options = new GrpcServerOptions();
-    }
-    startServer(GrpcServer.server(vertx, options));
+    startServer(GrpcServer.server(vertx, new GrpcServerOptions()));
 
     client = vertx.createHttpClient(new HttpClientOptions()
-      .setProtocolVersion(version)
+      .setProtocolVersion(HttpVersion.HTTP_2)
       .setHttp2ClearTextUpgrade(true)
     );
 
