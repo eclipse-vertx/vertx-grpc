@@ -3,7 +3,6 @@ package io.vertx.grpc.plugin.generation;
 import io.vertx.grpc.plugin.generation.generators.CodeGenerator;
 import io.vertx.grpc.plugin.template.MustacheTemplateEngine;
 import io.vertx.grpc.plugin.template.TemplateEngine;
-import io.vertx.grpc.plugin.writer.DefaultFileWriter;
 import io.vertx.grpc.plugin.writer.FileWriter;
 
 import java.util.*;
@@ -14,10 +13,10 @@ import java.util.*;
  */
 public class CodeGenerationEngine {
 
-  private final Map<GenerationType, List<CodeGenerator<?>>> generators;
+  private final Map<GenerationType, List<CodeGenerator>> generators;
   private final FileWriter fileWriter;
 
-  public CodeGenerationEngine(Map<GenerationType, List<CodeGenerator<?>>> generators, FileWriter fileWriter) {
+  public CodeGenerationEngine(Map<GenerationType, List<CodeGenerator>> generators, FileWriter fileWriter) {
     this.generators = generators;
     this.fileWriter = fileWriter;
   }
@@ -40,7 +39,7 @@ public class CodeGenerationEngine {
 
     for (GenerationType type : getRequestedTypes(context)) {
       try {
-        CodeGenerator<GenerationContext> generator = getGenerator(type);
+        CodeGenerator generator = getGenerator(type);
         if (generator != null) {
           GenerationResult result = generator.generate(context);
           if (result.isSuccess()) {
@@ -98,21 +97,20 @@ public class CodeGenerationEngine {
     return types;
   }
 
-  @SuppressWarnings("unchecked")
-  public <T extends GenerationContext> CodeGenerator<T> getGenerator(GenerationType type) {
-    List<CodeGenerator<?>> typeGenerators = generators.get(type);
+  public CodeGenerator getGenerator(GenerationType type) {
+    List<CodeGenerator> typeGenerators = generators.get(type);
     if (typeGenerators != null && !typeGenerators.isEmpty()) {
-      return (CodeGenerator<T>) typeGenerators.get(0);
+      return typeGenerators.get(0);
     }
     return null;
   }
 
   public static class Builder {
 
-    private final Map<GenerationType, List<CodeGenerator<?>>> generators = new HashMap<>();
+    private final Map<GenerationType, List<CodeGenerator>> generators = new HashMap<>();
 
     private TemplateEngine templateEngine;
-    private FileWriter fileWriter = new DefaultFileWriter();
+    private FileWriter fileWriter = new FileWriter();
 
     public CodeGenerationEngine.Builder templateEngine(TemplateEngine templateEngine) {
       this.templateEngine = templateEngine;
@@ -124,7 +122,7 @@ public class CodeGenerationEngine {
       return this;
     }
 
-    public <T extends GenerationContext> CodeGenerationEngine.Builder registerGenerator(GenerationType type, CodeGenerator<T> generator) {
+    public CodeGenerationEngine.Builder registerGenerator(GenerationType type, CodeGenerator generator) {
       generators.computeIfAbsent(type, k -> new ArrayList<>()).add(generator);
       return this;
     }

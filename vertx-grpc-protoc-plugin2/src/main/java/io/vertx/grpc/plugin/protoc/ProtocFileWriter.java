@@ -5,7 +5,7 @@ import io.vertx.grpc.plugin.writer.FileWriter;
 
 import java.util.List;
 
-public class ProtocFileWriter implements FileWriter {
+public class ProtocFileWriter extends FileWriter {
   @Override
   public void writeFiles(List<GeneratedFile> files, String outputDirectory) {
     // No-op for protoc plugin - files are returned in response
