@@ -8,7 +8,7 @@ import io.vertx.grpc.plugin.template.TemplateEngine;
 import java.util.ArrayList;
 import java.util.List;
 
-public class GrpcIoGenerator extends AbstractCodeGenerator<GenerationContext> {
+public class GrpcIoGenerator extends CodeGenerator {
 
   private static final String TEMPLATE_NAME = "grpc-io.mustache";
 
