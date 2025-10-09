@@ -3,7 +3,6 @@ package io.vertx.grpc.plugin.generation.generators;
 import io.vertx.grpc.plugin.generation.*;
 import io.vertx.grpc.plugin.generation.context.ServiceTemplateContext;
 import io.vertx.grpc.plugin.descriptors.ServiceDescriptor;
-import io.vertx.grpc.plugin.template.TemplateEngine;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,8 +11,8 @@ public class GrpcClientGenerator extends CodeGenerator {
 
   private static final String TEMPLATE_NAME = "client.mustache";
 
-  public GrpcClientGenerator(TemplateEngine templateEngine) {
-    super(templateEngine, GenerationType.CLIENT);
+  public GrpcClientGenerator() {
+    super(GenerationType.CLIENT);
   }
 
   @Override

@@ -1,9 +1,7 @@
 package io.vertx.grpc.plugin.generation;
 
 import io.vertx.grpc.plugin.generation.generators.CodeGenerator;
-import io.vertx.grpc.plugin.template.MustacheTemplateEngine;
-import io.vertx.grpc.plugin.template.TemplateEngine;
-import io.vertx.grpc.plugin.writer.FileWriter;
+import io.vertx.grpc.plugin.file.FileWriter;
 
 import java.util.*;
 
@@ -19,10 +17,6 @@ public class CodeGenerationEngine {
   public CodeGenerationEngine(Map<GenerationType, List<CodeGenerator>> generators, FileWriter fileWriter) {
     this.generators = generators;
     this.fileWriter = fileWriter;
-  }
-
-  public static CodeGenerationEngine.Builder builder() {
-    return new CodeGenerationEngine.Builder();
   }
 
   /**
@@ -103,35 +97,5 @@ public class CodeGenerationEngine {
       return typeGenerators.get(0);
     }
     return null;
-  }
-
-  public static class Builder {
-
-    private final Map<GenerationType, List<CodeGenerator>> generators = new HashMap<>();
-
-    private TemplateEngine templateEngine;
-    private FileWriter fileWriter = new FileWriter();
-
-    public CodeGenerationEngine.Builder templateEngine(TemplateEngine templateEngine) {
-      this.templateEngine = templateEngine;
-      return this;
-    }
-
-    public CodeGenerationEngine.Builder fileWriter(FileWriter fileWriter) {
-      this.fileWriter = fileWriter;
-      return this;
-    }
-
-    public CodeGenerationEngine.Builder registerGenerator(GenerationType type, CodeGenerator generator) {
-      generators.computeIfAbsent(type, k -> new ArrayList<>()).add(generator);
-      return this;
-    }
-
-    public CodeGenerationEngine build() {
-      if (templateEngine == null) {
-        templateEngine = new MustacheTemplateEngine();
-      }
-      return new CodeGenerationEngine(generators, fileWriter);
-    }
   }
 }

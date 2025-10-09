@@ -1,9 +1,8 @@
 package io.vertx.grpc.plugin.generation.generators;
 
+import io.vertx.grpc.plugin.descriptors.ServiceDescriptor;
 import io.vertx.grpc.plugin.generation.*;
 import io.vertx.grpc.plugin.generation.context.ServiceTemplateContext;
-import io.vertx.grpc.plugin.descriptors.ServiceDescriptor;
-import io.vertx.grpc.plugin.template.TemplateEngine;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,8 +11,8 @@ public class GrpcContractGenerator extends CodeGenerator {
 
   private static final String TEMPLATE_NAME = "contract.mustache";
 
-  public GrpcContractGenerator(TemplateEngine templateEngine) {
-    super(templateEngine, GenerationType.CONTRACT);
+  public GrpcContractGenerator() {
+    super(GenerationType.CONTRACT);
   }
 
   @Override

@@ -12,11 +12,9 @@ import io.vertx.grpc.plugin.template.TemplateException;
  */
 public abstract class CodeGenerator {
 
-  protected final TemplateEngine templateEngine;
   protected final GenerationType generationType;
 
-  protected CodeGenerator(TemplateEngine templateEngine, GenerationType generationType) {
-    this.templateEngine = templateEngine;
+  protected CodeGenerator(GenerationType generationType) {
     this.generationType = generationType;
   }
 
@@ -30,7 +28,7 @@ public abstract class CodeGenerator {
 
   protected GeneratedFile createFile(String fileName, String relativePath, String templateName, Object templateContext) {
     try {
-      String content = templateEngine.render(templateName, templateContext);
+      String content = TemplateEngine.render(templateName, templateContext);
       return new GeneratedFile(fileName, relativePath, content, generationType);
     } catch (TemplateException e) {
       throw new GenerationException("Failed to generate file: " + fileName, e);

@@ -2,6 +2,7 @@ package io.vertx.grpc.plugin;
 
 import com.google.api.AnnotationsProto;
 import com.google.common.io.ByteStreams;
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.compiler.PluginProtos;
@@ -10,8 +11,6 @@ import io.vertx.grpc.plugin.generation.*;
 import io.vertx.grpc.plugin.generation.generators.*;
 import io.vertx.grpc.plugin.protoc.ProtocFileWriter;
 import io.vertx.grpc.plugin.protoc.ProtocRequestConverter;
-import io.vertx.grpc.plugin.template.MustacheTemplateEngine;
-import io.vertx.grpc.plugin.template.TemplateEngine;
 import picocli.CommandLine;
 
 import java.io.IOException;
@@ -76,7 +75,19 @@ public class VertxGrpcGenerator {
       GenerationOptions options = parseOptions(request.getParameter());
 
       ProtocRequestConverter converter = ProtocRequestConverter.create(request);
-      List<ServiceDescriptor> services = converter.convertServices(request);
+      List<ServiceDescriptor> services = new ArrayList<>();
+
+      for (DescriptorProtos.FileDescriptorProto fileProto : request.getProtoFileList()) {
+        if (!request.getFileToGenerateList().contains(fileProto.getName())) {
+          continue; // Skip files not requested for generation
+        }
+
+        for (int serviceIndex = 0; serviceIndex < fileProto.getServiceCount(); serviceIndex++) {
+          DescriptorProtos.ServiceDescriptorProto serviceProto = fileProto.getService(serviceIndex);
+          ServiceDescriptor service = converter.convertService(serviceProto, fileProto, serviceIndex);
+          services.add(service);
+        }
+      }
 
       List<PluginProtos.CodeGeneratorResponse.File> generatedFiles = generateCode(services, options);
 
@@ -156,21 +167,19 @@ public class VertxGrpcGenerator {
       String packageName = entry.getKey();
       List<ServiceDescriptor> packageServices = entry.getValue();
 
-      TemplateEngine templateEngine = new MustacheTemplateEngine();
       GenerationContext context = new GenerationContext(packageName, "", packageServices, options);
-      CodeGenerationEngine.Builder builder = CodeGenerationEngine.builder();
 
-      builder.fileWriter(new ProtocFileWriter());
-      builder.templateEngine(new MustacheTemplateEngine());
+      Map<GenerationType, List<CodeGenerator>> generators = new HashMap<>();
 
-      builder.registerGenerator(GenerationType.CONTRACT, new GrpcContractGenerator(templateEngine))
-        .registerGenerator(GenerationType.CLIENT, new GrpcClientGenerator(templateEngine))
-        .registerGenerator(GenerationType.GRPC_CLIENT, new GrpcGrpcClientGenerator(templateEngine))
-        .registerGenerator(GenerationType.SERVICE, new GrpcServiceGenerator(templateEngine))
-        .registerGenerator(GenerationType.GRPC_SERVICE, new GrpcGrpcServiceGenerator(templateEngine))
-        .registerGenerator(GenerationType.GRPC_IO, new GrpcIoGenerator(templateEngine));
+      generators.put(GenerationType.CONTRACT, List.of(new GrpcContractGenerator()));
+      generators.put(GenerationType.CLIENT, List.of(new GrpcClientGenerator()));
+      generators.put(GenerationType.GRPC_CLIENT, List.of(new GrpcGrpcClientGenerator()));
+      generators.put(GenerationType.SERVICE, List.of(new GrpcServiceGenerator()));
+      generators.put(GenerationType.GRPC_SERVICE, List.of(new GrpcGrpcServiceGenerator()));
+      generators.put(GenerationType.GRPC_IO, List.of(new GrpcIoGenerator()));
 
-      GenerationResult result = builder.build().generate(context);
+      CodeGenerationEngine engine = new CodeGenerationEngine(generators, new ProtocFileWriter());
+      GenerationResult result = engine.generate(context);
 
       if (result.isSuccess()) {
         for (GeneratedFile file : result.getFiles()) {

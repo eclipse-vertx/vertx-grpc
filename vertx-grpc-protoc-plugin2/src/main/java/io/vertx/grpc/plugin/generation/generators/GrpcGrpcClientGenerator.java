@@ -12,8 +12,8 @@ public class GrpcGrpcClientGenerator extends CodeGenerator {
 
   private static final String TEMPLATE_NAME = "grpc-client.mustache";
 
-  public GrpcGrpcClientGenerator(TemplateEngine templateEngine) {
-    super(templateEngine, GenerationType.GRPC_CLIENT);
+  public GrpcGrpcClientGenerator() {
+    super(GenerationType.GRPC_CLIENT);
   }
 
   @Override

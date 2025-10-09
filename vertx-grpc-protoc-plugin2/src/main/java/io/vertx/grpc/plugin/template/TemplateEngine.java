@@ -1,12 +1,21 @@
 package io.vertx.grpc.plugin.template;
 
+import com.github.mustachejava.DefaultMustacheFactory;
+import com.github.mustachejava.Mustache;
+import com.github.mustachejava.MustacheFactory;
+
+import java.io.StringWriter;
+
 /**
- * Represents a template rendering engine capable of processing templates and generating formatted output by merging a specified template with contextual data.
+ * A utility class responsible for processing templates with contextual data to generate rendered output.
  * <p>
- * Implementations of this interface handle the rendering process using their underlying templating system. The specific behavior and syntax of template files depend on the
- * implementation.
+ * This class is designed to use the Mustache templating engine as its underlying mechanism for template processing. It provides methods for rendering templates with dynamic
+ * content passed as context. The templates are identified by their names, and the output is generated as a string after context interpolation.
  */
-public interface TemplateEngine {
+public class TemplateEngine {
+
+  private static final MustacheFactory mustacheFactory = new DefaultMustacheFactory();
+
   /**
    * Renders a template identified by its name using the provided context to generate a formatted output.
    * <p>
@@ -17,5 +26,14 @@ public interface TemplateEngine {
    * @return the rendered content as a string after merging the template with the provided context
    * @throws TemplateException if the rendering process fails due to template errors or processing issues
    */
-  String render(String templateName, Object context) throws TemplateException;
+  public static String render(String templateName, Object context) throws TemplateException {
+    try {
+      Mustache mustache = mustacheFactory.compile(templateName);
+      StringWriter writer = new StringWriter();
+      mustache.execute(writer, context);
+      return writer.toString();
+    } catch (Exception e) {
+      throw new TemplateException("Failed to render template: " + templateName, e);
+    }
+  }
 }
