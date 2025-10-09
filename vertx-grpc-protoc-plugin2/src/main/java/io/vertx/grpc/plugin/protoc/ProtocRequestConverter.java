@@ -9,10 +9,13 @@ import io.vertx.grpc.plugin.descriptors.MethodDescriptor;
 import io.vertx.grpc.plugin.descriptors.ServiceDescriptor;
 import io.vertx.grpc.plugin.descriptors.TranscodingDescriptor;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Responsible for converting Protocol Buffers definitions into internal representations used for further processing or code generation. This class primarily focuses on
+ * transforming service definitions, method details, and HTTP transcoding rules while maintaining the associated metadata.
+ */
 public class ProtocRequestConverter {
 
   private final ProtobufTypeMapper typeMapper;
@@ -21,30 +24,27 @@ public class ProtocRequestConverter {
     this.typeMapper = typeMapper;
   }
 
+  /**
+   * Creates an instance of ProtocRequestConverter using the provided CodeGeneratorRequest.
+   *
+   * @param request the CodeGeneratorRequest containing protocol buffer file definitions and metadata
+   * @return a new instance of ProtocRequestConverter initialized with a ProtobufTypeMapper created from the given request
+   */
   public static ProtocRequestConverter create(PluginProtos.CodeGeneratorRequest request) {
     ProtobufTypeMapper typeMapper = new ProtobufTypeMapper(request.getProtoFileList());
     return new ProtocRequestConverter(typeMapper);
   }
 
-  public List<ServiceDescriptor> convertServices(PluginProtos.CodeGeneratorRequest request) {
-    List<ServiceDescriptor> services = new ArrayList<>();
-
-    for (DescriptorProtos.FileDescriptorProto fileProto : request.getProtoFileList()) {
-      if (!request.getFileToGenerateList().contains(fileProto.getName())) {
-        continue; // Skip files not requested for generation
-      }
-
-      for (int serviceIndex = 0; serviceIndex < fileProto.getServiceCount(); serviceIndex++) {
-        DescriptorProtos.ServiceDescriptorProto serviceProto = fileProto.getService(serviceIndex);
-        ServiceDescriptor service = convertService(serviceProto, fileProto, serviceIndex);
-        services.add(service);
-      }
-    }
-
-    return services;
-  }
-
-  private ServiceDescriptor convertService(DescriptorProtos.ServiceDescriptorProto serviceProto, DescriptorProtos.FileDescriptorProto fileProto, int serviceIndex) {
+  /**
+   * Converts a Protocol Buffers service descriptor (ServiceDescriptorProto) into a ServiceDescriptor. This method maps the service's attributes and associated methods to an
+   * internal representation used for further processing or code generation.
+   *
+   * @param serviceProto the Protocol Buffers ServiceDescriptorProto object representing the service to convert
+   * @param fileProto the Protocol Buffers FileDescriptorProto object containing the file-level metadata for the service
+   * @param serviceIndex the index of the service within the file descriptor, used to extract documentation or other metadata
+   * @return a ServiceDescriptor object representing the converted service with its metadata and methods mapped
+   */
+  public ServiceDescriptor convertService(DescriptorProtos.ServiceDescriptorProto serviceProto, DescriptorProtos.FileDescriptorProto fileProto, int serviceIndex) {
     ServiceDescriptor service = new ServiceDescriptor()
       .setName(serviceProto.getName())
       .setPackageName(fileProto.getPackage())
@@ -68,6 +68,14 @@ public class ProtocRequestConverter {
     return service;
   }
 
+  /**
+   * Converts a Protocol Buffers method definition into an internal representation of a method descriptor.
+   *
+   * @param methodProto the Protocol Buffers method descriptor to be converted
+   * @param fileProto the Protocol Buffers file descriptor containing the method
+   * @param methodIndex the index of the method in the service
+   * @return the converted method descriptor containing detailed information about the method
+   */
   private MethodDescriptor convertMethod(DescriptorProtos.MethodDescriptorProto methodProto, DescriptorProtos.FileDescriptorProto fileProto, int methodIndex) {
     MethodDescriptor method = new MethodDescriptor()
       .setName(methodProto.getName())
@@ -94,6 +102,12 @@ public class ProtocRequestConverter {
     return method;
   }
 
+  /**
+   * Converts an {@code HttpRule} into a {@code TranscodingDescriptor} by mapping its components such as method type, path, selector, body, response body, and additional bindings.
+   *
+   * @param httpRule the {@code HttpRule} instance to be converted into a {@code TranscodingDescriptor}
+   * @return a {@code TranscodingDescriptor} that represents the provided {@code HttpRule} with its associated properties
+   */
   private TranscodingDescriptor convertTranscoding(HttpRule httpRule) {
     TranscodingDescriptor transcoding = new TranscodingDescriptor()
       .setSelector(httpRule.getSelector())
@@ -129,16 +143,38 @@ public class ProtocRequestConverter {
     return transcoding;
   }
 
+  /**
+   * Extracts the documentation associated with a specific service in the given protocol buffer file descriptor.
+   *
+   * @param fileProto the FileDescriptorProto containing information about protocol buffer definitions.
+   * @param serviceIndex the index of the service in the file descriptor whose documentation is to be extracted.
+   * @return a String representation of the service's documentation, formatted as JavaDoc, or an empty string if no documentation is found.
+   */
   private String extractServiceDocumentation(DescriptorProtos.FileDescriptorProto fileProto, int serviceIndex) {
     return extractDocumentation(fileProto, Arrays.asList(
       DescriptorProtos.FileDescriptorProto.SERVICE_FIELD_NUMBER, serviceIndex));
   }
 
+  /**
+   * Extracts the method documentation for a specific method within the provided FileDescriptorProto.
+   *
+   * @param fileProto the FileDescriptorProto containing the file's metadata and descriptors.
+   * @param methodIndex the index of the method within the file's method descriptors for which the documentation is to be extracted.
+   * @return the extracted documentation for the specified method as a String, or an empty string if no documentation is found.
+   */
   private String extractMethodDocumentation(DescriptorProtos.FileDescriptorProto fileProto, int methodIndex) {
     // TODO: Extract method documentation
     return "";
   }
 
+  /**
+   * Extracts documentation comments from a FileDescriptorProto based on the provided path. The method searches for a `SourceCodeInfo.Location` in the FileDescriptorProto, which
+   * matches the given path and extracts its leading or trailing comments. The extracted comments are then formatted as JavaDoc.
+   *
+   * @param fileProto The FileDescriptorProto containing the source code information with comments.
+   * @param path The path within the FileDescriptorProto to locate the desired comments.
+   * @return A formatted JavaDoc string representation of the comments, or an empty string if no comments are found for the specified path.
+   */
   private String extractDocumentation(DescriptorProtos.FileDescriptorProto fileProto, List<Integer> path) {
     for (DescriptorProtos.SourceCodeInfo.Location location : fileProto.getSourceCodeInfo().getLocationList()) {
       if (location.getPathList().equals(path)) {
@@ -149,6 +185,13 @@ public class ProtocRequestConverter {
     return "";
   }
 
+  /**
+   * Formats the given comments string into a Javadoc-style comment block. The method escapes special characters and ensures that the resulting comment is properly structured to
+   * comply with Javadoc formatting standards.
+   *
+   * @param comments the input comments string to be formatted into a Javadoc-style block; can be null or empty.
+   * @return a formatted Javadoc-style comment string, or an empty string if the input comments are null or empty.
+   */
   private String formatJavaDoc(String comments) {
     if (comments == null || comments.trim().isEmpty()) {
       return "";

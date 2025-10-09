@@ -1,7 +1,7 @@
 package io.vertx.grpc.plugin.protoc;
 
 import io.vertx.grpc.plugin.generation.GeneratedFile;
-import io.vertx.grpc.plugin.writer.FileWriter;
+import io.vertx.grpc.plugin.file.FileWriter;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package io.vertx.grpc.plugin.writer;
+package io.vertx.grpc.plugin.file;
 
 import io.vertx.grpc.plugin.generation.GeneratedFile;
 

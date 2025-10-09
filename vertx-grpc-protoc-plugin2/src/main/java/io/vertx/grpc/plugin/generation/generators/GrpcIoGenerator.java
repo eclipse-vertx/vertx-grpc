@@ -12,8 +12,8 @@ public class GrpcIoGenerator extends CodeGenerator {
 
   private static final String TEMPLATE_NAME = "grpc-io.mustache";
 
-  public GrpcIoGenerator(TemplateEngine templateEngine) {
-    super(templateEngine, GenerationType.GRPC_IO);
+  public GrpcIoGenerator() {
+    super(GenerationType.GRPC_IO);
   }
 
   @Override
