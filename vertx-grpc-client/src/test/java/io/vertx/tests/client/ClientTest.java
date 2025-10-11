@@ -67,6 +67,11 @@ public abstract class ClientTest extends ClientTestBase {
     testUnary(should, "gzip", "identity");
   }
 
+  @Test
+  public void testUnaryCompressionDecompression(TestContext should) throws IOException {
+    testUnary(should, "gzip", "gzip");
+  }
+
   protected void testUnary(TestContext should, String requestEncoding, String responseEncoding) throws IOException {
     TestServiceGrpc.TestServiceImplBase called = new TestServiceGrpc.TestServiceImplBase() {
       @Override

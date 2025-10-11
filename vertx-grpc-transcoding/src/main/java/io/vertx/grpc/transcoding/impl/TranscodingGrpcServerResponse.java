@@ -21,9 +21,12 @@ import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.impl.IdentityCompressor;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
+
+import java.util.Map;
 
 public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req,Resp> {
 
@@ -33,7 +36,7 @@ public class TranscodingGrpcServerResponse<Req, Resp> extends GrpcServerResponse
   private Promise<Void> head;
 
   public TranscodingGrpcServerResponse(ContextInternal context, GrpcServerRequestImpl<Req, Resp> request, GrpcProtocol protocol, HttpServerResponse httpResponse, String transcodingResponseBody, GrpcMessageEncoder<Resp> encoder) {
-    super(context, request, protocol, httpResponse, encoder);
+    super(context, request, protocol, httpResponse, encoder, Map.of("identity", new IdentityCompressor()), Map.of("identity", new IdentityCompressor()));
 
     this.request = (TranscodingGrpcServerRequest<Req, Resp>) request;
     this.httpResponse = httpResponse;

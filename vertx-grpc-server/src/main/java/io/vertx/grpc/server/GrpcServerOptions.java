@@ -14,23 +14,30 @@ import io.vertx.codegen.annotations.DataObject;
 import io.vertx.codegen.annotations.Unstable;
 import io.vertx.codegen.json.annotations.JsonGen;
 import io.vertx.core.json.JsonObject;
+import io.vertx.grpc.common.GrpcCompressionOptions;
 
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
  * Configuration for a {@link GrpcServer}.
  */
+@Unstable
 @DataObject
 @JsonGen(publicConverter = false)
-@Unstable
 public class GrpcServerOptions {
 
   /**
    * The default set of enabled protocols = {@code [HTTP/2, TRANSCODING, WEB, WEB_TEXT]}
    */
   public static final Set<GrpcProtocol> DEFAULT_ENABLED_PROTOCOLS = Collections.unmodifiableSet(EnumSet.allOf(GrpcProtocol.class));
+
+  /**
+   * The default compression options
+   */
+  public static final GrpcCompressionOptions DEFAULT_COMPRESSION = new GrpcCompressionOptions();
 
   /**
    * Whether the server schedule deadline automatically when a request carrying a timeout is received, by default = {@code false}
@@ -48,6 +55,7 @@ public class GrpcServerOptions {
   public static final long DEFAULT_MAX_MESSAGE_SIZE = 256 * 1024;
 
   private Set<GrpcProtocol> enabledProtocols;
+  private GrpcCompressionOptions compressionOptions;
   private boolean scheduleDeadlineAutomatically;
   private boolean deadlinePropagation;
   private long maxMessageSize;
@@ -57,6 +65,7 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions() {
     enabledProtocols = EnumSet.copyOf(DEFAULT_ENABLED_PROTOCOLS);
+    compressionOptions = DEFAULT_COMPRESSION;
     scheduleDeadlineAutomatically = DEFAULT_SCHEDULE_DEADLINE_AUTOMATICALLY;
     deadlinePropagation = DEFAULT_PROPAGATE_DEADLINE;
     maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
@@ -67,6 +76,7 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions(GrpcServerOptions other) {
     enabledProtocols = EnumSet.copyOf(other.enabledProtocols);
+    compressionOptions = new GrpcCompressionOptions(other.compressionOptions);
     scheduleDeadlineAutomatically = other.scheduleDeadlineAutomatically;
     deadlinePropagation = other.deadlinePropagation;
     maxMessageSize = other.maxMessageSize;
@@ -121,6 +131,15 @@ public class GrpcServerOptions {
     return enabledProtocols;
   }
 
+  public GrpcCompressionOptions getCompressionOptions() {
+    return compressionOptions;
+  }
+
+  public GrpcServerOptions setCompressionOptions(GrpcCompressionOptions compressionOptions) {
+    this.compressionOptions = Objects.requireNonNull(compressionOptions, "compressionOptions must not be null");
+    return this;
+  }
+
   /**
    * @return whether the server will automatically schedule a deadline when a request carrying a timeout is received.
    */
@@ -165,7 +184,6 @@ public class GrpcServerOptions {
     return this;
   }
 
-
   /**
    * @return the maximum message size in bytes accepted by the server
    */
@@ -175,6 +193,7 @@ public class GrpcServerOptions {
 
   /**
    * Set the maximum message size in bytes accepted from a client, the maximum value is {@code 0xFFFFFFFF}
+   *
    * @param maxMessageSize the size
    * @return a reference to this, so the API can be used fluently
    */

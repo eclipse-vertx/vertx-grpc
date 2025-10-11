@@ -27,7 +27,6 @@ import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.*;
 
 import java.util.*;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -35,23 +34,28 @@ import java.util.stream.Collectors;
  */
 public class GrpcServerImpl implements GrpcServer, Closeable {
 
-  private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("application/grpc(-web(-text)?)?(\\+(json|proto))?");
-
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
   private final GrpcServerOptions options;
+
   private Handler<GrpcServerRequest<Buffer, Buffer>> requestHandler;
 
+  private final List<GrpcHttpInvoker> invokers;
   private final List<Service> services = new ArrayList<>();
   private final Map<String, List<MethodCallHandler<?, ?>>> methodCallHandlers = new HashMap<>();
 
-  private final List<GrpcHttpInvoker> invokers;
+  private final Map<String, GrpcCompressor> compressors;
+  private final Map<String, GrpcDecompressor> decompressors;
 
   private boolean closing;
 
   public GrpcServerImpl(Vertx vertx, GrpcServerOptions options) {
-    ServiceLoader<GrpcHttpInvoker> loader = ServiceLoader.load(GrpcHttpInvoker.class);
-    this.invokers = loader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
+    ServiceLoader<GrpcHttpInvoker> invokerServiceLoader = ServiceLoader.load(GrpcHttpInvoker.class);
+
+    this.invokers = invokerServiceLoader.stream().map(ServiceLoader.Provider::get).collect(Collectors.toList());
+    this.compressors = options.getCompressionOptions().getCompressors();
+    this.decompressors = options.getCompressionOptions().getDecompressors();
+
     this.options = new GrpcServerOptions(Objects.requireNonNull(options, "options is null"));
   }
 
@@ -128,6 +132,18 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       return 415;
     }
 
+    // Check encoding
+    if (!decompressors.containsKey(details.encoding)) {
+      log.trace("Compression algorithm " + details.encoding + " is not implemented, sending error 404");
+      return 404;
+    }
+
+    // Check if we support at least one of the accepted encodings
+    if (!details.acceptEncodings.isEmpty() && details.acceptEncodings.stream().noneMatch(decompressors::containsKey)) {
+      log.trace("None of the accepted encodings " + details.acceptEncodings + " is implemented, sending error 404");
+      return 404;
+    }
+
     return -1;
   }
 
@@ -147,13 +163,18 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
           format,
           httpRequest,
           method.messageDecoder,
-          methodCall);
+          this.decompressors,
+          methodCall
+        );
         grpcResponse = new Http2GrpcServerResponse<>(
           context,
           grpcRequest,
           protocol,
           httpRequest.response(),
-          method.messageEncoder);
+          method.messageEncoder,
+          this.compressors,
+          this.decompressors
+        );
         break;
       case WEB:
       case WEB_TEXT:
@@ -167,13 +188,18 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
           options.getMaxMessageSize(),
           httpRequest,
           method.messageDecoder,
-          methodCall);
+          this.decompressors,
+          methodCall
+        );
         grpcResponse = new WebGrpcServerResponse<>(
           context,
           grpcRequest,
           protocol,
           httpRequest.response(),
-          method.messageEncoder);
+          method.messageEncoder,
+          this.compressors,
+          this.decompressors
+        );
         break;
       case TRANSCODING:
         grpcRequest = null;

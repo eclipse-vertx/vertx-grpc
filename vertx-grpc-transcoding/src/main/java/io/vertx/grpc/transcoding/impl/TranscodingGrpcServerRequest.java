@@ -19,11 +19,13 @@ import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.common.impl.IdentityCompressor;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
 
 import java.util.List;
+import java.util.Map;
 
 public class TranscodingGrpcServerRequest<Req, Resp> extends GrpcServerRequestImpl<Req, Resp> {
 
@@ -50,7 +52,7 @@ public class TranscodingGrpcServerRequest<Req, Resp> extends GrpcServerRequestIm
       public boolean accepts(WireFormat format) {
         return messageDecoder.accepts(format);
       }
-    }, methodCall);
+    }, methodCall, Map.of("identity", new IdentityCompressor()));
 
     this.transcodingRequestBody = transcodingRequestBody;
     this.bindings = bindings;

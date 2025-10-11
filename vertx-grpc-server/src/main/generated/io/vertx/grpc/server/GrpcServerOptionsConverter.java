@@ -20,6 +20,11 @@ public class GrpcServerOptionsConverter {
             });
           }
           break;
+        case "compressionOptions":
+          if (member.getValue() instanceof JsonObject) {
+            obj.setCompressionOptions(new io.vertx.grpc.common.GrpcCompressionOptions((io.vertx.core.json.JsonObject)member.getValue()));
+          }
+          break;
         case "scheduleDeadlineAutomatically":
           if (member.getValue() instanceof Boolean) {
             obj.setScheduleDeadlineAutomatically((Boolean)member.getValue());
@@ -48,6 +53,9 @@ public class GrpcServerOptionsConverter {
       JsonArray array = new JsonArray();
       obj.getEnabledProtocols().forEach(item -> array.add(item.name()));
       json.put("enabledProtocols", array);
+    }
+    if (obj.getCompressionOptions() != null) {
+      json.put("compressionOptions", obj.getCompressionOptions().toJson());
     }
     json.put("scheduleDeadlineAutomatically", obj.getScheduleDeadlineAutomatically());
     json.put("deadlinePropagation", obj.getDeadlinePropagation());
