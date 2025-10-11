@@ -1,5 +1,7 @@
 package io.vertx.grpc.plugin.generation.context;
 
+import io.vertx.codegen.format.LowerCamelCase;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -16,33 +18,19 @@ public class NameUtils {
   );
 
   /**
-   * Convert method name to mixed case following JavaBean conventions
+   * Formats a given word into a valid method name using lower camel case. If the resulting formatted name matches a Java keyword, an underscore is appended to the name to make it
+   * valid.
+   *
+   * @param word the input string to format as a method name; may be null or empty
+   * @return the formatted method name in lower camel case, or the original string if it is null or empty
    */
-  public static String mixedLower(String word) {
+  public static String formatMethodName(String word) {
     if (word == null || word.isEmpty()) {
       return word;
     }
 
-    StringBuilder result = new StringBuilder();
-    result.append(Character.toLowerCase(word.charAt(0)));
+    String finalResult = LowerCamelCase.INSTANCE.format(LowerCamelCase.INSTANCE.parse(word));
 
-    boolean afterUnderscore = false;
-    for (int i = 1; i < word.length(); i++) {
-      char c = word.charAt(i);
-
-      if (c == '_') {
-        afterUnderscore = true;
-      } else {
-        if (afterUnderscore) {
-          result.append(Character.toUpperCase(c));
-        } else {
-          result.append(c);
-        }
-        afterUnderscore = false;
-      }
-    }
-
-    String finalResult = result.toString();
     if (JAVA_KEYWORDS.contains(finalResult)) {
       finalResult += "_";
     }
