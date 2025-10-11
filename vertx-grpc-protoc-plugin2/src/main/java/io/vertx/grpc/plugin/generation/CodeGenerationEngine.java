@@ -1,9 +1,11 @@
 package io.vertx.grpc.plugin.generation;
 
 import io.vertx.grpc.plugin.generation.generators.CodeGenerator;
-import io.vertx.grpc.plugin.file.FileWriter;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The CodeGenerationEngine class is responsible for orchestrating the code generation process using registered generators, managing generation results, and handling file
@@ -12,11 +14,9 @@ import java.util.*;
 public class CodeGenerationEngine {
 
   private final Map<GenerationType, List<CodeGenerator>> generators;
-  private final FileWriter fileWriter;
 
-  public CodeGenerationEngine(Map<GenerationType, List<CodeGenerator>> generators, FileWriter fileWriter) {
+  public CodeGenerationEngine(Map<GenerationType, List<CodeGenerator>> generators) {
     this.generators = generators;
-    this.fileWriter = fileWriter;
   }
 
   /**
@@ -53,14 +53,7 @@ public class CodeGenerationEngine {
       return GenerationResult.failure(errors);
     }
 
-    // Write files
-    try {
-      fileWriter.writeFiles(allFiles, context.getOutputDirectory());
-      return GenerationResult.success(allFiles);
-    } catch (Exception e) {
-      errors.add(new GenerationError("Failed to write files", e, null));
-      return GenerationResult.failure(errors);
-    }
+    return GenerationResult.success(allFiles);
   }
 
   private List<GenerationType> getRequestedTypes(GenerationContext context) {
