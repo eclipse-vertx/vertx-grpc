@@ -9,7 +9,6 @@ import com.google.protobuf.compiler.PluginProtos;
 import io.vertx.grpc.plugin.descriptors.ServiceDescriptor;
 import io.vertx.grpc.plugin.generation.*;
 import io.vertx.grpc.plugin.generation.generators.*;
-import io.vertx.grpc.plugin.protoc.ProtocFileWriter;
 import io.vertx.grpc.plugin.protoc.ProtocRequestConverter;
 import picocli.CommandLine;
 
@@ -178,7 +177,7 @@ public class VertxGrpcGenerator {
       generators.put(GenerationType.GRPC_SERVICE, List.of(new GrpcGrpcServiceGenerator()));
       generators.put(GenerationType.GRPC_IO, List.of(new GrpcIoGenerator()));
 
-      CodeGenerationEngine engine = new CodeGenerationEngine(generators, new ProtocFileWriter());
+      CodeGenerationEngine engine = new CodeGenerationEngine(generators);
       GenerationResult result = engine.generate(context);
 
       if (result.isSuccess()) {
