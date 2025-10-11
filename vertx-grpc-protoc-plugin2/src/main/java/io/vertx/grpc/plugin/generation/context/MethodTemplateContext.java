@@ -49,7 +49,7 @@ public class MethodTemplateContext {
   }
 
   public String methodNameGetter() {
-    return NameUtils.mixedLower("get_" + methodName + "_method");
+    return NameUtils.formatMethodName("Get" + methodName + "Method");
   }
 
   private static String buildMethodHeader(MethodDescriptor method) {

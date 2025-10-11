@@ -320,7 +320,7 @@ public class MethodDescriptor {
    * @return the method name in mixed case format
    */
   public String getVertxMethodName() {
-    return NameUtils.mixedLower(name);
+    return NameUtils.formatMethodName(name);
   }
 
   /**
