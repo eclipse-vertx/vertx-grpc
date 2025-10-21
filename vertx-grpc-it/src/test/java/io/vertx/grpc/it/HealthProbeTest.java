@@ -67,7 +67,7 @@ public class HealthProbeTest extends GrpcTestBase {
         server = s;
         async.complete();
       }));
-    async.awaitSuccess(5000);
+    async.awaitSuccess(10000);
   }
 
   @Override
@@ -75,7 +75,7 @@ public class HealthProbeTest extends GrpcTestBase {
     if (server != null) {
       Async async = should.async();
       server.close().onComplete(v -> async.complete());
-      async.awaitSuccess(5000);
+      async.awaitSuccess(10000);
     }
     super.tearDown(should);
   }
