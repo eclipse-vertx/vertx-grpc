@@ -31,8 +31,7 @@ import java.util.stream.Collectors;
 import static dev.jbang.jash.Jash.$;
 
 /**
- * This test requires grpcurl to be installed on the system.
- * It is excluded from the default test run and can be enabled by activating the "grpcurl"
+ * This test requires grpcurl to be installed on the system. It is excluded from the default test run and can be enabled by activating the "grpcurl"
  * <p>
  * Maven profile: mvn test -Pgrpcurl
  */
@@ -86,7 +85,7 @@ public class ReflectionTest extends GrpcTestBase {
 
     future.onComplete(should.asyncAssertSuccess(output -> {
       should.assertTrue(output.contains("helloworld.Greeter"), "Output should contain helloworld.Greeter service");
-      should.assertTrue(output.contains("grpc.reflection.v1.ServerReflection"),"Output should contain reflection service");
+      should.assertTrue(output.contains("grpc.reflection.v1.ServerReflection"), "Output should contain reflection service");
       async.complete();
     }));
   }
