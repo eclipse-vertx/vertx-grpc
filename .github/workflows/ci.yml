@@ -41,4 +41,4 @@ jobs:
         run: mvn -s .github/maven-ci-settings.xml -q clean verify -B
       - name: Run tests with grpcurl and health-probe profiles (Linux only)
         if: runner.os == 'Linux'
-        run: mvn -s .github/maven-ci-settings.xml -q clean verify -B -Pgrpcurl,health-probe
+        run: mvn -s .github/maven-ci-settings.xml -q clean verify -B -P grpcurl,health-probe
