@@ -100,8 +100,12 @@ public abstract class ServerTest extends ServerTestBase {
   }
 
   public void testStatusUnary(TestContext should, Status expectedStatus, String expectedStatusMessage) {
+    testStatusUnary(should, expectedStatus, expectedStatusMessage, null);
+  }
+
+  public void testStatusUnary(TestContext should, Status expectedStatus, String expectedStatusMessage, MultiMap expectedTrailers) {
     Request request = Request.newBuilder().setName("Julien").build();
-    channel = ManagedChannelBuilder.forAddress( "localhost", port)
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
       .usePlaintext()
       .build();
     TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
@@ -111,6 +115,15 @@ public abstract class ServerTest extends ServerTestBase {
     } catch (StatusRuntimeException e) {
       should.assertEquals(expectedStatus.getCode(), e.getStatus().getCode());
       should.assertEquals(expectedStatusMessage, e.getStatus().getDescription());
+      if (expectedTrailers != null) {
+        Metadata trailers = e.getTrailers();
+        should.assertNotNull(trailers, "No trailers provided in response");
+        for (Map.Entry<String, String> expectedTrailer : expectedTrailers.entries()) {
+          Metadata.Key key = Metadata.Key.of(expectedTrailer.getKey(), Metadata.ASCII_STRING_MARSHALLER);
+          should.assertEquals(expectedTrailer.getValue(), trailers.get(key));
+        }
+      }
+
     }
   }
 
