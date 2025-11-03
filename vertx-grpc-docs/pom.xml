@@ -116,6 +116,16 @@
               <goal>generate</goal>
             </goals>
           </execution>
+          <execution>
+            <id>test-compile</id>
+            <goals>
+              <goal>generate-test</goal>
+            </goals>
+            <configuration>
+              <sourceDirectories>${project.basedir}/src/main/proto</sourceDirectories>
+              <javaEnabled>false</javaEnabled>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
       <plugin>

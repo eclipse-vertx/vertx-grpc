@@ -24,6 +24,11 @@
     <jprotoc.version>1.2.2</jprotoc.version>
     <protoc.version>4.29.3</protoc.version>
     <protobuf.version>4.29.3</protobuf.version>
+    <!-- NOTE: We need to stay on version 3.x of ascopes protobuf maven plugin until we bump minimum version of java from
+     java 11 to java 17 as starting from 4.x minimum required version is java 17.
+     See: https://ascopes.github.io/protobuf-maven-plugin/plugin-info.html#system-requirements-history
+     -->
+    <protobuf.maven.plugin.version>3.10.2</protobuf.maven.plugin.version>
     <jmh.version>1.37</jmh.version>
   </properties>
 
@@ -220,13 +225,6 @@
   </modules>
 
   <build>
-    <extensions>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>1.7.1</version>
-      </extension>
-    </extensions>
     <pluginManagement>
       <plugins>
         <plugin>
@@ -248,29 +246,28 @@
           </executions>
         </plugin>
         <plugin>
-          <groupId>org.xolstice.maven.plugins</groupId>
-          <artifactId>protobuf-maven-plugin</artifactId>
-          <version>0.6.1</version>
-          <configuration>
-            <!--
-              The version of protoc must match protobuf-java. If you don't depend on
-              protobuf-java directly, you will be transitively depending on the
-              protobuf-java version that grpc depends on.
-            -->
-            <protocArtifact>com.google.protobuf:protoc:${protoc.version}:exe:${os.detected.classifier}</protocArtifact>
-            <pluginId>grpc-java</pluginId>
-            <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
-            <!-- Skip generating @javax.annotation.Generated which creates split packages  -->
-            <pluginParameter>@generated=omit</pluginParameter>
-          </configuration>
-        </plugin>
-        <plugin>
           <groupId>io.github.ascopes</groupId>
           <artifactId>protobuf-maven-plugin</artifactId>
-          <version>3.8.2</version>
+          <version>${protobuf.maven.plugin.version}</version>
           <configuration>
             <protocVersion>${protobuf.version}</protocVersion>
           </configuration>
+          <executions>
+            <execution>
+              <id>test-compile</id>
+              <configuration>
+                <binaryMavenPlugins>
+                  <binaryMavenPlugin>
+                    <groupId>io.grpc</groupId>
+                    <artifactId>protoc-gen-grpc-java</artifactId>
+                    <version>${grpc.version}</version>
+                    <!-- Skip generating @javax.annotation.Generated which creates split packages  -->
+                    <options>@generated=omit</options>
+                  </binaryMavenPlugin>
+                </binaryMavenPlugins>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
       </plugins>
     </pluginManagement>
