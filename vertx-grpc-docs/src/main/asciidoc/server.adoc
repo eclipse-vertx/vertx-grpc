@@ -316,7 +316,10 @@ Anemic JSON is also supported with Vert.x `JsonObject`
 
 === Compression
 
-You can compress response messages by setting the response encoding *prior* before sending any message
+You can compress response messages by setting the response encoding *prior* before sending any message.
+
+Before setting the encoding, you should use {@link io.vertx.grpc.server.GrpcServerResponse#acceptedEncodings()} to ensure
+the client RPC supports the encoding algorithm.
 
 [source,java]
 ----
