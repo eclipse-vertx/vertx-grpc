@@ -35,12 +35,12 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ServerBridgeTest extends ServerTest {
 
   @Override
-  protected void testUnary(TestContext should, String requestEncoding, String responseEncoding) {
+  protected void testUnary(TestContext should, String requestEncoding, String responseEncoding, DecompressorRegistry decompressors) {
     TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
       @Override
       public void unary(Request request, StreamObserver<Reply> responseObserver) {
         if (!responseEncoding.equals("identity")) {
-          ((ServerCallStreamObserver<?>)responseObserver).setCompression("gzip");
+          ((ServerCallStreamObserver<?>)responseObserver).setCompression(responseEncoding);
         }
         if (!requestEncoding.equals("identity")) {
           // No way to check the request encoding with the API
@@ -55,7 +55,7 @@ public class ServerBridgeTest extends ServerTest {
     serverStub.bind(server);
     startServer(server);
 
-    super.testUnary(should, requestEncoding, responseEncoding);
+    super.testUnary(should, requestEncoding, responseEncoding, decompressors);
   }
 
   @Test
@@ -123,7 +123,7 @@ public class ServerBridgeTest extends ServerTest {
     serverStub.bind(server);
     startServer(server);
 
-    super.testUnary(should, "identity", "identity");
+    super.testUnary(should, "identity", "identity", DecompressorRegistry.getDefaultInstance());
   }
 
   @Test
