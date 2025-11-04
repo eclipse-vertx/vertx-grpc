@@ -10,26 +10,13 @@
  */
 package io.vertx.grpc.server;
 
-import io.grpc.Attributes;
-import io.grpc.ForwardingServerCall;
-import io.grpc.ForwardingServerCallListener;
-import io.grpc.Grpc;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Metadata;
-import io.grpc.ServerCall;
-import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
-import io.grpc.ServerInterceptors;
-import io.grpc.ServerServiceDefinition;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.grpc.examples.streaming.Empty;
 import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
-import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Vertx;
@@ -38,7 +25,6 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpcio.server.GrpcIoServer;
 import io.vertx.grpcio.server.GrpcIoServiceBridge;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.concurrent.CountDownLatch;
@@ -52,12 +38,12 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ServerBridgeTest extends ServerTest {
 
   @Override
-  protected void testUnary(TestContext should, String requestEncoding, String responseEncoding) {
+  protected void testUnary(TestContext should, String requestEncoding, String responseEncoding, DecompressorRegistry decompressors) {
     GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {
       @Override
       public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {
         if (!responseEncoding.equals("identity")) {
-          ((ServerCallStreamObserver<?>)responseObserver).setCompression("gzip");
+          ((ServerCallStreamObserver<?>)responseObserver).setCompression(responseEncoding);
         }
         if (!requestEncoding.equals("identity")) {
           // No way to check the request encoding with the API
@@ -72,7 +58,7 @@ public class ServerBridgeTest extends ServerTest {
     serverStub.bind(server);
     startServer(server);
 
-    super.testUnary(should, requestEncoding, responseEncoding);
+    super.testUnary(should, requestEncoding, responseEncoding, decompressors);
   }
 
   @Test
@@ -140,7 +126,7 @@ public class ServerBridgeTest extends ServerTest {
     serverStub.bind(server);
     startServer(server);
 
-    super.testUnary(should, "identity", "identity");
+    super.testUnary(should, "identity", "identity", DecompressorRegistry.getDefaultInstance());
   }
 
   @Override
