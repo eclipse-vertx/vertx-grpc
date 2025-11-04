@@ -102,6 +102,8 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
 
             grpcResponse = ar2.result();
 
+            boolean trailersOnly = grpcResponse.status() != null;
+
             if (sf != null) {
               grpcResponse.end().onComplete(ar -> {
                 sf.cancel(false);
@@ -130,7 +132,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
                 if (grpcResponse.statusMessage() != null) {
                   status = status.withDescription(grpcResponse.statusMessage());
                 }
-                trailers = io.vertx.grpcio.common.impl.Utils.readMetadata(grpcResponse.trailers());
+                trailers = io.vertx.grpcio.common.impl.Utils.readMetadata(trailersOnly ? grpcResponse.headers() : grpcResponse.trailers());
               } else {
                 status = Status.fromThrowable(ar.cause());
                 trailers = new Metadata();
