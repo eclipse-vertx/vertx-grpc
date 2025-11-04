@@ -10,18 +10,7 @@
  */
 package io.vertx.tests.server;
 
-import io.grpc.CallOptions;
-import io.grpc.Channel;
-import io.grpc.ClientCall;
-import io.grpc.ClientInterceptor;
-import io.grpc.ClientInterceptors;
-import io.grpc.ForwardingClientCall;
-import io.grpc.ForwardingClientCallListener;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Metadata;
-import io.grpc.MethodDescriptor;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.MultiMap;
@@ -38,6 +27,8 @@ import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.tests.common.grpc.*;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,21 +45,44 @@ public abstract class ServerTest extends ServerTestBase {
 
   @Test
   public void testUnary(TestContext should) {
-    testUnary(should, "identity", "identity");
+    testUnary(should, "identity", "identity", DecompressorRegistry.getDefaultInstance());
   }
 
   @Test
   public void testUnaryDecompression(TestContext should) {
-    testUnary(should, "gzip", "identity");
+    testUnary(should, "gzip", "identity", DecompressorRegistry.getDefaultInstance());
   }
 
   @Test
   public void testUnaryCompression(TestContext should) {
-    testUnary(should, "identity", "gzip");
+    testUnary(should, "identity", "gzip", DecompressorRegistry.getDefaultInstance());
   }
 
-  protected void testUnary(TestContext should, String requestEncoding, String responseEncoding) {
+  @Test
+  public void testUnaryCompressionWithUnsupportedEncoding(TestContext should) {
+    testUnary(should, "identity", "gzip", DecompressorRegistry.emptyInstance().with(Codec.Identity.NONE, false));
+  }
+
+  @Test
+  public void testUnaryCompressionWithMultipleValues(TestContext should) {
+    DecompressorRegistry registry = DecompressorRegistry.getDefaultInstance().with(new Decompressor() {
+      @Override
+      public String getMessageEncoding() {
+        return "custom";
+      }
+      @Override
+      public InputStream decompress(InputStream is) throws IOException {
+        return is;
+      }
+    }, true);
+    testUnary(should, "identity", "gzip", registry);
+  }
+
+  protected void testUnary(TestContext should, String requestEncoding, String responseEncoding, DecompressorRegistry decompressors) {
+
+
     channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .decompressorRegistry(decompressors)
       .usePlaintext()
       .build();
 
@@ -94,7 +108,7 @@ public abstract class ServerTest extends ServerTestBase {
     Request request = Request.newBuilder().setName("Julien").build();
     Reply res = stub.unary(request);
     should.assertEquals("Hello Julien", res.getMessage());
-    if (!responseEncoding.equals("identity")) {
+    if (!responseEncoding.equals("identity") && decompressors.lookupDecompressor(responseEncoding) != null) {
       should.assertEquals(responseEncoding, responseGrpcEncoding.get());
     }
   }

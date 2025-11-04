@@ -49,7 +49,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ServerRequestTest extends ServerTest {
 
   @Override
-  protected void testUnary(TestContext should, String requestEncoding, String responseEncoding) {
+  protected void testUnary(TestContext should, String requestEncoding, String responseEncoding, DecompressorRegistry decompressors) {
     startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
       call.handler(helloRequest -> {
         Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
@@ -57,13 +57,15 @@ public class ServerRequestTest extends ServerTest {
           should.assertEquals(requestEncoding, call.encoding());
         }
         GrpcServerResponse<Request, Reply> response = call.response();
+        if (response.acceptedEncodings().contains(responseEncoding)) {
+          response.encoding(responseEncoding);
+        }
         response
-          .encoding(responseEncoding)
           .end(helloReply);
       });
     }));
 
-    super.testUnary(should, requestEncoding, responseEncoding);
+    super.testUnary(should, requestEncoding, responseEncoding, decompressors);
   }
 
   @Test

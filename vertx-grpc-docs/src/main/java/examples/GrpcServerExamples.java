@@ -170,7 +170,9 @@ public class GrpcServerExamples {
   }
 
   public void responseCompression(GrpcServerResponse<Empty, Item> response) {
-    response.encoding("gzip");
+    if (response.acceptedEncodings().contains("gzip")) {
+      response.encoding("gzip");
+    }
 
     // Write items after encoding has been defined
     response.write(Item.newBuilder().setValue("item-1").build());

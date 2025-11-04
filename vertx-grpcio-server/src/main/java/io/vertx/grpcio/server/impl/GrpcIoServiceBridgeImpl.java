@@ -268,7 +268,10 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
     @Override
     public void setCompression(String encoding) {
       compressor = CompressorRegistry.getDefaultInstance().lookupCompressor(encoding);
-      req.response().encoding(encoding);
+      GrpcServerResponse<Req, Resp> response = req.response();
+      if (response.acceptedEncodings().contains(encoding)) {
+        response.encoding(encoding);
+      }
     }
 
     @Override

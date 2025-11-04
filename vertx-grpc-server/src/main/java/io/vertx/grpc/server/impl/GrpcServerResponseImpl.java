@@ -27,13 +27,16 @@ import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.StatusException;
 
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
 public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcServerResponseImpl<Req, Resp>, Resp> implements GrpcServerResponse<Req, Resp> {
+
+  private static final Pattern COMMA_SEPARATOR = Pattern.compile(" *, *");
+  private static final Set<String> GZIP_ACCEPT_ENCODING = Collections.singleton("gzip");
 
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
@@ -41,6 +44,7 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
   private String statusMessage;
   private boolean trailersOnly;
   private boolean cancelled;
+  private Set<String> acceptedEncodings;
 
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
@@ -172,6 +176,27 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     } else {
       entries.remove(GrpcHeaderNames.GRPC_MESSAGE);
     }
+  }
+
+  @Override
+  public Set<String> acceptedEncodings() {
+    if (acceptedEncodings == null) {
+      String acceptEncodingHeader = request.headers().get("grpc-accept-encoding");
+      if (acceptEncodingHeader != null) {
+        if (acceptEncodingHeader.equals("gzip")) {
+          acceptedEncodings = GZIP_ACCEPT_ENCODING;
+        } else {
+          acceptedEncodings = new HashSet<>(2);
+          String[] encodings = COMMA_SEPARATOR.split(acceptEncodingHeader);
+          for (String encoding : encodings) {
+            acceptedEncodings.add(encoding.trim());
+          }
+        }
+      } else {
+        acceptedEncodings = Collections.emptySet();
+      }
+    }
+    return acceptedEncodings;
   }
 
   @Override
