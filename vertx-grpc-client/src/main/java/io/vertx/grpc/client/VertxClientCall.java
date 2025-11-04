@@ -82,6 +82,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
 
             grpcResponse = ar2.result();
 
+            boolean trailersOnly = grpcResponse.status() != null;
             String respEncoding = grpcResponse.encoding();
             Decompressor decompressor = DecompressorRegistry.getDefaultInstance().lookupDecompressor(respEncoding);
 
@@ -104,7 +105,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
                 if (grpcResponse.statusMessage() != null) {
                   status = status.withDescription(grpcResponse.statusMessage());
                 }
-                trailers = Utils.readMetadata(grpcResponse.trailers());
+                trailers = Utils.readMetadata(trailersOnly ? grpcResponse.headers() : grpcResponse.trailers());
               } else {
                 status = Status.fromThrowable(ar.cause());
                 trailers = new Metadata();
