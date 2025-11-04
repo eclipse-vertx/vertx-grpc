@@ -17,9 +17,12 @@ public interface GrpcWriteStream<T> extends WriteStream<T> {
   MultiMap headers();
 
   /**
-   * Set the stream encoding, e.g. {@code identity} or {@code gzip}.
+   * <p>Set the stream encoding, e.g. {@code identity} or {@code gzip},</p>
    *
-   * It must be called before sending any message, otherwise {@code identity} will be used.
+   * <ul>
+   *   <li>The encoding must be set before sending any message, otherwise {@code identity} will be used.</li>
+   *   <li>The encoding should also match the opposite endpoint expectations.</li>
+   * </ul>
    *
    * @param encoding the target message encoding
    * @return a reference to this, so the API can be used fluently
