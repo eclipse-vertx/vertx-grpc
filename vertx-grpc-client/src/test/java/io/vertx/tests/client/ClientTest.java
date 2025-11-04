@@ -30,10 +30,7 @@ import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
@@ -325,12 +322,10 @@ public abstract class ClientTest extends ClientTestBase {
     });
   }
 
-  protected AtomicInteger testMetadataStep;
+  public List<String> testMetadata(TestContext should, Status status) throws Exception {
 
-  @Test
-  public void testMetadata(TestContext should) throws Exception {
+    List<String> steps = Collections.synchronizedList(new ArrayList<>());
 
-    testMetadataStep = new AtomicInteger();
     ServerInterceptor interceptor = new ServerInterceptor() {
       @Override
       public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
@@ -338,7 +333,7 @@ public abstract class ClientTest extends ClientTestBase {
         assertEquals(should, new byte[] { 0,1,2 }, headers.get(Metadata.Key.of("custom_request_header-bin", Metadata.BINARY_BYTE_MARSHALLER)));
         should.assertEquals("grpc-custom_request_header_value", headers.get(Metadata.Key.of("grpc-custom_request_header", Metadata.ASCII_STRING_MARSHALLER)));
         assertEquals(should, new byte[] { 2,1,0 }, headers.get(Metadata.Key.of("grpc-custom_request_header-bin", Metadata.BINARY_BYTE_MARSHALLER)));
-        should.assertEquals(0, testMetadataStep.getAndIncrement());
+        steps.add("intercept_call");
         return next.startCall(new ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>(call) {
           @Override
           public void sendHeaders(Metadata headers) {
@@ -346,7 +341,7 @@ public abstract class ClientTest extends ClientTestBase {
             headers.put(Metadata.Key.of("custom_response_header-bin", Metadata.BINARY_BYTE_MARSHALLER), new byte[] { 0,1,2 });
             headers.put(Metadata.Key.of("grpc-custom_response_header", io.grpc.Metadata.ASCII_STRING_MARSHALLER), "grpc-custom_response_header_value");
             headers.put(Metadata.Key.of("grpc-custom_response_header-bin", Metadata.BINARY_BYTE_MARSHALLER), new byte[] { 2,1,0 });
-            should.assertEquals(1, testMetadataStep.getAndIncrement());
+            steps.add("send_headers");
             super.sendHeaders(headers);
           }
           @Override
@@ -355,8 +350,7 @@ public abstract class ClientTest extends ClientTestBase {
             trailers.put(Metadata.Key.of("custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER), new byte[] { 0,1,2 });
             trailers.put(Metadata.Key.of("grpc-custom_response_trailer", io.grpc.Metadata.ASCII_STRING_MARSHALLER), "grpc-custom_response_trailer_value");
             trailers.put(Metadata.Key.of("grpc-custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER), new byte[] { 2,1,0 });
-            int step = testMetadataStep.getAndIncrement();
-            should.assertTrue(2 <= step && step <= 3);
+            steps.add("close");
             super.close(status, trailers);
           }
         },headers);
@@ -366,14 +360,20 @@ public abstract class ClientTest extends ClientTestBase {
     TestServiceGrpc.TestServiceImplBase called = new TestServiceGrpc.TestServiceImplBase() {
       @Override
       public void unary(Request request, StreamObserver<Reply> plainResponseObserver) {
+        steps.add("unary");
         ServerCallStreamObserver<Reply> responseObserver =
           (ServerCallStreamObserver<Reply>) plainResponseObserver;
-        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
-        responseObserver.onCompleted();
+        if (status == Status.OK) {
+          responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
+          responseObserver.onCompleted();
+        } else {
+          responseObserver.onError(new StatusRuntimeException(status));
+        }
       }
     };
     startServer(ServerInterceptors.intercept(called, interceptor));
 
+    return steps;
   }
 
   protected static void assertEquals(TestContext should, byte[] expected, byte[] actual) {
