@@ -43,6 +43,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -367,10 +368,21 @@ public class ClientBridgeTest extends ClientTest {
     ((ClientCallStreamObserver<Item>) sink).cancel("cancelled", new Exception());
   }
 
-  @Override
+  @Test
   public void testMetadata(TestContext should) throws Exception {
+    List<String> steps = testMetadata(should, Status.OK);
+    should.assertEquals(Arrays.asList("intercept_call", "unary", "send_headers", "close", "on_headers", "on_close"), steps);
+  }
 
-    super.testMetadata(should);
+  @Test
+  public void testMetadataTrailersOnly(TestContext should) throws Exception {
+    List<String> steps = testMetadata(should, Status.CANCELLED);
+    should.assertEquals(Arrays.asList("intercept_call", "unary", "close", "on_headers", "on_close"), steps);
+  }
+
+  public List<String> testMetadata(TestContext should, Status status) throws Exception {
+
+    List<String> steps = super.testMetadata(should, status);
 
     GrpcClient client = GrpcClient.client(vertx);
     GrpcClientChannel channel = new GrpcClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
@@ -388,16 +400,18 @@ public class ClientBridgeTest extends ClientTest {
             super.start(new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(responseListener) {
               @Override
               public void onHeaders(Metadata headers) {
-                should.assertEquals(3, testMetadataStep.getAndIncrement());
-                should.assertEquals("custom_response_header_value", headers.get(Metadata.Key.of("custom_response_header", Metadata.ASCII_STRING_MARSHALLER)));
-                assertEquals(should, new byte[] { 0,1,2 }, headers.get(Metadata.Key.of("custom_response_header-bin", Metadata.BINARY_BYTE_MARSHALLER)));
-                should.assertEquals("grpc-custom_response_header_value", headers.get(Metadata.Key.of("grpc-custom_response_header", Metadata.ASCII_STRING_MARSHALLER)));
-                assertEquals(should, new byte[] { 2,1,0 }, headers.get(Metadata.Key.of("grpc-custom_response_header-bin", Metadata.BINARY_BYTE_MARSHALLER)));
+                steps.add("on_headers");
+                if (status == Status.OK) {
+                  should.assertEquals("custom_response_header_value", headers.get(Metadata.Key.of("custom_response_header", Metadata.ASCII_STRING_MARSHALLER)));
+                  assertEquals(should, new byte[] { 0,1,2 }, headers.get(Metadata.Key.of("custom_response_header-bin", Metadata.BINARY_BYTE_MARSHALLER)));
+                  should.assertEquals("grpc-custom_response_header_value", headers.get(Metadata.Key.of("grpc-custom_response_header", Metadata.ASCII_STRING_MARSHALLER)));
+                  assertEquals(should, new byte[] { 2,1,0 }, headers.get(Metadata.Key.of("grpc-custom_response_header-bin", Metadata.BINARY_BYTE_MARSHALLER)));
+                }
                 super.onHeaders(headers);
               }
               @Override
               public void onClose(Status status, Metadata trailers) {
-                should.assertEquals(4, testMetadataStep.getAndIncrement());
+                steps.add("on_close");
                 should.assertEquals("custom_response_trailer_value", trailers.get(Metadata.Key.of("custom_response_trailer", Metadata.ASCII_STRING_MARSHALLER)));
                 assertEquals(should, new byte[] { 0,1,2 }, trailers.get(Metadata.Key.of("custom_response_trailer-bin", Metadata.BINARY_BYTE_MARSHALLER)));
                 should.assertEquals("grpc-custom_response_trailer_value", trailers.get(Metadata.Key.of("grpc-custom_response_trailer", Metadata.ASCII_STRING_MARSHALLER)));
@@ -412,10 +426,15 @@ public class ClientBridgeTest extends ClientTest {
 
     GreeterGrpc.GreeterBlockingStub stub = GreeterGrpc.newBlockingStub(ClientInterceptors.intercept(channel, interceptor));
     HelloRequest request = HelloRequest.newBuilder().setName("Julien").build();
-    HelloReply res = stub.sayHello(request);
-    should.assertEquals("Hello Julien", res.getMessage());
+    try {
+      HelloReply res = stub.sayHello(request);
+      should.assertEquals("Hello Julien", res.getMessage());
+      should.assertEquals(Status.OK, status);
+    } catch (StatusRuntimeException e) {
+      should.assertEquals(status, e.getStatus());
+    }
 
-    should.assertEquals(5, testMetadataStep.get());
+    return steps;
   }
 
   @Test

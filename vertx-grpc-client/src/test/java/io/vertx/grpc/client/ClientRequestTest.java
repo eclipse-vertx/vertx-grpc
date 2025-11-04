@@ -368,8 +368,19 @@ public class ClientRequestTest extends ClientTest {
 
   @Test
   public void testMetadata(TestContext should) throws Exception {
+    List<String> steps = testMetadata(should, Status.OK);
+    should.assertEquals(Arrays.asList("intercept_call", "unary", "send_headers", "close", "response_handler", "end_handler"), steps);
+  }
 
-    super.testMetadata(should);
+  @Test
+  public void testMetadataTrailersOnly(TestContext should) throws Exception {
+    List<String> steps = testMetadata(should, Status.CANCELLED);
+    should.assertEquals(Arrays.asList("intercept_call", "unary", "close", "response_handler", "end_handler"), steps);
+  }
+
+  public List<String> testMetadata(TestContext should, Status status) throws Exception {
+
+    List<String> seq = super.testMetadata(should, status);
 
     Async test = should.async();
     GrpcClient client = GrpcClient.client(vertx);
@@ -380,23 +391,31 @@ public class ClientRequestTest extends ClientTest {
         callRequest.headers().set("grpc-custom_request_header", "grpc-custom_request_header_value");
         callRequest.headers().set("grpc-custom_request_header-bin", Base64.getEncoder().encodeToString(new byte[] { 2,1,0 }));
         callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
-          should.assertEquals("custom_response_header_value", callResponse.headers().get("custom_response_header"));
-          should.assertEquals(3, testMetadataStep.getAndIncrement());
+          if (status == Status.OK) {
+            should.assertEquals("custom_response_header_value", callResponse.headers().get("custom_response_header"));
+          } else {
+            should.assertEquals("custom_response_trailer_value", callResponse.headers().get("custom_response_trailer"));
+          }
+          seq.add("response_handler");
           AtomicInteger count = new AtomicInteger();
           callResponse.handler(reply -> {
             should.assertEquals(1, count.incrementAndGet());
             should.assertEquals("Hello Julien", reply.getMessage());
           });
           callResponse.endHandler(v2 -> {
-            should.assertEquals(GrpcStatus.OK, callResponse.status());
-            should.assertEquals("custom_response_trailer_value", callResponse.trailers().get("custom_response_trailer"));
-            should.assertEquals(1, count.get());
-            should.assertEquals(4, testMetadataStep.getAndIncrement());
+            should.assertEquals(GrpcStatus.valueOf(status.getCode().value()), callResponse.status());
+            String expected = status == Status.OK ? "custom_response_trailer_value" : null;
+            should.assertEquals(expected, callResponse.trailers().get("custom_response_trailer"));
+            seq.add("end_handler");
             test.complete();
           });
         }));
         callRequest.end(HelloRequest.newBuilder().setName("Julien").build());
       }));
+
+    test.awaitSuccess(20_000);
+
+    return seq;
   }
 
   @Test
