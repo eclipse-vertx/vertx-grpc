@@ -113,7 +113,10 @@ You can check the writability of a response and set a drain handler
 
 === Compression
 
-You can compress response messages by setting the response encoding *prior* before sending any message
+You can compress response messages by setting the response encoding *prior* before sending any message.
+
+Before setting the encoding, you should use {@link io.vertx.grpc.server.GrpcServerResponse#acceptedEncodings()} to ensure
+the client RPC supports the encoding algorithm.
 
 [source,java]
 ----

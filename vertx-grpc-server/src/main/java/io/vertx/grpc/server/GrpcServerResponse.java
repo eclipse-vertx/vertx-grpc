@@ -20,6 +20,8 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.GrpcWriteStream;
 
+import java.util.Set;
+
 @VertxGen
 public interface GrpcServerResponse<Req, Resp> extends GrpcWriteStream<Resp> {
 
@@ -43,6 +45,13 @@ public interface GrpcServerResponse<Req, Resp> extends GrpcWriteStream<Resp> {
 
   @Fluent
   GrpcServerResponse<Req, Resp> encoding(String encoding);
+
+  /**
+   * @return the set of accepted encodings sent by the client, note that {@code identity} should not be part of this set.
+   *         This can be used to set the response {@link #encoding(String) encoding} to ensure the client will accept
+   *         the encoding. This is a glorified wrapper for the {@code grpc-accept-encoding} header.
+   */
+  Set<String> acceptedEncodings();
 
   /**
    * @return the {@link MultiMap} to write metadata trailers

@@ -24,16 +24,18 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.Utils;
-import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
 public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req, Resp> {
+
+  private static final Pattern COMMA_SEPARATOR = Pattern.compile(" *, *");
+  private static final Set<String> GZIP_ACCEPT_ENCODING = Collections.singleton("gzip");
 
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
@@ -45,6 +47,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   private boolean trailersSent;
   private boolean cancelled;
   private MultiMap headers, trailers;
+  private Set<String> acceptedEncodings;
 
   public GrpcServerResponseImpl(GrpcServerRequestImpl<Req, Resp> request, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
     this.request = request;
@@ -64,8 +67,29 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     return this;
   }
 
-  public GrpcServerResponse<Req, Resp> encoding(String encoding) {
-    this.encoding = encoding;
+  @Override
+  public Set<String> acceptedEncodings() {
+    if (acceptedEncodings == null) {
+      String acceptEncodingHeader = request.headers().get("grpc-accept-encoding");
+      if (acceptEncodingHeader != null) {
+        if (acceptEncodingHeader.equals("gzip")) {
+          acceptedEncodings = GZIP_ACCEPT_ENCODING;
+        } else {
+          acceptedEncodings = new HashSet<>(2);
+          String[] encodings = COMMA_SEPARATOR.split(acceptEncodingHeader);
+          for (String encoding : encodings) {
+            acceptedEncodings.add(encoding.trim());
+          }
+        }
+      } else {
+        acceptedEncodings = Collections.emptySet();
+      }
+    }
+    return acceptedEncodings;
+  }
+
+  public GrpcServerResponse<Req, Resp> encoding(String desired) {
+    this.encoding = desired;
     return this;
   }
 

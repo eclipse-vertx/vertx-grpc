@@ -29,7 +29,6 @@ import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.InvalidMessagePayloadException;
 import io.vertx.grpc.common.MessageSizeOverflowException;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -47,7 +46,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ServerRequestTest extends ServerTest {
 
   @Override
-  protected void testUnary(TestContext should, String requestEncoding, String responseEncoding) {
+  protected void testUnary(TestContext should, String requestEncoding, String responseEncoding, DecompressorRegistry decompressors) {
     startServer(GrpcServer.server(vertx).callHandler(GreeterGrpc.getSayHelloMethod(), call -> {
       call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
@@ -55,13 +54,16 @@ public class ServerRequestTest extends ServerTest {
           should.assertEquals(requestEncoding, call.encoding());
         }
         GrpcServerResponse<HelloRequest, HelloReply> response = call.response();
+        if (response.acceptedEncodings().contains(responseEncoding)) {
+          response
+            .encoding(responseEncoding);
+        }
         response
-          .encoding(responseEncoding)
           .end(helloReply);
       });
     }));
 
-    super.testUnary(should, requestEncoding, responseEncoding);
+    super.testUnary(should, requestEncoding, responseEncoding, decompressors);
   }
 
   @Test
