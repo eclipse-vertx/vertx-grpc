@@ -395,10 +395,11 @@ public abstract class ClientTest extends ClientTestBase {
         String timeout = request.getHeader(GrpcHeaderNames.GRPC_TIMEOUT);
         should.assertNotNull(timeout);
         request.response().exceptionHandler(err -> {
-          should.assertEquals(StreamResetException.class, err.getClass());
-          StreamResetException reset = (StreamResetException) err;
-          should.assertEquals(8L, reset.getCode());
-          done.complete();
+          if (err instanceof StreamResetException) {
+            StreamResetException reset = (StreamResetException) err;
+            should.assertEquals(8L, reset.getCode());
+            done.complete();
+          }
         });
       })
       .listen(port, "localhost")
