@@ -25,20 +25,5 @@ jobs:
         with:
           java-version: ${{ inputs.jdk }}
           distribution: temurin
-      - name: Install grpcurl (Linux only)
-        if: runner.os == 'Linux'
-        run: |
-          curl -L https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_x86_64.tar.gz | tar -xz
-          sudo mv grpcurl /usr/local/bin/
-      - name: Install grpc_health_probe (Linux only)
-        if: runner.os == 'Linux'
-        run: |
-          curl -L https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.41/grpc_health_probe-linux-amd64 -o grpc_health_probe
-          chmod +x grpc_health_probe
-          sudo mv grpc_health_probe /usr/local/bin/
       - name: Run tests
-        if: runner.os != 'Linux'
-        run: mvn -s .github/maven-ci-settings.xml -q clean verify -B
-      - name: Run tests with grpcurl and health-probe profiles (Linux only)
-        if: runner.os == 'Linux'
         run: mvn -s .github/maven-ci-settings.xml -q clean verify -B -P grpcurl,health-probe
