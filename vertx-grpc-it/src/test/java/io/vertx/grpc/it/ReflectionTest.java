@@ -10,7 +10,6 @@
  */
 package io.vertx.grpc.it;
 
-import dev.jbang.jash.Jash;
 import io.grpc.examples.helloworld.GreeterGrpcService;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloWorldProto;
@@ -21,23 +20,24 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
-import io.vertx.tests.common.GrpcTestBase;
 import org.junit.Test;
+import org.testcontainers.images.builder.ImageFromDockerfile;
 
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-import java.util.stream.Collectors;
-
-import static dev.jbang.jash.Jash.$;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * This test requires grpcurl to be installed on the system. It is excluded from the default test run and can be enabled by activating the "grpcurl"
+ * This test uses Testcontainers to run grpcurl in a Docker container.
+ * It requires Docker to be installed and running.
  * <p>
  * Maven profile: mvn test -Pgrpcurl
  */
-public class ReflectionTest extends GrpcTestBase {
+public class ReflectionTest extends TestContainerTestBase {
 
   private HttpServer server;
+  private ImageFromDockerfile image;
 
   @Override
   public void setUp(TestContext should) {
@@ -59,12 +59,17 @@ public class ReflectionTest extends GrpcTestBase {
     Async async = should.async();
     vertx.createHttpServer()
       .requestHandler(grpcServer)
-      .listen(port, "localhost")
+      .listen(port, "0.0.0.0")
       .onComplete(should.asyncAssertSuccess(s -> {
         server = s;
         async.complete();
       }));
-    async.awaitSuccess(5000);
+    async.awaitSuccess(10000);
+
+    exposeHostPort();
+
+    File dockerfile = new File("src/test/resources/grpcurl.Dockerfile");
+    image = new ImageFromDockerfile().withFileFromFile("Dockerfile", dockerfile);
   }
 
   @Override
@@ -72,7 +77,7 @@ public class ReflectionTest extends GrpcTestBase {
     if (server != null) {
       Async async = should.async();
       server.close().onComplete(v -> async.complete());
-      async.awaitSuccess(5000);
+      async.awaitSuccess(10000);
     }
     super.tearDown(should);
   }
@@ -94,7 +99,7 @@ public class ReflectionTest extends GrpcTestBase {
   public void testReflectionDescribeService(TestContext should) {
     Async async = should.async();
 
-    Future<String> future = executeGrpcurl("describe helloworld.Greeter");
+    Future<String> future = executeGrpcurl("describe", "helloworld.Greeter");
 
     future.onComplete(should.asyncAssertSuccess(output -> {
       should.assertTrue(output.contains("rpc SayHello"), "Output should contain SayHello method");
@@ -108,7 +113,7 @@ public class ReflectionTest extends GrpcTestBase {
   public void testReflectionDescribeMessage(TestContext should) {
     Async async = should.async();
 
-    Future<String> future = executeGrpcurl("describe .helloworld.HelloRequest");
+    Future<String> future = executeGrpcurl("describe", ".helloworld.HelloRequest");
 
     future.onComplete(should.asyncAssertSuccess(output -> {
       should.assertTrue(output.contains("string name"), "Output should contain name field");
@@ -116,18 +121,12 @@ public class ReflectionTest extends GrpcTestBase {
     }));
   }
 
-  private Future<String> executeGrpcurl(String args) {
-    return vertx.executeBlocking(() -> {
-      try {
-        String command = "grpcurl -plaintext localhost:" + port + " " + args;
-        System.out.println("[grpcurl] Executing command: " + command);
+  private Future<String> executeGrpcurl(String... args) {
+    List<String> command = new ArrayList<>();
+    command.add("-plaintext");
+    command.add(HOST_INTERNAL + ":" + port);
+    Collections.addAll(command, args);
 
-        try (Jash process = $(command).withTimeout(Duration.of(10, ChronoUnit.SECONDS))) {
-          return process.stream().collect(Collectors.joining("\n"));
-        }
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to execute grpcurl command", e);
-      }
-    });
+    return executeInContainer(image, command);
   }
 }

@@ -10,7 +10,6 @@
  */
 package io.vertx.grpc.it;
 
-import dev.jbang.jash.Jash;
 import io.grpc.examples.helloworld.GreeterGrpcService;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloWorldProto;
@@ -21,24 +20,25 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.health.HealthService;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
-import io.vertx.tests.common.GrpcTestBase;
 import org.junit.Test;
+import org.testcontainers.images.builder.ImageFromDockerfile;
 
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-import java.util.stream.Collectors;
-
-import static dev.jbang.jash.Jash.$;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * This test requires grpc_health_probe to be installed on the system. It is excluded from the default test run and can be enabled by activating the "health-probe" profile.
+ * This test uses Testcontainers to run grpc_health_probe in a Docker container.
+ * It requires Docker to be installed and running.
  * <p>
  * Maven profile: mvn test -Phealth-probe
  */
-public class HealthProbeTest extends GrpcTestBase {
+public class HealthProbeTest extends TestContainerTestBase {
 
   private HttpServer server;
   private HealthService healthService;
+  private ImageFromDockerfile probeImage;
 
   @Override
   public void setUp(TestContext should) {
@@ -61,12 +61,17 @@ public class HealthProbeTest extends GrpcTestBase {
     Async async = should.async();
     vertx.createHttpServer()
       .requestHandler(grpcServer)
-      .listen(port, "localhost")
+      .listen(port, "0.0.0.0")
       .onComplete(should.asyncAssertSuccess(s -> {
         server = s;
         async.complete();
       }));
     async.awaitSuccess(10000);
+
+    exposeHostPort();
+
+    File dockerfile = new File("src/test/resources/grpc-health-probe.Dockerfile");
+    probeImage = new ImageFromDockerfile().withFileFromFile("Dockerfile", dockerfile);
   }
 
   @Override
@@ -83,7 +88,7 @@ public class HealthProbeTest extends GrpcTestBase {
   public void testBasicHealthProbe(TestContext should) {
     Async async = should.async();
 
-    Future<String> future = executeHealthProbe("");
+    Future<String> future = executeHealthProbe();
 
     future.onComplete(should.asyncAssertSuccess(output -> {
       should.assertTrue(output.contains("status: SERVING"),
@@ -153,7 +158,7 @@ public class HealthProbeTest extends GrpcTestBase {
   public void testHealthProbeWithTimeout(TestContext should) {
     Async async = should.async();
 
-    Future<String> future = executeHealthProbe("-connect-timeout=5s -rpc-timeout=10s");
+    Future<String> future = executeHealthProbe("-connect-timeout=5s", "-rpc-timeout=10s");
 
     future.onComplete(should.asyncAssertSuccess(output -> {
       should.assertTrue(output.contains("status: SERVING"),
@@ -175,18 +180,15 @@ public class HealthProbeTest extends GrpcTestBase {
     }));
   }
 
-  private Future<String> executeHealthProbe(String args) {
-    return vertx.executeBlocking(() -> {
-      try {
-        String command = "grpc_health_probe -addr=localhost:" + port + " " + args;
-        System.out.println("[grpc_health_probe] Executing command: " + command);
+  private Future<String> executeHealthProbe(String... args) {
+    List<String> command = new ArrayList<>();
+    command.add("-addr=" + HOST_INTERNAL + ":" + port);
+    command.add("-v");  // verbose output
+    command.add("-connect-timeout=10s");
+    command.add("-rpc-timeout=10s");
 
-        try (Jash process = $(command).withAllowedExitCodes(0, 3, 4).withTimeout(Duration.of(10, ChronoUnit.SECONDS))) {
-          return process.stream().collect(Collectors.joining("\n"));
-        }
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to execute grpc_health_probe command", e);
-      }
-    });
+    Collections.addAll(command, args);
+
+    return executeInContainer(probeImage, command);
   }
 }

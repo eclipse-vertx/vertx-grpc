@@ -85,8 +85,8 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>dev.jbang</groupId>
-      <artifactId>jash</artifactId>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
