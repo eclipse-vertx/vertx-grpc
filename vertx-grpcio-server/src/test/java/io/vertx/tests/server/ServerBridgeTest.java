@@ -18,6 +18,7 @@ import io.vertx.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpcio.common.impl.Utils;
 import io.vertx.grpcio.server.GrpcIoServer;
 import io.vertx.grpcio.server.GrpcIoServiceBridge;
@@ -330,6 +331,15 @@ public class ServerBridgeTest extends ServerTest {
     startServer(server);
 
     super.testBidiStreamingCompletedBeforeHalfClose(should);
+  }
+
+  @Override
+  public void testUnknownService(TestContext should) {
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    startServer(server);
+
+    super.testUnknownService(should);
   }
 
   @Override

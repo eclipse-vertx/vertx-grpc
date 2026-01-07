@@ -274,6 +274,26 @@ public abstract class ServerTest extends ServerTestBase {
   protected AtomicInteger testMetadataStep;
 
   @Test
+  public void testUnknownService(TestContext should) {
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+
+    try {
+      Iterator<Reply> iterator = stub.source(Empty.newBuilder().build());
+      // This is lazy
+      while (iterator.hasNext()) {
+        iterator.next();
+      }
+      should.fail();
+    } catch (StatusRuntimeException e) {
+      should.assertEquals(12, e.getStatus().getCode().value());
+      should.assertEquals("Method not found: io.vertx.tests.common.grpc.tests.TestService/Source", e.getStatus().getDescription());
+    }
+  }
+
+  @Test
   public void testMetadata(TestContext should) {
 
     testMetadataStep = new AtomicInteger();
