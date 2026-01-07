@@ -18,6 +18,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
@@ -111,7 +112,25 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     if (handler != null) {
       handle(new MethodCallHandler<>(null, GrpcMessageDecoder.IDENTITY, GrpcMessageEncoder.IDENTITY, handler), httpRequest, methodCall, details.protocol, details.format);
     } else {
-      httpRequest.response().setStatusCode(500).end();
+      String msg = "Method not found: " + httpRequest.path().substring(1);
+      HttpServerResponse response = httpRequest.response();
+      boolean webText = true;
+      switch (details.protocol) {
+        case HTTP_2:
+        case WEB:
+        case WEB_TEXT:
+          response.setStatusCode(200);
+          response.putHeader(HttpHeaders.CONTENT_TYPE, details.protocol.mediaType());
+          response.putHeader(GrpcHeaderNames.GRPC_STATUS, GrpcStatus.UNIMPLEMENTED.toString());
+          response.putHeader(GrpcHeaderNames.GRPC_MESSAGE, msg);
+          response.end();
+          break;
+        default:
+          response
+            .setStatusCode(500)
+            .end();
+          break;
+      }
     }
   }
 

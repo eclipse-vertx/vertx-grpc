@@ -415,6 +415,27 @@ public class TranscodingTest extends ProxyTestBase {
     grpcTest.awaitSuccess();
   }
 
+  @Test
+  public void testUnknownService(TestContext should) {
+    HttpClient client = vertx.createHttpClient();
+
+    Future<HttpServer> server = vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx)).listen(8080, "localhost");
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello").setMethod(HttpMethod.POST);
+    Async test = should.async();
+
+    server.onComplete(should.asyncAssertSuccess(v -> client.request(options).compose(req -> {
+      req.putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      req.putHeader(HttpHeaders.ACCEPT, "application/json");
+      return req.send(Buffer.buffer(new JsonObject().put("name", "Julien").encode()));
+    }).compose(resp -> {
+      should.assertEquals(500, resp.statusCode());
+      return resp.body();
+    }).onComplete(should.asyncAssertSuccess(body -> test.complete()))));
+
+    test.awaitSuccess();
+  }
   private String createRequest(String name) {
     return Json.encode(new JsonObject().put("name", name));
   }

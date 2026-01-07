@@ -78,6 +78,7 @@ public abstract class ServerTestBase extends GrpcTestBase {
   protected static final CharSequence TRUE = HttpHeaders.createOptimized("1");
 
   private static final String GRPC_STATUS = "grpc-status";
+  private static final String GRPC_MESSAGE = "grpc-message";
   private static final String STATUS_OK = GRPC_STATUS + ":" + 0 + "\r\n";
   private static final String TRAILERS_AND_STATUS = STATUS_OK +
                                                     TRAILER_TEXT_KEY + ":" + TRAILER_TEXT_VALUE + "\r\n" +
@@ -473,6 +474,25 @@ public abstract class ServerTestBase extends GrpcTestBase {
         assertTrue(headers.contains(TRAILER_BIN_KEY, TRAILER_BIN_VALUE, false));
         assertTrue(headers.contains(TRAILER_ERROR_KEY, "boom", false));
         assertTrue(headers.contains(GRPC_STATUS, "13", false));
+      });
+    }));
+  }
+
+  @Test
+  public void testUnknownService(TestContext should) {
+    httpClient.request(HttpMethod.POST, TEST_SERVICE + "/U").compose(req -> {
+      req.headers()
+        .addAll(METADATA)
+        .addAll(requestHeaders());
+      return req.send(encode(EMPTY_DEFAULT_INSTANCE)).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> {
+      should.verify(v -> {
+        assertEquals(200, response.statusCode());
+        MultiMap headers = response.headers();
+        assertTrue(headers.contains(CONTENT_TYPE, responseContentType(), true));
+        assertTrue(headers.contains(CONTENT_LENGTH, "0", true));
+        assertTrue(headers.contains(GRPC_STATUS, "12", false));
+        assertTrue(headers.contains(GRPC_MESSAGE, "Method not found: io.vertx.grpcweb.TestService/U", false));
       });
     }));
   }
