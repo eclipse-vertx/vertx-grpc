@@ -27,6 +27,10 @@ import static io.vertx.grpc.server.GrpcProtocol.WEB_TEXT;
 
 public class WebGrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req,Resp> {
 
+  public static Buffer grpcWebEncode(Buffer message) {
+    return BufferInternal.buffer(Base64.encode(((BufferInternal)message).getByteBuf(), false));
+  }
+
   private final GrpcProtocol protocol;
   private final HttpServerResponse httpResponse;
   private Buffer trailers;
@@ -54,7 +58,7 @@ public class WebGrpcServerResponse<Req, Resp> extends GrpcServerResponseImpl<Req
   protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
     message = super.encodeMessage(message, compressed, trailer);
     if (protocol == WEB_TEXT) {
-      message = BufferInternal.buffer(Base64.encode(((BufferInternal)message).getByteBuf(), false));
+      message = grpcWebEncode(message);
     }
     return message;
   }
