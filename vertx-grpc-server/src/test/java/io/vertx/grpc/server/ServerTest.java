@@ -10,6 +10,7 @@
  */
 package io.vertx.grpc.server;
 
+import com.google.protobuf.EmptyProtos;
 import io.grpc.*;
 import io.grpc.examples.helloworld.GreeterGrpc;
 import io.grpc.examples.helloworld.HelloReply;
@@ -19,6 +20,7 @@ import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import io.grpc.testing.integration.TestServiceGrpc;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
@@ -256,6 +258,22 @@ public abstract class ServerTest extends ServerTestBase {
       }
     });
     writer.onNext(Item.newBuilder().setValue("the-value").build());
+  }
+
+  @Test
+  public void testUnknownService(TestContext should) {
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+
+    try {
+      EmptyProtos.Empty res = stub.emptyCall(EmptyProtos.Empty.getDefaultInstance());
+      should.fail();
+    } catch (StatusRuntimeException e) {
+      should.assertEquals(12, e.getStatus().getCode().value());
+      should.assertEquals("Method not found: grpc.testing.TestService/EmptyCall", e.getStatus().getDescription());
+    }
   }
 
   protected AtomicInteger testMetadataStep;

@@ -298,6 +298,15 @@ public class ServerBridgeTest extends ServerTest {
   }
 
   @Override
+  public void testUnknownService(TestContext should) {
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    startServer(server);
+
+    super.testUnknownService(should);
+  }
+
+  @Override
   public void testMetadata(TestContext should) {
 
     GreeterGrpc.GreeterImplBase impl = new GreeterGrpc.GreeterImplBase() {

@@ -14,7 +14,9 @@ import io.grpc.MethodDescriptor;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceMethod;
@@ -57,7 +59,13 @@ public class GrpcServerImpl implements GrpcIoServer {
         GrpcServerRequest<Buffer, Buffer> grpcRequest = createRequest(httpRequest, GrpcMessageDecoder.IDENTITY, GrpcMessageEncoder.IDENTITY, methodCall);
         handler.handle(grpcRequest);
       } else {
-        httpRequest.response().setStatusCode(500).end();
+        String msg = "Method not found: " + httpRequest.path().substring(1);
+        HttpServerResponse response = httpRequest.response();
+        response.setStatusCode(200);
+        response.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
+        response.putHeader("grpc-status", GrpcStatus.UNIMPLEMENTED.toString());
+        response.putHeader("grpc-message", msg);
+        response.end();
       }
     }
   }
