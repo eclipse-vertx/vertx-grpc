@@ -231,6 +231,14 @@ public class ServerRequestTest extends ServerTest {
     super.testBidiStreamingCompletedBeforeHalfClose(should);
   }
 
+  @Override
+  public void testUnknownService(TestContext should) {
+
+    startServer(GrpcServer.server(vertx));
+
+    super.testUnknownService(should);
+  }
+
   @Test
   public void testMetadata(TestContext should) {
 
