@@ -31,7 +31,7 @@ pom.xml::
 ----
 <dependency>
   <groupId>io.vertx</groupId>
-  <artifactId>vertx-grpc-context-storage</artifactId>
+  <artifactId>vertx-grpcio-context-storage</artifactId>
   <version>${maven.version}</version>
 </dependency>
 ----
@@ -41,7 +41,7 @@ build.gradle::
 [source,groovy,subs="+attributes"]
 ----
 dependencies {
-  compile 'io.vertx:vertx-grpc-context-storage:${maven.version}'
+  compile 'io.vertx:vertx-grpcio-context-storage:${maven.version}'
 }
 ----
 ====
