@@ -89,6 +89,11 @@
       <artifactId>testcontainers</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-openapi</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -136,7 +141,7 @@
               <artifactId>vertx-grpc-protoc-plugin2</artifactId>
               <version>${project.version}</version>
               <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
-              <options>grpc-client=true,grpc-service=true,grpc-io=true</options>
+              <options>grpc-client=true,grpc-service=true,grpc-io=true,schema-output-format=openapi-json+openapi-yaml,schema-config=${project.basedir}/src/test/resources/openapi-config.yaml</options>
             </jvmMavenPlugin>
           </jvmMavenPlugins>
         </configuration>
