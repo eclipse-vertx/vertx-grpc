@@ -49,6 +49,11 @@
       <artifactId>picocli</artifactId>
       <version>4.7.5</version>
     </dependency>
+    <dependency>
+      <groupId>io.swagger.core.v3</groupId>
+      <artifactId>swagger-core</artifactId>
+      <version>2.2.28</version>
+    </dependency>
   </dependencies>
 
   <build>
