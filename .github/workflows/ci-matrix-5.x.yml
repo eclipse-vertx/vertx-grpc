@@ -25,17 +25,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.branch }}
       - name: Checkout gRPC-Web
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: grpc/grpc-web
           ref: master
           path: _grpc-web
       - name: Install JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
           java-version: 11
           distribution: temurin
