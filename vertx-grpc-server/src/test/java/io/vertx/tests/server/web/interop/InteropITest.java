@@ -43,19 +43,20 @@ public class InteropITest {
 
   @Before
   public void setUp(TestContext should) {
+    assumeFalse("grpc-web repo path isn't defined", GRPC_WEB_REPO_PATH == null);
     vertx = Vertx.vertx();
     vertx.deployVerticle(new InteropServer()).onComplete(should.asyncAssertSuccess());
   }
 
   @After
   public void tearDown(TestContext should) {
-    vertx.close().onComplete(should.asyncAssertSuccess());
+    if (vertx != null) {
+      vertx.close().onComplete(should.asyncAssertSuccess());
+    }
   }
 
   @Test
   public void interopTests() {
-    assumeFalse("grpc-web repo path isn't defined", GRPC_WEB_REPO_PATH == null);
-
     File repoFile = new File(GRPC_WEB_REPO_PATH);
     assertTrue("grpc-web repo path doesn't denote a directory", repoFile.isDirectory());
     File dockerfile = new File(repoFile, "net/grpc/gateway/docker/prereqs/Dockerfile");
