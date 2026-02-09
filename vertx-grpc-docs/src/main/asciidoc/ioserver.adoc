@@ -42,6 +42,7 @@ The Vert.x gRPC Server can bridge a gRPC service to use with _grpc-java_ generat
 
 The bridge supports deadline automatic cancellation: when a gRPC request carrying a timeout is received, a deadline is associated with the `io.grpc.Context` an can be obtained from the current context. This deadline automatically cancels the request in progress when its associated timeout fires.
 
+[[idiomatic-server-io]]
 === Idiomatic gRPC/IO service
 
 The <<vertx-grpc-protoc-plugin,Vert.x gRPC protoc plugin>> supports the generation of gRPC/IO client code:

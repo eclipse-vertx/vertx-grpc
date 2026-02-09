@@ -213,10 +213,42 @@ NOTE: the generator plugin is tech preview and can be subject to changes
 
 === Generated RPC files
 
-For each service definition, the plugin creates several Java RPC files, let's have a quick look at them:
+For each service definition (e.g., `Greeter`), the plugin creates several Java RPC files with specific purposes:
 
-- `examples/Greeter.java`
-- `examples/GreeterClient.java`
-- `examples/GreeterService.java`
-- `examples/GreeterGrpcClient.java`
-- `examples/GreeterGrpcService.java`
+[cols="2,4,1", options="header"]
+|===
+|Generated File |Description |Details
+
+|`Greeter.java`
+|Base interface defining the service contract with all RPC methods declared as abstract methods
+|Common to both client and server
+
+|`GreeterClient.java`
+|High-level client interface with idiomatic Vert.x Future-based methods for calling the service
+|<<idiomatic-client,Client API>>
+
+|`GreeterService.java`
+|High-level server interface for implementing the service with idiomatic Vert.x Future-based handlers
+|<<idiomatic-server,Server Stub>>
+
+|`GreeterGrpcClient.java`
+|Low-level client implementation providing direct access to gRPC request/response streams
+|<<client-request-response-api,Client Request/Response API>>
+
+|`GreeterGrpcService.java`
+|Low-level server implementation providing direct access to gRPC request/response streams for handling
+|<<server-request-response-api,Server Request/Response API>>
+|===
+
+NOTE: The `GreeterGrpcClient` and `GreeterGrpcService` classes provide lower-level APIs that give you more control over streaming and flow control, while `GreeterClient` and `GreeterService` provide higher-level, more idiomatic Vert.x APIs that are easier to use for most cases.
+
+Additionally, when `grpc-io=true` is enabled, the plugin generates:
+
+[cols="2,4,1", options="header"]
+|===
+|Generated File |Description |Details
+
+|`GreeterGrpcIo.java`
+|Compatibility layer for using the service with standard `io.grpc` stubs and existing gRPC/IO ecosystem
+|<<idiomatic-server-io,gRPC/IO Server>> / <<idiomatic-client-io,gRPC/IO Client>>
+|===
