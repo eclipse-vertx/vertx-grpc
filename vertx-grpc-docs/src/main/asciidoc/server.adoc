@@ -155,6 +155,7 @@ or you can process a `WriteStream`:
 {@link examples.GrpcServerExamples#streamingResponseStub2}
 ----
 
+[[server-request-response-api]]
 === Server request/response API
 
 The gRPC request/response server API provides an alternative way to interact with a client without the need of extending

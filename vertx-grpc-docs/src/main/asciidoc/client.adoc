@@ -199,6 +199,7 @@ Flowable<String> responseStream = client
 
 NOTE: this requires RxJava version of GrpcClient
 
+[[client-request-response-api]]
 === Client request/response API
 
 The gRPC request/response client API provides an alternative way to interact with a server without the need of a generated stub.

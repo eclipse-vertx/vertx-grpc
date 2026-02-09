@@ -51,6 +51,7 @@ Deadline are cascaded, e.g. when the current `io.grpc.Context` carries a deadlin
 set, the client automatically inherits the implicit deadline. Such deadline can be set when using a stub within a gRPC server
 call.
 
+[[idiomatic-client-io]]
 === Idiomatic gRPC/IO client
 
 The <<vertx-grpc-protoc-plugin,Vert.x gRPC protoc plugin>> supports the generation of gRPC/IO client code:
