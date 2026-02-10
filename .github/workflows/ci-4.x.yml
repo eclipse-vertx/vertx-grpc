@@ -11,6 +11,8 @@ jobs:
             jdk: 8
           - os: ubuntu-latest
             jdk: 17
+          - os: ubuntu-latest
+            jdk: 25
     uses: ./.github/workflows/ci.yml
     with:
       branch: 4.x
