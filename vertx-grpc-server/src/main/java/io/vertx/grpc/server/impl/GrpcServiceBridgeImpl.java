@@ -94,6 +94,7 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge, GrpcIoServiceBr
     private Compressor compressor;
     private boolean halfClosed;
     private boolean closed;
+    private boolean cancelled;
     private int messagesSent;
     private final Attributes attributes;
 
@@ -131,6 +132,7 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge, GrpcIoServiceBr
       this.listener = listener;
       req.errorHandler(error -> {
         if (error == GrpcError.CANCELLED && !closed) {
+          cancelled = true;
           listener.onCancel();
         }
       });
@@ -206,7 +208,7 @@ public class GrpcServiceBridgeImpl implements GrpcServiceBridge, GrpcIoServiceBr
 
     @Override
     public boolean isCancelled() {
-      return false;
+      return cancelled;
     }
 
     @Override

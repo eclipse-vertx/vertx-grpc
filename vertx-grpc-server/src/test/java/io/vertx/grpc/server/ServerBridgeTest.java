@@ -465,6 +465,7 @@ public class ServerBridgeTest extends ServerTest {
           public void onError(Throwable t) {
             should.assertEquals(t.getClass(), StatusRuntimeException.class);
             should.assertEquals(Status.Code.CANCELLED, ((StatusRuntimeException)t).getStatus().getCode());
+            should.assertTrue(((ServerCallStreamObserver<?>)responseObserver).isCancelled());
             test.complete();
           }
           @Override
