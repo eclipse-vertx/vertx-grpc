@@ -7,6 +7,7 @@ import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.compiler.PluginProtos;
 import io.vertx.grpc.plugin.descriptors.ServiceDescriptor;
+import io.vertx.grpc.plugin.generation.SchemaOutputFormat;
 import io.vertx.grpc.plugin.generation.*;
 import io.vertx.grpc.plugin.generation.generators.*;
 import io.vertx.grpc.plugin.protoc.ProtocRequestConverter;
@@ -85,10 +86,17 @@ public class VertxGrpcGenerator {
           DescriptorProtos.ServiceDescriptorProto serviceProto = fileProto.getService(serviceIndex);
           ServiceDescriptor service = converter.convertService(serviceProto, fileProto, serviceIndex);
           services.add(service);
+
+          // Pre-convert message types for OpenAPI generation
+          for (int methodIndex = 0; methodIndex < serviceProto.getMethodCount(); methodIndex++) {
+            DescriptorProtos.MethodDescriptorProto methodProto = serviceProto.getMethod(methodIndex);
+            converter.convertMessage(methodProto.getInputType());
+            converter.convertMessage(methodProto.getOutputType());
+          }
         }
       }
 
-      List<PluginProtos.CodeGeneratorResponse.File> generatedFiles = generateCode(services, options);
+      List<PluginProtos.CodeGeneratorResponse.File> generatedFiles = generateCode(services, options, converter);
 
       int featureMask = supportedFeatures.stream()
         .map(PluginProtos.CodeGeneratorResponse.Feature::getNumber)
@@ -125,8 +133,29 @@ public class VertxGrpcGenerator {
       .setGenerateVertxGeneratorAnnotations(getBooleanParam(params, "vertx-codegen", false))
       .setServicePrefix(params.getOrDefault("service-prefix", ""));
 
+    // Parse schema output formats: schema-output-format=openapi-json+openapi-yaml or schema-output-format=openapi-json
+    String schemaValue = params.get("schema-output-format");
+    if (schemaValue != null && !schemaValue.isEmpty()) {
+      for (String format : schemaValue.split("\\+")) {
+        SchemaOutputFormat schemaOutputFormat = SchemaOutputFormat.fromValue(format.trim());
+        if (schemaOutputFormat != null) {
+          options.addSchemaOutputFormat(schemaOutputFormat);
+        }
+      }
+    }
+
+    // Parse schema merge option: schema-allow-merge=true (default) combines all services into one file
+    options.setSchemaAllowMerge(getBooleanParam(params, "schema-allow-merge", true));
+
+    // Parse schema config file option: schema-config=/path/to/openapi-config.yaml
+    String schemaConfigFile = params.get("schema-config");
+    if (schemaConfigFile != null && !schemaConfigFile.isEmpty()) {
+      options.setSchemaConfigFile(schemaConfigFile);
+    }
+
     // If nothing specified, default to generate client and generate service
-    if (!options.isGenerateClient() && !options.isGenerateService() && !options.isGenerateIo()) {
+    if (!options.isGenerateClient() && !options.isGenerateService() && !options.isGenerateIo()
+        && !options.isGenerateOpenApi()) {
       options.setGenerateClient(true).setGenerateService(true);
     }
 
@@ -156,7 +185,7 @@ public class VertxGrpcGenerator {
     return "true".equalsIgnoreCase(value) || "1".equals(value);
   }
 
-  private static List<PluginProtos.CodeGeneratorResponse.File> generateCode(List<ServiceDescriptor> services, GenerationOptions options) {
+  private static List<PluginProtos.CodeGeneratorResponse.File> generateCode(List<ServiceDescriptor> services, GenerationOptions options, ProtocRequestConverter converter) {
     List<PluginProtos.CodeGeneratorResponse.File> allFiles = new ArrayList<>();
 
     // Group services by package for generation
@@ -166,7 +195,7 @@ public class VertxGrpcGenerator {
       String packageName = entry.getKey();
       List<ServiceDescriptor> packageServices = entry.getValue();
 
-      GenerationContext context = new GenerationContext(packageName, "", packageServices, options);
+      GenerationContext context = new GenerationContext(packageName, "", packageServices, options, converter.getMessageDescriptors());
 
       Map<GenerationType, List<CodeGenerator>> generators = new HashMap<>();
 
@@ -176,6 +205,7 @@ public class VertxGrpcGenerator {
       generators.put(GenerationType.SERVICE, List.of(new GrpcServiceGenerator()));
       generators.put(GenerationType.GRPC_SERVICE, List.of(new GrpcGrpcServiceGenerator()));
       generators.put(GenerationType.GRPC_IO, List.of(new GrpcIoGenerator()));
+      generators.put(GenerationType.OPENAPI, List.of(new SchemaGenerator()));
 
       CodeGenerationEngine engine = new CodeGenerationEngine(generators);
       GenerationResult result = engine.generate(context);
