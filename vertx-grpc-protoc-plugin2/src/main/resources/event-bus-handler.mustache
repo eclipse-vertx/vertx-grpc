@@ -1,0 +1,52 @@
+{{#javaPackageFqn}}
+package {{javaPackageFqn}};
+{{/javaPackageFqn}}
+
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.EventBus;
+
+/**
+ * <p>Event bus handler for the {{serviceName}} gRPC service.</p>
+ *
+ * <p>Registers event bus consumers for each unary-unary method, delegating to the
+ * {@link {{contractFqn}}} contract interface.</p>
+ *
+ * <p>Address format: {@code {{packageName}}.{{serviceName}}/MethodName}</p>
+ */
+public class {{eventBusHandlerFqn}} {
+
+  private final {{contractFqn}} service;
+
+  public {{eventBusHandlerFqn}}({{contractFqn}} service) {
+    this.service = service;
+  }
+
+  /**
+   * Registers event bus consumers for all unary-unary methods of this service.
+   *
+   * @param eventBus the Vert.x event bus to register consumers on
+   */
+  public void register(EventBus eventBus) {
+{{#unaryUnaryMethods}}
+    eventBus.consumer("{{packageName}}.{{serviceName}}/{{methodName}}", this::handle{{methodName}});
+{{/unaryUnaryMethods}}
+  }
+{{#unaryUnaryMethods}}
+
+  private void handle{{methodName}}(Message<Buffer> message) {
+    try {
+      {{inputType}} request = {{inputType}}.parseFrom(message.body().getBytes());
+      service.{{vertxMethodName}}(request).onComplete(ar -> {
+        if (ar.succeeded()) {
+          message.reply(Buffer.buffer(ar.result().toByteArray()));
+        } else {
+          message.fail(500, ar.cause().getMessage());
+        }
+      });
+    } catch (Exception e) {
+      message.fail(500, e.getMessage());
+    }
+  }
+{{/unaryUnaryMethods}}
+}

@@ -165,6 +165,8 @@ By default, the plugin generates both client and service files. If you need only
 - _[--]grpc-transcoding[=true/false]_: whether to generate transcoding options for methods with HTTP annotations
 - _[--]vertx-codegen[=true/false]_: whether to add Vert.x annotations to the generated classes (`@VertxGen`) By default, this is disabled
 - _[--]service-prefix[=Your Name]_: generate service classes with a prefix. For example, if you set it to `MyService`, the generated service class will be `MyServiceGreeterService` instead of `GreeterService`.
+- _[--]event-bus-handler[=true/false]_: generate event bus handler files that register event bus consumers for unary methods, delegating to the service contract
+- _[--]event-bus-proxy[=true/false]_: generate event bus proxy files that implement the service contract by sending messages over the event bus
 
 * [--] This means the argument can be prefixed with `--` when used as JVM arguments, but should be used without `--` when specified in the options tag. If possible, users should use plugin options as a more universal protoc plugin approach.
 * [=value] This means the argument can optionally specify a value. For boolean arguments (true/false), if no value is specified, the default is `true` when the argument is present. For string arguments like `service-prefix`, a value must be provided.
@@ -252,3 +254,49 @@ Additionally, when `grpc-io=true` is enabled, the plugin generates:
 |Compatibility layer for using the service with standard `io.grpc` stubs and existing gRPC/IO ecosystem
 |<<idiomatic-server-io,gRPC/IO Server>> / <<idiomatic-client-io,gRPC/IO Client>>
 |===
+
+When `event-bus-handler=true` and/or `event-bus-proxy=true` are enabled, the plugin also generates:
+
+[cols="2,4", options="header"]
+|===
+|Generated File |Description
+
+|`GreeterEventBusHandler.java`
+|Registers event bus consumers for unary methods, delegating to the service contract
+
+|`GreeterEventBusProxy.java`
+|Implements the service contract by sending messages over the event bus
+|===
+
+=== Event Bus Integration
+
+Instead of calling a gRPC service over the network, you can expose it on the Vert.x event bus. This is useful when your services run inside the same cluster and you want to avoid the overhead of HTTP/2 connections. Consumers and producers communicate through the event bus instead.
+
+Each unary method is mapped to an event bus address of the form `{protoPackage}.{ServiceName}/{MethodName}`, e.g. `examples.grpc.Greeter/SayHello`. Request and response messages are serialized as protobuf bytes in a `Buffer`.
+
+NOTE: Only unary-unary methods are supported. Streaming methods will throw `UnsupportedOperationException`.
+
+==== Registering a handler
+
+To expose a service on the event bus, create a handler with your service implementation and register it:
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#registerHandler}
+----
+
+==== Calling a service through the event bus
+
+The generated proxy implements the same service contract interface, so you can use it just like a regular client:
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#useProxy}
+----
+
+You can also pass `DeliveryOptions` to configure timeouts or headers:
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#useProxyWithOptions}
+----

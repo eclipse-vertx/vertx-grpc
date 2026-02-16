@@ -6,5 +6,7 @@ public enum GenerationType {
   GRPC_CLIENT,
   SERVICE,
   GRPC_SERVICE,
-  GRPC_IO
+  GRPC_IO,
+  EVENT_BUS_HANDLER,
+  EVENT_BUS_PROXY
 }
