@@ -43,6 +43,16 @@ public class GenerationOptions {
   /**
    * The default prefix used for generated service files. This value serves as the initial prefix applied to service-related entities during the code generation process.
    */
+  /**
+   * Default value indicating whether event bus handler generation is enabled. By default, this is set to {@code false}.
+   */
+  public static final boolean DEFAULT_GENERATE_EVENT_BUS_HANDLER = false;
+
+  /**
+   * Default value indicating whether event bus proxy generation is enabled. By default, this is set to {@code false}.
+   */
+  public static final boolean DEFAULT_GENERATE_EVENT_BUS_PROXY = false;
+
   public static final String DEFAULT_SERVICE_PREFIX = "";
 
   private boolean generateClient;
@@ -50,6 +60,8 @@ public class GenerationOptions {
   private boolean generateIo;
   private boolean generateTranscoding;
   private boolean generateVertxGeneratorAnnotations;
+  private boolean generateEventBusHandler;
+  private boolean generateEventBusProxy;
   private String servicePrefix;
 
   public GenerationOptions() {
@@ -58,6 +70,8 @@ public class GenerationOptions {
     this.generateIo = DEFAULT_GENERATE_IO;
     this.generateTranscoding = DEFAULT_GENERATE_TRANSCODING;
     this.generateVertxGeneratorAnnotations = DEFAULT_GENERATE_VERTX_GENERATOR_ANNOTATIONS;
+    this.generateEventBusHandler = DEFAULT_GENERATE_EVENT_BUS_HANDLER;
+    this.generateEventBusProxy = DEFAULT_GENERATE_EVENT_BUS_PROXY;
     this.servicePrefix = DEFAULT_SERVICE_PREFIX;
   }
 
@@ -158,6 +172,46 @@ public class GenerationOptions {
    */
   public GenerationOptions setGenerateVertxGeneratorAnnotations(boolean generateVertxGeneratorAnnotations) {
     this.generateVertxGeneratorAnnotations = generateVertxGeneratorAnnotations;
+    return this;
+  }
+
+  /**
+   * Determines whether event bus handler generation is enabled.
+   *
+   * @return true if event bus handler generation is enabled, false otherwise.
+   */
+  public boolean isGenerateEventBusHandler() {
+    return generateEventBusHandler;
+  }
+
+  /**
+   * Sets whether event bus handler generation is enabled or disabled.
+   *
+   * @param generateEventBusHandler a boolean indicating whether to enable or disable the generation of event bus handlers
+   * @return the updated {@code GenerationOptions} instance
+   */
+  public GenerationOptions setGenerateEventBusHandler(boolean generateEventBusHandler) {
+    this.generateEventBusHandler = generateEventBusHandler;
+    return this;
+  }
+
+  /**
+   * Determines whether event bus proxy generation is enabled.
+   *
+   * @return true if event bus proxy generation is enabled, false otherwise.
+   */
+  public boolean isGenerateEventBusProxy() {
+    return generateEventBusProxy;
+  }
+
+  /**
+   * Sets whether event bus proxy generation is enabled or disabled.
+   *
+   * @param generateEventBusProxy a boolean indicating whether to enable or disable the generation of event bus proxies
+   * @return the updated {@code GenerationOptions} instance
+   */
+  public GenerationOptions setGenerateEventBusProxy(boolean generateEventBusProxy) {
+    this.generateEventBusProxy = generateEventBusProxy;
     return this;
   }
 

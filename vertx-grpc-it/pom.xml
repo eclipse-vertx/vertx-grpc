@@ -136,7 +136,7 @@
               <artifactId>vertx-grpc-protoc-plugin2</artifactId>
               <version>${project.version}</version>
               <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
-              <options>grpc-client=true,grpc-service=true,grpc-io=true</options>
+              <options>grpc-client=true,grpc-service=true,grpc-io=true,event-bus-handler=true,event-bus-proxy=true</options>
             </jvmMavenPlugin>
           </jvmMavenPlugins>
         </configuration>

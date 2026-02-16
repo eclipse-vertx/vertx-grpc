@@ -18,6 +18,8 @@ public class ServiceTemplateContext {
   public String grpcClientFqn;
   public String grpcServiceFqn;
   public String grpcIoFqn;
+  public String eventBusHandlerFqn;
+  public String eventBusProxyFqn;
   public String outerFqn;
   public String prefixedServiceName;
   public boolean codegenEnabled;
@@ -51,6 +53,8 @@ public class ServiceTemplateContext {
     context.grpcClientFqn = prefix + service.getName() + "GrpcClient";
     context.grpcServiceFqn = prefix + service.getName() + "GrpcService";
     context.grpcIoFqn = prefix + service.getName() + "GrpcIo";
+    context.eventBusHandlerFqn = prefix + service.getName() + "EventBusHandler";
+    context.eventBusProxyFqn = prefix + service.getName() + "EventBusProxy";
     context.prefixedServiceName = prefix + service.getName();
 
     // Convert methods

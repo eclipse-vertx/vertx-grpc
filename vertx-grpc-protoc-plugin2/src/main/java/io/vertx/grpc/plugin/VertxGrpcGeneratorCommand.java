@@ -21,6 +21,12 @@ public class VertxGrpcGeneratorCommand implements Callable<Integer> {
   @CommandLine.Option(names = { "--grpc-io" }, description = "Generate gRPC IO code")
   public boolean grpcIo = false;
 
+  @CommandLine.Option(names = { "--event-bus-handler" }, description = "Generate event bus handler code")
+  public boolean eventBusHandler = false;
+
+  @CommandLine.Option(names = { "--event-bus-proxy" }, description = "Generate event bus proxy code")
+  public boolean eventBusProxy = false;
+
   @CommandLine.Option(names = { "--grpc-transcoding" }, description = "Whether to generate transcoding options for methods with HTTP annotations")
   public boolean grpcTranscoding = true;
 
@@ -35,7 +41,7 @@ public class VertxGrpcGeneratorCommand implements Callable<Integer> {
 
   @Override
   public Integer call() {
-    if (!grpcClient && !grpcService && !grpcIo) {
+    if (!grpcClient && !grpcService && !grpcIo && !eventBusHandler && !eventBusProxy) {
       grpcClient = true;
       grpcService = true;
     }
@@ -50,6 +56,8 @@ public class VertxGrpcGeneratorCommand implements Callable<Integer> {
     sb.append("grpc-client=").append(grpcClient).append(", ");
     sb.append("grpc-service=").append(grpcService).append(", ");
     sb.append("grpc-io=").append(grpcIo).append(", ");
+    sb.append("event-bus-handler=").append(eventBusHandler).append(", ");
+    sb.append("event-bus-proxy=").append(eventBusProxy).append(", ");
     sb.append("grpc-transcoding=").append(grpcTranscoding).append(", ");
     sb.append("vertx-codegen=").append(vertxCodegen).append(", ");
 
