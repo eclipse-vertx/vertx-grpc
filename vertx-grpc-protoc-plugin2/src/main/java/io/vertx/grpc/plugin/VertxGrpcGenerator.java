@@ -123,10 +123,12 @@ public class VertxGrpcGenerator {
       .setGenerateIo(getBooleanParam(params, "grpc-io", false))
       .setGenerateTranscoding(getBooleanParam(params, "grpc-transcoding", true))
       .setGenerateVertxGeneratorAnnotations(getBooleanParam(params, "vertx-codegen", false))
+      .setGenerateEventBusHandler(getBooleanParam(params, "event-bus-handler", false))
+      .setGenerateEventBusProxy(getBooleanParam(params, "event-bus-proxy", false))
       .setServicePrefix(params.getOrDefault("service-prefix", ""));
 
     // If nothing specified, default to generate client and generate service
-    if (!options.isGenerateClient() && !options.isGenerateService() && !options.isGenerateIo()) {
+    if (!options.isGenerateClient() && !options.isGenerateService() && !options.isGenerateIo() && !options.isGenerateEventBusHandler() && !options.isGenerateEventBusProxy()) {
       options.setGenerateClient(true).setGenerateService(true);
     }
 
@@ -176,6 +178,8 @@ public class VertxGrpcGenerator {
       generators.put(GenerationType.SERVICE, List.of(new GrpcServiceGenerator()));
       generators.put(GenerationType.GRPC_SERVICE, List.of(new GrpcGrpcServiceGenerator()));
       generators.put(GenerationType.GRPC_IO, List.of(new GrpcIoGenerator()));
+      generators.put(GenerationType.EVENT_BUS_HANDLER, List.of(new EventBusHandlerGenerator()));
+      generators.put(GenerationType.EVENT_BUS_PROXY, List.of(new EventBusProxyGenerator()));
 
       CodeGenerationEngine engine = new CodeGenerationEngine(generators);
       GenerationResult result = engine.generate(context);

@@ -66,7 +66,7 @@ public class CodeGenerationEngine {
   private List<GenerationType> determineGrpcTypes(GenerationOptions options) {
     List<GenerationType> types = new ArrayList<>();
 
-    if (options.isGenerateClient() || options.isGenerateService()) {
+    if (options.isGenerateClient() || options.isGenerateService() || options.isGenerateEventBusHandler() || options.isGenerateEventBusProxy()) {
       types.add(GenerationType.CONTRACT);
     }
     if (options.isGenerateClient()) {
@@ -79,6 +79,12 @@ public class CodeGenerationEngine {
     }
     if (options.isGenerateIo()) {
       types.add(GenerationType.GRPC_IO);
+    }
+    if (options.isGenerateEventBusHandler()) {
+      types.add(GenerationType.EVENT_BUS_HANDLER);
+    }
+    if (options.isGenerateEventBusProxy()) {
+      types.add(GenerationType.EVENT_BUS_PROXY);
     }
 
     return types;
