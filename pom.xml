@@ -20,10 +20,9 @@
   </scm>
 
   <properties>
-    <grpc.version>1.70.0</grpc.version>
-    <jprotoc.version>1.2.2</jprotoc.version>
-    <protoc.version>4.29.3</protoc.version>
-    <protobuf.version>4.29.3</protobuf.version>
+    <grpc.version>1.79.0</grpc.version>
+    <protoc.version>4.33.5</protoc.version>
+    <protobuf.version>4.33.5</protobuf.version>
     <!-- NOTE: We need to stay on version 3.x of ascopes protobuf maven plugin until we bump minimum version of java from
      java 11 to java 17 as starting from 4.x minimum required version is java 17.
      See: https://ascopes.github.io/protobuf-maven-plugin/plugin-info.html#system-requirements-history
