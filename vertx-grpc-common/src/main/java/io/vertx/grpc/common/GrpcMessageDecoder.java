@@ -10,6 +10,7 @@
  */
 package io.vertx.grpc.common;
 
+import com.google.protobuf.Descriptors;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.MessageOrBuilder;
@@ -59,6 +60,10 @@ public interface GrpcMessageDecoder<T> {
       @Override
       public boolean accepts(WireFormat format) {
         return true;
+      }
+      @Override
+      public Descriptors.Descriptor messageDescriptor() {
+        return dit.getDescriptorForType();
       }
     };
   }
@@ -165,8 +170,30 @@ public interface GrpcMessageDecoder<T> {
     }
   };
 
+  /**
+   * Decodes a given gRPC message into an object of type {@code T}.
+   *
+   * @param msg the gRPC message to decode
+   * @return the decoded message of type {@code T}
+   * @throws CodecException if the decoding process fails
+   */
   T decode(GrpcMessage msg) throws CodecException;
 
+  /**
+   * Determines whether the given {@link WireFormat} is supported by this decoder.
+   *
+   * @param format the wire format to check
+   * @return true if the given wire format is accepted, false otherwise
+   */
   boolean accepts(WireFormat format);
+
+  /**
+   * Returns the protobuf message descriptor if this decoder was created from a protobuf message type, {@code null} otherwise.
+   *
+   * @return the protobuf descriptor or {@code null}
+   */
+  default Descriptors.Descriptor messageDescriptor() {
+    return null;
+  }
 
 }
