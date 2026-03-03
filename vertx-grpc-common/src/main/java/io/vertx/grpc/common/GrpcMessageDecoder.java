@@ -16,6 +16,7 @@ import com.google.protobuf.Message;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.Parser;
 import com.google.protobuf.util.JsonFormat;
+import io.vertx.codegen.annotations.Unstable;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.Json;
@@ -192,6 +193,7 @@ public interface GrpcMessageDecoder<T> {
    *
    * @return the protobuf descriptor or {@code null}
    */
+  @Unstable
   default Descriptors.Descriptor messageDescriptor() {
     return null;
   }
