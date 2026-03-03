@@ -10,6 +10,7 @@
  */
 package io.vertx.grpcio.common.impl;
 
+import com.google.protobuf.Descriptors;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.MessageLite;
@@ -17,14 +18,14 @@ import com.google.protobuf.util.JsonFormat;
 import io.grpc.Decompressor;
 import io.grpc.KnownLength;
 import io.grpc.MethodDescriptor;
-import io.vertx.core.json.DecodeException;
-import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.WireFormat;
 import io.netty.buffer.ByteBufInputStream;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.buffer.BufferInternal;
+import io.vertx.core.json.DecodeException;
+import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.WireFormat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,7 +45,7 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
 
   private static class KnownLengthStream extends ByteBufInputStream implements KnownLength {
     public KnownLengthStream(Buffer buffer) {
-      super(((BufferInternal)buffer).getByteBuf(), buffer.length());
+      super(((BufferInternal) buffer).getByteBuf(), buffer.length());
     }
 
     @Override
@@ -89,5 +90,13 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
   @Override
   public boolean accepts(WireFormat format) {
     return format == WireFormat.PROTOBUF;
+  }
+
+  @Override
+  public Descriptors.Descriptor messageDescriptor() {
+    if (messageLite instanceof Message) {
+      return ((Message) messageLite).getDescriptorForType();
+    }
+    return null;
   }
 }

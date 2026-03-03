@@ -33,8 +33,6 @@ public final class MessageWeaver {
    * @throws DecodeException If JSON decoding fails
    */
   public static Buffer weaveRequestMessage(Buffer message, List<HttpVariableBinding> bindings, String transcodingRequestBody, Descriptors.Descriptor descriptor) throws DecodeException {
-    Objects.requireNonNull(descriptor, "Descriptor cannot be null");
-
     if ((bindings == null || bindings.isEmpty()) && (transcodingRequestBody == null || transcodingRequestBody.isEmpty())) {
       return message;
     }
@@ -88,8 +86,7 @@ public final class MessageWeaver {
         current = next;
         if (currentDescriptor != null) {
           Descriptors.FieldDescriptor fd = currentDescriptor.findFieldByName(fieldName);
-          currentDescriptor = (fd != null && fd.getType() == Descriptors.FieldDescriptor.Type.MESSAGE)
-            ? fd.getMessageType() : null;
+          currentDescriptor = (fd != null && fd.getType() == Descriptors.FieldDescriptor.Type.MESSAGE) ? fd.getMessageType() : null;
         }
       }
 
