@@ -21,6 +21,7 @@ message Empty {}
 
 message EchoRequest {
   string payload = 1;
+  repeated string keys = 2;
 }
 
 message EchoRequestBody {

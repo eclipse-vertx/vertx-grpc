@@ -33,6 +33,7 @@ import io.vertx.tests.server.grpc.web.*;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -67,6 +68,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_CUSTOM_METHOD = new MethodTranscodingOptions().setHttpMethod(HttpMethod.valueOf("ACL")).setPath("/hello");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_BODY = new MethodTranscodingOptions().setPath("/body").setBody("request");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_RESPONSE_BODY = new MethodTranscodingOptions().setPath("/response").setResponseBody("response");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_REPEATED_QUERY = new MethodTranscodingOptions().setPath("/keys");
 
   public static final TranscodingServiceMethod<Empty, Empty> EMPTY_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "EmptyCall", EMPTY_ENCODER, EMPTY_DECODER, EMPTY_TRANSCODING);
   public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCall", ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING);
@@ -81,6 +83,9 @@ public class ServerTranscodingTest extends GrpcTestBase {
 
   public static final TranscodingServiceMethod<EchoRequest, EchoResponseBody> UNARY_CALL_WITH_RESPONSE_BODY = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithResponseBody",
     ECHO_RESPONSE_BODY_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_RESPONSE_BODY);
+
+  public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_REPEATED_QUERY = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithRepeatedQuery",
+    ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_REPEATED_QUERY);
 
   private static final CharSequence USER_AGENT = HttpHeaders.createOptimized("X-User-Agent");
   private static final String CONTENT_TYPE = "application/json";
@@ -192,6 +197,16 @@ public class ServerTranscodingTest extends GrpcTestBase {
             .build();
           response.end(responseBody);
         }
+      });
+    });
+    grpcServer.callHandler(UNARY_CALL_WITH_REPEATED_QUERY, request -> {
+      request.handler(requestMsg -> {
+        GrpcServerResponse<EchoRequest, EchoResponse> response = request.response();
+        List<String> keys = requestMsg.getKeysList();
+        EchoResponse responseMsg = EchoResponse.newBuilder()
+          .setPayload(String.join(",", keys))
+          .build();
+        response.end(responseMsg);
       });
     });
     httpServer = vertx.createHttpServer(new HttpServerOptions().setPort(port)).requestHandler(grpcServer);
@@ -418,6 +433,44 @@ public class ServerTranscodingTest extends GrpcTestBase {
   private JsonObject decodeBody(Buffer body) {
     String json = body.toString();
     return new JsonObject(json);
+  }
+
+  @Test
+  public void testRepeatedQueryParams(TestContext should) {
+    httpClient.request(HttpMethod.GET, "/keys?keys=A&keys=B").compose(req -> {
+      req.headers().addAll(HEADERS);
+      return req.send().compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      MultiMap headers = response.headers();
+      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonObject body = decodeBody(response.body().result());
+      assertEquals("A,B", body.getString("payload"));
+    })));
+  }
+
+  @Test
+  public void testRepeatedQueryParamsThreeValues(TestContext should) {
+    httpClient.request(HttpMethod.GET, "/keys?keys=A&keys=B&keys=C").compose(req -> {
+      req.headers().addAll(HEADERS);
+      return req.send().compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      JsonObject body = decodeBody(response.body().result());
+      assertEquals("A,B,C", body.getString("payload"));
+    })));
+  }
+
+  @Test
+  public void testRepeatedQueryParamsSingleValue(TestContext should) {
+    httpClient.request(HttpMethod.GET, "/keys?keys=A").compose(req -> {
+      req.headers().addAll(HEADERS);
+      return req.send().compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      JsonObject body = decodeBody(response.body().result());
+      assertEquals("A", body.getString("payload"));
+    })));
   }
 
   @Test
