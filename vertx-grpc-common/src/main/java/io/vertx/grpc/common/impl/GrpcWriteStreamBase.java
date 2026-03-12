@@ -3,71 +3,47 @@ package io.vertx.grpc.common.impl;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.*;
 
 import java.util.Objects;
-
-import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
 public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T> implements GrpcWriteStream<T> {
 
   protected final ContextInternal context;
   private final GrpcMessageEncoder<T> messageEncoder;
-  private final WriteStream<Buffer> writeStream;
 
-  protected String mediaType;
   protected String encoding;
   protected WireFormat format;
   private boolean headersSent;
   private boolean trailersSent;
   private GrpcError error;
   private boolean cancelled;
-
   private MultiMap headers;
   private MultiMap trailers;
-
   private Handler<Throwable> exceptionHandler;
-  private Handler<GrpcError> errorHandler;
 
-  public GrpcWriteStreamBase(ContextInternal context, String mediaType, WriteStream<Buffer> writeStream, GrpcMessageEncoder<T> messageEncoder) {
+  public GrpcWriteStreamBase(ContextInternal context, GrpcMessageEncoder<T> messageEncoder) {
     this.context = context;
-    this.writeStream = writeStream;
     this.messageEncoder = messageEncoder;
-    this.mediaType = mediaType;
-  }
-
-  public void init() {
-    writeStream.exceptionHandler(err -> {
-      if (err instanceof StreamResetException) {
-        StreamResetException reset = (StreamResetException) err;
-        GrpcError error = mapHttp2ErrorCode(reset.getCode());
-        handleError(error);
-      }
-      handleException(err);
-    });
-  }
-
-  public S errorHandler(Handler<GrpcError> handler) {
-    this.errorHandler = handler;
-    return (S) this;
+    this.format = null;
   }
 
   public void handleError(GrpcError error) {
     if (this.error == null) {
-      cancelled |= error == GrpcError.CANCELLED;
       this.error = error;
-      Handler<GrpcError> handler = errorHandler;
-      if (handler != null) {
-        handler.handle(error);
-      }
     }
   }
 
-  private void handleException(Throwable err) {
+  public void handleCancel() {
+    cancelled = true;
+  }
+
+  public void handleException(Throwable err) {
+    if (err instanceof GrpcErrorException) {
+      GrpcErrorException ee = (GrpcErrorException) err;
+      handleError(ee.error());
+    }
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {
       handler.handle(err);
@@ -142,25 +118,8 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   }
 
   @Override
-  public final boolean writeQueueFull() {
-    return writeStream.writeQueueFull();
-  }
-
-  @Override
-  public final S drainHandler(Handler<Void> handler) {
-    writeStream.drainHandler(handler);
-    return (S) this;
-  }
-
-  @Override
   public final S exceptionHandler(Handler<Throwable> handler) {
     exceptionHandler = handler;
-    return (S) this;
-  }
-
-  @Override
-  public S setWriteQueueMaxSize(int maxSize) {
-    writeStream.setWriteQueueMaxSize(maxSize);
     return (S) this;
   }
 
@@ -196,28 +155,27 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return writeMessage(null, true);
   }
 
-  protected abstract void setHeaders(String contentType, MultiMap headers);
-  protected abstract void setTrailers(MultiMap trailers);
-
-  protected abstract Future<Void> sendMessage(Buffer message, boolean compressed);
-  protected abstract Future<Void> sendEnd();
-  protected abstract Future<Void> sendHead();
+  protected abstract Future<Void> sendTrailers(MultiMap trailers);
+  protected abstract Future<Void> sendHeaders(WireFormat wireFormat, String encoding, MultiMap headers);
+  protected abstract Future<Void> sendMessage(GrpcMessage message);
   protected abstract boolean sendCancel();
 
-
-  protected String contentType(WireFormat wireFormat) {
-    if (wireFormat != null) {
-      switch (wireFormat) {
-        case JSON:
-          if (!mediaType.endsWith("/json")) {
-            return mediaType + "+json";
-          }
-        case PROTOBUF:
-          // contentType = mediaType + "+proto";
-          break;
-      }
+  private Future<Void> sendHeaders(boolean writeHeaders) {
+    if (!writeHeaders) {
+      throw new IllegalArgumentException();
     }
-    return mediaType;
+    return sendHeaders(format, encoding, headers);
+  }
+
+  private Future<Void> sendMessage(boolean writeHeaders, GrpcMessage message) {
+    if (writeHeaders) {
+      sendHeaders(format, encoding, headers);
+    }
+    return sendMessage(message);
+  }
+
+  private Future<Void> sendEnd() {
+    return sendTrailers(trailers);
   }
 
   public final Future<Void> writeHead() {
@@ -238,69 +196,62 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
         return context.failedFuture("Message format does not match the response format");
       }
     }
-    Buffer payload;
-    boolean compressed;
+    GrpcMessage payload;
     if (message != null) {
       if (encoding != null) {
         switch (encoding) {
           case "gzip":
-            compressed = true;
             if (message.encoding().equals("identity")) {
-              try {
-                payload = Utils.GZIP_ENCODER.apply(message.payload());
-              } catch (CodecException e) {
-                return Future.failedFuture(e);
-              }
+              payload = new GrpcTransformedMessage(message, "gzip", Utils.GZIP_ENCODER);
             } else {
               if (!message.encoding().equals("gzip")) {
                 return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
               }
-              payload = message.payload();
+              payload = message;
             }
             break;
           case "identity":
-            compressed = false;
             if (!message.encoding().equals("identity")) {
               if (!message.encoding().equals("gzip")) {
                 return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
               }
-              try {
-                payload = Utils.GZIP_DECODER.apply(message.payload());
-              } catch (CodecException e) {
-                return Future.failedFuture(e);
-              }
+              payload = new GrpcTransformedMessage(message, "identity", Utils.GZIP_DECODER);
             } else {
-              payload = message.payload();
+              payload = message;
             }
             break;
           default:
             return Future.failedFuture("Encoding " + encoding + " is not supported");
         }
       } else {
-        compressed = !message.encoding().equals("identity");
-        payload = message.payload();
+        payload = message;
       }
     } else {
-      compressed = false;
       payload = null;
     }
+
+    boolean writeHeaders;
     if (!headersSent) {
       headersSent = true;
-      String contentType = contentType(format);
-      setHeaders(contentType, headers);
+      writeHeaders = true;
+    } else {
+      writeHeaders = false;
+      // That should not happen
+      if (payload == null && !end) {
+        throw new IllegalStateException();
+      }
     }
     if (end) {
       trailersSent = true;
       if (payload != null) {
-        sendMessage(payload, compressed);
+        sendMessage(writeHeaders, payload);
       }
-      setTrailers(trailers);
       return sendEnd();
     } else {
-      if (message != null) {
-        return sendMessage(payload, compressed);
+      if (payload != null) {
+        return sendMessage(writeHeaders, payload);
       } else {
-        return sendHead();
+        return sendHeaders(writeHeaders);
       }
     }
   }

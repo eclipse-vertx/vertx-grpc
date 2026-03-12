@@ -16,20 +16,15 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.internal.concurrent.InboundMessageQueue;
-import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
-
-import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
 /**
  * Transforms {@code Buffer} into a stream of {@link GrpcMessage}
  *
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> implements GrpcReadStream<T>, Handler<Buffer> {
+public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> implements GrpcReadStream<T> {
 
   static final GrpcMessage END_SENTINEL = new GrpcMessage() {
     @Override
@@ -49,9 +44,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   protected final ContextInternal context;
   private final String encoding;
   private final WireFormat format;
-  private final ReadStream<Buffer> stream;
-  private final GrpcMessageDeframer deframer;
-  private final InboundMessageQueue<GrpcMessage> queue;
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcMessage> messageHandler;
   private Handler<Void> endHandler;
@@ -59,60 +51,18 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private GrpcMessage last;
   private final GrpcMessageDecoder<T> messageDecoder;
   private final Promise<Void> end;
-  private GrpcWriteStreamBase<?, ?> ws;
+  private Handler<GrpcError> errorHandler;
 
   protected GrpcReadStreamBase(Context context,
-                               ReadStream<Buffer> stream,
                                String encoding,
                                WireFormat format,
-                               GrpcMessageDeframer messageDeframer,
                                GrpcMessageDecoder<T> messageDecoder) {
     ContextInternal ctx = (ContextInternal) context;
     this.context = ctx;
     this.encoding = encoding;
-    this.stream = stream;
     this.format = format;
-    this.queue = new InboundMessageQueue<>(ctx.executor(), ctx.executor(), 8, 16) {
-      @Override
-      protected void handleResume() {
-        stream.resume();
-      }
-      @Override
-      protected void handlePause() {
-        stream.pause();
-      }
-      @Override
-      protected void handleMessage(GrpcMessage msg) {
-        if (msg == END_SENTINEL) {
-          handleEnd();
-        } else {
-          GrpcReadStreamBase.this.handleMessage(msg);
-        }
-      }
-    };
     this.messageDecoder = messageDecoder;
     this.end = ctx.promise();
-    this.deframer = messageDeframer;
-  }
-
-  public void init(GrpcWriteStreamBase<?, ?> ws, long maxMessageSize) {
-    this.ws = ws;
-    deframer.maxMessageSize(maxMessageSize);
-    stream.handler(this);
-    stream.endHandler(v -> {
-      deframer.end();
-      deframe();
-      queue.write(END_SENTINEL);
-    });
-    stream.exceptionHandler(err -> {
-      if (err instanceof StreamResetException) {
-        StreamResetException reset = (StreamResetException) err;
-        GrpcError error = mapHttp2ErrorCode(reset.getCode());
-        ws.handleError(error);
-      } else {
-        handleException(err);
-      }
-    });
   }
 
   protected final T decodeMessage(GrpcMessage msg) throws CodecException {
@@ -140,19 +90,13 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     return encoding;
   }
 
-  public final S pause() {
-    queue.pause();
-    return (S) this;
-  }
+  public abstract S pause();
 
   public final S resume() {
     return fetch(Long.MAX_VALUE);
   }
 
-  public final S fetch(long amount) {
-    queue.fetch(amount);
-    return (S) this;
-  }
+  public abstract S fetch(long amount);
 
   @Override
   public final S exceptionHandler(Handler<Throwable> handler) {
@@ -162,7 +106,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
 
   @Override
   public final S errorHandler(@Nullable Handler<GrpcError> handler) {
-    ws.errorHandler(handler);
+    errorHandler = handler;
     return (S) this;
   }
 
@@ -187,29 +131,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     return (S) this;
   }
 
-  public void handle(Buffer chunk) {
-    deframer.update(chunk);
-    deframe();
-  }
-
-  private void deframe() {
-    while (true) {
-      Object ret = deframer.next();
-      if (ret == null) {
-        break;
-      } else if (ret instanceof MessageSizeOverflowException) {
-        MessageSizeOverflowException msoe = (MessageSizeOverflowException) ret;
-        Handler<InvalidMessageException> handler = invalidMessageHandler;
-        if (handler != null) {
-          context.dispatch(msoe, handler);
-        }
-      } else {
-        GrpcMessage msg = (GrpcMessage) ret;
-        queue.write(msg);
-      }
-    }
-  }
-
   public final void tryFail(Throwable err) {
     if (end.tryFail(err)) {
       Handler<Throwable> handler = exceptionHandler;
@@ -219,11 +140,21 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     }
   }
 
-  protected final void handleException(Throwable err) {
-    tryFail(err);
+  public void handleException(Throwable err) {
+    if (err instanceof InvalidMessageException) {
+      InvalidMessageException ime = (InvalidMessageException) err;
+      handleInvalidMessage(ime);
+    } else if (err instanceof GrpcErrorException) {
+      Handler<GrpcError> handler = errorHandler;
+      if (handler != null) {
+        handler.handle(((GrpcErrorException)err).error());
+      }
+    } else {
+      tryFail(err);
+    }
   }
 
-  protected void handleEnd() {
+  public void handleEnd() {
     end.tryComplete();
     Handler<Void> handler = endHandler;
     if (handler != null) {
@@ -231,7 +162,14 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     }
   }
 
-  private void handleMessage(GrpcMessage msg) {
+  public void handleInvalidMessage(InvalidMessageException e) {
+    Handler<InvalidMessageException> handler = invalidMessageHandler;
+    if (handler != null) {
+      context.dispatch(e, handler);
+    }
+  }
+
+  public void handleMessage(GrpcMessage msg) {
     last = msg;
     Handler<GrpcMessage> handler = messageHandler;
     if (handler != null) {
