@@ -1,0 +1,110 @@
+package io.vertx.grpc.server.impl;
+
+import io.vertx.core.Future;
+import io.vertx.core.MultiMap;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.grpc.common.GrpcHeaderNames;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.common.impl.Utils;
+
+import java.util.Map;
+
+// Stateless protocol handler
+public abstract class ProtocolHandler {
+
+  private final HttpServerRequest httpRequest;
+  private final HttpServerResponse httpResponse;
+
+  public ProtocolHandler(HttpServerRequest httpRequest) {
+    this.httpRequest = httpRequest;
+    this.httpResponse = httpRequest.response();
+  }
+
+  protected void encodeGrpcHeaders(
+    String contentType,
+    MultiMap grpcHeaders,
+    boolean trailersOnly,
+    GrpcStatus status,
+    String stateMessage, String encoding) {
+    encodeGrpcHeaders(httpResponse.headers(), contentType, grpcHeaders, trailersOnly, status, stateMessage, encoding);
+  }
+
+  protected void encodeGrpcHeaders(
+    MultiMap httpHeaders,
+    String contentType,
+    MultiMap grpcHeaders,
+    boolean trailersOnly,
+    GrpcStatus status,
+    String stateMessage, String encoding) {
+    httpHeaders.set("content-type", contentType);
+    encodeGrpcHeaders(grpcHeaders, httpHeaders, encoding);
+    if (trailersOnly) {
+      encodeGrpcStatus(httpHeaders, status, stateMessage);
+    }
+  }
+
+  protected void encodeGrpcHeaders(MultiMap grpcHeaders, MultiMap httpHeaders, String encoding) {
+    if (grpcHeaders != null && !grpcHeaders.isEmpty()) {
+      for (Map.Entry<String, String> header : grpcHeaders) {
+        httpHeaders.add(header.getKey(), header.getValue());
+      }
+    }
+  }
+
+  /**
+   * Encode grpc status and status message in the specified {@code entries} map.
+   *
+   * @param entries the map updated with grpc specific headers
+   */
+  protected void encodeGrpcStatus(MultiMap entries, GrpcStatus status, String statusMessage) {
+    if (!entries.contains(GrpcHeaderNames.GRPC_STATUS)) {
+      entries.set(GrpcHeaderNames.GRPC_STATUS, status.toString());
+    }
+    if (status != GrpcStatus.OK) {
+      String msg = statusMessage;
+      if (msg != null && !entries.contains(GrpcHeaderNames.GRPC_MESSAGE)) {
+        entries.set(GrpcHeaderNames.GRPC_MESSAGE, Utils.utf8PercentEncode(msg));
+      }
+    } else {
+      entries.remove(GrpcHeaderNames.GRPC_MESSAGE);
+    }
+  }
+
+  protected void encodeGrpcTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String statusMessage) {
+    MultiMap httpTrailers;
+    if (trailersOnly) {
+      httpTrailers = httpResponse.headers();
+    } else {
+      httpTrailers = httpResponse.trailers();
+    }
+    encodeGrpcTrailers(grpcTrailers, httpTrailers);
+    encodeGrpcStatus(httpTrailers, status, statusMessage);
+  }
+
+  protected final void encodeGrpcTrailers(MultiMap grpcTrailers, MultiMap httpTrailers) {
+    if (grpcTrailers != null && !grpcTrailers.isEmpty()) {
+      for (Map.Entry<String, String> header : grpcTrailers) {
+        httpTrailers.add(header.getKey(), header.getValue());
+      }
+    }
+  }
+
+  protected Future<Void> sendHead() {
+    return httpResponse.writeHead();
+  }
+
+  protected Future<Void> sendEnd(GrpcStatus status) {
+    return httpResponse.end();
+  }
+
+  protected Future<Void> sendMessage(Buffer message, boolean compressed) {
+    return httpResponse.write(encodeMessage(message, compressed, false));
+  }
+
+  protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
+    return GrpcMessageImpl.encode(message, compressed, trailer);
+  }
+}

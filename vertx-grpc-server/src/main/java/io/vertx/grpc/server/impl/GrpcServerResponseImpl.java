@@ -13,15 +13,12 @@ package io.vertx.grpc.server.impl;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.GrpcHeaderNames;
+import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
-import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.StatusException;
@@ -32,26 +29,28 @@ import java.util.regex.Pattern;
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcServerResponseImpl<Req, Resp>, Resp> implements GrpcServerResponse<Req, Resp> {
+public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcServerResponseImpl<Req, Resp>, Resp> implements GrpcServerResponse<Req, Resp> {
 
   private static final Pattern COMMA_SEPARATOR = Pattern.compile(" *, *");
   private static final Set<String> GZIP_ACCEPT_ENCODING = Collections.singleton("gzip");
 
   private final GrpcServerRequestImpl<Req, Resp> request;
-  private final HttpServerResponse httpResponse;
+  private final ProtocolHandler protocolHandler;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
   private boolean trailersOnly;
   private Set<String> acceptedEncodings;
+  private boolean headersSent;
 
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
+                                ProtocolHandler protocolHandler,
                                 GrpcProtocol protocol,
-                                HttpServerResponse httpResponse,
+                                WriteStream<?> response,
                                 GrpcMessageEncoder<Resp> encoder) {
-    super(context, protocol.mediaType(), httpResponse, encoder);
+    super(context, protocol.mediaType(), response, encoder);
+    this.protocolHandler = protocolHandler;
     this.request = request;
-    this.httpResponse = httpResponse;
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
@@ -93,11 +92,6 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     end();
   }
 
-  // TODO : remove this
-  public boolean isTrailersOnly() {
-    return trailersOnly;
-  }
-
   public GrpcStatus status() {
     return status;
   }
@@ -134,79 +128,28 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
     }
   }
 
-  protected void setHeaders(String contentType, MultiMap grpcHeaders) {
-    MultiMap httpHeaders = httpResponse.headers();
-    httpHeaders.set("content-type", contentType);
-    encodeGrpcHeaders(grpcHeaders, httpHeaders);
-    if (trailersOnly) {
-      encodeGrpcStatus(httpHeaders);
-    }
-  }
-
-  protected void encodeGrpcHeaders(MultiMap grpcHeaders, MultiMap httpHeaders) {
-    if (grpcHeaders != null && !grpcHeaders.isEmpty()) {
-      for (Map.Entry<String, String> header : grpcHeaders) {
-        httpHeaders.add(header.getKey(), header.getValue());
-      }
-    }
+  protected void setHeaders(String contentType, String encoding, MultiMap grpcHeaders) {
+    protocolHandler.encodeGrpcHeaders(contentType, grpcHeaders, trailersOnly, status, statusMessage, encoding);
   }
 
   protected void setTrailers(MultiMap grpcTrailers) {
-    MultiMap httpTrailers;
-    if (trailersOnly) {
-      httpTrailers = httpResponse.headers();
-    } else {
-      httpTrailers = httpResponse.trailers();
-    }
-    encodeGrpcTrailers(grpcTrailers, httpTrailers);
-    encodeGrpcStatus(httpTrailers);
-  }
-
-  protected final void encodeGrpcTrailers(MultiMap grpcTrailers, MultiMap httpTrailers) {
-    if (grpcTrailers != null && !grpcTrailers.isEmpty()) {
-      for (Map.Entry<String, String> header : grpcTrailers) {
-        httpTrailers.add(header.getKey(), header.getValue());
-      }
-    }
-  }
-
-  /**
-   * Encode grpc status and status message in the specified {@code entries} map.
-   *
-   * @param entries the map updated with grpc specific headers
-   */
-  protected void encodeGrpcStatus(MultiMap entries) {
-    if (!entries.contains(GrpcHeaderNames.GRPC_STATUS)) {
-      entries.set(GrpcHeaderNames.GRPC_STATUS, status.toString());
-    }
-    if (status != GrpcStatus.OK) {
-      String msg = statusMessage;
-      if (msg != null && !entries.contains(GrpcHeaderNames.GRPC_MESSAGE)) {
-        entries.set(GrpcHeaderNames.GRPC_MESSAGE, Utils.utf8PercentEncode(msg));
-      }
-    } else {
-      entries.remove(GrpcHeaderNames.GRPC_MESSAGE);
-    }
+    protocolHandler.encodeGrpcTrailers(trailersOnly, grpcTrailers, status, statusMessage);
   }
 
   @Override
   protected Future<Void> sendMessage(Buffer message, boolean compressed) {
-    return httpResponse.write(encodeMessage(message, compressed, false));
+    return protocolHandler.sendMessage(message, compressed);
   }
 
   protected Future<Void> sendEnd() {
     handleStatus(status);
     request.cancelTimeout();
-    return httpResponse.end();
+    return protocolHandler.sendEnd(status);
   }
 
   @Override
   protected Future<Void> sendHead() {
-    return httpResponse.writeHead();
-  }
-
-  protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
-    return GrpcMessageImpl.encode(message, compressed, trailer);
+    return protocolHandler.sendHead();
   }
 
   private static GrpcStatus mapStatus(Throwable t) {
@@ -218,8 +161,6 @@ public abstract class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamB
       return GrpcStatus.UNKNOWN;
     }
   }
-
-  private boolean headersSent;
 
   @Override
   protected Future<Void> writeMessage(GrpcMessage message, boolean end) {

@@ -12,6 +12,7 @@ import io.vertx.grpc.server.impl.GrpcInvocation;
 import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import io.vertx.grpc.server.impl.MountPoint;
+import io.vertx.grpc.server.impl.ProtocolHandler;
 import io.vertx.grpc.transcoding.*;
 import io.vertx.grpc.transcoding.impl.config.HttpTemplate;
 import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
@@ -98,12 +99,13 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
         bindings,
         decoder,
         new GrpcMethodCall("/" + res.getMethod()));
-      GrpcServerResponseImpl<I, O> grpcResponse = new TranscodingGrpcServerResponse<>(
+      ProtocolHandler protocolHandler = new TranscodingProtocolHandler(context, httpRequest, options.getResponseBody());
+      GrpcServerResponseImpl<I, O> grpcResponse = new GrpcServerResponseImpl<>(
         context,
         grpcRequest,
+        protocolHandler,
         GrpcProtocol.TRANSCODING,
         httpRequest.response(),
-        options.getResponseBody(),
         encoder);
       return new GrpcInvocation<>(grpcRequest, grpcResponse);
     } else if (options == null) {
@@ -115,12 +117,13 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
         new ArrayList<>(),
         decoder,
         new GrpcMethodCall("/" + methodName));
-      GrpcServerResponseImpl<I, O> grpcResponse = new TranscodingGrpcServerResponse<>(
+      ProtocolHandler protocolHandler = new TranscodingProtocolHandler(context, httpRequest, null);
+      GrpcServerResponseImpl<I, O> grpcResponse = new GrpcServerResponseImpl<>(
         context,
         grpcRequest,
+        protocolHandler,
         GrpcProtocol.TRANSCODING,
         httpRequest.response(),
-        null,
         encoder);
       return new GrpcInvocation<>(grpcRequest, grpcResponse);
     }

@@ -162,7 +162,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected void setHeaders(String contentType, MultiMap headers) {
+  protected void setHeaders(String contentType, String encoding, MultiMap headers) {
     ServiceName serviceName = this.serviceName;
     String methodName = this.methodName;
     if (serviceName == null) {
@@ -182,8 +182,8 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     }
     String uri = serviceName.pathOf(methodName);
     httpRequest.putHeader(HttpHeaders.CONTENT_TYPE, contentType);
-    if (encoding != null) {
-      httpRequest.putHeader(GrpcHeaderNames.GRPC_ENCODING, encoding);
+    if (this.encoding != null) {
+      httpRequest.putHeader(GrpcHeaderNames.GRPC_ENCODING, this.encoding);
     }
     httpRequest.putHeader(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, "gzip");
     httpRequest.putHeader(HttpHeaderNames.TE, "trailers");

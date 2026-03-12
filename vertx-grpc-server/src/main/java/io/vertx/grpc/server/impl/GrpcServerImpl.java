@@ -153,6 +153,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
   private <Req, Resp> boolean handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall, GrpcProtocol protocol, WireFormat format) {
     io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
 
+    ProtocolHandler protocolHandler;
     GrpcServerRequestImpl<Req, Resp> grpcRequest;
     GrpcServerResponseImpl<Req, Resp> grpcResponse;
     switch (protocol) {
@@ -160,6 +161,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
           return false;
         }
+        protocolHandler = new GrpcProtocolHandlerImpl(httpRequest);
         grpcRequest = new Http2GrpcServerRequest<>(
           context,
           protocol,
@@ -167,9 +169,10 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
           httpRequest,
           method.messageDecoder,
           methodCall);
-        grpcResponse = new Http2GrpcServerResponse<>(
+        grpcResponse = new GrpcServerResponseImpl<>(
           context,
           grpcRequest,
+          protocolHandler,
           protocol,
           httpRequest.response(),
           method.messageEncoder);
@@ -179,6 +182,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
           return false;
         }
+        protocolHandler = new WebProtocolHandler(httpRequest, protocol);
         grpcRequest = new WebGrpcServerRequest<>(
           context,
           protocol,
@@ -187,9 +191,10 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
           httpRequest,
           method.messageDecoder,
           methodCall);
-        grpcResponse = new WebGrpcServerResponse<>(
+        grpcResponse = new GrpcServerResponseImpl<>(
           context,
           grpcRequest,
+          protocolHandler,
           protocol,
           httpRequest.response(),
           method.messageEncoder);
