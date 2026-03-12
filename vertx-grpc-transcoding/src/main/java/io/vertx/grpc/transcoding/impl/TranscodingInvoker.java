@@ -18,7 +18,7 @@ import io.vertx.grpc.server.impl.GrpcInvocation;
 public class TranscodingInvoker implements GrpcHttpInvoker {
 
   @Override
-  public <Req, Resp> GrpcInvocation<Req, Resp> accept(HttpServerRequest request, ServiceMethod<Req, Resp> serviceMethod) {
+  public <Req, Resp> GrpcInvocation accept(HttpServerRequest request, ServiceMethod<Req, Resp> serviceMethod) {
     TranscodingServiceMethodImpl<Req, Resp> transcodingServiceMethod;
 
     if (serviceMethod instanceof TranscodingServiceMethodImpl) {

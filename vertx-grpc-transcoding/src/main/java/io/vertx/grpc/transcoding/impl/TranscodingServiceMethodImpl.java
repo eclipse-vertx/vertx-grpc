@@ -6,12 +6,10 @@ import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.GrpcInvocation;
-import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
-import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import io.vertx.grpc.server.impl.MountPoint;
+import io.vertx.grpc.server.impl.HttpGrpcOutboundStream;
 import io.vertx.grpc.transcoding.*;
 import io.vertx.grpc.transcoding.impl.config.HttpTemplate;
 import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
@@ -82,7 +80,7 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
     }
   }
 
-  public GrpcInvocation<I, O> accept(HttpServerRequest httpRequest) {
+  public GrpcInvocation accept(HttpServerRequest httpRequest) {
     if (!httpRequest.getHeader(HttpHeaders.CONTENT_TYPE).equals(GrpcProtocol.TRANSCODING.mediaType())) {
       return null;
     }
@@ -91,38 +89,15 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
     if (res != null) {
       List<HttpVariableBinding> bindings = new ArrayList<>(res.getVariableBindings());
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
-      GrpcServerRequestImpl<I, O> grpcRequest = new TranscodingGrpcServerRequest<>(
-        context,
-        httpRequest,
-        options.getBody(),
-        bindings,
-        decoder,
-        new GrpcMethodCall("/" + res.getMethod()));
-      GrpcServerResponseImpl<I, O> grpcResponse = new TranscodingGrpcServerResponse<>(
-        context,
-        grpcRequest,
-        GrpcProtocol.TRANSCODING,
-        httpRequest.response(),
-        options.getResponseBody(),
-        encoder);
-      return new GrpcInvocation<>(grpcRequest, grpcResponse);
+      TranscodingMessageDecoder<I> messageDecoder = new TranscodingMessageDecoder<>(decoder, options.getBody(), bindings);
+      TranscodingMessageDeframer deframer = new TranscodingMessageDeframer();
+      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, options.getResponseBody(), deframer);
+      return new GrpcInvocation(deframer, protocolHandler, messageDecoder);
     } else if (options == null) {
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
-      GrpcServerRequestImpl<I, O> grpcRequest = new TranscodingGrpcServerRequest<>(
-        context,
-        httpRequest,
-        null,
-        new ArrayList<>(),
-        decoder,
-        new GrpcMethodCall("/" + methodName));
-      GrpcServerResponseImpl<I, O> grpcResponse = new TranscodingGrpcServerResponse<>(
-        context,
-        grpcRequest,
-        GrpcProtocol.TRANSCODING,
-        httpRequest.response(),
-        null,
-        encoder);
-      return new GrpcInvocation<>(grpcRequest, grpcResponse);
+      TranscodingMessageDeframer deframer = new TranscodingMessageDeframer();
+      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, null, deframer);
+      return new GrpcInvocation(deframer, protocolHandler, decoder);
     }
 
     return null;

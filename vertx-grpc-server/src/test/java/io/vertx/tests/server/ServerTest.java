@@ -23,7 +23,7 @@ import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.WireFormat;
-import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.tests.common.grpc.*;
 import org.junit.Test;
 
@@ -402,7 +402,7 @@ public abstract class ServerTest extends ServerTestBase {
           });
         }));
         GrpcMessage msg = TestConstants.REQUEST_ENC.encode(Request.newBuilder().setName("test").build(), WireFormat.PROTOBUF);
-        req.end(GrpcMessageImpl.encode(msg));
+        req.end(DefaultGrpcMessage.encode(msg));
       }));
 
     async.awaitSuccess();
@@ -425,7 +425,7 @@ public abstract class ServerTest extends ServerTestBase {
           });
         }));
         GrpcMessage msg = TestConstants.EMPTY_ENC.encode(Empty.getDefaultInstance(), WireFormat.PROTOBUF);
-        req.end(GrpcMessageImpl.encode(msg));
+        req.end(DefaultGrpcMessage.encode(msg));
       }));
 
     async.awaitSuccess();
@@ -448,7 +448,7 @@ public abstract class ServerTest extends ServerTestBase {
           });
         }));
         GrpcMessage msg = TestConstants.EMPTY_ENC.encode(Empty.getDefaultInstance(), WireFormat.PROTOBUF);
-        req.end(GrpcMessageImpl.encode(msg));
+        req.end(DefaultGrpcMessage.encode(msg));
       }));
 
     async.awaitSuccess();
@@ -470,7 +470,7 @@ public abstract class ServerTest extends ServerTestBase {
           async.complete();
         }));
         GrpcMessage msg = TestConstants.REQUEST_ENC.encode(Request.newBuilder().setName("test").build(), WireFormat.PROTOBUF);
-        req.end(GrpcMessageImpl.encode(msg));
+        req.end(DefaultGrpcMessage.encode(msg));
       }));
 
     async.awaitSuccess();

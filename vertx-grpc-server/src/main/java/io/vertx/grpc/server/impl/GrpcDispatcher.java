@@ -1,0 +1,141 @@
+package io.vertx.grpc.server.impl;
+
+import io.vertx.core.Handler;
+import io.vertx.core.http.HttpConnection;
+import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.spi.context.storage.AccessMode;
+import io.vertx.grpc.common.GrpcCancelFrame;
+import io.vertx.grpc.common.GrpcLocal;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.MessageSizeOverflowException;
+import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.impl.GrpcFrame;
+import io.vertx.grpc.common.impl.GrpcHeadersFrame;
+import io.vertx.grpc.common.impl.GrpcStream;
+import io.vertx.grpc.common.impl.GrpcMessageFrame;
+import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.server.GrpcProtocol;
+
+class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
+
+  private final GrpcStream stream;
+  private final ContextInternal context;
+  private final GrpcProtocol protocol;
+  private final WireFormat format;
+  private final GrpcMessageDecoder<Req> messageDecoder;
+  private final GrpcMethodCall methodCall;
+  private final HttpConnection httpConnection;
+  private final GrpcServerImpl.MethodCallHandler<Req, Resp> method;
+  private final boolean propagateDeadline;
+  private final boolean scheduleDeadline;
+  private GrpcServerRequestImpl<Req, Resp> grpcRequest;
+  private GrpcServerResponseImpl<Req, Resp> grpcResponse;
+
+  GrpcDispatcher(GrpcStream stream,
+                 ContextInternal context,
+                 GrpcProtocol protocol,
+                 WireFormat format,
+                 GrpcMessageDecoder<Req> messageDecoder,
+                 GrpcMethodCall methodCall,
+                 HttpConnection httpConnection,
+                 GrpcServerImpl.MethodCallHandler<Req, Resp> method,
+                 boolean propagateDeadline,
+                 boolean scheduleDeadline) {
+    this.stream = stream;
+    this.context = context;
+    this.protocol = protocol;
+    this.format = format;
+    this.messageDecoder = messageDecoder;
+    this.methodCall = methodCall;
+    this.httpConnection = httpConnection;
+    this.method = method;
+    this.propagateDeadline = propagateDeadline;
+    this.scheduleDeadline = scheduleDeadline;
+  }
+
+  @Override
+  public void handle(GrpcFrame frame) {
+
+    switch (frame.type()) {
+      case HEADERS:
+        handleHeadersFrame((GrpcHeadersFrame) frame);
+        break;
+      case MESSAGE:
+        handleMessage((GrpcMessageFrame) frame);
+        break;
+      case CANCEL:
+        handleCancel((GrpcCancelFrame) frame);
+        break;
+      default:
+        // Log
+        break;
+    }
+  }
+
+  private void handleHeadersFrame(GrpcHeadersFrame frame) {
+    grpcRequest = new GrpcServerRequestImpl<>(
+      context,
+      frame.headers(),
+      protocol,
+      format,
+      stream,
+      frame.timeout(),
+      frame.encoding(),
+      messageDecoder,
+      methodCall) {
+      @Override
+      public HttpConnection connection() {
+        return httpConnection;
+      }
+    };
+    stream.endHandler(v -> grpcRequest.handleEnd());
+    grpcResponse = new GrpcServerResponseImpl<>(
+      context,
+      grpcRequest,
+      stream,
+      protocol,
+      method.messageEncoder);
+    grpcResponse.format(format);
+    long timeout = grpcRequest.timeout();
+    if (propagateDeadline && timeout > 0L) {
+      long deadline = System.currentTimeMillis() + timeout;
+      grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
+    }
+    grpcRequest.init(grpcResponse, scheduleDeadline);
+    grpcRequest.invalidMessageHandler(invalidMsg -> {
+      if (invalidMsg instanceof MessageSizeOverflowException) {
+        grpcRequest.response().status(GrpcStatus.RESOURCE_EXHAUSTED).end();
+      } else {
+        grpcResponse.cancel();
+      }
+    });
+    grpcRequest.context().dispatch(grpcRequest, method);
+  }
+
+  private void handleMessage(GrpcMessageFrame frame) {
+    GrpcServerRequestImpl<Req, Resp> r = grpcRequest;
+    if (r != null) {
+      r.handleMessage(frame.message());
+    }
+  }
+
+  private void handleCancel(GrpcCancelFrame frame) {
+    GrpcServerRequestImpl<Req, Resp> r = grpcRequest;
+    if (r != null) {
+      r.handleCancel();
+    }
+  }
+
+  void handleException(Throwable exception) {
+    if (grpcRequest != null) {
+      grpcRequest.handleException(exception);
+    }
+  }
+
+  void handleEnd() {
+    if (grpcRequest != null) {
+      grpcRequest.handleEnd();
+    }
+  }
+}

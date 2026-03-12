@@ -10,48 +10,66 @@
  */
 package io.vertx.grpc.client.impl;
 
-import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.core.Expectation;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.HttpClientResponse;
 
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcInboundStream;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
-import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
-
-import java.nio.charset.StandardCharsets;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
 public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcClientResponseImpl<Req, Resp>, Resp> implements GrpcClientResponse<Req, Resp> {
 
+  private final GrpcInboundStream inbound;
   private final GrpcClientRequestImpl<Req, Resp> request;
-  private final HttpClientResponse httpResponse;
   private GrpcStatus status;
+  private MultiMap headers;
+  private MultiMap trailers;
   private String statusMessage;
 
   public GrpcClientResponseImpl(ContextInternal context,
                                 GrpcClientRequestImpl<Req, Resp> request,
+                                GrpcInboundStream inbound,
                                 WireFormat format,
-                                GrpcStatus status,
-                                HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
+                                String encoding,
+                                GrpcMessageDecoder<Resp> messageDecoder) {
     super(
       context,
-      httpResponse,
-      httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING),
+      encoding,
       format,
-      new Http2GrpcMessageDeframer(httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING), format),
       messageDecoder);
     this.request = request;
-    this.httpResponse = httpResponse;
+    this.inbound = inbound;
+  }
+
+  void handleHeaders(MultiMap headers) {
+    this.headers = headers;
+  }
+
+  void handleTrailers(GrpcStatus status,  String statusMessage, MultiMap trailers) {
     this.status = status;
+    this.statusMessage = statusMessage;
+    this.trailers = trailers;
+  }
+
+  @Override
+  public GrpcClientResponseImpl<Req, Resp> pause() {
+    inbound.pause();
+    return this;
+  }
+
+  @Override
+  public GrpcClientResponseImpl<Req, Resp> fetch(long amount) {
+    inbound.fetch(amount);
+    return this;
   }
 
   @Override
@@ -61,24 +79,16 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
 
   @Override
   public MultiMap headers() {
-    return httpResponse.headers();
+    return headers;
   }
 
   @Override
   public MultiMap trailers() {
-    return httpResponse.trailers();
+    return trailers;
   }
 
-  protected void handleEnd() {
+  public void handleEnd() {
     request.cancelTimeout();
-    if (status == null) {
-      String responseStatus = httpResponse.getTrailer("grpc-status");
-      if (responseStatus != null) {
-        status = GrpcStatus.valueOf(Integer.parseInt(responseStatus));
-      } else {
-        status = GrpcStatus.UNKNOWN;
-      }
-    }
     super.handleEnd();
     request.handleStatus(status);
     if (!request.isTrailersSent()) {
@@ -93,12 +103,6 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
 
   @Override
   public String statusMessage() {
-    if (status != null && status != GrpcStatus.OK) {
-      String msg = httpResponse.getHeader(GrpcHeaderNames.GRPC_MESSAGE);
-      if (msg != null) {
-        statusMessage = QueryStringDecoder.decodeComponent(msg, StandardCharsets.UTF_8);
-      }
-    }
     return statusMessage;
   }
 
