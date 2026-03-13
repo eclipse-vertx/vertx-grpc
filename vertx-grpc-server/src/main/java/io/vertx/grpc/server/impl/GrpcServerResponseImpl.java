@@ -126,23 +126,25 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   }
 
   @Override
-  protected void setTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
+  protected Future<Void> setTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
     invoker.writeTrailers(contentType, encoding, status, statusMessage, headers, trailers);
+    return sendEnd();
   }
 
-  protected void setTrailers(MultiMap grpcTrailers) {
+  protected Future<Void> setTrailers(MultiMap grpcTrailers) {
     invoker.writeTrailers(grpcTrailers, status, statusMessage);
+    return sendEnd();
+  }
+
+  private Future<Void> sendEnd() {
+    handleStatus(status);
+    request.cancelTimeout();
+    return invoker.writeEnd();
   }
 
   @Override
   protected Future<Void> sendMessage(GrpcMessage message) {
     return invoker.writeMessage(message);
-  }
-
-  protected Future<Void> sendEnd() {
-    handleStatus(status);
-    request.cancelTimeout();
-    return invoker.writeEnd();
   }
 
   @Override

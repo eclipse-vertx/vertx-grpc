@@ -206,12 +206,14 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected void setTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
+  protected Future<Void> setTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
     setHeaders(contentType, encoding, headers);
+    return httpRequest.end();
   }
 
   @Override
-  protected void setTrailers(MultiMap trailers) {
+  protected Future<Void> setTrailers(MultiMap trailers) {
+    return httpRequest.end();
   }
 
   @Override
@@ -223,11 +225,6 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       return context.failedFuture(e);
     }
     return httpRequest.write(payload);
-  }
-
-  @Override
-  protected Future<Void> sendEnd() {
-    return httpRequest.end();
   }
 
   void cancelTimeout() {
