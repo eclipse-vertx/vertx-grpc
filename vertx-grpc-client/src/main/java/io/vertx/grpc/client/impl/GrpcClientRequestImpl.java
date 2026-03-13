@@ -206,6 +206,11 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
+  protected void setTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
+    setHeaders(contentType, encoding, headers);
+  }
+
+  @Override
   protected void setTrailers(MultiMap trailers) {
   }
 

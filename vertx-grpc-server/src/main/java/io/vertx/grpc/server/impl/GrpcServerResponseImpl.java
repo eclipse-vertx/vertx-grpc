@@ -37,9 +37,7 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   private final GrpcServerInvoker invoker;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
-  private boolean trailersOnly;
   private Set<String> acceptedEncodings;
-  private boolean headersSent;
 
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
@@ -128,11 +126,16 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   }
 
   protected void setHeaders(String contentType, String encoding, MultiMap grpcHeaders) {
-    invoker.writeHeaders(contentType, grpcHeaders, trailersOnly, status, statusMessage, encoding);
+    invoker.writeHeaders(contentType, grpcHeaders, status, statusMessage, encoding);
+  }
+
+  @Override
+  protected void setTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
+    invoker.writeTrailers(contentType, encoding, status, statusMessage, headers, trailers);
   }
 
   protected void setTrailers(MultiMap grpcTrailers) {
-    invoker.writeTrailers(trailersOnly, grpcTrailers, status, statusMessage);
+    invoker.writeTrailers(grpcTrailers, status, statusMessage);
   }
 
   @Override
@@ -159,14 +162,5 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
     } else {
       return GrpcStatus.UNKNOWN;
     }
-  }
-
-  @Override
-  protected Future<Void> writeMessage(GrpcMessage message, boolean end) {
-    if (!headersSent) {
-      headersSent = true;
-      trailersOnly = status != GrpcStatus.OK && end;
-    }
-    return super.writeMessage(message, end);
   }
 }

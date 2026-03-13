@@ -30,6 +30,11 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     this.httpResponse = httpRequest.response();
   }
 
+  @Override
+  public void writeHeaders(String contentType, MultiMap grpcHeaders, GrpcStatus status, String stateMessage, String encoding) {
+    writeHeaders(contentType, grpcHeaders, false, status, stateMessage, encoding);
+  }
+
   public void writeHeaders(
     String contentType,
     MultiMap grpcHeaders,
@@ -80,6 +85,18 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     } else {
       entries.remove(GrpcHeaderNames.GRPC_MESSAGE);
     }
+  }
+
+  @Override
+  public void writeTrailers(String contentType, String encoding, GrpcStatus status, String statusMessage, MultiMap headers, MultiMap trailers) {
+    boolean trailersOnly = status != GrpcStatus.OK;
+    writeHeaders(contentType, headers, trailersOnly, status, statusMessage, encoding);
+    writeTrailers(trailersOnly, trailers, status, statusMessage);
+  }
+
+  @Override
+  public void writeTrailers(MultiMap grpcTrailers, GrpcStatus status, String statusMessage) {
+    writeTrailers(false, grpcTrailers, status, statusMessage);
   }
 
   public void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String statusMessage) {

@@ -7,12 +7,7 @@ import io.vertx.grpc.common.GrpcStatus;
 
 public interface GrpcServerInvoker {
 
-  void writeHeaders(
-    String contentType,
-    MultiMap grpcHeaders,
-    boolean trailersOnly,
-    GrpcStatus status,
-    String stateMessage, String encoding);
+  void writeHeaders(String contentType, MultiMap grpcHeaders, GrpcStatus status, String stateMessage, String encoding);
 
   Future<Void> writeHead();
 
@@ -20,5 +15,8 @@ public interface GrpcServerInvoker {
 
   Future<Void> writeEnd();
 
-  void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String statusMessage);
+  void writeTrailers(MultiMap grpcTrailers, GrpcStatus status, String statusMessage);
+  void writeTrailers(String contentType, String encoding, GrpcStatus status, String statusMessage, MultiMap headers, MultiMap trailers);
+
+
 }
