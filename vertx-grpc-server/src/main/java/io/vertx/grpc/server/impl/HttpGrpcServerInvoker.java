@@ -31,7 +31,7 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
   }
 
   @Override
-  public Future<Void> writeHeaders(String contentType, MultiMap grpcHeaders, GrpcStatus status, String stateMessage, String encoding) {
+  public Future<Void> writeHeaders(String contentType, MultiMap grpcHeaders, String encoding) {
     MultiMap httpHeaders = httpResponse.headers();
     httpHeaders.set("content-type", contentType);
     encodeGrpcHeaders(grpcHeaders, httpHeaders, encoding);

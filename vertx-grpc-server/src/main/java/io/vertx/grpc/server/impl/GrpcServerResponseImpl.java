@@ -145,7 +145,7 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
 
   @Override
   protected Future<Void> sendHeaders(String contentType, String encoding, MultiMap headers) {
-    return invoker.writeHeaders(contentType, headers, status, statusMessage, encoding);
+    return invoker.writeHeaders(contentType, headers, encoding);
   }
 
   private static GrpcStatus mapStatus(Throwable t) {
