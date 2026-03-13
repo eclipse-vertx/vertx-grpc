@@ -3,7 +3,6 @@ package io.vertx.grpc.common.impl;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.WriteStream;
@@ -196,25 +195,24 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return writeMessage(null, true);
   }
 
-  protected abstract Future<Void> setTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers);
-  protected abstract Future<Void> setTrailers(MultiMap trailers);
-
-  protected abstract Future<Void> sendHead(String contentType, String encoding, MultiMap headers);
+  protected abstract Future<Void> sendTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers);
+  protected abstract Future<Void> sendTrailers(MultiMap trailers);
+  protected abstract Future<Void> sendHeaders(String contentType, String encoding, MultiMap headers);
   protected abstract Future<Void> sendMessage(GrpcMessage message);
   protected abstract boolean sendCancel();
 
-  protected Future<Void> sendHead(boolean writeHeaders) {
+  protected Future<Void> sendHeaders(boolean writeHeaders) {
     if (!writeHeaders) {
       throw new IllegalArgumentException();
     }
     String contentType = contentType(format);
-    return sendHead(contentType, encoding, headers);
+    return sendHeaders(contentType, encoding, headers);
   }
 
   protected Future<Void> sendMessage(boolean writeHeaders, GrpcMessage message) {
     if (writeHeaders) {
       String contentType = contentType(format);
-      sendHead(contentType, encoding, headers);
+      sendHeaders(contentType, encoding, headers);
     }
     return sendMessage(message);
   }
@@ -222,9 +220,9 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   protected Future<Void> sendEnd(boolean writeHeaders) {
     if (writeHeaders) {
       String contentType = contentType(format);
-      return setTrailers(contentType, encoding, headers, trailers);
+      return sendTrailers(contentType, encoding, headers, trailers);
     } else {
-      return setTrailers(trailers);
+      return sendTrailers(trailers);
     }
   }
 
@@ -317,7 +315,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
       if (payload != null) {
         return sendMessage(writeHeaders, payload);
       } else {
-        return sendHead(writeHeaders);
+        return sendHeaders(writeHeaders);
       }
     }
   }

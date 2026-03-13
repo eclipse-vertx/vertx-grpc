@@ -164,7 +164,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected Future<Void> sendHead(String contentType, String encoding, MultiMap headers) {
+  protected Future<Void> sendHeaders(String contentType, String encoding, MultiMap headers) {
     setHeaders(contentType, encoding, headers);
     return httpRequest.sendHead();
   }
@@ -206,13 +206,13 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected Future<Void> setTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
+  protected Future<Void> sendTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
     setHeaders(contentType, encoding, headers);
     return httpRequest.end();
   }
 
   @Override
-  protected Future<Void> setTrailers(MultiMap trailers) {
+  protected Future<Void> sendTrailers(MultiMap trailers) {
     return httpRequest.end();
   }
 

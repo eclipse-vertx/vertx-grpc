@@ -126,12 +126,12 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   }
 
   @Override
-  protected Future<Void> setTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
+  protected Future<Void> sendTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
     invoker.writeTrailers(contentType, encoding, status, statusMessage, headers, trailers);
     return sendEnd();
   }
 
-  protected Future<Void> setTrailers(MultiMap grpcTrailers) {
+  protected Future<Void> sendTrailers(MultiMap grpcTrailers) {
     invoker.writeTrailers(grpcTrailers, status, statusMessage);
     return sendEnd();
   }
@@ -148,7 +148,7 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   }
 
   @Override
-  protected Future<Void> sendHead(String contentType, String encoding, MultiMap headers) {
+  protected Future<Void> sendHeaders(String contentType, String encoding, MultiMap headers) {
     invoker.writeHeaders(contentType, headers, status, statusMessage, encoding);
     return invoker.writeHead();
   }
