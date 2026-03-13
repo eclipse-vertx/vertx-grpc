@@ -20,15 +20,14 @@ import io.vertx.grpc.common.impl.Utils;
 
 import java.util.Map;
 
-// Stateless protocol handler
-public abstract class HttpGrpcServerInvoker implements GrpcInvoker {
+public abstract class HttpGrpcInvoker implements GrpcInvoker {
 
   private final ContextInternal contextInternal;
   private final HttpServerRequest httpRequest;
   private final HttpServerResponse httpResponse;
   protected GrpcStatus status;
 
-  public HttpGrpcServerInvoker(HttpServerRequest httpRequest) {
+  public HttpGrpcInvoker(HttpServerRequest httpRequest) {
     this.contextInternal = ((HttpServerRequestInternal) httpRequest).context();
     this.httpRequest = httpRequest;
     this.httpResponse = httpRequest.response();

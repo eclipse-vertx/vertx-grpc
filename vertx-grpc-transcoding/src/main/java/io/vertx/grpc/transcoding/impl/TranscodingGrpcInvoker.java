@@ -10,20 +10,19 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.server.GrpcProtocol;
-import io.vertx.grpc.server.impl.HttpGrpcServerInvoker;
+import io.vertx.grpc.server.impl.HttpGrpcInvoker;
 
-public class TranscodingProtocolHandler extends HttpGrpcServerInvoker {
+public class TranscodingGrpcInvoker extends HttpGrpcInvoker {
 
   private Promise<Void> head;
   private final ContextInternal context;
   private final HttpServerResponse httpResponse;
   private final String transcodingResponseBody;
 
-  public TranscodingProtocolHandler(ContextInternal context, HttpServerRequest httpRequest, String transcodingResponseBody) {
+  public TranscodingGrpcInvoker(ContextInternal context, HttpServerRequest httpRequest, String transcodingResponseBody) {
     super(httpRequest);
 
     this.context = context;

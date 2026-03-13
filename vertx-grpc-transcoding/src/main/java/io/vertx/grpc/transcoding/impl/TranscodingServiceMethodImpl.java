@@ -16,7 +16,7 @@ import io.vertx.grpc.server.impl.GrpcInvocation;
 import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import io.vertx.grpc.server.impl.MountPoint;
-import io.vertx.grpc.server.impl.HttpGrpcServerInvoker;
+import io.vertx.grpc.server.impl.HttpGrpcInvoker;
 import io.vertx.grpc.transcoding.*;
 import io.vertx.grpc.transcoding.impl.config.HttpTemplate;
 import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
@@ -114,7 +114,7 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
         }
       };
       inboundInvoker.init(grpcRequest, GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE);
-      HttpGrpcServerInvoker protocolHandler = new TranscodingProtocolHandler(context, httpRequest, options.getResponseBody());
+      HttpGrpcInvoker protocolHandler = new TranscodingGrpcInvoker(context, httpRequest, options.getResponseBody());
       GrpcServerResponseImpl<I, O> grpcResponse = new GrpcServerResponseImpl<>(
         context,
         grpcRequest,
@@ -143,7 +143,7 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
         }
       };
       inboundInvoker.init(grpcRequest, GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE);
-      HttpGrpcServerInvoker protocolHandler = new TranscodingProtocolHandler(context, httpRequest, null);
+      HttpGrpcInvoker protocolHandler = new TranscodingGrpcInvoker(context, httpRequest, null);
       GrpcServerResponseImpl<I, O> grpcResponse = new GrpcServerResponseImpl<>(
         context,
         grpcRequest,
