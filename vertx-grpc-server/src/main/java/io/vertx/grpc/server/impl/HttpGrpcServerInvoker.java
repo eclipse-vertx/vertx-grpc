@@ -38,7 +38,7 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     return writeHead();
   }
 
-  public Future<Void> writeHead() {
+  protected Future<Void> writeHead() {
     return httpResponse.writeHead();
   }
 
@@ -86,7 +86,7 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     return writeEnd();
   }
 
-  public void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus st, String statusMessage) {
+  protected void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus st, String statusMessage) {
     MultiMap httpTrailers;
     if (trailersOnly) {
       httpTrailers = httpResponse.headers();
@@ -105,7 +105,7 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     }
   }
 
-  public Future<Void> writeEnd() {
+  protected Future<Void> writeEnd() {
     return httpResponse.end();
   }
 
