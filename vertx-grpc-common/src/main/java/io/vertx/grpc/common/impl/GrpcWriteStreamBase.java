@@ -197,11 +197,10 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   }
 
   protected abstract void setHeaders(String contentType, String encoding, MultiMap headers);
-  protected abstract void setTrailers(MultiMap trailers);
 
   protected abstract Future<Void> sendHead();
   protected abstract Future<Void> sendMessage(GrpcMessage message);
-  protected abstract Future<Void> sendEnd();
+  protected abstract Future<Void> sendEnd(MultiMap trailers);
   protected abstract boolean sendCancel();
 
   protected Future<Void> sendHead(boolean writeHeaders) {
@@ -226,8 +225,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
       String contentType = contentType(format);
       setHeaders(contentType, encoding, headers);
     }
-    setTrailers(trailers);
-    return sendEnd();
+    return sendEnd(trailers);
   }
 
   protected String contentType(WireFormat wireFormat) {

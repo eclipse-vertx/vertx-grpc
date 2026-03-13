@@ -206,10 +206,6 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected void setTrailers(MultiMap trailers) {
-  }
-
-  @Override
   protected Future<Void> sendMessage(GrpcMessage message) {
     BufferInternal payload;
     try {
@@ -221,7 +217,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected Future<Void> sendEnd() {
+  protected Future<Void> sendEnd(MultiMap trailers) {
     return httpRequest.end();
   }
 
