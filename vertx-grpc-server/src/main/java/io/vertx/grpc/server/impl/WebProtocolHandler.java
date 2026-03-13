@@ -33,11 +33,17 @@ public class WebProtocolHandler extends HttpGrpcServerInvoker {
   }
 
   @Override
-  protected void encodeGrpcHeaders(MultiMap httpHeaders, String contentType, MultiMap grpcHeaders, boolean trailersOnly, GrpcStatus status, String stateMessage, String encoding) {
-    super.encodeGrpcHeaders(httpHeaders, contentType, grpcHeaders, trailersOnly, status, stateMessage, encoding);
+  public void writeHeaders(String contentType, MultiMap grpcHeaders, GrpcStatus status, String stateMessage, String encoding) {
+    httpResponse.setChunked(true);
+    super.writeHeaders(contentType, grpcHeaders, status, stateMessage, encoding);
+  }
+
+  @Override
+  public void writeHeaders(String contentType, MultiMap grpcHeaders, boolean trailersOnly, GrpcStatus st, String stateMessage, String encoding) {
     if (!trailersOnly) {
-      httpHeaders.set(HttpHeaders.TRANSFER_ENCODING, "chunked");
+      httpResponse.setChunked(true);
     }
+    super.writeHeaders(contentType, grpcHeaders, trailersOnly, st, stateMessage, encoding);
   }
 
   @Override
