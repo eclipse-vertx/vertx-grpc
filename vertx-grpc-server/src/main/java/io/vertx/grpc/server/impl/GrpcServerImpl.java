@@ -19,17 +19,22 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.HttpVersion;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 import io.vertx.grpc.server.*;
 
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -153,6 +158,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
   private <Req, Resp> boolean handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall, GrpcProtocol protocol, WireFormat format) {
     io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
 
+    GrpcMessageDeframer deframer;
     ProtocolHandler protocolHandler;
     GrpcServerRequestImpl<Req, Resp> grpcRequest;
     GrpcServerResponseImpl<Req, Resp> grpcResponse;
@@ -162,11 +168,13 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
           return false;
         }
         protocolHandler = new GrpcProtocolHandlerImpl(httpRequest);
-        grpcRequest = new Http2GrpcServerRequest<>(
+        deframer = new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format);
+        grpcRequest = new GrpcServerRequestImpl<>(
           context,
           protocol,
           format,
           httpRequest,
+          deframer,
           method.messageDecoder,
           methodCall);
         grpcResponse = new GrpcServerResponseImpl<>(
@@ -182,13 +190,18 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
           return false;
         }
+        if (httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE))) {
+          deframer  = new TextMessageDeframer();
+        } else {
+          deframer  = new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format);
+        }
         protocolHandler = new WebProtocolHandler(httpRequest, protocol);
-        grpcRequest = new WebGrpcServerRequest<>(
+        grpcRequest = new GrpcServerRequestImpl<>(
           context,
           protocol,
           format,
-          options.getMaxMessageSize(),
           httpRequest,
+          deframer,
           method.messageDecoder,
           methodCall);
         grpcResponse = new GrpcServerResponseImpl<>(
