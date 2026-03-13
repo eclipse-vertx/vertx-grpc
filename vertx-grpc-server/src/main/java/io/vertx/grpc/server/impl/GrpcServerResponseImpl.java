@@ -34,7 +34,7 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   private static final Set<String> GZIP_ACCEPT_ENCODING = Collections.singleton("gzip");
 
   private final GrpcServerRequestImpl<Req, Resp> request;
-  private final ProtocolHandler protocolHandler;
+  private final GrpcServerInvoker invoker;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
   private boolean trailersOnly;
@@ -43,12 +43,12 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
 
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
-                                ProtocolHandler protocolHandler,
+                                GrpcServerInvoker invoker,
                                 GrpcProtocol protocol,
                                 WriteStream<?> response,
                                 GrpcMessageEncoder<Resp> encoder) {
     super(context, protocol.mediaType(), response, encoder);
-    this.protocolHandler = protocolHandler;
+    this.invoker = invoker;
     this.request = request;
   }
 
@@ -128,27 +128,27 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   }
 
   protected void setHeaders(String contentType, String encoding, MultiMap grpcHeaders) {
-    protocolHandler.encodeGrpcHeaders(contentType, grpcHeaders, trailersOnly, status, statusMessage, encoding);
+    invoker.writeHeaders(contentType, grpcHeaders, trailersOnly, status, statusMessage, encoding);
   }
 
   protected void setTrailers(MultiMap grpcTrailers) {
-    protocolHandler.encodeGrpcTrailers(trailersOnly, grpcTrailers, status, statusMessage);
+    invoker.writeTrailers(trailersOnly, grpcTrailers, status, statusMessage);
   }
 
   @Override
   protected Future<Void> sendMessage(GrpcMessage message) {
-    return protocolHandler.sendMessage(message);
+    return invoker.writeMessage(message);
   }
 
   protected Future<Void> sendEnd() {
     handleStatus(status);
     request.cancelTimeout();
-    return protocolHandler.sendEnd(status);
+    return invoker.writeEnd(status);
   }
 
   @Override
   protected Future<Void> sendHead() {
-    return protocolHandler.sendHead();
+    return invoker.writeHead();
   }
 
   private static GrpcStatus mapStatus(Throwable t) {

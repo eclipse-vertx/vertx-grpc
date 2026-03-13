@@ -17,19 +17,19 @@ import io.vertx.grpc.common.impl.Utils;
 import java.util.Map;
 
 // Stateless protocol handler
-public abstract class ProtocolHandler {
+public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
 
   private final ContextInternal contextInternal;
   private final HttpServerRequest httpRequest;
   private final HttpServerResponse httpResponse;
 
-  public ProtocolHandler(HttpServerRequest httpRequest) {
+  public HttpGrpcServerInvoker(HttpServerRequest httpRequest) {
     this.contextInternal = ((HttpServerRequestInternal) httpRequest).context();
     this.httpRequest = httpRequest;
     this.httpResponse = httpRequest.response();
   }
 
-  protected void encodeGrpcHeaders(
+  public void writeHeaders(
     String contentType,
     MultiMap grpcHeaders,
     boolean trailersOnly,
@@ -79,7 +79,7 @@ public abstract class ProtocolHandler {
     }
   }
 
-  protected void encodeGrpcTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String statusMessage) {
+  public void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String statusMessage) {
     MultiMap httpTrailers;
     if (trailersOnly) {
       httpTrailers = httpResponse.headers();
@@ -98,15 +98,15 @@ public abstract class ProtocolHandler {
     }
   }
 
-  protected Future<Void> sendHead() {
+  public Future<Void> writeHead() {
     return httpResponse.writeHead();
   }
 
-  protected Future<Void> sendEnd(GrpcStatus status) {
+  public Future<Void> writeEnd(GrpcStatus status) {
     return httpResponse.end();
   }
 
-  protected Future<Void> sendMessage(GrpcMessage message) {
+  public Future<Void> writeMessage(GrpcMessage message) {
     Buffer payload;
     try {
       payload = message.payload();

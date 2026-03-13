@@ -15,7 +15,7 @@ import java.util.Map;
 
 import static io.vertx.grpc.server.GrpcProtocol.WEB_TEXT;
 
-public class WebProtocolHandler extends ProtocolHandler {
+public class WebProtocolHandler extends HttpGrpcServerInvoker {
 
   private final GrpcProtocol protocol;
   private final HttpServerResponse httpResponse;
@@ -41,7 +41,7 @@ public class WebProtocolHandler extends ProtocolHandler {
   }
 
   @Override
-  protected Future<Void> sendEnd(GrpcStatus status) {
+  public Future<Void> writeEnd(GrpcStatus status) {
     if (trailers != null) {
       Future<Void> ret = httpResponse.end(encodeMessage(trailers, false, true));
       trailers = null;
@@ -52,7 +52,7 @@ public class WebProtocolHandler extends ProtocolHandler {
   }
 
   @Override
-  protected void encodeGrpcTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String grpcMessage) {
+  public void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String grpcMessage) {
     if (trailersOnly) {
       if (grpcTrailers != null) {
         encodeGrpcTrailers(grpcTrailers, httpResponse.headers());

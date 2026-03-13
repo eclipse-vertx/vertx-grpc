@@ -13,9 +13,9 @@ import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcProtocol;
-import io.vertx.grpc.server.impl.ProtocolHandler;
+import io.vertx.grpc.server.impl.HttpGrpcServerInvoker;
 
-public class TranscodingProtocolHandler extends ProtocolHandler {
+public class TranscodingProtocolHandler extends HttpGrpcServerInvoker {
 
   private Promise<Void> head;
   private final ContextInternal context;
@@ -35,21 +35,21 @@ public class TranscodingProtocolHandler extends ProtocolHandler {
   }
 
   @Override
-  protected Future<Void> sendEnd(GrpcStatus status) {
+  public Future<Void> writeEnd(GrpcStatus status) {
     if (status != GrpcStatus.OK) {
       httpResponse.setStatusCode(GrpcTranscodingError.fromHttp2Code(status.code).getHttpStatusCode());
     }
-    return super.sendEnd(status);
+    return super.writeEnd(status);
   }
 
   @Override
-  protected Future<Void> sendHead() {
+  public Future<Void> writeHead() {
     head = context.promise();
     return head.future();
   }
 
   @Override
-  protected Future<Void> sendMessage(GrpcMessage message) {
+  public Future<Void> writeMessage(GrpcMessage message) {
     Buffer payload;
     try {
       payload = message.payload();

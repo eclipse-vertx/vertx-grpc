@@ -161,7 +161,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
 
     GrpcMessageDeframer deframer;
-    ProtocolHandler protocolHandler;
+    HttpGrpcServerInvoker protocolHandler;
     GrpcDeframingStream inboundInvoker;
     GrpcServerRequestImpl<Req, Resp> grpcRequest;
     GrpcServerResponseImpl<Req, Resp> grpcResponse;
@@ -170,7 +170,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
           return false;
         }
-        protocolHandler = new GrpcProtocolHandlerImpl(httpRequest);
+        protocolHandler = new Http2GrpcProtocolHandler(httpRequest);
         deframer = new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format);
         inboundInvoker = new GrpcDeframingStream(context, httpRequest, deframer);
         grpcRequest = new GrpcServerRequestImpl<>(
