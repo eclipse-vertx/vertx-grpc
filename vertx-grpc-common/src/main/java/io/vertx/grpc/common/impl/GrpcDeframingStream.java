@@ -1,5 +1,6 @@
 package io.vertx.grpc.common.impl;
 
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.ContextInternal;
@@ -10,14 +11,19 @@ import io.vertx.grpc.common.MessageSizeOverflowException;
 
 import static io.vertx.grpc.common.impl.GrpcReadStreamBase.END_SENTINEL;
 
-public class GrpcInboundInvoker implements Handler<Buffer>, GrpcInboundFlowControl {
+/**
+ * A stream that deframes a stream of gRPC messages.
+ */
+public class GrpcDeframingStream implements ReadStream<GrpcMessage> {
 
   private final ReadStream<Buffer> stream;
   private final GrpcMessageDeframer deframer;
   private final InboundMessageQueue<GrpcMessage> queue;
-  private GrpcReadStreamBase<?, ?> grpcReadStreamBase;
+  private Handler<GrpcMessage> messageHandler;
+  private Handler<Throwable> exceptionHandler;
+  private Handler<Void> endHandler;
 
-  public GrpcInboundInvoker(ContextInternal ctx, ReadStream<Buffer> stream, GrpcMessageDeframer deframer) {
+  public GrpcDeframingStream(ContextInternal ctx, ReadStream<Buffer> stream, GrpcMessageDeframer deframer) {
     this.stream = stream;
     this.deframer = deframer;
     this.queue = new InboundMessageQueue<>(ctx.executor(), ctx.executor(), 8, 16) {
@@ -32,25 +38,33 @@ public class GrpcInboundInvoker implements Handler<Buffer>, GrpcInboundFlowContr
       @Override
       protected void handleMessage(GrpcMessage msg) {
         if (msg == END_SENTINEL) {
-          grpcReadStreamBase.handleEnd();
+          Handler<Void> handler = endHandler;
+          if (handler != null) {
+            handler.handle(null);
+          }
         } else {
-          grpcReadStreamBase.handleMessage(msg);
+          Handler<GrpcMessage> handler = messageHandler;
+          if (handler != null) {
+            handler.handle(msg);
+          }
         }
       }
     };
   }
 
   public void init(GrpcReadStreamBase<?, ?> grpc, long maxMessageSize) {
-    grpcReadStreamBase = grpc;
     deframer.maxMessageSize(maxMessageSize);
-    stream.handler(this);
+    stream.handler(this::handle);
     stream.endHandler(v -> {
       deframer.end();
       deframe();
       queue.write(END_SENTINEL);
     });
     stream.exceptionHandler(err -> {
-      grpcReadStreamBase.handleException(err);
+      Handler<Throwable> handler = exceptionHandler;
+      if (handler != null) {
+        handler.handle(err);
+      }
     });
 
   }
@@ -67,7 +81,10 @@ public class GrpcInboundInvoker implements Handler<Buffer>, GrpcInboundFlowContr
         break;
       } else if (ret instanceof MessageSizeOverflowException) {
         MessageSizeOverflowException msoe = (MessageSizeOverflowException) ret;
-        grpcReadStreamBase.handleInvalidMessage(msoe);
+        Handler<Throwable> handler = exceptionHandler;
+        if (handler != null) {
+          handler.handle(msoe);
+        }
       } else {
         GrpcMessage msg = (GrpcMessage) ret;
         queue.write(msg);
@@ -76,12 +93,38 @@ public class GrpcInboundInvoker implements Handler<Buffer>, GrpcInboundFlowContr
   }
 
   @Override
-  public void pause() {
+  public GrpcDeframingStream pause() {
     queue.pause();
+    return this;
   }
 
   @Override
-  public void fetch(long amount) {
+  public GrpcDeframingStream fetch(long amount) {
     queue.fetch(amount);
+    return this;
+  }
+
+  @Override
+  public GrpcDeframingStream exceptionHandler(@Nullable Handler<Throwable> handler) {
+    this.exceptionHandler = handler;
+    return this;
+  }
+
+  @Override
+  public GrpcDeframingStream handler(@Nullable Handler<GrpcMessage> handler) {
+    this.messageHandler = handler;
+    return this;
+  }
+
+  @Override
+  public GrpcDeframingStream resume() {
+    queue.fetch(Long.MAX_VALUE);
+    return this;
+  }
+
+  @Override
+  public GrpcDeframingStream endHandler(@Nullable Handler<Void> handler) {
+    this.endHandler = handler;
+    return this;
   }
 }

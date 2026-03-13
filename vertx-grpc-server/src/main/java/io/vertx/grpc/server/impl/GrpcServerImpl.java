@@ -26,7 +26,7 @@ import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcInboundInvoker;
+import io.vertx.grpc.common.impl.GrpcDeframingStream;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
@@ -162,7 +162,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
     GrpcMessageDeframer deframer;
     ProtocolHandler protocolHandler;
-    GrpcInboundInvoker inboundInvoker;
+    GrpcDeframingStream inboundInvoker;
     GrpcServerRequestImpl<Req, Resp> grpcRequest;
     GrpcServerResponseImpl<Req, Resp> grpcResponse;
     switch (protocol) {
@@ -172,7 +172,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         }
         protocolHandler = new GrpcProtocolHandlerImpl(httpRequest);
         deframer = new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format);
-        inboundInvoker = new GrpcInboundInvoker(context, httpRequest, deframer);
+        inboundInvoker = new GrpcDeframingStream(context, httpRequest, deframer);
         grpcRequest = new GrpcServerRequestImpl<>(
           context,
           httpRequest.headers(),
@@ -206,7 +206,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         } else {
           deframer  = new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format);
         }
-        inboundInvoker = new GrpcInboundInvoker(context, httpRequest, deframer);
+        inboundInvoker = new GrpcDeframingStream(context, httpRequest, deframer);
         protocolHandler = new WebProtocolHandler(httpRequest, protocol);
         grpcRequest = new GrpcServerRequestImpl<>(
           context,

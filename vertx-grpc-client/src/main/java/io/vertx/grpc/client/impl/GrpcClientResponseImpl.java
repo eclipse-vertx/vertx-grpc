@@ -18,14 +18,12 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpClientResponse;
 
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcInboundFlowControl;
-import io.vertx.grpc.common.impl.GrpcInboundInvoker;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
-import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
 import java.nio.charset.StandardCharsets;
 
@@ -41,7 +39,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
 
   public GrpcClientResponseImpl(ContextInternal context,
                                 GrpcClientRequestImpl<Req, Resp> request,
-                                GrpcInboundFlowControl stream,
+                                ReadStream<GrpcMessage> stream,
                                 WireFormat format,
                                 GrpcStatus status,
                                 HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {

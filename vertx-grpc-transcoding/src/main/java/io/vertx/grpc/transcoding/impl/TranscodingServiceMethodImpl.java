@@ -8,7 +8,7 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.WireFormat;
-import io.vertx.grpc.common.impl.GrpcInboundInvoker;
+import io.vertx.grpc.common.impl.GrpcDeframingStream;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerOptions;
@@ -98,7 +98,7 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
       TranscodingMessageDecoder<I> messageDecoder = new TranscodingMessageDecoder<>(decoder, options.getBody(), bindings);
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer();
-      GrpcInboundInvoker inboundInvoker = new GrpcInboundInvoker(context, httpRequest, deframer);
+      GrpcDeframingStream inboundInvoker = new GrpcDeframingStream(context, httpRequest, deframer);
       GrpcServerRequestImpl<I, O> grpcRequest = new GrpcServerRequestImpl<>(
         context,
         httpRequest.headers(),
@@ -126,7 +126,7 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
     } else if (options == null) {
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer();
-      GrpcInboundInvoker inboundInvoker = new GrpcInboundInvoker(context, httpRequest, deframer);
+      GrpcDeframingStream inboundInvoker = new GrpcDeframingStream(context, httpRequest, deframer);
       TranscodingMessageDecoder<I> messageDecoder = new TranscodingMessageDecoder<>(decoder, null, List.of());
       GrpcServerRequestImpl<I, O> grpcRequest = new GrpcServerRequestImpl<>(
         context,

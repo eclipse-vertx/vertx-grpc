@@ -29,7 +29,7 @@ import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcInboundInvoker;
+import io.vertx.grpc.common.impl.GrpcDeframingStream;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
@@ -81,7 +81,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
         if (format != null || status != null) {
 
           Http2GrpcMessageDeframer deframer = new Http2GrpcMessageDeframer(httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING), format);
-          GrpcInboundInvoker invoker = new GrpcInboundInvoker(context(),  httpResponse, deframer);
+          GrpcDeframingStream invoker = new GrpcDeframingStream(context(),  httpResponse, deframer);
           GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(
             context,
             this,

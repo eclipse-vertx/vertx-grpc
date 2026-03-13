@@ -16,8 +16,8 @@ import io.vertx.core.Timer;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcInboundFlowControl;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
@@ -72,7 +72,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                MultiMap headers,
                                GrpcProtocol protocol,
                                WireFormat format,
-                               GrpcInboundFlowControl stream,
+                               ReadStream<GrpcMessage> stream,
                                HttpServerRequest httpRequest,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMethodCall methodCall) {

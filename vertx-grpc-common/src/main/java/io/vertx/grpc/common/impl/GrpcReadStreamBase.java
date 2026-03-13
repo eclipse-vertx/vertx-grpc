@@ -18,6 +18,7 @@ import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
 
 import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
@@ -47,7 +48,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   protected final ContextInternal context;
   private final String encoding;
   private final WireFormat format;
-  private final GrpcInboundFlowControl stream;
+  private final ReadStream<GrpcMessage> stream;
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcMessage> messageHandler;
   private Handler<Void> endHandler;
@@ -58,7 +59,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private GrpcWriteStreamBase<?, ?> ws;
 
   protected GrpcReadStreamBase(Context context,
-                               GrpcInboundFlowControl stream,
+                               ReadStream<GrpcMessage> stream,
                                String encoding,
                                WireFormat format,
                                GrpcMessageDecoder<T> messageDecoder) {
@@ -73,6 +74,10 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
 
   public void init(GrpcWriteStreamBase<?, ?> ws) {
     this.ws = ws;
+    this.stream
+      .handler(this::handleMessage)
+      .exceptionHandler(this::handleException)
+      .endHandler(v -> handleEnd());
   }
 
   protected final T decodeMessage(GrpcMessage msg) throws CodecException {
@@ -157,8 +162,11 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   }
 
   protected final void handleException(Throwable err) {
-    // Fishy
-    if (err instanceof StreamResetException) {
+    if (err instanceof InvalidMessageException) {
+      InvalidMessageException ime = (InvalidMessageException) err;
+      handleInvalidMessage(ime);
+    } else if (err instanceof StreamResetException) {
+      // Fishy
       StreamResetException reset = (StreamResetException) err;
       GrpcError error = mapHttp2ErrorCode(reset.getCode());
       ws.handleError(error);
