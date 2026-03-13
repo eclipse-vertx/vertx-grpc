@@ -11,7 +11,7 @@ import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.Utils;
 
 import java.util.Map;
@@ -120,6 +120,6 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
   }
 
   protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
-    return GrpcMessageImpl.encode(message, compressed, trailer);
+    return DefaultGrpcMessage.encode(message, compressed, trailer);
   }
 }

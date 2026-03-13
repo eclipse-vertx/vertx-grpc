@@ -267,20 +267,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
         switch (encoding) {
           case "gzip":
             if (message.encoding().equals("identity")) {
-              payload = new GrpcMessage() {
-                @Override
-                public String encoding() {
-                  return "gzip";
-                }
-                @Override
-                public WireFormat format() {
-                  return format;
-                }
-                @Override
-                public Buffer payload() {
-                  return Utils.GZIP_ENCODER.apply(message.payload());
-                }
-              };
+              payload = new GrpcTransformedMessage(message, "gzip", Utils.GZIP_ENCODER);
             } else {
               if (!message.encoding().equals("gzip")) {
                 return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
@@ -293,20 +280,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
               if (!message.encoding().equals("gzip")) {
                 return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
               }
-              payload = new GrpcMessage() {
-                @Override
-                public String encoding() {
-                  return "identity";
-                }
-                @Override
-                public WireFormat format() {
-                  return format;
-                }
-                @Override
-                public Buffer payload() {
-                  return Utils.GZIP_DECODER.apply(message.payload());
-                }
-              };
+              payload = new GrpcTransformedMessage(message, "identity", Utils.GZIP_DECODER);
             } else {
               payload = message;
             }

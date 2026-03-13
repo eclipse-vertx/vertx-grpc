@@ -30,7 +30,7 @@ import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcDeframingStream;
-import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
@@ -209,7 +209,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   protected Future<Void> sendMessage(GrpcMessage message) {
     BufferInternal payload;
     try {
-      payload = GrpcMessageImpl.encode(message.payload(), message.isCompressed(), false);
+      payload = DefaultGrpcMessage.encode(message.payload(), message.isCompressed(), false);
     } catch (CodecException e) {
       return context.failedFuture(e);
     }
