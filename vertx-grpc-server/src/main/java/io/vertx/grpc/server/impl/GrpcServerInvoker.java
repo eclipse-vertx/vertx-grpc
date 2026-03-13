@@ -7,9 +7,7 @@ import io.vertx.grpc.common.GrpcStatus;
 
 public interface GrpcServerInvoker {
 
-  void writeHeaders(String contentType, MultiMap grpcHeaders, GrpcStatus status, String stateMessage, String encoding);
-
-  Future<Void> writeHead();
+  Future<Void> writeHeaders(String contentType, MultiMap grpcHeaders, GrpcStatus status, String stateMessage, String encoding);
 
   Future<Void> writeMessage(GrpcMessage message);
 

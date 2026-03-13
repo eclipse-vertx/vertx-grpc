@@ -31,10 +31,15 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
   }
 
   @Override
-  public void writeHeaders(String contentType, MultiMap grpcHeaders, GrpcStatus status, String stateMessage, String encoding) {
+  public Future<Void> writeHeaders(String contentType, MultiMap grpcHeaders, GrpcStatus status, String stateMessage, String encoding) {
     MultiMap httpHeaders = httpResponse.headers();
     httpHeaders.set("content-type", contentType);
     encodeGrpcHeaders(grpcHeaders, httpHeaders, encoding);
+    return writeHead();
+  }
+
+  public Future<Void> writeHead() {
+    return httpResponse.writeHead();
   }
 
   protected void encodeGrpcHeaders(MultiMap grpcHeaders, MultiMap httpHeaders, String encoding) {
@@ -96,10 +101,6 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
         httpTrailers.add(header.getKey(), header.getValue());
       }
     }
-  }
-
-  public Future<Void> writeHead() {
-    return httpResponse.writeHead();
   }
 
   public Future<Void> writeEnd() {
