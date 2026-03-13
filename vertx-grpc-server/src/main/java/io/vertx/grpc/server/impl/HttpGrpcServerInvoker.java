@@ -22,6 +22,7 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
   private final ContextInternal contextInternal;
   private final HttpServerRequest httpRequest;
   private final HttpServerResponse httpResponse;
+  protected GrpcStatus status;
 
   public HttpGrpcServerInvoker(HttpServerRequest httpRequest) {
     this.contextInternal = ((HttpServerRequestInternal) httpRequest).context();
@@ -33,9 +34,10 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     String contentType,
     MultiMap grpcHeaders,
     boolean trailersOnly,
-    GrpcStatus status,
+    GrpcStatus st,
     String stateMessage, String encoding) {
-    encodeGrpcHeaders(httpResponse.headers(), contentType, grpcHeaders, trailersOnly, status, stateMessage, encoding);
+    status = st;
+    encodeGrpcHeaders(httpResponse.headers(), contentType, grpcHeaders, trailersOnly, st, stateMessage, encoding);
   }
 
   protected void encodeGrpcHeaders(
@@ -43,8 +45,9 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     String contentType,
     MultiMap grpcHeaders,
     boolean trailersOnly,
-    GrpcStatus status,
+    GrpcStatus st,
     String stateMessage, String encoding) {
+    status = st;
     httpHeaders.set("content-type", contentType);
     encodeGrpcHeaders(grpcHeaders, httpHeaders, encoding);
     if (trailersOnly) {
@@ -102,7 +105,7 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     return httpResponse.writeHead();
   }
 
-  public Future<Void> writeEnd(GrpcStatus status) {
+  public Future<Void> writeEnd() {
     return httpResponse.end();
   }
 

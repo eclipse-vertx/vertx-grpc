@@ -35,11 +35,12 @@ public class TranscodingProtocolHandler extends HttpGrpcServerInvoker {
   }
 
   @Override
-  public Future<Void> writeEnd(GrpcStatus status) {
+  public Future<Void> writeEnd() {
+    assert(status != null);
     if (status != GrpcStatus.OK) {
       httpResponse.setStatusCode(GrpcTranscodingError.fromHttp2Code(status.code).getHttpStatusCode());
     }
-    return super.writeEnd(status);
+    return super.writeEnd();
   }
 
   @Override

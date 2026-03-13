@@ -18,7 +18,7 @@ public interface GrpcServerInvoker {
 
   Future<Void> writeMessage(GrpcMessage message);
 
-  Future<Void> writeEnd(GrpcStatus status);
+  Future<Void> writeEnd();
 
   void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String statusMessage);
 }

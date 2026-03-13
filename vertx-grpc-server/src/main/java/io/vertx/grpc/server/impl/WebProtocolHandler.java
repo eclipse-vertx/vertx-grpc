@@ -41,7 +41,7 @@ public class WebProtocolHandler extends HttpGrpcServerInvoker {
   }
 
   @Override
-  public Future<Void> writeEnd(GrpcStatus status) {
+  public Future<Void> writeEnd() {
     if (trailers != null) {
       Future<Void> ret = httpResponse.end(encodeMessage(trailers, false, true));
       trailers = null;

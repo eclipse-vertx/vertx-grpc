@@ -143,7 +143,7 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   protected Future<Void> sendEnd() {
     handleStatus(status);
     request.cancelTimeout();
-    return invoker.writeEnd(status);
+    return invoker.writeEnd();
   }
 
   @Override
