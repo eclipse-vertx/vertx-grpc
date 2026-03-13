@@ -50,12 +50,12 @@ public class WebProtocolHandler extends HttpGrpcServerInvoker {
   }
 
   @Override
-  public void writeTrailers(String contentType, String encoding, GrpcStatus status, String statusMessage, MultiMap headers, MultiMap trailers) {
+  public Future<Void> writeTrailers(String contentType, String encoding, GrpcStatus status, String statusMessage, MultiMap headers, MultiMap trailers) {
     boolean trailersOnly = status != GrpcStatus.OK;
     if (!trailersOnly) {
       httpResponse.setChunked(true);
     }
-    super.writeTrailers(contentType, encoding, status, statusMessage, headers, trailers);
+    return super.writeTrailers(contentType, encoding, status, statusMessage, headers, trailers);
   }
 
   @Override

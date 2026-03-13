@@ -69,19 +69,21 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
   }
 
   @Override
-  public void writeTrailers(String contentType, String encoding, GrpcStatus st, String statusMessage, MultiMap headers, MultiMap trailers) {
+  public Future<Void> writeTrailers(String contentType, String encoding, GrpcStatus st, String statusMessage, MultiMap headers, MultiMap trailers) {
     status = st;
     boolean trailersOnly = st != GrpcStatus.OK;
     MultiMap httpHeaders = httpResponse.headers();
     httpHeaders.set("content-type", contentType);
     encodeGrpcHeaders(headers, httpHeaders, encoding);
     writeTrailers(trailersOnly, trailers, st, statusMessage);
+    return writeEnd();
   }
 
   @Override
-  public void writeTrailers(MultiMap grpcTrailers, GrpcStatus st, String statusMessage) {
+  public Future<Void> writeTrailers(MultiMap grpcTrailers, GrpcStatus st, String statusMessage) {
     status = st;
     writeTrailers(false, grpcTrailers, st, statusMessage);
+    return writeEnd();
   }
 
   public void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus st, String statusMessage) {
