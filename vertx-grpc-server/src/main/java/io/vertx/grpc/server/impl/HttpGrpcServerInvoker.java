@@ -14,13 +14,14 @@ import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
+import io.vertx.grpc.common.impl.GrpcInvoker;
 import io.vertx.grpc.common.impl.GrpcTrailersFrame;
 import io.vertx.grpc.common.impl.Utils;
 
 import java.util.Map;
 
 // Stateless protocol handler
-public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
+public abstract class HttpGrpcServerInvoker implements GrpcInvoker {
 
   private final ContextInternal contextInternal;
   private final HttpServerRequest httpRequest;
