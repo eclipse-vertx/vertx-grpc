@@ -62,10 +62,8 @@ public class WebProtocolHandler extends HttpGrpcServerInvoker {
   public void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String statusMessage) {
     if (trailersOnly) {
       MultiMap httpHeaders = httpResponse.headers();
+      encodeGrpcTrailers(grpcTrailers, httpHeaders);
       encodeGrpcStatus(httpHeaders, status, statusMessage);
-      if (grpcTrailers != null) {
-        encodeGrpcTrailers(grpcTrailers, httpHeaders);
-      }
     } else {
       MultiMap buffer = HttpHeaders.headers();
       encodeGrpcStatus(buffer, status, statusMessage);
