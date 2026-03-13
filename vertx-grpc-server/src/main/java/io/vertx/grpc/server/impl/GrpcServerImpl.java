@@ -16,6 +16,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -174,12 +175,18 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         inboundInvoker = new GrpcInboundInvoker(context, httpRequest, deframer);
         grpcRequest = new GrpcServerRequestImpl<>(
           context,
+          httpRequest.headers(),
           protocol,
           format,
           inboundInvoker,
           httpRequest,
           method.messageDecoder,
-          methodCall);
+          methodCall) {
+          @Override
+          public HttpConnection connection() {
+            return httpRequest.connection();
+          }
+        };
         inboundInvoker.init(grpcRequest, options.getMaxMessageSize());
         grpcResponse = new GrpcServerResponseImpl<>(
           context,
@@ -203,12 +210,18 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         protocolHandler = new WebProtocolHandler(httpRequest, protocol);
         grpcRequest = new GrpcServerRequestImpl<>(
           context,
+          httpRequest.headers(),
           protocol,
           format,
           inboundInvoker,
           httpRequest,
           method.messageDecoder,
-          methodCall);
+          methodCall) {
+          @Override
+          public HttpConnection connection() {
+            return httpRequest.connection();
+          }
+        };
         inboundInvoker.init(grpcRequest, options.getMaxMessageSize());
         grpcResponse = new GrpcServerResponseImpl<>(
           context,

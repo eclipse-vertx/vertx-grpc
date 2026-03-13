@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public final class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcServerRequestImpl<Req, Resp>, Req> implements GrpcServerRequest<Req, Resp> {
+public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcServerRequestImpl<Req, Resp>, Req> implements GrpcServerRequest<Req, Resp> {
 
   private static final Pattern TIMEOUT_PATTERN = Pattern.compile("([0-9]{1,8})([HMSmun])");
 
@@ -61,7 +61,7 @@ public final class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<G
     }
   }
 
-  final HttpServerRequest httpRequest;
+  private final MultiMap headers;
   final long timeout;
   final GrpcProtocol protocol;
   private GrpcServerResponseImpl<Req, Resp> response;
@@ -69,6 +69,7 @@ public final class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<G
   private Timer deadline;
 
   public GrpcServerRequestImpl(ContextInternal context,
+                               MultiMap headers,
                                GrpcProtocol protocol,
                                WireFormat format,
                                GrpcInboundFlowControl stream,
@@ -79,9 +80,9 @@ public final class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<G
     String timeoutHeader = httpRequest.getHeader(GrpcHeaderNames.GRPC_TIMEOUT);
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 
+    this.headers = headers;
     this.protocol = protocol;
     this.timeout = timeout;
-    this.httpRequest = httpRequest;
     this.methodCall = methodCall;
   }
 
@@ -117,7 +118,7 @@ public final class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<G
 
   @Override
   public MultiMap headers() {
-    return httpRequest.headers();
+    return headers;
   }
 
   @Override
@@ -158,7 +159,7 @@ public final class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<G
 
   @Override
   public HttpConnection connection() {
-    return httpRequest.connection();
+    throw new UnsupportedOperationException();
   }
 
   @Override

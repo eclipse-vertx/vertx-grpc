@@ -1,5 +1,6 @@
 package io.vertx.grpc.transcoding.impl;
 
+import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
@@ -100,12 +101,18 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
       GrpcInboundInvoker inboundInvoker = new GrpcInboundInvoker(context, httpRequest, deframer);
       GrpcServerRequestImpl<I, O> grpcRequest = new GrpcServerRequestImpl<>(
         context,
+        httpRequest.headers(),
         GrpcProtocol.TRANSCODING,
         WireFormat.JSON,
         inboundInvoker,
         httpRequest,
         messageDecoder,
-        new GrpcMethodCall("/" + res.getMethod()));
+        new GrpcMethodCall("/" + res.getMethod())) {
+        @Override
+        public HttpConnection connection() {
+          return httpRequest.connection();
+        }
+      };
       inboundInvoker.init(grpcRequest, GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE);
       ProtocolHandler protocolHandler = new TranscodingProtocolHandler(context, httpRequest, options.getResponseBody());
       GrpcServerResponseImpl<I, O> grpcResponse = new GrpcServerResponseImpl<>(
@@ -123,12 +130,18 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
       TranscodingMessageDecoder<I> messageDecoder = new TranscodingMessageDecoder<>(decoder, null, List.of());
       GrpcServerRequestImpl<I, O> grpcRequest = new GrpcServerRequestImpl<>(
         context,
+        httpRequest.headers(),
         GrpcProtocol.TRANSCODING,
         WireFormat.JSON,
         inboundInvoker,
         httpRequest,
         messageDecoder,
-        new GrpcMethodCall("/" + methodName));
+        new GrpcMethodCall("/" + methodName)) {
+        @Override
+        public HttpConnection connection() {
+          return httpRequest.connection();
+        }
+      };
       inboundInvoker.init(grpcRequest, GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE);
       ProtocolHandler protocolHandler = new TranscodingProtocolHandler(context, httpRequest, null);
       GrpcServerResponseImpl<I, O> grpcResponse = new GrpcServerResponseImpl<>(
