@@ -12,6 +12,7 @@ import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.HttpGrpcServerInvoker;
 
@@ -50,10 +51,10 @@ public class TranscodingProtocolHandler extends HttpGrpcServerInvoker {
   }
 
   @Override
-  public Future<Void> writeMessage(GrpcMessage message) {
+  public Future<Void> writeMessage(GrpcMessageFrame frame) {
     Buffer payload;
     try {
-      payload = message.payload();
+      payload = frame.message().payload();
     } catch (CodecException e) {
       return context.failedFuture(e);
     }

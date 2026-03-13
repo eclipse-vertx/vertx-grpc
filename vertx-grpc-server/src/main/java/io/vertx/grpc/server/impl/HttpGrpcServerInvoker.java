@@ -9,9 +9,12 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcHeaderNames;
-import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.DefaultGrpcMessage;
+import io.vertx.grpc.common.impl.GrpcFrame;
+import io.vertx.grpc.common.impl.GrpcHeadersFrame;
+import io.vertx.grpc.common.impl.GrpcMessageFrame;
+import io.vertx.grpc.common.impl.GrpcTrailersFrame;
 import io.vertx.grpc.common.impl.Utils;
 
 import java.util.Map;
@@ -31,10 +34,27 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
   }
 
   @Override
-  public Future<Void> writeHeaders(String contentType, MultiMap grpcHeaders, String encoding) {
+  public Future<Void> write(GrpcFrame frame) {
+    if (frame instanceof GrpcHeadersFrame) {
+      if (frame instanceof GrpcTrailersFrame) {
+        GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
+        GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
+        return writeTrailers(headersFrame.contentType(), headersFrame.encoding(), trailersFrame.status(), trailersFrame.statusMessage(), headersFrame.headers(), trailersFrame.trailers());
+      } else {
+        return writeHeaders((GrpcHeadersFrame) frame);
+      }
+    } else if (frame instanceof GrpcMessageFrame) {
+      return writeMessage((GrpcMessageFrame) frame);
+    } else if (frame instanceof GrpcTrailersFrame) {
+      return writeTrailers((GrpcTrailersFrame) frame);
+    }
+    return contextInternal.failedFuture("Invalid message");
+  }
+
+  protected Future<Void> writeHeaders(GrpcHeadersFrame frame) {
     MultiMap httpHeaders = httpResponse.headers();
-    httpHeaders.set("content-type", contentType);
-    encodeGrpcHeaders(grpcHeaders, httpHeaders, encoding);
+    httpHeaders.set("content-type", frame.contentType());
+    encodeGrpcHeaders(frame.headers(), httpHeaders, frame.encoding());
     return writeHead();
   }
 
@@ -68,8 +88,7 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     }
   }
 
-  @Override
-  public Future<Void> writeTrailers(String contentType, String encoding, GrpcStatus st, String statusMessage, MultiMap headers, MultiMap trailers) {
+  protected Future<Void> writeTrailers(String contentType, String encoding, GrpcStatus st, String statusMessage, MultiMap headers, MultiMap trailers) {
     status = st;
     boolean trailersOnly = st != GrpcStatus.OK;
     MultiMap httpHeaders = httpResponse.headers();
@@ -79,10 +98,9 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     return writeEnd();
   }
 
-  @Override
-  public Future<Void> writeTrailers(MultiMap grpcTrailers, GrpcStatus st, String statusMessage) {
-    status = st;
-    writeTrailers(false, grpcTrailers, st, statusMessage);
+  protected Future<Void> writeTrailers(GrpcTrailersFrame frame) {
+    status = frame.status();
+    writeTrailers(false, frame.trailers(), frame.status(), frame.statusMessage());
     return writeEnd();
   }
 
@@ -109,14 +127,14 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     return httpResponse.end();
   }
 
-  public Future<Void> writeMessage(GrpcMessage message) {
+  protected Future<Void> writeMessage(GrpcMessageFrame frame) {
     Buffer payload;
     try {
-      payload = message.payload();
+      payload = frame.message().payload();
     } catch (CodecException e) {
       return contextInternal.failedFuture(e);
     }
-    return httpResponse.write(encodeMessage(payload, message.isCompressed(), false));
+    return httpResponse.write(encodeMessage(payload, frame.message().isCompressed(), false));
   }
 
   protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {

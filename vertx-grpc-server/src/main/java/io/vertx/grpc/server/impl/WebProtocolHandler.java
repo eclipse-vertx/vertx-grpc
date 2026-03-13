@@ -9,6 +9,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.server.GrpcProtocol;
 
 import java.util.Map;
@@ -33,9 +34,9 @@ public class WebProtocolHandler extends HttpGrpcServerInvoker {
   }
 
   @Override
-  public Future<Void> writeHeaders(String contentType, MultiMap grpcHeaders, String encoding) {
+  public Future<Void> writeHeaders(GrpcHeadersFrame frame) {
     httpResponse.setChunked(true);
-    return super.writeHeaders(contentType, grpcHeaders, encoding);
+    return super.writeHeaders(frame);
   }
 
   @Override
