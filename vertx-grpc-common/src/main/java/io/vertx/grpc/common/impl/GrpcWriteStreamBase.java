@@ -196,11 +196,10 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return writeMessage(null, true);
   }
 
-  protected abstract void setHeaders(String contentType, String encoding, MultiMap headers);
   protected abstract void setTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers);
   protected abstract void setTrailers(MultiMap trailers);
 
-  protected abstract Future<Void> sendHead();
+  protected abstract Future<Void> sendHead(String contentType, String encoding, MultiMap headers);
   protected abstract Future<Void> sendMessage(GrpcMessage message);
   protected abstract Future<Void> sendEnd();
   protected abstract boolean sendCancel();
@@ -210,14 +209,13 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
       throw new IllegalArgumentException();
     }
     String contentType = contentType(format);
-    setHeaders(contentType, encoding, headers);
-    return sendHead();
+    return sendHead(contentType, encoding, headers);
   }
 
   protected Future<Void> sendMessage(boolean writeHeaders, GrpcMessage message) {
     if (writeHeaders) {
       String contentType = contentType(format);
-      setHeaders(contentType, encoding, headers);
+      sendHead(contentType, encoding, headers);
     }
     return sendMessage(message);
   }
