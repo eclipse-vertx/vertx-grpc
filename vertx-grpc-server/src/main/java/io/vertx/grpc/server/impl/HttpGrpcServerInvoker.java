@@ -32,32 +32,9 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
 
   @Override
   public void writeHeaders(String contentType, MultiMap grpcHeaders, GrpcStatus status, String stateMessage, String encoding) {
-    writeHeaders(contentType, grpcHeaders, false, status, stateMessage, encoding);
-  }
-
-  public void writeHeaders(
-    String contentType,
-    MultiMap grpcHeaders,
-    boolean trailersOnly,
-    GrpcStatus st,
-    String stateMessage, String encoding) {
-    status = st;
-    encodeGrpcHeaders(httpResponse.headers(), contentType, grpcHeaders, trailersOnly, st, stateMessage, encoding);
-  }
-
-  protected void encodeGrpcHeaders(
-    MultiMap httpHeaders,
-    String contentType,
-    MultiMap grpcHeaders,
-    boolean trailersOnly,
-    GrpcStatus st,
-    String stateMessage, String encoding) {
-    status = st;
+    MultiMap httpHeaders = httpResponse.headers();
     httpHeaders.set("content-type", contentType);
     encodeGrpcHeaders(grpcHeaders, httpHeaders, encoding);
-    if (trailersOnly) {
-      encodeGrpcStatus(httpHeaders, status, stateMessage);
-    }
   }
 
   protected void encodeGrpcHeaders(MultiMap grpcHeaders, MultiMap httpHeaders, String encoding) {
@@ -88,10 +65,16 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
   }
 
   @Override
-  public void writeTrailers(String contentType, String encoding, GrpcStatus status, String statusMessage, MultiMap headers, MultiMap trailers) {
-    boolean trailersOnly = status != GrpcStatus.OK;
-    writeHeaders(contentType, headers, trailersOnly, status, statusMessage, encoding);
-    writeTrailers(trailersOnly, trailers, status, statusMessage);
+  public void writeTrailers(String contentType, String encoding, GrpcStatus st, String statusMessage, MultiMap headers, MultiMap trailers) {
+    status = st;
+    boolean trailersOnly = st != GrpcStatus.OK;
+    MultiMap httpHeaders = httpResponse.headers();
+    httpHeaders.set("content-type", contentType);
+    encodeGrpcHeaders(headers, httpHeaders, encoding);
+    if (trailersOnly) {
+      encodeGrpcStatus(httpHeaders, st, statusMessage);
+    }
+    writeTrailers(trailersOnly, trailers, st, statusMessage);
   }
 
   @Override
@@ -99,7 +82,8 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     writeTrailers(false, grpcTrailers, status, statusMessage);
   }
 
-  public void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String statusMessage) {
+  public void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus st, String statusMessage) {
+    status = st;
     MultiMap httpTrailers;
     if (trailersOnly) {
       httpTrailers = httpResponse.headers();
@@ -107,7 +91,7 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
       httpTrailers = httpResponse.trailers();
     }
     encodeGrpcTrailers(grpcTrailers, httpTrailers);
-    encodeGrpcStatus(httpTrailers, status, statusMessage);
+    encodeGrpcStatus(httpTrailers, st, statusMessage);
   }
 
   protected final void encodeGrpcTrailers(MultiMap grpcTrailers, MultiMap httpTrailers) {

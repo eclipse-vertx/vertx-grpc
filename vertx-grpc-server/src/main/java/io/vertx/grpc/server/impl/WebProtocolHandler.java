@@ -39,11 +39,12 @@ public class WebProtocolHandler extends HttpGrpcServerInvoker {
   }
 
   @Override
-  public void writeHeaders(String contentType, MultiMap grpcHeaders, boolean trailersOnly, GrpcStatus st, String stateMessage, String encoding) {
+  public void writeTrailers(String contentType, String encoding, GrpcStatus status, String statusMessage, MultiMap headers, MultiMap trailers) {
+    boolean trailersOnly = status != GrpcStatus.OK;
     if (!trailersOnly) {
       httpResponse.setChunked(true);
     }
-    super.writeHeaders(contentType, grpcHeaders, trailersOnly, st, stateMessage, encoding);
+    super.writeTrailers(contentType, encoding, status, statusMessage, headers, trailers);
   }
 
   @Override
@@ -58,14 +59,14 @@ public class WebProtocolHandler extends HttpGrpcServerInvoker {
   }
 
   @Override
-  public void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String grpcMessage) {
+  public void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus st, String grpcMessage) {
     if (trailersOnly) {
       if (grpcTrailers != null) {
         encodeGrpcTrailers(grpcTrailers, httpResponse.headers());
       }
     } else {
       MultiMap buffer = HttpHeaders.headers();
-      super.encodeGrpcStatus(buffer, status, grpcMessage);
+      super.encodeGrpcStatus(buffer, st, grpcMessage);
       appendToTrailers(buffer);
       if (grpcTrailers != null) {
         appendToTrailers(grpcTrailers);
