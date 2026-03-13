@@ -200,7 +200,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   protected abstract void setTrailers(MultiMap trailers);
 
   protected abstract Future<Void> sendHead();
-  protected abstract Future<Void> sendMessage(Buffer message, boolean compressed);
+  protected abstract Future<Void> sendMessage(GrpcMessage message);
   protected abstract Future<Void> sendEnd();
   protected abstract boolean sendCancel();
 
@@ -213,12 +213,12 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return sendHead();
   }
 
-  protected Future<Void> sendMessage(boolean writeHeaders, Buffer message, boolean compressed) {
+  protected Future<Void> sendMessage(boolean writeHeaders, GrpcMessage message) {
     if (writeHeaders) {
       String contentType = contentType(format);
       setHeaders(contentType, encoding, headers);
     }
-    return sendMessage(message, compressed);
+    return sendMessage(message);
   }
 
   protected Future<Void> sendEnd(boolean writeHeaders) {
@@ -263,50 +263,63 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
         return context.failedFuture("Message format does not match the response format");
       }
     }
-    Buffer payload;
-    boolean compressed;
+    GrpcMessage payload;
     if (message != null) {
       if (encoding != null) {
         switch (encoding) {
           case "gzip":
-            compressed = true;
             if (message.encoding().equals("identity")) {
-              try {
-                payload = Utils.GZIP_ENCODER.apply(message.payload());
-              } catch (CodecException e) {
-                return Future.failedFuture(e);
-              }
+              payload = new GrpcMessage() {
+                @Override
+                public String encoding() {
+                  return "gzip";
+                }
+                @Override
+                public WireFormat format() {
+                  return format;
+                }
+                @Override
+                public Buffer payload() {
+                  return Utils.GZIP_ENCODER.apply(message.payload());
+                }
+              };
             } else {
               if (!message.encoding().equals("gzip")) {
                 return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
               }
-              payload = message.payload();
+              payload = message;
             }
             break;
           case "identity":
-            compressed = false;
             if (!message.encoding().equals("identity")) {
               if (!message.encoding().equals("gzip")) {
                 return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
               }
-              try {
-                payload = Utils.GZIP_DECODER.apply(message.payload());
-              } catch (CodecException e) {
-                return Future.failedFuture(e);
-              }
+              payload = new GrpcMessage() {
+                @Override
+                public String encoding() {
+                  return "identity";
+                }
+                @Override
+                public WireFormat format() {
+                  return format;
+                }
+                @Override
+                public Buffer payload() {
+                  return Utils.GZIP_DECODER.apply(message.payload());
+                }
+              };
             } else {
-              payload = message.payload();
+              payload = message;
             }
             break;
           default:
             return Future.failedFuture("Encoding " + encoding + " is not supported");
         }
       } else {
-        compressed = !message.encoding().equals("identity");
-        payload = message.payload();
+        payload = message;
       }
     } else {
-      compressed = false;
       payload = null;
     }
 
@@ -324,13 +337,13 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     if (end) {
       trailersSent = true;
       if (payload != null) {
-        sendMessage(writeHeaders, payload, compressed);
+        sendMessage(writeHeaders, payload);
         writeHeaders = false;
       }
       return sendEnd(writeHeaders);
     } else {
       if (payload != null) {
-        return sendMessage(writeHeaders, payload, compressed);
+        return sendMessage(writeHeaders, payload);
       } else {
         return sendHead(writeHeaders);
       }

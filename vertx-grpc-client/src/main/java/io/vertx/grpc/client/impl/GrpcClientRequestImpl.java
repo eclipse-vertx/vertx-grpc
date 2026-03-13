@@ -14,7 +14,6 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
 
 import java.util.EnumMap;
@@ -25,6 +24,7 @@ import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.PromiseInternal;
+import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcErrorException;
@@ -210,8 +210,14 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected Future<Void> sendMessage(Buffer message, boolean compressed) {
-    return httpRequest.write(GrpcMessageImpl.encode(message, compressed, false));
+  protected Future<Void> sendMessage(GrpcMessage message) {
+    BufferInternal payload;
+    try {
+      payload = GrpcMessageImpl.encode(message.payload(), message.isCompressed(), false);
+    } catch (CodecException e) {
+      return context.failedFuture(e);
+    }
+    return httpRequest.write(payload);
   }
 
   @Override

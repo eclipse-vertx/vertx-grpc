@@ -12,7 +12,6 @@ package io.vertx.grpc.server.impl;
 
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcMessage;
@@ -137,8 +136,8 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   }
 
   @Override
-  protected Future<Void> sendMessage(Buffer message, boolean compressed) {
-    return protocolHandler.sendMessage(message, compressed);
+  protected Future<Void> sendMessage(GrpcMessage message) {
+    return protocolHandler.sendMessage(message);
   }
 
   protected Future<Void> sendEnd() {

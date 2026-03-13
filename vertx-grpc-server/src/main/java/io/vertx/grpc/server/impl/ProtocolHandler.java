@@ -5,7 +5,11 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.http.HttpServerRequestInternal;
+import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcHeaderNames;
+import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.Utils;
@@ -15,10 +19,12 @@ import java.util.Map;
 // Stateless protocol handler
 public abstract class ProtocolHandler {
 
+  private final ContextInternal contextInternal;
   private final HttpServerRequest httpRequest;
   private final HttpServerResponse httpResponse;
 
   public ProtocolHandler(HttpServerRequest httpRequest) {
+    this.contextInternal = ((HttpServerRequestInternal) httpRequest).context();
     this.httpRequest = httpRequest;
     this.httpResponse = httpRequest.response();
   }
@@ -100,8 +106,14 @@ public abstract class ProtocolHandler {
     return httpResponse.end();
   }
 
-  protected Future<Void> sendMessage(Buffer message, boolean compressed) {
-    return httpResponse.write(encodeMessage(message, compressed, false));
+  protected Future<Void> sendMessage(GrpcMessage message) {
+    Buffer payload;
+    try {
+      payload = message.payload();
+    } catch (CodecException e) {
+      return contextInternal.failedFuture(e);
+    }
+    return httpResponse.write(encodeMessage(payload, message.isCompressed(), false));
   }
 
   protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {

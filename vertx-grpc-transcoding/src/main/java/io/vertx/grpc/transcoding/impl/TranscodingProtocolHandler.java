@@ -9,6 +9,8 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
+import io.vertx.grpc.common.CodecException;
+import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.ProtocolHandler;
@@ -47,10 +49,16 @@ public class TranscodingProtocolHandler extends ProtocolHandler {
   }
 
   @Override
-  protected Future<Void> sendMessage(Buffer message, boolean compressed) {
+  protected Future<Void> sendMessage(GrpcMessage message) {
+    Buffer payload;
+    try {
+      payload = message.payload();
+    } catch (CodecException e) {
+      return context.failedFuture(e);
+    }
     Future<Void> res;
     try {
-      BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(message, transcodingResponseBody);
+      BufferInternal transcoded = (BufferInternal) MessageWeaver.weaveResponseMessage(payload, transcodingResponseBody);
       httpResponse.putHeader(HttpHeaders.CONTENT_LENGTH, Integer.toString(transcoded.length()));
       httpResponse.putHeader(HttpHeaders.CONTENT_TYPE, GrpcProtocol.TRANSCODING.mediaType());
       res = httpResponse.write(transcoded);
