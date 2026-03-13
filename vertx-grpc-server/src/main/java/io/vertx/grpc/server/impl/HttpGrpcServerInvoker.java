@@ -71,9 +71,6 @@ public abstract class HttpGrpcServerInvoker implements GrpcServerInvoker {
     MultiMap httpHeaders = httpResponse.headers();
     httpHeaders.set("content-type", contentType);
     encodeGrpcHeaders(headers, httpHeaders, encoding);
-    if (trailersOnly) {
-      encodeGrpcStatus(httpHeaders, st, statusMessage);
-    }
     writeTrailers(trailersOnly, trailers, st, statusMessage);
   }
 
