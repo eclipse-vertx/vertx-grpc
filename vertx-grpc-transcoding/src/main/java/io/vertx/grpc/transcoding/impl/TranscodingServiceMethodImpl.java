@@ -7,8 +7,10 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.impl.GrpcInboundInvoker;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcProtocol;
+import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.impl.GrpcInvocation;
 import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
@@ -95,14 +97,16 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
       TranscodingMessageDecoder<I> messageDecoder = new TranscodingMessageDecoder<>(decoder, options.getBody(), bindings);
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer();
+      GrpcInboundInvoker inboundInvoker = new GrpcInboundInvoker(context, httpRequest, deframer);
       GrpcServerRequestImpl<I, O> grpcRequest = new GrpcServerRequestImpl<>(
         context,
         GrpcProtocol.TRANSCODING,
         WireFormat.JSON,
+        inboundInvoker,
         httpRequest,
-        deframer,
         messageDecoder,
         new GrpcMethodCall("/" + res.getMethod()));
+      inboundInvoker.init(grpcRequest, GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE);
       ProtocolHandler protocolHandler = new TranscodingProtocolHandler(context, httpRequest, options.getResponseBody());
       GrpcServerResponseImpl<I, O> grpcResponse = new GrpcServerResponseImpl<>(
         context,
@@ -115,15 +119,17 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
     } else if (options == null) {
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer();
+      GrpcInboundInvoker inboundInvoker = new GrpcInboundInvoker(context, httpRequest, deframer);
       TranscodingMessageDecoder<I> messageDecoder = new TranscodingMessageDecoder<>(decoder, null, List.of());
       GrpcServerRequestImpl<I, O> grpcRequest = new GrpcServerRequestImpl<>(
         context,
         GrpcProtocol.TRANSCODING,
         WireFormat.JSON,
+        inboundInvoker,
         httpRequest,
-        deframer,
         messageDecoder,
         new GrpcMethodCall("/" + methodName));
+      inboundInvoker.init(grpcRequest, GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE);
       ProtocolHandler protocolHandler = new TranscodingProtocolHandler(context, httpRequest, null);
       GrpcServerResponseImpl<I, O> grpcResponse = new GrpcServerResponseImpl<>(
         context,

@@ -22,6 +22,8 @@ import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcInboundFlowControl;
+import io.vertx.grpc.common.impl.GrpcInboundInvoker;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
@@ -39,15 +41,15 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
 
   public GrpcClientResponseImpl(ContextInternal context,
                                 GrpcClientRequestImpl<Req, Resp> request,
+                                GrpcInboundFlowControl stream,
                                 WireFormat format,
                                 GrpcStatus status,
                                 HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
     super(
       context,
-      httpResponse,
+      stream,
       httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING),
       format,
-      new Http2GrpcMessageDeframer(httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING), format),
       messageDecoder);
     this.request = request;
     this.httpResponse = httpResponse;

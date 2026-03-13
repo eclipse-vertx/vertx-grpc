@@ -25,6 +25,7 @@ import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcInboundInvoker;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
@@ -160,6 +161,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
     GrpcMessageDeframer deframer;
     ProtocolHandler protocolHandler;
+    GrpcInboundInvoker inboundInvoker;
     GrpcServerRequestImpl<Req, Resp> grpcRequest;
     GrpcServerResponseImpl<Req, Resp> grpcResponse;
     switch (protocol) {
@@ -169,14 +171,16 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         }
         protocolHandler = new GrpcProtocolHandlerImpl(httpRequest);
         deframer = new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format);
+        inboundInvoker = new GrpcInboundInvoker(context, httpRequest, deframer);
         grpcRequest = new GrpcServerRequestImpl<>(
           context,
           protocol,
           format,
+          inboundInvoker,
           httpRequest,
-          deframer,
           method.messageDecoder,
           methodCall);
+        inboundInvoker.init(grpcRequest, options.getMaxMessageSize());
         grpcResponse = new GrpcServerResponseImpl<>(
           context,
           grpcRequest,
@@ -195,15 +199,17 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         } else {
           deframer  = new Http2GrpcMessageDeframer(httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format);
         }
+        inboundInvoker = new GrpcInboundInvoker(context, httpRequest, deframer);
         protocolHandler = new WebProtocolHandler(httpRequest, protocol);
         grpcRequest = new GrpcServerRequestImpl<>(
           context,
           protocol,
           format,
+          inboundInvoker,
           httpRequest,
-          deframer,
           method.messageDecoder,
           methodCall);
+        inboundInvoker.init(grpcRequest, options.getMaxMessageSize());
         grpcResponse = new GrpcServerResponseImpl<>(
           context,
           grpcRequest,
@@ -243,7 +249,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
     }
     grpcResponse.init();
-    grpcRequest.init(grpcResponse, options.getScheduleDeadlineAutomatically(), options.getMaxMessageSize());
+    grpcRequest.init(grpcResponse, options.getScheduleDeadlineAutomatically());
     grpcRequest.invalidMessageHandler(invalidMsg -> {
       if (invalidMsg instanceof MessageSizeOverflowException) {
         grpcRequest.response().status(GrpcStatus.RESOURCE_EXHAUSTED).end();

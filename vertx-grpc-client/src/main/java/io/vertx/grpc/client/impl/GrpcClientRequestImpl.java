@@ -29,8 +29,10 @@ import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcInboundInvoker;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
+import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -77,18 +79,23 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
           }
         }
         if (format != null || status != null) {
+
+          Http2GrpcMessageDeframer deframer = new Http2GrpcMessageDeframer(httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING), format);
+          GrpcInboundInvoker invoker = new GrpcInboundInvoker(context(),  httpResponse, deframer);
           GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(
             context,
             this,
+            invoker,
             format,
             status,
             httpResponse,
             messageDecoder);
-          grpcResponse.init(this, maxMessageSize);
+          grpcResponse.init(this);
           grpcResponse.invalidMessageHandler(invalidMsg -> {
             cancel();
             grpcResponse.tryFail(invalidMsg);
           });
+          invoker.init(grpcResponse, maxMessageSize);
           return Future.succeededFuture(grpcResponse);
         }
         httpResponse.request().reset(GrpcError.CANCELLED.http2ResetCode);

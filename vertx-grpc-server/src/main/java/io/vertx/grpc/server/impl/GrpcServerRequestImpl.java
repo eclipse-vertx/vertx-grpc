@@ -17,13 +17,12 @@ import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcMessageDeframer;
+import io.vertx.grpc.common.impl.GrpcInboundFlowControl;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.StatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -72,11 +71,11 @@ public final class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<G
   public GrpcServerRequestImpl(ContextInternal context,
                                GrpcProtocol protocol,
                                WireFormat format,
+                               GrpcInboundFlowControl stream,
                                HttpServerRequest httpRequest,
-                               GrpcMessageDeframer messageDeframer,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMethodCall methodCall) {
-    super(context, httpRequest, httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format, messageDeframer, messageDecoder);
+    super(context, stream,  httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format, messageDecoder);
     String timeoutHeader = httpRequest.getHeader(GrpcHeaderNames.GRPC_TIMEOUT);
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 
@@ -90,9 +89,9 @@ public final class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<G
     return context;
   }
 
-  public void init(GrpcWriteStreamBase ws, boolean scheduleDeadline, long maxMessageSize) {
+  public void init(GrpcWriteStreamBase<?, ?> ws, boolean scheduleDeadline) {
     this.response = (GrpcServerResponseImpl<Req, Resp>) ws;
-    super.init(ws, maxMessageSize);
+    super.init(ws);
     if (timeout > 0L) {
       if (scheduleDeadline) {
         Timer timer = context.timer(timeout, TimeUnit.MILLISECONDS);
