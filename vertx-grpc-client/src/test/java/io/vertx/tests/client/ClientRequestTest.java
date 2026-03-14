@@ -31,6 +31,7 @@ import io.vertx.tests.common.grpc.Empty;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
 import io.vertx.tests.common.grpc.TestServiceGrpc;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -288,6 +289,7 @@ public class ClientRequestTest extends ClientTest {
       }));
   }
 
+  @Test
   @Override
   public void testClientStreamingCompletedBeforeHalfClose(TestContext should) throws Exception {
 

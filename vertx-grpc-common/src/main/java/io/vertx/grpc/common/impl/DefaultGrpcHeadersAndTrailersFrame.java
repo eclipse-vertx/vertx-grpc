@@ -5,6 +5,7 @@ import io.vertx.grpc.common.GrpcStatus;
 
 import java.time.Duration;
 
+// TODO : try remove this
 public class DefaultGrpcHeadersAndTrailersFrame implements GrpcHeadersFrame, GrpcTrailersFrame {
 
   private final String contentType;

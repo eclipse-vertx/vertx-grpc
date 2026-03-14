@@ -10,8 +10,11 @@
  */
 package io.vertx.grpc.client.impl;
 
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
 import io.vertx.core.Timer;
 import io.vertx.core.http.HttpClientRequest;
 
@@ -23,6 +26,8 @@ import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.PromiseInternal;
+import io.vertx.core.streams.ReadStream;
+import io.vertx.core.streams.StreamBase;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcErrorException;
@@ -31,7 +36,9 @@ import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcDeframingStream;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
+import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcOutboundInvoker;
+import io.vertx.grpc.common.impl.GrpcTrailersFrame;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
@@ -51,62 +58,132 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private TimeUnit timeoutUnit;
   private Timer deadline;
 
+  private GrpcClientResponseImpl<Req, Resp> r;
+  private ReadStream<GrpcMessage> r2;
+  private Handler<GrpcMessage> messageHandler;
+
   public GrpcClientRequestImpl(HttpClientRequest httpRequest,
                                long maxMessageSize,
                                boolean scheduleDeadline,
                                GrpcMessageEncoder<Req> messageEncoder,
                                GrpcMessageDecoder<Resp> messageDecoder) {
     super( ((PromiseInternal<?>)httpRequest.response()).context(), "application/grpc", httpRequest, messageEncoder);
+
+    Promise<GrpcClientResponse<Req, Resp>> promise = context().promise();
+
     this.httpRequest = httpRequest;
     this.scheduleDeadline = scheduleDeadline;
     this.timeout = 0L;
     this.timeoutUnit = null;
     this.invokerResolver = new Http2GrpcClientInvokerResolver(httpRequest);
-    this.response = httpRequest
-      .response()
-      .compose(httpResponse -> {
-        String msg = null;
-        String statusHeader = httpResponse.getHeader(GrpcHeaderNames.GRPC_STATUS);
-        GrpcStatus status = statusHeader != null ? GrpcStatus.valueOf(Integer.parseInt(statusHeader)) : null;
-        WireFormat format = null;
-        if (status == null) {
-          String contentType = httpResponse.getHeader(HttpHeaders.CONTENT_TYPE);
-          if (contentType != null) {
-            format = GrpcMediaType.parseContentType(contentType, "application/grpc");
-          }
-          if (contentType == null) {
-            msg = "HTTP response missing content-type header";
-          } else {
-            msg = "Invalid HTTP response content-type header";
-          }
-        }
-        if (format != null || status != null) {
+    this.response = promise.future();
 
-          Http2GrpcMessageDeframer deframer = new Http2GrpcMessageDeframer(httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING), format);
-          GrpcDeframingStream invoker = new GrpcDeframingStream(context(),  httpResponse, deframer);
-          GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(
-            context,
-            this,
-            invoker,
-            format,
-            status,
-            httpResponse,
-            messageDecoder);
-          grpcResponse.init(this);
-          grpcResponse.invalidMessageHandler(invalidMsg -> {
-            cancel();
-            grpcResponse.tryFail(invalidMsg);
-          });
-          invoker.init(maxMessageSize);
-          return Future.succeededFuture(grpcResponse);
+    httpRequest
+      .response()
+      .onFailure(failure -> {
+        if (failure instanceof StreamResetException) {
+          GrpcErrorException grpcError = GrpcErrorException.create((StreamResetException) failure);
+          promise.tryFail(grpcError);
+        } else {
+          promise.tryFail(failure);
         }
-        httpResponse.request().reset(GrpcError.CANCELLED.http2ResetCode);
-        return context().failedFuture(msg);
-      }, err -> {
-        if (err instanceof StreamResetException) {
-          err = GrpcErrorException.create((StreamResetException) err);
-        }
-        return Future.failedFuture(err);
+      })
+      .onSuccess(httpResponse -> {
+
+        // For now we do that here, later => move outside
+        Http2GrpcInboundInvoker invoker = new Http2GrpcInboundInvoker(context(), httpResponse);
+
+        invoker.handler(frame -> {
+          if (frame instanceof GrpcHeadersFrame) {
+
+            r2 = new GrpcClientRequestImpl.StreamBase() {
+              @Override
+              public ReadStream<GrpcMessage> exceptionHandler(@Nullable Handler<Throwable> handler) {
+                invoker.exceptionHandler(handler);
+                return this;
+              }
+              @Override
+              public ReadStream<GrpcMessage> handler(@Nullable Handler<GrpcMessage> handler) {
+                messageHandler = handler;
+                return this;
+              }
+              @Override
+              public ReadStream<GrpcMessage> endHandler(@Nullable Handler<Void> handler) {
+                invoker.endHandler(handler);
+                return this;
+              }
+              @Override
+              public ReadStream<GrpcMessage> pause() {
+                invoker.pause();
+                return this;
+              }
+              @Override
+              public ReadStream<GrpcMessage> resume() {
+                invoker.resume();
+                return this;
+              }
+              @Override
+              public ReadStream<GrpcMessage> fetch(long amount) {
+                invoker.fetch(amount);
+                return this;
+              }
+            };
+
+            GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
+
+            // Todo : move this to GrpcHeadersFrame
+            WireFormat format;
+            if (headersFrame.contentType() != null) {
+              format = GrpcMediaType.parseContentType(headersFrame.contentType(), "application/grpc");
+            } else {
+              format = null;
+            }
+
+            r = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this,
+              r2, format, headersFrame.encoding(), messageDecoder);
+
+            r.invalidMessageHandler(invalidMsg -> {
+              cancel();
+              r.tryFail(invalidMsg);
+            });
+
+            r.init(GrpcClientRequestImpl.this);
+
+            r.handleHeaders(headersFrame.headers());
+
+            promise.tryComplete(r);
+
+          } else if (frame instanceof GrpcMessageFrame) {
+            GrpcMessageFrame messageFrame = (GrpcMessageFrame)frame;
+            Handler<GrpcMessage> handler = messageHandler;
+            if (handler != null) {
+              handler.handle(messageFrame.message());
+            }
+          } else if (frame instanceof GrpcTrailersFrame) {
+            GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
+            if (r == null) {
+              r = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this,
+                new GrpcClientRequestImpl.StreamBase() {
+                  @Override
+                  public ReadStream<GrpcMessage> endHandler(@Nullable Handler<Void> handler) {
+                    invoker.endHandler(handler);
+                    return this;
+                  }
+                }, WireFormat.PROTOBUF, null, messageDecoder);
+              r.init(GrpcClientRequestImpl.this);
+              r.handleHeaders(trailersFrame.trailers());
+              r.handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), HttpHeaders.headers());
+              promise.tryComplete(r);
+            } else {
+              r.handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), trailersFrame.trailers());
+            }
+          } else {
+            System.out.println("handle me " + frame);
+          }
+        });
+
+        invoker.init(maxMessageSize);
+
       });
   }
 
@@ -282,5 +359,32 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       return Long.toString(v) + GRPC_TIMEOUT_UNIT_SUFFIXES.get(grpcTimeoutUnit);
     }
     return null;
+  }
+
+  private static class StreamBase implements ReadStream<GrpcMessage> {
+    @Override
+    public ReadStream<GrpcMessage> exceptionHandler(@Nullable Handler<Throwable> handler) {
+      return this;
+    }
+    @Override
+    public ReadStream<GrpcMessage> handler(@Nullable Handler<GrpcMessage> handler) {
+      return this;
+    }
+    @Override
+    public ReadStream<GrpcMessage> pause() {
+      return this;
+    }
+    @Override
+    public ReadStream<GrpcMessage> resume() {
+      return this;
+    }
+    @Override
+    public ReadStream<GrpcMessage> fetch(long amount) {
+      return this;
+    }
+    @Override
+    public ReadStream<GrpcMessage> endHandler(@Nullable Handler<Void> endHandler) {
+      return this;
+    }
   }
 }

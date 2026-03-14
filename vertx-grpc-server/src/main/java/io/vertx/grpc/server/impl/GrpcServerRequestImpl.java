@@ -74,9 +74,10 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                WireFormat format,
                                ReadStream<GrpcMessage> stream,
                                HttpServerRequest httpRequest,
+                               String encoding,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMethodCall methodCall) {
-    super(context, stream,  httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING), format, messageDecoder);
+    super(context, stream,  encoding, format, messageDecoder);
     String timeoutHeader = httpRequest.getHeader(GrpcHeaderNames.GRPC_TIMEOUT);
     long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 
@@ -111,6 +112,15 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
       timer.cancel();
     }
   }
+
+  public void handleException2(Throwable throwable) {
+    handleException(throwable);
+  }
+
+  public void handleEnd2() {
+    handleEnd();
+  }
+
 
   public String fullMethodName() {
     return methodCall.fullMethodName();

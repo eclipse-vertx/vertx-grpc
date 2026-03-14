@@ -56,6 +56,8 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private GrpcMessage last;
   private final GrpcMessageDecoder<T> messageDecoder;
   private final Promise<Void> end;
+
+  // Todo: THIS SHOULD BE REMOVED
   private GrpcWriteStreamBase<?, ?> ws;
 
   protected GrpcReadStreamBase(Context context,
@@ -190,7 +192,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     }
   }
 
-  void handleMessage(GrpcMessage msg) {
+  protected void handleMessage(GrpcMessage msg) {
     last = msg;
     Handler<GrpcMessage> handler = messageHandler;
     if (handler != null) {

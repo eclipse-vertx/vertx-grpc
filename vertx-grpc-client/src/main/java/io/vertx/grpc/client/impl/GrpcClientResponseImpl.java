@@ -23,7 +23,10 @@ import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcFrame;
+import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
+import io.vertx.grpc.common.impl.GrpcTrailersFrame;
 
 import java.nio.charset.StandardCharsets;
 
@@ -33,25 +36,34 @@ import java.nio.charset.StandardCharsets;
 public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcClientResponseImpl<Req, Resp>, Resp> implements GrpcClientResponse<Req, Resp> {
 
   private final GrpcClientRequestImpl<Req, Resp> request;
-  private final HttpClientResponse httpResponse;
   private GrpcStatus status;
+  private MultiMap headers;
+  private MultiMap trailers;
   private String statusMessage;
 
   public GrpcClientResponseImpl(ContextInternal context,
                                 GrpcClientRequestImpl<Req, Resp> request,
                                 ReadStream<GrpcMessage> stream,
                                 WireFormat format,
-                                GrpcStatus status,
-                                HttpClientResponse httpResponse, GrpcMessageDecoder<Resp> messageDecoder) {
+                                String encoding,
+                                GrpcMessageDecoder<Resp> messageDecoder) {
     super(
       context,
       stream,
-      httpResponse.headers().get(GrpcHeaderNames.GRPC_ENCODING),
+      encoding,
       format,
       messageDecoder);
     this.request = request;
-    this.httpResponse = httpResponse;
+  }
+
+  void handleHeaders(MultiMap headers) {
+    this.headers = headers;
+  }
+
+  void handleTrailers(GrpcStatus status,  String statusMessage, MultiMap trailers) {
     this.status = status;
+    this.statusMessage = statusMessage;
+    this.trailers = trailers;
   }
 
   @Override
@@ -61,23 +73,24 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
 
   @Override
   public MultiMap headers() {
-    return httpResponse.headers();
+    return headers;
   }
 
   @Override
   public MultiMap trailers() {
-    return httpResponse.trailers();
+    return trailers;
   }
 
   protected void handleEnd() {
     request.cancelTimeout();
     if (status == null) {
-      String responseStatus = httpResponse.getTrailer("grpc-status");
-      if (responseStatus != null) {
-        status = GrpcStatus.valueOf(Integer.parseInt(responseStatus));
-      } else {
-        status = GrpcStatus.UNKNOWN;
-      }
+//      String responseStatus = httpResponse.getTrailer("grpc-status");
+//      if (responseStatus != null) {
+//        status = GrpcStatus.valueOf(Integer.parseInt(responseStatus));
+//      } else {
+//        status = GrpcStatus.UNKNOWN;
+//      }
+      throw new UnsupportedOperationException();
     }
     super.handleEnd();
     request.handleStatus(status);
@@ -93,12 +106,6 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
 
   @Override
   public String statusMessage() {
-    if (status != null && status != GrpcStatus.OK) {
-      String msg = httpResponse.getHeader(GrpcHeaderNames.GRPC_MESSAGE);
-      if (msg != null) {
-        statusMessage = QueryStringDecoder.decodeComponent(msg, StandardCharsets.UTF_8);
-      }
-    }
     return statusMessage;
   }
 
