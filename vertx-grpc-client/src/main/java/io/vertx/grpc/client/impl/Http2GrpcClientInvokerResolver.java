@@ -1,7 +1,9 @@
 package io.vertx.grpc.client.impl;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
@@ -116,6 +118,29 @@ public class Http2GrpcClientInvokerResolver implements GrpcClientInvokerResolver
         }
 
         return context.failedFuture("Unsupported");
+      }
+
+      @Override
+      public GrpcInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
+        httpRequest.exceptionHandler(handler);
+        return this;
+      }
+
+      @Override
+      public GrpcInvoker setWriteQueueMaxSize(int maxSize) {
+        httpRequest.setWriteQueueMaxSize(maxSize);
+        return this;
+      }
+
+      @Override
+      public boolean writeQueueFull() {
+        return httpRequest.writeQueueFull();
+      }
+
+      @Override
+      public GrpcInvoker drainHandler(@Nullable Handler<Void> handler) {
+        httpRequest.drainHandler(handler);
+        return this;
       }
     };
   }

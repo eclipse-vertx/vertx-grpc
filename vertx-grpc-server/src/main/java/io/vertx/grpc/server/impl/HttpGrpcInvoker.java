@@ -1,6 +1,8 @@
 package io.vertx.grpc.server.impl;
 
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
@@ -149,5 +151,28 @@ public abstract class HttpGrpcInvoker implements GrpcInvoker {
 
   protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
     return DefaultGrpcMessage.encode(message, compressed, trailer);
+  }
+
+  @Override
+  public GrpcInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
+    httpResponse.exceptionHandler(handler);
+    return this;
+  }
+
+  @Override
+  public GrpcInvoker setWriteQueueMaxSize(int maxSize) {
+    httpResponse.setWriteQueueMaxSize(maxSize);
+    return this;
+  }
+
+  @Override
+  public boolean writeQueueFull() {
+    return httpResponse.writeQueueFull();
+  }
+
+  @Override
+  public GrpcInvoker drainHandler(@Nullable Handler<Void> handler) {
+    httpResponse.drainHandler(handler);
+    return this;
   }
 }
