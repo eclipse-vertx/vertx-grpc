@@ -52,7 +52,7 @@ public class GrpcDeframingStream implements ReadStream<GrpcMessage> {
     };
   }
 
-  public void init(GrpcReadStreamBase<?, ?> grpc, long maxMessageSize) {
+  public void init(long maxMessageSize) {
     deframer.maxMessageSize(maxMessageSize);
     stream.handler(this::handle);
     stream.endHandler(v -> {
@@ -66,7 +66,6 @@ public class GrpcDeframingStream implements ReadStream<GrpcMessage> {
         handler.handle(err);
       }
     });
-
   }
 
   public void handle(Buffer chunk) {

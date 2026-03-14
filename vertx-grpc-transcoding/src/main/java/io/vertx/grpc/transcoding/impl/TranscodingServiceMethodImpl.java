@@ -113,7 +113,7 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
           return httpRequest.connection();
         }
       };
-      inboundInvoker.init(grpcRequest, GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE);
+      inboundInvoker.init(GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE);
       HttpGrpcInvoker protocolHandler = new TranscodingGrpcInvoker(context, httpRequest, options.getResponseBody());
       GrpcServerResponseImpl<I, O> grpcResponse = new GrpcServerResponseImpl<>(
         context,
@@ -142,7 +142,7 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
           return httpRequest.connection();
         }
       };
-      inboundInvoker.init(grpcRequest, GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE);
+      inboundInvoker.init(GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE);
       HttpGrpcInvoker protocolHandler = new TranscodingGrpcInvoker(context, httpRequest, null);
       GrpcServerResponseImpl<I, O> grpcResponse = new GrpcServerResponseImpl<>(
         context,

@@ -10,7 +10,6 @@
  */
 package io.vertx.grpc.client.impl;
 
-import io.netty.handler.codec.http.HttpHeaderNames;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
@@ -18,14 +17,12 @@ import io.vertx.core.http.HttpClientRequest;
 
 import java.time.Duration;
 import java.util.EnumMap;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.PromiseInternal;
-import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcErrorException;
@@ -33,10 +30,8 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcDeframingStream;
-import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcInvoker;
-import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
@@ -102,7 +97,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
             cancel();
             grpcResponse.tryFail(invalidMsg);
           });
-          invoker.init(grpcResponse, maxMessageSize);
+          invoker.init(maxMessageSize);
           return Future.succeededFuture(grpcResponse);
         }
         httpResponse.request().reset(GrpcError.CANCELLED.http2ResetCode);

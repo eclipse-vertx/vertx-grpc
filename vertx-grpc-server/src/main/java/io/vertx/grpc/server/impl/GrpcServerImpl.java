@@ -187,7 +187,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
             return httpRequest.connection();
           }
         };
-        inboundInvoker.init(grpcRequest, options.getMaxMessageSize());
+        inboundInvoker.init(options.getMaxMessageSize());
         grpcResponse = new GrpcServerResponseImpl<>(
           context,
           grpcRequest,
@@ -222,7 +222,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
             return httpRequest.connection();
           }
         };
-        inboundInvoker.init(grpcRequest, options.getMaxMessageSize());
+        inboundInvoker.init(options.getMaxMessageSize());
         grpcResponse = new GrpcServerResponseImpl<>(
           context,
           grpcRequest,
