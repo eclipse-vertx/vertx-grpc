@@ -16,6 +16,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
 import io.vertx.core.http.HttpClientRequest;
 
+import java.time.Duration;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -29,8 +30,13 @@ import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
+import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcDeframingStream;
 import io.vertx.grpc.common.impl.DefaultGrpcMessage;
+import io.vertx.grpc.common.impl.GrpcHeadersFrame;
+import io.vertx.grpc.common.impl.GrpcInvoker;
+import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
@@ -39,14 +45,15 @@ import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
  */
 public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcClientRequestImpl<Req, Resp>, Req> implements GrpcClientRequest<Req, Resp> {
 
+  private final GrpcClientInvokerResolver invokerResolver;
   private final HttpClientRequest httpRequest;
   private final boolean scheduleDeadline;
+  private GrpcInvoker invoker;
   private ServiceName serviceName;
   private String methodName;
   private Future<GrpcClientResponse<Req, Resp>> response;
   private long timeout;
   private TimeUnit timeoutUnit;
-  private String timeoutHeader;
   private Timer deadline;
 
   public GrpcClientRequestImpl(HttpClientRequest httpRequest,
@@ -59,7 +66,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     this.scheduleDeadline = scheduleDeadline;
     this.timeout = 0L;
     this.timeoutUnit = null;
-    this.timeoutHeader = null;
+    this.invokerResolver = new Http2GrpcClientInvokerResolver(httpRequest);
     this.response = httpRequest
       .response()
       .compose(httpResponse -> {
@@ -148,7 +155,6 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     }
     this.timeout = timeout;
     this.timeoutUnit = unit;
-    this.timeoutHeader = headerValue;
     return this;
   }
 
@@ -159,17 +165,17 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   @Override
   public GrpcClientRequest<Req, Resp> idleTimeout(long timeout) {
-    httpRequest.idleTimeout(timeout);
+    invoker.write(new SetIdleTimeoutFrame(Duration.ofMillis(timeout)));
     return this;
   }
 
   @Override
   protected Future<Void> sendHeaders(String contentType, String encoding, MultiMap headers) {
-    setHeaders(contentType, encoding, headers);
-    return httpRequest.sendHead();
+    return sendHeaders(contentType, encoding, headers, false);
   }
 
-  private void setHeaders(String contentType, String encoding, MultiMap headers) {
+  private Future<Void> sendHeaders(String contentType, String encoding, MultiMap headers, boolean end) {
+
     ServiceName serviceName = this.serviceName;
     String methodName = this.methodName;
     if (serviceName == null) {
@@ -178,24 +184,10 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     if (methodName == null) {
       throw new IllegalStateException();
     }
-    if (headers != null) {
-      MultiMap requestHeaders = httpRequest.headers();
-      for (Map.Entry<String, String> header : headers) {
-        requestHeaders.add(header.getKey(), header.getValue());
-      }
-    }
-    if (timeout > 0L) {
-      httpRequest.putHeader(GrpcHeaderNames.GRPC_TIMEOUT, timeoutHeader);
-    }
-    String uri = serviceName.pathOf(methodName);
-    httpRequest.putHeader(HttpHeaders.CONTENT_TYPE, contentType);
-    if (this.encoding != null) {
-      httpRequest.putHeader(GrpcHeaderNames.GRPC_ENCODING, this.encoding);
-    }
-    httpRequest.putHeader(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, "gzip");
-    httpRequest.putHeader(HttpHeaderNames.TE, "trailers");
-    httpRequest.setChunked(true);
-    httpRequest.setURI(uri);
+
+    invoker = invokerResolver.resolveInvoker(serviceName, methodName);
+
+    Duration to = timeout > 0L ? Duration.of(timeout, timeoutUnit.toChronoUnit()) : null;
     if (scheduleDeadline && timeout > 0L) {
       Timer timer = context.timer(timeout, timeoutUnit);
       deadline = timer;
@@ -203,28 +195,29 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
         cancel();
       });
     }
+
+    GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(contentType, encoding, headers, to);
+
+    if (end) {
+      return invoker.end(frame);
+    } else {
+      return invoker.write(frame);
+    }
   }
 
   @Override
   protected Future<Void> sendTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
-    setHeaders(contentType, encoding, headers);
-    return httpRequest.end();
+    return sendHeaders(contentType, encoding, headers, true);
   }
 
   @Override
   protected Future<Void> sendTrailers(MultiMap trailers) {
-    return httpRequest.end();
+    return invoker.end();
   }
 
   @Override
   protected Future<Void> sendMessage(GrpcMessage message) {
-    BufferInternal payload;
-    try {
-      payload = DefaultGrpcMessage.encode(message.payload(), message.isCompressed(), false);
-    } catch (CodecException e) {
-      return context.failedFuture(e);
-    }
-    return httpRequest.write(payload);
+    return invoker.write(new DefaultGrpcMessageFrame(message));
   }
 
   void cancelTimeout() {
@@ -240,8 +233,8 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   @Override
   protected boolean sendCancel() {
-    httpRequest
-      .reset(GrpcError.CANCELLED.http2ResetCode)
+    invoker
+      .write(DefaultGrpcCancelFrame.INSTANCE)
       .onSuccess(v -> handleError(GrpcError.CANCELLED));
     return true;
   }

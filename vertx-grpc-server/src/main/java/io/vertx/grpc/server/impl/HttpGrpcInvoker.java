@@ -34,6 +34,16 @@ public abstract class HttpGrpcInvoker implements GrpcInvoker {
   }
 
   @Override
+  public Future<Void> end() {
+    return contextInternal.succeededFuture();
+  }
+
+  @Override
+  public Future<Void> end(GrpcFrame frame) {
+    return write(frame);
+  }
+
+  @Override
   public Future<Void> write(GrpcFrame frame) {
     if (frame instanceof GrpcHeadersFrame) {
       if (frame instanceof GrpcTrailersFrame) {

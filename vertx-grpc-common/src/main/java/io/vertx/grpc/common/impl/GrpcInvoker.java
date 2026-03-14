@@ -6,4 +6,8 @@ public interface GrpcInvoker {
 
   Future<Void> write(GrpcFrame frame);
 
+  Future<Void> end(GrpcFrame frame);
+
+  Future<Void> end();
+
 }
