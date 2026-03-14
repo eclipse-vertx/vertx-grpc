@@ -16,20 +16,20 @@ import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
-import io.vertx.grpc.common.impl.GrpcInvoker;
+import io.vertx.grpc.common.impl.GrpcOutboundInvoker;
 import io.vertx.grpc.common.impl.GrpcTrailersFrame;
 import io.vertx.grpc.common.impl.Utils;
 
 import java.util.Map;
 
-public abstract class HttpGrpcInvoker implements GrpcInvoker {
+public abstract class HttpGrpcOutboundInvoker implements GrpcOutboundInvoker {
 
   private final ContextInternal contextInternal;
   private final HttpServerRequest httpRequest;
   private final HttpServerResponse httpResponse;
   protected GrpcStatus status;
 
-  public HttpGrpcInvoker(HttpServerRequest httpRequest) {
+  public HttpGrpcOutboundInvoker(HttpServerRequest httpRequest) {
     this.contextInternal = ((HttpServerRequestInternal) httpRequest).context();
     this.httpRequest = httpRequest;
     this.httpResponse = httpRequest.response();
@@ -154,13 +154,13 @@ public abstract class HttpGrpcInvoker implements GrpcInvoker {
   }
 
   @Override
-  public GrpcInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
+  public GrpcOutboundInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
     httpResponse.exceptionHandler(handler);
     return this;
   }
 
   @Override
-  public GrpcInvoker setWriteQueueMaxSize(int maxSize) {
+  public GrpcOutboundInvoker setWriteQueueMaxSize(int maxSize) {
     httpResponse.setWriteQueueMaxSize(maxSize);
     return this;
   }
@@ -171,7 +171,7 @@ public abstract class HttpGrpcInvoker implements GrpcInvoker {
   }
 
   @Override
-  public GrpcInvoker drainHandler(@Nullable Handler<Void> handler) {
+  public GrpcOutboundInvoker drainHandler(@Nullable Handler<Void> handler) {
     httpResponse.drainHandler(handler);
     return this;
   }

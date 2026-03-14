@@ -13,16 +13,16 @@ import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.server.GrpcProtocol;
-import io.vertx.grpc.server.impl.HttpGrpcInvoker;
+import io.vertx.grpc.server.impl.HttpGrpcOutboundInvoker;
 
-public class TranscodingGrpcInvoker extends HttpGrpcInvoker {
+public class TranscodingGrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
 
   private Promise<Void> head;
   private final ContextInternal context;
   private final HttpServerResponse httpResponse;
   private final String transcodingResponseBody;
 
-  public TranscodingGrpcInvoker(ContextInternal context, HttpServerRequest httpRequest, String transcodingResponseBody) {
+  public TranscodingGrpcOutboundInvoker(ContextInternal context, HttpServerRequest httpRequest, String transcodingResponseBody) {
     super(httpRequest);
 
     this.context = context;

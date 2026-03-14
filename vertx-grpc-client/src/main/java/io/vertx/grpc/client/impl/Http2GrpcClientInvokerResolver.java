@@ -19,7 +19,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcInvoker;
+import io.vertx.grpc.common.impl.GrpcOutboundInvoker;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 
 import java.time.Duration;
@@ -39,8 +39,8 @@ public class Http2GrpcClientInvokerResolver implements GrpcClientInvokerResolver
   }
 
   @Override
-  public GrpcInvoker resolveInvoker(ServiceName serviceName, String methodName) {
-    return new GrpcInvoker() {
+  public GrpcOutboundInvoker resolveInvoker(ServiceName serviceName, String methodName) {
+    return new GrpcOutboundInvoker() {
 
       @Override
       public Future<Void> end(GrpcFrame frame) {
@@ -121,13 +121,13 @@ public class Http2GrpcClientInvokerResolver implements GrpcClientInvokerResolver
       }
 
       @Override
-      public GrpcInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
+      public GrpcOutboundInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
         httpRequest.exceptionHandler(handler);
         return this;
       }
 
       @Override
-      public GrpcInvoker setWriteQueueMaxSize(int maxSize) {
+      public GrpcOutboundInvoker setWriteQueueMaxSize(int maxSize) {
         httpRequest.setWriteQueueMaxSize(maxSize);
         return this;
       }
@@ -138,7 +138,7 @@ public class Http2GrpcClientInvokerResolver implements GrpcClientInvokerResolver
       }
 
       @Override
-      public GrpcInvoker drainHandler(@Nullable Handler<Void> handler) {
+      public GrpcOutboundInvoker drainHandler(@Nullable Handler<Void> handler) {
         httpRequest.drainHandler(handler);
         return this;
       }

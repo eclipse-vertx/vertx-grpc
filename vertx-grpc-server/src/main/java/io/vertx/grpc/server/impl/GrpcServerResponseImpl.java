@@ -21,7 +21,7 @@ import io.vertx.grpc.common.impl.DefaultGrpcHeadersAndTrailersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcTrailersFrame;
-import io.vertx.grpc.common.impl.GrpcInvoker;
+import io.vertx.grpc.common.impl.GrpcOutboundInvoker;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -39,14 +39,14 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   private static final Set<String> GZIP_ACCEPT_ENCODING = Collections.singleton("gzip");
 
   private final GrpcServerRequestImpl<Req, Resp> request;
-  private final GrpcInvoker invoker;
+  private final GrpcOutboundInvoker invoker;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
   private Set<String> acceptedEncodings;
 
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
-                                GrpcInvoker invoker,
+                                GrpcOutboundInvoker invoker,
                                 GrpcProtocol protocol,
                                 WriteStream<?> response,
                                 GrpcMessageEncoder<Resp> encoder) {

@@ -4,9 +4,9 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.grpc.common.GrpcHeaderNames;
 
-public class Http2GrpcInvoker extends HttpGrpcInvoker {
+public class Http2GrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
 
-  public Http2GrpcInvoker(HttpServerRequest httpRequest) {
+  public Http2GrpcOutboundInvoker(HttpServerRequest httpRequest) {
     super(httpRequest);
   }
 

@@ -16,13 +16,13 @@ import java.util.Map;
 
 import static io.vertx.grpc.server.GrpcProtocol.WEB_TEXT;
 
-public class WebGrpcInvoker extends HttpGrpcInvoker {
+public class WebGrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
 
   private final GrpcProtocol protocol;
   private final HttpServerResponse httpResponse;
   private Buffer trailers;
 
-  public WebGrpcInvoker(HttpServerRequest httpRequest, GrpcProtocol protocol) {
+  public WebGrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcProtocol protocol) {
     super(httpRequest);
 
     this.httpResponse = httpRequest.response();

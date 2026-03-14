@@ -31,7 +31,7 @@ import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcDeframingStream;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcInvoker;
+import io.vertx.grpc.common.impl.GrpcOutboundInvoker;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
@@ -43,7 +43,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private final GrpcClientInvokerResolver invokerResolver;
   private final HttpClientRequest httpRequest;
   private final boolean scheduleDeadline;
-  private GrpcInvoker invoker;
+  private GrpcOutboundInvoker invoker;
   private ServiceName serviceName;
   private String methodName;
   private Future<GrpcClientResponse<Req, Resp>> response;
