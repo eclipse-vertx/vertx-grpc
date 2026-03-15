@@ -235,6 +235,10 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     });
 
     invoker.exceptionHandler(err -> {
+      if (err instanceof GrpcErrorException) {
+        handleError(((GrpcErrorException)err).error());
+      }
+      handleException(err);
       response.tryFail(err);
     });
 

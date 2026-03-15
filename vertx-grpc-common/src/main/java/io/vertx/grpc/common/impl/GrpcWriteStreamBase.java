@@ -39,17 +39,6 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     this.mediaType = mediaType;
   }
 
-  public void init() {
-    writeStream.exceptionHandler(err -> {
-      if (err instanceof StreamResetException) {
-        StreamResetException reset = (StreamResetException) err;
-        GrpcError error = mapHttp2ErrorCode(reset.getCode());
-        handleError(error);
-      }
-      handleException(err);
-    });
-  }
-
   public S errorHandler(Handler<GrpcError> handler) {
     this.errorHandler = handler;
     return (S) this;
@@ -66,7 +55,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     }
   }
 
-  private void handleException(Throwable err) {
+  public void handleException(Throwable err) {
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {
       handler.handle(err);

@@ -49,6 +49,11 @@ public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
   }
 
   void init() {
+
+    httpRequest.exceptionHandler(err -> {
+      handleStreamException(err);
+    });
+
     httpRequest
       .response()
       .onComplete(ar -> {
@@ -56,15 +61,19 @@ public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
           init(ar.result());
         } else {
           Throwable failure = ar.cause();
-          if (failure instanceof StreamResetException) {
-            failure = GrpcErrorException.create((StreamResetException) failure);
-          }
-          Handler<Throwable> handler = exceptionHandler;
-          if (handler != null) {
-            handler.handle(failure);
-          }
+          handleStreamException(failure);
         }
       });
+  }
+
+  private void handleStreamException(Throwable failure) {
+    if (failure instanceof StreamResetException) {
+      failure = GrpcErrorException.create((StreamResetException) failure);
+    }
+    Handler<Throwable> handler = exceptionHandler;
+    if (handler != null) {
+      handler.handle(failure);
+    }
   }
 
   private void init(HttpClientResponse httpResponse) {

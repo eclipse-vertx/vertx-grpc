@@ -77,7 +77,6 @@ public class GrpcClientImpl implements GrpcClient {
             return httpRequest.connection();
           }
         };
-        grpcRequest.init();
         configureTimeout(grpcRequest);
         return grpcRequest;
       });
@@ -134,7 +133,6 @@ public class GrpcClientImpl implements GrpcClient {
             return request.connection();
           }
         };
-        call.init();
         call.serviceName(method.serviceName());
         call.methodName(method.methodName());
         configureTimeout(call);

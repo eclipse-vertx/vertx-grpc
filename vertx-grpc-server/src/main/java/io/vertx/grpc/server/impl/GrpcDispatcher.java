@@ -128,7 +128,6 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame>, ReadStream<GrpcMe
         long deadline = System.currentTimeMillis() + timeout;
         grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
       }
-      grpcResponse.init();
       grpcRequest.init(grpcResponse, scheduleDeadline);
       grpcRequest.invalidMessageHandler(invalidMsg -> {
         if (invalidMsg instanceof MessageSizeOverflowException) {
