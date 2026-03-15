@@ -38,6 +38,7 @@ import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
 import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
 import io.vertx.grpcio.common.impl.ReadStreamAdapter;
+import io.vertx.grpcio.common.impl.WriteStreamAdapter;
 import io.vertx.grpcio.server.GrpcIoServer;
 import io.vertx.grpcio.server.GrpcIoServiceBridge;
 
