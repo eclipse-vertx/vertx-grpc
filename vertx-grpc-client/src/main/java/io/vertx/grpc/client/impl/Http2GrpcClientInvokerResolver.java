@@ -122,7 +122,8 @@ public class Http2GrpcClientInvokerResolver implements GrpcClientInvokerResolver
 
       @Override
       public GrpcOutboundInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
-        httpRequest.exceptionHandler(handler);
+        // We should do something else
+//        httpRequest.exceptionHandler(handler);
         return this;
       }
 
