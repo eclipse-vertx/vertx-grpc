@@ -97,15 +97,6 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
 
   public void handleEnd() {
     request.cancelTimeout();
-    if (status == null) {
-//      String responseStatus = httpResponse.getTrailer("grpc-status");
-//      if (responseStatus != null) {
-//        status = GrpcStatus.valueOf(Integer.parseInt(responseStatus));
-//      } else {
-//        status = GrpcStatus.UNKNOWN;
-//      }
-      throw new UnsupportedOperationException();
-    }
     super.handleEnd();
     request.handleStatus(status);
     if (!request.isTrailersSent()) {
