@@ -15,11 +15,9 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.impl.DefaultGrpcHeadersAndTrailersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcTrailersFrame;
@@ -152,15 +150,7 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   protected Future<Void> sendTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
     handleStatus(status);
     request.cancelTimeout();
-
-    boolean trailersOnly = status != GrpcStatus.OK;
-    if (trailersOnly) {
-      return invoker.write(new DefaultGrpcHeadersAndTrailersFrame(contentType, encoding, headers, status, statusMessage, trailers));
-    } else {
-      invoker.write(new DefaultGrpcHeadersFrame(contentType, encoding, headers));
-      return invoker.write(new DefaultGrpcTrailersFrame(status, statusMessage, trailers));
-    }
-
+    return invoker.write(new DefaultGrpcTrailersFrame(status, statusMessage, trailers));
   }
 
   protected Future<Void> sendTrailers(MultiMap grpcTrailers) {

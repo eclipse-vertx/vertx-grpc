@@ -25,7 +25,7 @@ public class TranscodingGrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
 
   public TranscodingGrpcOutboundInvoker(ContextInternal context, HttpServerRequest httpRequest,
                                         String transcodingResponseBody, GrpcMessageDeframer deframer) {
-    super(httpRequest, deframer);
+    super(httpRequest, GrpcProtocol.TRANSCODING, deframer);
 
     this.context = context;
     this.httpResponse = httpRequest.response();
@@ -38,7 +38,6 @@ public class TranscodingGrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
 
   @Override
   public Future<Void> writeEnd() {
-    assert(status != null);
     if (status != GrpcStatus.OK) {
       httpResponse.setStatusCode(GrpcTranscodingError.fromHttp2Code(status.code).getHttpStatusCode());
     }

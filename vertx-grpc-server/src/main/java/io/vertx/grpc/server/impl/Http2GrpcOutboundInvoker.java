@@ -4,11 +4,12 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
+import io.vertx.grpc.server.GrpcProtocol;
 
 public class Http2GrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
 
   public Http2GrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcMessageDeframer deframer) {
-    super(httpRequest, deframer);
+    super(httpRequest, GrpcProtocol.HTTP_2, deframer);
   }
 
   @Override

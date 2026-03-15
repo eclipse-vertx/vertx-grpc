@@ -24,7 +24,7 @@ public class WebGrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
   private Buffer trailers;
 
   public WebGrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcProtocol protocol, GrpcMessageDeframer deframer) {
-    super(httpRequest, deframer);
+    super(httpRequest, protocol, deframer);
 
     this.httpResponse = httpRequest.response();
     this.protocol = protocol;
@@ -52,17 +52,8 @@ public class WebGrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
   }
 
   @Override
-  public Future<Void> writeTrailers(String contentType, String encoding, GrpcStatus status, String statusMessage, MultiMap headers, MultiMap trailers) {
-    boolean trailersOnly = status != GrpcStatus.OK;
-    if (!trailersOnly) {
-      httpResponse.setChunked(true);
-    }
-    return super.writeTrailers(contentType, encoding, status, statusMessage, headers, trailers);
-  }
-
-  @Override
-  public void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus status, String statusMessage) {
-    if (trailersOnly) {
+  public void writeTrailers(boolean useHeaders, MultiMap grpcTrailers, GrpcStatus status, String statusMessage) {
+    if (useHeaders) {
       MultiMap httpHeaders = httpResponse.headers();
       encodeGrpcTrailers(grpcTrailers, httpHeaders);
       encodeGrpcStatus(httpHeaders, status, statusMessage);

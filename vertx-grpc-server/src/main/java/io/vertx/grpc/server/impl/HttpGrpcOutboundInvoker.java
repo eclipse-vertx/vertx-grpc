@@ -5,6 +5,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
@@ -20,17 +21,21 @@ import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcOutboundInvoker;
 import io.vertx.grpc.common.impl.GrpcTrailersFrame;
 import io.vertx.grpc.common.impl.Utils;
+import io.vertx.grpc.server.GrpcProtocol;
 
 import java.util.Map;
 
 public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker implements GrpcInvoker {
 
+  private final GrpcProtocol protocol;
+  private boolean headersSent;
   private final HttpServerResponse httpResponse;
   protected GrpcStatus status;
 
-  public HttpGrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcMessageDeframer deframer) {
+  public HttpGrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcProtocol protocol,  GrpcMessageDeframer deframer) {
     super(((HttpServerRequestInternal) httpRequest).context(), deframer);
     this.httpResponse = httpRequest.response();
+    this.protocol = protocol;
   }
 
   void init() {
@@ -50,13 +55,7 @@ public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker imp
   @Override
   public Future<Void> write(GrpcFrame frame) {
     if (frame instanceof GrpcHeadersFrame) {
-      if (frame instanceof GrpcTrailersFrame) {
-        GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
-        GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
-        return writeTrailers(headersFrame.contentType(), headersFrame.encoding(), trailersFrame.status(), trailersFrame.statusMessage(), headersFrame.headers(), trailersFrame.trailers());
-      } else {
-        return writeHeaders((GrpcHeadersFrame) frame);
-      }
+      return writeHeaders((GrpcHeadersFrame) frame);
     } else if (frame instanceof GrpcMessageFrame) {
       return writeMessage((GrpcMessageFrame) frame);
     } else if (frame instanceof GrpcTrailersFrame) {
@@ -66,6 +65,7 @@ public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker imp
   }
 
   protected Future<Void> writeHeaders(GrpcHeadersFrame frame) {
+    headersSent = true;
     MultiMap httpHeaders = httpResponse.headers();
     httpHeaders.set("content-type", frame.contentType());
     encodeGrpcHeaders(frame.headers(), httpHeaders, frame.encoding());
@@ -102,25 +102,25 @@ public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker imp
     }
   }
 
-  protected Future<Void> writeTrailers(String contentType, String encoding, GrpcStatus st, String statusMessage, MultiMap headers, MultiMap trailers) {
-    status = st;
-    boolean trailersOnly = st != GrpcStatus.OK;
-    MultiMap httpHeaders = httpResponse.headers();
-    httpHeaders.set("content-type", contentType);
-    encodeGrpcHeaders(headers, httpHeaders, encoding);
-    writeTrailers(trailersOnly, trailers, st, statusMessage);
-    return writeEnd();
-  }
-
   protected Future<Void> writeTrailers(GrpcTrailersFrame frame) {
-    status = frame.status();
-    writeTrailers(false, frame.trailers(), frame.status(), frame.statusMessage());
+    GrpcStatus st = frame.status();
+    boolean trailersOnly = st != GrpcStatus.OK;
+    if (!headersSent) {
+      httpResponse.putHeader(HttpHeaders.CONTENT_TYPE, protocol.mediaType());
+      if (!trailersOnly) {
+        // Service has sent no messages
+        headersSent = true;
+        httpResponse.writeHead();
+      }
+    }
+    status = st;
+    writeTrailers(!headersSent, frame.trailers(), st, frame.statusMessage());
     return writeEnd();
   }
 
-  protected void writeTrailers(boolean trailersOnly, MultiMap grpcTrailers, GrpcStatus st, String statusMessage) {
+  protected void writeTrailers(boolean useHeaders, MultiMap grpcTrailers, GrpcStatus st, String statusMessage) {
     MultiMap httpTrailers;
-    if (trailersOnly) {
+    if (useHeaders) {
       httpTrailers = httpResponse.headers();
     } else {
       httpTrailers = httpResponse.trailers();
@@ -138,6 +138,7 @@ public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker imp
   }
 
   protected Future<Void> writeEnd() {
+    headersSent = true;
     return httpResponse.end();
   }
 
@@ -148,6 +149,7 @@ public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker imp
     } catch (CodecException e) {
       return context.failedFuture(e);
     }
+    headersSent = true;
     return httpResponse.write(encodeMessage(payload, frame.message().isCompressed(), false));
   }
 

@@ -3,6 +3,7 @@ package io.vertx.grpc.common.impl;
 import io.vertx.core.MultiMap;
 
 import java.time.Duration;
+import java.util.Objects;
 
 public class DefaultGrpcHeadersFrame implements GrpcHeadersFrame {
 
@@ -16,7 +17,7 @@ public class DefaultGrpcHeadersFrame implements GrpcHeadersFrame {
   }
 
   public DefaultGrpcHeadersFrame(String contentType, String encoding, MultiMap headers, Duration timeout) {
-    this.contentType = contentType;
+    this.contentType = Objects.requireNonNull(contentType);
     this.encoding = encoding;
     this.headers = headers;
     this.timeout = timeout;
