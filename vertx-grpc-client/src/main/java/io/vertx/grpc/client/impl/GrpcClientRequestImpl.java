@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.*;
@@ -53,8 +52,6 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private Timer deadline;
 
   private GrpcClientResponseImpl<Req, Resp> r;
-  private ReadStream<GrpcMessage> r2;
-  private Handler<GrpcMessage> messageHandler;
   private Handler<Void> drainHandler;
 
   public GrpcClientRequestImpl(ContextInternal context,
@@ -172,39 +169,6 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     invoker.handler(frame -> {
       if (frame instanceof GrpcHeadersFrame) {
 
-        r2 = new GrpcClientRequestImpl.StreamBase() {
-          @Override
-          public ReadStream<GrpcMessage> exceptionHandler(@Nullable Handler<Throwable> handler) {
-            invoker.exceptionHandler(handler);
-            return this;
-          }
-          @Override
-          public ReadStream<GrpcMessage> handler(@Nullable Handler<GrpcMessage> handler) {
-            messageHandler = handler;
-            return this;
-          }
-          @Override
-          public ReadStream<GrpcMessage> endHandler(@Nullable Handler<Void> handler) {
-            invoker.endHandler(handler);
-            return this;
-          }
-          @Override
-          public ReadStream<GrpcMessage> pause() {
-            invoker.pause();
-            return this;
-          }
-          @Override
-          public ReadStream<GrpcMessage> resume() {
-            invoker.resume();
-            return this;
-          }
-          @Override
-          public ReadStream<GrpcMessage> fetch(long amount) {
-            invoker.fetch(amount);
-            return this;
-          }
-        };
-
         GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
 
         // Todo : move this to GrpcHeadersFrame
@@ -216,14 +180,12 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
         }
 
         r = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this,
-          r2, format, headersFrame.encoding(), messageDecoder);
+          invoker, format, headersFrame.encoding(), messageDecoder);
 
         r.invalidMessageHandler(invalidMsg -> {
           cancel();
           r.tryFail(invalidMsg);
         });
-
-        r.init();
 
         r.handleHeaders(headersFrame.headers());
 
@@ -231,22 +193,15 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
       } else if (frame instanceof GrpcMessageFrame) {
         GrpcMessageFrame messageFrame = (GrpcMessageFrame)frame;
-        Handler<GrpcMessage> handler = messageHandler;
-        if (handler != null) {
-          handler.handle(messageFrame.message());
+        GrpcClientResponseImpl<Req, Resp> r2 = r;
+        if (r2 != null) {
+          r2.handleMessage(messageFrame.message());
         }
       } else if (frame instanceof GrpcTrailersFrame) {
         GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
         if (r == null) {
-          r = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this,
-            new GrpcClientRequestImpl.StreamBase() {
-              @Override
-              public ReadStream<GrpcMessage> endHandler(@Nullable Handler<Void> handler) {
-                invoker.endHandler(handler);
-                return this;
-              }
-            }, WireFormat.PROTOBUF, null, messageDecoder);
-          r.init();
+          r = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this, invoker, WireFormat.PROTOBUF,
+            null, messageDecoder);
           r.handleHeaders(trailersFrame.trailers());
           r.handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), HttpHeaders.headers());
           response.tryComplete(r);
@@ -258,10 +213,14 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       }
     });
 
+    invoker.endHandler(v -> {
+      GrpcClientResponseImpl<Req, Resp> r2 = r;
+      if (r2 != null) {
+        r2.handleEnd();
+      }
+    });
+
     invoker.exceptionHandler(err -> {
-//      if (err instanceof GrpcErrorException) {
-//        handleError(((GrpcErrorException)err).error());
-//      }
       handleException(err);
       if (!response.tryFail(err)) {
         GrpcClientResponseImpl<Req, Resp> resp = r;
@@ -371,32 +330,5 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       return Long.toString(v) + GRPC_TIMEOUT_UNIT_SUFFIXES.get(grpcTimeoutUnit);
     }
     return null;
-  }
-
-  private static class StreamBase implements ReadStream<GrpcMessage> {
-    @Override
-    public ReadStream<GrpcMessage> exceptionHandler(@Nullable Handler<Throwable> handler) {
-      return this;
-    }
-    @Override
-    public ReadStream<GrpcMessage> handler(@Nullable Handler<GrpcMessage> handler) {
-      return this;
-    }
-    @Override
-    public ReadStream<GrpcMessage> pause() {
-      return this;
-    }
-    @Override
-    public ReadStream<GrpcMessage> resume() {
-      return this;
-    }
-    @Override
-    public ReadStream<GrpcMessage> fetch(long amount) {
-      return this;
-    }
-    @Override
-    public ReadStream<GrpcMessage> endHandler(@Nullable Handler<Void> endHandler) {
-      return this;
-    }
   }
 }

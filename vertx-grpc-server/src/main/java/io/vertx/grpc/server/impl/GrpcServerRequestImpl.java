@@ -17,6 +17,7 @@ import io.vertx.core.http.HttpConnection;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcInboundInvoker;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
@@ -31,6 +32,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcServerRequestImpl<Req, Resp>, Req> implements GrpcServerRequest<Req, Resp> {
 
+  private final GrpcInboundInvoker invoker;
   private final MultiMap headers;
   final Duration timeout;
   final GrpcProtocol protocol;
@@ -42,13 +44,14 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                MultiMap headers,
                                GrpcProtocol protocol,
                                WireFormat format,
-                               ReadStream<GrpcMessage> stream,
+                               GrpcInboundInvoker invoker,
                                Duration timeout,
                                String encoding,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMethodCall methodCall) {
-    super(context, stream,  encoding, format, messageDecoder);
+    super(context, encoding, format, messageDecoder);
 
+    this.invoker = invoker;
     this.headers = headers;
     this.protocol = protocol;
     this.timeout = timeout;
@@ -59,9 +62,8 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
     return context;
   }
 
-  public void init(GrpcWriteStreamBase<?, ?> ws, boolean scheduleDeadline) {
-    this.response = (GrpcServerResponseImpl<Req, Resp>) ws;
-    super.init();
+  public void init(GrpcServerResponseImpl<Req, Resp> ws, boolean scheduleDeadline) {
+    this.response = ws;
     if (timeout != null && (!timeout.isNegative() && !timeout.isZero())) {
       if (scheduleDeadline) {
         Timer timer = context.timer(timeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -89,6 +91,17 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
     handleEnd();
   }
 
+  @Override
+  public GrpcServerRequestImpl<Req, Resp> pause() {
+    invoker.pause();
+    return this;
+  }
+
+  @Override
+  public GrpcServerRequestImpl<Req, Resp> fetch(long amount) {
+    invoker.fetch(amount);
+    return this;
+  }
 
   public String fullMethodName() {
     return methodCall.fullMethodName();

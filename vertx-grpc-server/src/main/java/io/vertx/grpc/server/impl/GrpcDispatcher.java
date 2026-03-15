@@ -1,13 +1,10 @@
 package io.vertx.grpc.server.impl;
 
-import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.spi.context.storage.AccessMode;
-import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.GrpcLocal;
-import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.MessageSizeOverflowException;
@@ -19,9 +16,8 @@ import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcProtocol;
 
-class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame>, ReadStream<GrpcMessage> {
+class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
 
-  private final GrpcServerImpl grpcServer;
   private final GrpcInvoker invoker;
   private final ContextInternal context;
   private final GrpcProtocol protocol;
@@ -32,12 +28,10 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame>, ReadStream<GrpcMe
   private final GrpcServerImpl.MethodCallHandler<Req, Resp> method;
   private final boolean propagateDeadline;
   private final boolean scheduleDeadline;
-  GrpcServerRequestImpl<Req, Resp> grpcRequest;
-  GrpcServerResponseImpl<Req, Resp> grpcResponse;
-  Handler<GrpcMessage> messageHandler;
+  private GrpcServerRequestImpl<Req, Resp> grpcRequest;
+  private GrpcServerResponseImpl<Req, Resp> grpcResponse;
 
-  GrpcDispatcher(GrpcServerImpl grpcServer,
-                 GrpcInvoker invoker,
+  GrpcDispatcher(GrpcInvoker invoker,
                  ContextInternal context,
                  GrpcProtocol protocol,
                  WireFormat format,
@@ -47,7 +41,6 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame>, ReadStream<GrpcMe
                  GrpcServerImpl.MethodCallHandler<Req, Resp> method,
                  boolean propagateDeadline,
                  boolean scheduleDeadline) {
-    this.grpcServer = grpcServer;
     this.invoker = invoker;
     this.context = context;
     this.protocol = protocol;
@@ -61,42 +54,6 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame>, ReadStream<GrpcMe
   }
 
   @Override
-  public GrpcDispatcher<Req, Resp> exceptionHandler(@Nullable Handler<Throwable> handler) {
-    invoker.exceptionHandler(handler);
-    return this;
-  }
-
-  @Override
-  public GrpcDispatcher<Req, Resp> handler(@Nullable Handler<GrpcMessage> handler) {
-    this.messageHandler = handler;
-    return this;
-  }
-
-  @Override
-  public GrpcDispatcher<Req, Resp> pause() {
-    invoker.pause();
-    return this;
-  }
-
-  @Override
-  public GrpcDispatcher<Req, Resp> resume() {
-    invoker.resume();
-    return this;
-  }
-
-  @Override
-  public GrpcDispatcher<Req, Resp> fetch(long amount) {
-    invoker.fetch(amount);
-    return this;
-  }
-
-  @Override
-  public GrpcDispatcher<Req, Resp> endHandler(@Nullable Handler<Void> endHandler) {
-    invoker.endHandler(endHandler);
-    return this;
-  }
-
-  @Override
   public void handle(GrpcFrame frame) {
     if (frame instanceof GrpcHeadersFrame) {
       GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
@@ -105,7 +62,7 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame>, ReadStream<GrpcMe
         headersFrame.headers(),
         protocol,
         format,
-        this,
+        invoker,
         headersFrame.timeout(),
         headersFrame.encoding(),
         messageDecoder,
@@ -115,6 +72,7 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame>, ReadStream<GrpcMe
           return httpConnection;
         }
       };
+      invoker.endHandler(v -> grpcRequest.handleEnd2());
       grpcResponse = new GrpcServerResponseImpl<>(
         context,
         grpcRequest,
@@ -139,9 +97,9 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame>, ReadStream<GrpcMe
 
     } else if (frame instanceof GrpcMessageFrame) {
       GrpcMessageFrame messageFrame = (GrpcMessageFrame) frame;
-      Handler<GrpcMessage> handler = messageHandler;
-      if (handler != null) {
-        handler.handle(messageFrame.message());
+      GrpcServerRequestImpl<Req, Resp> r = grpcRequest;
+      if (r != null) {
+        r.handleMessage(messageFrame.message());
       }
     } else {
       System.out.println("Unhandled frame");

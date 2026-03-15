@@ -17,7 +17,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
 
 /**
@@ -45,7 +44,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   protected final ContextInternal context;
   private final String encoding;
   private final WireFormat format;
-  private final ReadStream<GrpcMessage> stream;
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcMessage> messageHandler;
   private Handler<Void> endHandler;
@@ -56,23 +54,15 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private Handler<GrpcError> errorHandler;
 
   protected GrpcReadStreamBase(Context context,
-                               ReadStream<GrpcMessage> stream,
                                String encoding,
                                WireFormat format,
                                GrpcMessageDecoder<T> messageDecoder) {
     ContextInternal ctx = (ContextInternal) context;
     this.context = ctx;
     this.encoding = encoding;
-    this.stream = stream;
     this.format = format;
     this.messageDecoder = messageDecoder;
     this.end = ctx.promise();
-  }
-
-  public void init() {
-    this.stream
-      .handler(this::handleMessage)
-      .endHandler(v -> handleEnd());
   }
 
   protected final T decodeMessage(GrpcMessage msg) throws CodecException {
@@ -100,19 +90,13 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     return encoding;
   }
 
-  public final S pause() {
-    stream.pause();
-    return (S) this;
-  }
+  public abstract S pause();
 
   public final S resume() {
     return fetch(Long.MAX_VALUE);
   }
 
-  public final S fetch(long amount) {
-    stream.fetch(amount);
-    return (S) this;
-  }
+  public abstract S fetch(long amount);
 
   @Override
   public final S exceptionHandler(Handler<Throwable> handler) {
@@ -178,14 +162,14 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     }
   }
 
-  void handleInvalidMessage(InvalidMessageException e) {
+  public void handleInvalidMessage(InvalidMessageException e) {
     Handler<InvalidMessageException> handler = invalidMessageHandler;
     if (handler != null) {
       context.dispatch(e, handler);
     }
   }
 
-  protected void handleMessage(GrpcMessage msg) {
+  public void handleMessage(GrpcMessage msg) {
     last = msg;
     Handler<GrpcMessage> handler = messageHandler;
     if (handler != null) {

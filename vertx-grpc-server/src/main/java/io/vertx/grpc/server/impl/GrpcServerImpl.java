@@ -205,7 +205,6 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     outboundInvoker.init();
 
     GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
-      this,
       outboundInvoker,
       context,
       protocol,
