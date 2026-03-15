@@ -1,4 +1,6 @@
-package io.vertx.grpc.common;
+package io.vertx.grpc.common.impl;
+
+import io.vertx.grpc.common.GrpcCancelFrame;
 
 public class DefaultGrpcCancelFrame implements GrpcCancelFrame {
 

@@ -8,7 +8,7 @@ import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.DefaultGrpcCancelFrame;
+import io.vertx.grpc.common.impl.DefaultGrpcCancelFrame;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcHeaderNames;
@@ -27,7 +27,7 @@ import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
 import java.nio.charset.StandardCharsets;
 
-public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
+public class Http2GrpcInboundStream extends Http2GrpcOutboundStream {
 
   private Handler<GrpcFrame> frameHandler;
   private Handler<Void> endHandler;
@@ -36,11 +36,11 @@ public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
   private final long maxMessageSize;
   private boolean initialized;
 
-  public Http2GrpcInboundInvoker(ContextInternal context,
-                                 HttpClientRequest httpRequest,
-                                 ServiceName serviceName,
-                                 String methodName,
-                                 long maxMessageSize) {
+  public Http2GrpcInboundStream(ContextInternal context,
+                                HttpClientRequest httpRequest,
+                                ServiceName serviceName,
+                                String methodName,
+                                long maxMessageSize) {
     super(context, httpRequest, serviceName, methodName);
     this.maxMessageSize = maxMessageSize;
   }
@@ -184,25 +184,25 @@ public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
   }
 
   @Override
-  public Http2GrpcInboundInvoker handler(Handler<GrpcFrame> handler) {
+  public Http2GrpcInboundStream handler(Handler<GrpcFrame> handler) {
     this.frameHandler = handler;
     return this;
   }
 
   @Override
-  public Http2GrpcInboundInvoker exceptionHandler(Handler<Throwable> handler) {
+  public Http2GrpcInboundStream exceptionHandler(Handler<Throwable> handler) {
     this.exceptionHandler = handler;
     return this;
   }
 
   @Override
-  public Http2GrpcInboundInvoker endHandler(Handler<Void> handler) {
+  public Http2GrpcInboundStream endHandler(Handler<Void> handler) {
     this.endHandler = handler;
     return this;
   }
 
   @Override
-  public Http2GrpcInboundInvoker pause() {
+  public Http2GrpcInboundStream pause() {
     GrpcDeframingStream s = stream;
     if (s != null) {
       s.pause();
@@ -211,7 +211,7 @@ public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
   }
 
   @Override
-  public Http2GrpcInboundInvoker resume() {
+  public Http2GrpcInboundStream resume() {
     GrpcDeframingStream s = stream;
     if (s != null) {
       s.resume();
@@ -220,7 +220,7 @@ public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
   }
 
   @Override
-  public Http2GrpcInboundInvoker fetch(long amount) {
+  public Http2GrpcInboundStream fetch(long amount) {
     GrpcDeframingStream s = stream;
     if (s != null) {
       s.fetch(amount);

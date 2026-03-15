@@ -20,7 +20,7 @@ import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcInboundInvoker;
+import io.vertx.grpc.common.impl.GrpcInboundStream;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 
 /**
@@ -28,7 +28,7 @@ import io.vertx.grpc.common.impl.GrpcReadStreamBase;
  */
 public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcClientResponseImpl<Req, Resp>, Resp> implements GrpcClientResponse<Req, Resp> {
 
-  private final GrpcInboundInvoker invoker;
+  private final GrpcInboundStream inbound;
   private final GrpcClientRequestImpl<Req, Resp> request;
   private GrpcStatus status;
   private MultiMap headers;
@@ -37,7 +37,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
 
   public GrpcClientResponseImpl(ContextInternal context,
                                 GrpcClientRequestImpl<Req, Resp> request,
-                                GrpcInboundInvoker invoker,
+                                GrpcInboundStream inbound,
                                 WireFormat format,
                                 String encoding,
                                 GrpcMessageDecoder<Resp> messageDecoder) {
@@ -47,7 +47,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
       format,
       messageDecoder);
     this.request = request;
-    this.invoker = invoker;
+    this.inbound = inbound;
   }
 
   void handleHeaders(MultiMap headers) {
@@ -62,13 +62,13 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
 
   @Override
   public GrpcClientResponseImpl<Req, Resp> pause() {
-    invoker.pause();
+    inbound.pause();
     return this;
   }
 
   @Override
   public GrpcClientResponseImpl<Req, Resp> fetch(long amount) {
-    invoker.fetch(amount);
+    inbound.fetch(amount);
     return this;
   }
 

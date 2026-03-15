@@ -16,23 +16,23 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcInvoker;
+import io.vertx.grpc.common.impl.GrpcStream;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
-import io.vertx.grpc.common.impl.GrpcOutboundInvoker;
+import io.vertx.grpc.common.impl.GrpcOutboundStream;
 import io.vertx.grpc.common.impl.GrpcTrailersFrame;
 import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcProtocol;
 
 import java.util.Map;
 
-public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker implements GrpcInvoker {
+public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream implements GrpcStream {
 
   private boolean headersSent;
   private final HttpServerResponse httpResponse;
   protected GrpcStatus status;
 
-  public HttpGrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcProtocol protocol,  GrpcMessageDeframer deframer) {
+  public HttpGrpcOutboundStream(HttpServerRequest httpRequest, GrpcProtocol protocol, GrpcMessageDeframer deframer) {
     super(((HttpServerRequestInternal) httpRequest).context(), protocol, deframer);
     this.httpResponse = httpRequest.response();
   }
@@ -162,13 +162,13 @@ public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker imp
   }
 
   @Override
-  public HttpGrpcOutboundInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
+  public HttpGrpcOutboundStream exceptionHandler(@Nullable Handler<Throwable> handler) {
     super.exceptionHandler(handler);
     return this;
   }
 
   @Override
-  public GrpcOutboundInvoker setWriteQueueMaxSize(int maxSize) {
+  public GrpcOutboundStream setWriteQueueMaxSize(int maxSize) {
     httpResponse.setWriteQueueMaxSize(maxSize);
     return this;
   }
@@ -179,7 +179,7 @@ public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker imp
   }
 
   @Override
-  public GrpcOutboundInvoker drainHandler(@Nullable Handler<Void> handler) {
+  public GrpcOutboundStream drainHandler(@Nullable Handler<Void> handler) {
     httpResponse.drainHandler(handler);
     return this;
   }

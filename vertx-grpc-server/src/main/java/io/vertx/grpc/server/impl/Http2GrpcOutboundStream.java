@@ -7,9 +7,9 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
 
-public class Http2GrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
+public class Http2GrpcOutboundStream extends HttpGrpcOutboundStream {
 
-  public Http2GrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcMessageDeframer deframer) {
+  public Http2GrpcOutboundStream(HttpServerRequest httpRequest, GrpcMessageDeframer deframer) {
     super(httpRequest, GrpcProtocol.HTTP_2, deframer);
   }
 

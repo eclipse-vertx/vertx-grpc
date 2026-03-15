@@ -16,7 +16,7 @@ import io.vertx.core.Timer;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcInboundInvoker;
+import io.vertx.grpc.common.impl.GrpcInboundStream;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcServerRequestImpl<Req, Resp>, Req> implements GrpcServerRequest<Req, Resp> {
 
-  private final GrpcInboundInvoker invoker;
+  private final GrpcInboundStream inbound;
   private final MultiMap headers;
   final Duration timeout;
   final GrpcProtocol protocol;
@@ -42,14 +42,14 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                MultiMap headers,
                                GrpcProtocol protocol,
                                WireFormat format,
-                               GrpcInboundInvoker invoker,
+                               GrpcInboundStream inbound,
                                Duration timeout,
                                String encoding,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMethodCall methodCall) {
     super(context, encoding, format, messageDecoder);
 
-    this.invoker = invoker;
+    this.inbound = inbound;
     this.headers = headers;
     this.protocol = protocol;
     this.timeout = timeout;
@@ -93,13 +93,13 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
 
   @Override
   public GrpcServerRequestImpl<Req, Resp> pause() {
-    invoker.pause();
+    inbound.pause();
     return this;
   }
 
   @Override
   public GrpcServerRequestImpl<Req, Resp> fetch(long amount) {
-    invoker.fetch(amount);
+    inbound.fetch(amount);
     return this;
   }
 

@@ -1,22 +1,15 @@
 package io.vertx.grpc.transcoding.impl;
 
-import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.common.WireFormat;
-import io.vertx.grpc.common.impl.GrpcDeframingStream;
-import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcProtocol;
-import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.impl.GrpcInvocation;
-import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
-import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import io.vertx.grpc.server.impl.MountPoint;
-import io.vertx.grpc.server.impl.HttpGrpcOutboundInvoker;
+import io.vertx.grpc.server.impl.HttpGrpcOutboundStream;
 import io.vertx.grpc.transcoding.*;
 import io.vertx.grpc.transcoding.impl.config.HttpTemplate;
 import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
@@ -98,12 +91,12 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
       TranscodingMessageDecoder<I> messageDecoder = new TranscodingMessageDecoder<>(decoder, options.getBody(), bindings);
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer();
-      HttpGrpcOutboundInvoker protocolHandler = new TranscodingGrpcOutboundInvoker(context, httpRequest, options.getResponseBody(), deframer);
+      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, options.getResponseBody(), deframer);
       return new GrpcInvocation(deframer, protocolHandler, messageDecoder);
     } else if (options == null) {
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer();
-      HttpGrpcOutboundInvoker protocolHandler = new TranscodingGrpcOutboundInvoker(context, httpRequest, null, deframer);
+      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, null, deframer);
       return new GrpcInvocation(deframer, protocolHandler, decoder);
     }
 

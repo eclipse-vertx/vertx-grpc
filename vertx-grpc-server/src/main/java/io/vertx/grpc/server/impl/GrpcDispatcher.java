@@ -12,14 +12,14 @@ import io.vertx.grpc.common.MessageSizeOverflowException;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcInvoker;
+import io.vertx.grpc.common.impl.GrpcStream;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcProtocol;
 
 class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
 
-  private final GrpcInvoker invoker;
+  private final GrpcStream stream;
   private final ContextInternal context;
   private final GrpcProtocol protocol;
   private final WireFormat format;
@@ -32,7 +32,7 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
   private GrpcServerRequestImpl<Req, Resp> grpcRequest;
   private GrpcServerResponseImpl<Req, Resp> grpcResponse;
 
-  GrpcDispatcher(GrpcInvoker invoker,
+  GrpcDispatcher(GrpcStream stream,
                  ContextInternal context,
                  GrpcProtocol protocol,
                  WireFormat format,
@@ -42,7 +42,7 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
                  GrpcServerImpl.MethodCallHandler<Req, Resp> method,
                  boolean propagateDeadline,
                  boolean scheduleDeadline) {
-    this.invoker = invoker;
+    this.stream = stream;
     this.context = context;
     this.protocol = protocol;
     this.format = format;
@@ -79,7 +79,7 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
       frame.headers(),
       protocol,
       format,
-      invoker,
+      stream,
       frame.timeout(),
       frame.encoding(),
       messageDecoder,
@@ -89,11 +89,11 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
         return httpConnection;
       }
     };
-    invoker.endHandler(v -> grpcRequest.handleEnd());
+    stream.endHandler(v -> grpcRequest.handleEnd());
     grpcResponse = new GrpcServerResponseImpl<>(
       context,
       grpcRequest,
-      invoker,
+      stream,
       protocol,
       method.messageEncoder);
     grpcResponse.format(format);

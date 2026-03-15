@@ -15,17 +15,17 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.server.GrpcProtocol;
-import io.vertx.grpc.server.impl.HttpGrpcOutboundInvoker;
+import io.vertx.grpc.server.impl.HttpGrpcOutboundStream;
 
-public class TranscodingGrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
+public class TranscodingGrpcOutboundStream extends HttpGrpcOutboundStream {
 
   private Promise<Void> head;
   private final ContextInternal context;
   private final HttpServerResponse httpResponse;
   private final String transcodingResponseBody;
 
-  public TranscodingGrpcOutboundInvoker(ContextInternal context, HttpServerRequest httpRequest,
-                                        String transcodingResponseBody, GrpcMessageDeframer deframer) {
+  public TranscodingGrpcOutboundStream(ContextInternal context, HttpServerRequest httpRequest,
+                                       String transcodingResponseBody, GrpcMessageDeframer deframer) {
     super(httpRequest, GrpcProtocol.TRANSCODING, deframer);
 
     this.context = context;

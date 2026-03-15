@@ -18,7 +18,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcInvoker;
+import io.vertx.grpc.common.impl.GrpcStream;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 
 import java.time.Duration;
@@ -27,17 +27,17 @@ import java.util.concurrent.TimeUnit;
 
 import static io.vertx.grpc.client.impl.GrpcClientRequestImpl.toTimeoutHeader;
 
-abstract class Http2GrpcOutboundInvoker implements GrpcInvoker {
+abstract class Http2GrpcOutboundStream implements GrpcStream {
 
   protected final ContextInternal context;
   protected final HttpClientRequest httpRequest;
   protected final ServiceName serviceName;
   protected final String methodName;
 
-  public Http2GrpcOutboundInvoker(ContextInternal context,
-                                  HttpClientRequest httpRequest,
-                                  ServiceName serviceName,
-                                  String methodName) {
+  public Http2GrpcOutboundStream(ContextInternal context,
+                                 HttpClientRequest httpRequest,
+                                 ServiceName serviceName,
+                                 String methodName) {
     this.context = context;
     this.httpRequest = httpRequest;
     this.serviceName = serviceName;
@@ -150,12 +150,12 @@ abstract class Http2GrpcOutboundInvoker implements GrpcInvoker {
   }
 
   @Override
-  public Http2GrpcOutboundInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
+  public Http2GrpcOutboundStream exceptionHandler(@Nullable Handler<Throwable> handler) {
     return this;
   }
 
   @Override
-  public Http2GrpcOutboundInvoker setWriteQueueMaxSize(int maxSize) {
+  public Http2GrpcOutboundStream setWriteQueueMaxSize(int maxSize) {
     httpRequest.setWriteQueueMaxSize(maxSize);
     return this;
   }
@@ -166,7 +166,7 @@ abstract class Http2GrpcOutboundInvoker implements GrpcInvoker {
   }
 
   @Override
-  public Http2GrpcOutboundInvoker drainHandler(@Nullable Handler<Void> handler) {
+  public Http2GrpcOutboundStream drainHandler(@Nullable Handler<Void> handler) {
     httpRequest.drainHandler(handler);
     return this;
   }

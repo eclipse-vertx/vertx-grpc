@@ -27,11 +27,12 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.DefaultGrpcCancelFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcInvoker;
+import io.vertx.grpc.common.impl.GrpcStream;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcTrailersFrame;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
@@ -41,10 +42,10 @@ import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
  */
 public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcClientRequestImpl<Req, Resp>, Req> implements GrpcClientRequest<Req, Resp> {
 
-  private final GrpcClientInvokerResolver invokerResolver;
+  private final GrpcClientInvoker invoker;
   private final boolean scheduleDeadline;
   private final GrpcMessageDecoder<Resp> messageDecoder;
-  private GrpcInvoker invoker;
+  private GrpcStream stream;
   private ServiceName serviceName;
   private String methodName;
   private Promise<GrpcClientResponse<Req, Resp>> responsePromise;
@@ -55,7 +56,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private Handler<Void> drainHandler;
 
   public GrpcClientRequestImpl(ContextInternal context,
-                               GrpcClientInvokerResolver invokerResolver,
+                               GrpcClientInvoker invoker,
                                boolean scheduleDeadline,
                                GrpcMessageEncoder<Req> messageEncoder,
                                GrpcMessageDecoder<Resp> messageDecoder) {
@@ -63,7 +64,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
     Promise<GrpcClientResponse<Req, Resp>> promise = context().promise();
 
-    this.invokerResolver = invokerResolver;
+    this.invoker = invoker;
     this.scheduleDeadline = scheduleDeadline;
     this.timeout = 0L;
     this.timeoutUnit = null;
@@ -78,9 +79,9 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   @Override
   public GrpcClientRequest<Req, Resp> drainHandler(@Nullable Handler<Void> handler) {
-    GrpcInvoker i = invoker;
-    if (i != null) {
-      i.drainHandler(handler);
+    GrpcStream s = stream;
+    if (s != null) {
+      s.drainHandler(handler);
     } else {
       drainHandler = handler;
     }
@@ -89,8 +90,8 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   @Override
   public boolean writeQueueFull() {
-    GrpcInvoker i = invoker;
-    return i != null && i.writeQueueFull();
+    GrpcStream s = stream;
+    return s != null && s.writeQueueFull();
   }
 
   @Override
@@ -143,7 +144,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   @Override
   public GrpcClientRequest<Req, Resp> idleTimeout(long timeout) {
-    invoker.write(new SetIdleTimeoutFrame(Duration.ofMillis(timeout)));
+    stream.write(new SetIdleTimeoutFrame(Duration.ofMillis(timeout)));
     return this;
   }
 
@@ -163,11 +164,11 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       throw new IllegalStateException();
     }
 
-    invoker = invokerResolver.resolveInvoker(serviceName, methodName);
-    invoker.drainHandler(drainHandler);
-    invoker.handler(this::handleFrame);
-    invoker.endHandler(this::handleEnd);
-    invoker.exceptionHandler(this::internalHandleException);
+    stream = invoker.invoke(serviceName, methodName);
+    stream.drainHandler(drainHandler);
+    stream.handler(this::handleFrame);
+    stream.endHandler(this::handleEnd);
+    stream.exceptionHandler(this::internalHandleException);
 
     Duration to = timeout > 0L ? Duration.of(timeout, timeoutUnit.toChronoUnit()) : null;
     if (scheduleDeadline && timeout > 0L) {
@@ -181,15 +182,15 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(format, encoding, headers, to);
 
     if (end) {
-      return invoker.end(frame);
+      return stream.end(frame);
     } else {
-      return invoker.write(frame);
+      return stream.write(frame);
     }
   }
 
   @Override
   protected Future<Void> sendTrailers(MultiMap trailers) {
-    if (invoker == null) {
+    if (stream == null) {
       WireFormat wireFormat = format;
       if (wireFormat == null) {
         wireFormat = WireFormat.PROTOBUF;
@@ -197,13 +198,13 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       }
       return sendHeaders(wireFormat, encoding, trailers, true);
     } else {
-      return invoker.end();
+      return stream.end();
     }
   }
 
   @Override
   protected Future<Void> sendMessage(GrpcMessage message) {
-    return invoker.write(new DefaultGrpcMessageFrame(message));
+    return stream.write(new DefaultGrpcMessageFrame(message));
   }
 
   void cancelTimeout() {
@@ -219,7 +220,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   @Override
   protected boolean sendCancel() {
-    invoker
+    stream
       .write(DefaultGrpcCancelFrame.INSTANCE)
       .onSuccess(v -> handleError(GrpcError.CANCELLED));
     return true;
@@ -299,7 +300,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     WireFormat format = frame.format();
 
     response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this,
-      invoker, format, frame.encoding(), messageDecoder);
+      stream, format, frame.encoding(), messageDecoder);
 
     response.invalidMessageHandler(invalidMsg -> {
       cancel();
@@ -320,7 +321,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   private void handleTrailersFrame(GrpcTrailersFrame frame) {
     if (response == null) {
-      response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this, invoker, WireFormat.PROTOBUF,
+      response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this, stream, WireFormat.PROTOBUF,
         null, messageDecoder);
       response.handleHeaders(frame.trailers());
       response.handleTrailers(frame.status(), frame.statusMessage(), HttpHeaders.headers());

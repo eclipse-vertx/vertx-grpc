@@ -14,15 +14,12 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.core.internal.VertxInternal;
-import io.vertx.core.internal.http.HttpClientRequestInternal;
 import io.vertx.core.net.Address;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
@@ -70,7 +67,7 @@ public class GrpcClientImpl implements GrpcClient {
       .map(httpRequest -> {
         GrpcClientRequestImpl<Buffer, Buffer> grpcRequest = new GrpcClientRequestImpl<>(
           ((PromiseInternal<?>)httpRequest.response()).context(),
-          new Http2GrpcClientInvokerResolver(httpRequest, maxMessageSize),
+          new Http2GrpcClientInvoker(httpRequest, maxMessageSize),
           scheduleDeadlineAutomatically,
           GrpcMessageEncoder.IDENTITY,
           GrpcMessageDecoder.IDENTITY) {
@@ -127,7 +124,7 @@ public class GrpcClientImpl implements GrpcClient {
       .map(request -> {
         GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(
           ((PromiseInternal<?>)request.response()).context(),
-          new Http2GrpcClientInvokerResolver(request, maxMessageSize),
+          new Http2GrpcClientInvoker(request, maxMessageSize),
           scheduleDeadlineAutomatically,
           method.encoder(),
           method.decoder()) {

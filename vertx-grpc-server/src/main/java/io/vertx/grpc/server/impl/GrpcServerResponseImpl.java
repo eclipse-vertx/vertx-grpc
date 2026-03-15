@@ -22,7 +22,7 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcTrailersFrame;
-import io.vertx.grpc.common.impl.GrpcOutboundInvoker;
+import io.vertx.grpc.common.impl.GrpcOutboundStream;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -40,36 +40,36 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   private static final Set<String> GZIP_ACCEPT_ENCODING = Collections.singleton("gzip");
 
   private final GrpcServerRequestImpl<Req, Resp> request;
-  private final GrpcOutboundInvoker invoker;
+  private final GrpcOutboundStream outbound;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
   private Set<String> acceptedEncodings;
 
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
-                                GrpcOutboundInvoker invoker,
+                                GrpcOutboundStream outbound,
                                 GrpcProtocol protocol,
                                 GrpcMessageEncoder<Resp> encoder) {
     super(context, encoder);
-    this.invoker = invoker;
+    this.outbound = outbound;
     this.request = request;
   }
 
   @Override
   public GrpcServerResponse<Req, Resp> setWriteQueueMaxSize(int maxSize) {
-    invoker.setWriteQueueMaxSize(maxSize);
+    outbound.setWriteQueueMaxSize(maxSize);
     return this;
   }
 
   @Override
   public GrpcServerResponse<Req, Resp> drainHandler(@Nullable Handler<Void> handler) {
-    invoker.drainHandler(handler);
+    outbound.drainHandler(handler);
     return this;
   }
 
   @Override
   public boolean writeQueueFull() {
-    return invoker.writeQueueFull();
+    return outbound.writeQueueFull();
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
@@ -150,17 +150,17 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   protected Future<Void> sendTrailers(MultiMap grpcTrailers) {
     handleStatus(status);
     request.cancelTimeout();
-    return invoker.write(new DefaultGrpcTrailersFrame(status, statusMessage, grpcTrailers));
+    return outbound.write(new DefaultGrpcTrailersFrame(status, statusMessage, grpcTrailers));
   }
 
   @Override
   protected Future<Void> sendMessage(GrpcMessage message) {
-    return invoker.write(new DefaultGrpcMessageFrame(message));
+    return outbound.write(new DefaultGrpcMessageFrame(message));
   }
 
   @Override
   protected Future<Void> sendHeaders(WireFormat wireFormat, String encoding, MultiMap headers) {
-    return invoker.write(new DefaultGrpcHeadersFrame(format, encoding, headers));
+    return outbound.write(new DefaultGrpcHeadersFrame(format, encoding, headers));
   }
 
   private static GrpcStatus mapStatus(Throwable t) {

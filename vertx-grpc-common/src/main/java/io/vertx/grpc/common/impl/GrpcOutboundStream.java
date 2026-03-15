@@ -5,7 +5,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.streams.WriteStream;
 
-public interface GrpcOutboundInvoker extends WriteStream<GrpcFrame> {
+public interface GrpcOutboundStream extends WriteStream<GrpcFrame> {
 
   @Override
   Future<Void> write(GrpcFrame frame);
@@ -17,15 +17,15 @@ public interface GrpcOutboundInvoker extends WriteStream<GrpcFrame> {
   Future<Void> end();
 
   @Override
-  GrpcOutboundInvoker exceptionHandler(@Nullable Handler<Throwable> handler);
+  GrpcOutboundStream exceptionHandler(@Nullable Handler<Throwable> handler);
 
   @Override
-  GrpcOutboundInvoker setWriteQueueMaxSize(int maxSize);
+  GrpcOutboundStream setWriteQueueMaxSize(int maxSize);
 
   @Override
   boolean writeQueueFull();
 
   @Override
-  GrpcOutboundInvoker drainHandler(@Nullable Handler<Void> handler);
+  GrpcOutboundStream drainHandler(@Nullable Handler<Void> handler);
 
 }

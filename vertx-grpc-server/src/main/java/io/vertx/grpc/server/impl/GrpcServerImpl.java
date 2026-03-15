@@ -159,14 +159,14 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
     String encoding = httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING);
 
-    HttpGrpcOutboundInvoker outboundInvoker;
+    HttpGrpcOutboundStream outboundInvoker;
     GrpcMessageDecoder<Req> messageDecoder;
     switch (protocol) {
       case HTTP_2:
         if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
           return false;
         }
-        outboundInvoker = new Http2GrpcOutboundInvoker(httpRequest, new Http2GrpcMessageDeframer(encoding, format));
+        outboundInvoker = new Http2GrpcOutboundStream(httpRequest, new Http2GrpcMessageDeframer(encoding, format));
         messageDecoder = method.messageDecoder;
         break;
       case WEB:
@@ -180,7 +180,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         } else {
           deframer  = new Http2GrpcMessageDeframer(encoding, format);
         }
-        outboundInvoker = new WebGrpcOutboundInvoker(httpRequest, protocol, deframer);
+        outboundInvoker = new WebGrpcOutboundStream(httpRequest, protocol, deframer);
         messageDecoder = method.messageDecoder;
         break;
       case TRANSCODING:

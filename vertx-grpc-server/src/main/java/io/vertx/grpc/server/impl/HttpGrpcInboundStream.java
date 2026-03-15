@@ -5,7 +5,7 @@ import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.DefaultGrpcCancelFrame;
+import io.vertx.grpc.common.impl.DefaultGrpcCancelFrame;
 import io.vertx.grpc.common.GrpcCancelFrame;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
@@ -17,7 +17,7 @@ import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcDeframingStream;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcInboundInvoker;
+import io.vertx.grpc.common.impl.GrpcInboundStream;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
 
@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
+public class HttpGrpcInboundStream implements GrpcInboundStream {
 
   private static final Pattern TIMEOUT_PATTERN = Pattern.compile("([0-9]{1,8})([HMSmun])");
 
@@ -53,20 +53,20 @@ public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
   private Handler<Throwable> exceptionHandler;
   private Handler<Void> endHandler;
 
-  public HttpGrpcInboundInvoker(ContextInternal context, GrpcProtocol protocol, GrpcMessageDeframer deframer) {
+  public HttpGrpcInboundStream(ContextInternal context, GrpcProtocol protocol, GrpcMessageDeframer deframer) {
     this.context = context;
     this.deframer = deframer;
     this.protocol = protocol;
   }
 
   @Override
-  public GrpcInboundInvoker handler(Handler<GrpcFrame> handler) {
+  public GrpcInboundStream handler(Handler<GrpcFrame> handler) {
     this.frameHandler = handler;
     return this;
   }
 
   @Override
-  public GrpcInboundInvoker exceptionHandler(Handler<Throwable> handler) {
+  public GrpcInboundStream exceptionHandler(Handler<Throwable> handler) {
     if (handler != null && exceptionHandler != null) {
       throw new IllegalStateException();
     }
@@ -75,7 +75,7 @@ public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
   }
 
   @Override
-  public GrpcInboundInvoker endHandler(Handler<Void> handler) {
+  public GrpcInboundStream endHandler(Handler<Void> handler) {
     this.endHandler = handler;
     return this;
   }
@@ -139,19 +139,19 @@ public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
   }
 
   @Override
-  public GrpcInboundInvoker pause() {
+  public GrpcInboundStream pause() {
     deframingStream.pause();
     return this;
   }
 
   @Override
-  public GrpcInboundInvoker resume() {
+  public GrpcInboundStream resume() {
     deframingStream.resume();
     return this;
   }
 
   @Override
-  public GrpcInboundInvoker fetch(long amount) {
+  public GrpcInboundStream fetch(long amount) {
     deframingStream.fetch(amount);
     return this;
   }
