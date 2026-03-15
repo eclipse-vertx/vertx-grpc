@@ -3,6 +3,7 @@ package io.vertx.grpc.server.impl;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.grpc.common.GrpcHeaderNames;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
 
@@ -10,6 +11,18 @@ public class Http2GrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
 
   public Http2GrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcMessageDeframer deframer) {
     super(httpRequest, GrpcProtocol.HTTP_2, deframer);
+  }
+
+  @Override
+  protected String contentType(WireFormat wireFormat) {
+    switch (wireFormat) {
+      case PROTOBUF:
+        return "application/grpc";
+      case JSON:
+        return "application/grpc+json";
+      default:
+        throw new UnsupportedOperationException();
+    }
   }
 
   @Override

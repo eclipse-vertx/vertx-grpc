@@ -59,7 +59,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
                                boolean scheduleDeadline,
                                GrpcMessageEncoder<Req> messageEncoder,
                                GrpcMessageDecoder<Resp> messageDecoder) {
-    super(context, "application/grpc", messageEncoder);
+    super(context, messageEncoder);
 
     Promise<GrpcClientResponse<Req, Resp>> promise = context().promise();
 
@@ -148,11 +148,11 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected Future<Void> sendHeaders(String contentType, String encoding, MultiMap headers) {
-    return sendHeaders(contentType, encoding, headers, false);
+  protected Future<Void> sendHeaders(WireFormat format, String encoding, MultiMap headers) {
+    return sendHeaders(format, encoding, headers, false);
   }
 
-  private Future<Void> sendHeaders(String contentType, String encoding, MultiMap headers, boolean end) {
+  private Future<Void> sendHeaders(WireFormat format, String encoding, MultiMap headers, boolean end) {
 
     ServiceName serviceName = this.serviceName;
     String methodName = this.methodName;
@@ -178,7 +178,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       });
     }
 
-    GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(contentType, encoding, headers, to);
+    GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(format, encoding, headers, to);
 
     if (end) {
       return invoker.end(frame);
@@ -188,13 +188,17 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected Future<Void> sendTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
-    return sendHeaders(contentType, encoding, headers, true);
-  }
-
-  @Override
   protected Future<Void> sendTrailers(MultiMap trailers) {
-    return invoker.end();
+    if (invoker == null) {
+      WireFormat wireFormat = format;
+      if (wireFormat == null) {
+        wireFormat = WireFormat.PROTOBUF;
+        format = WireFormat.PROTOBUF;
+      }
+      return sendHeaders(wireFormat, encoding, trailers, true);
+    } else {
+      return invoker.end();
+    }
   }
 
   @Override
@@ -292,13 +296,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   private void handleHeadersFrame(GrpcHeadersFrame frame) {
-    // Todo : move this to GrpcHeadersFrame
-    WireFormat format;
-    if (frame.contentType() != null) {
-      format = GrpcMediaType.parseContentType(frame.contentType(), "application/grpc");
-    } else {
-      format = null;
-    }
+    WireFormat format = frame.format();
 
     response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this,
       invoker, format, frame.encoding(), messageDecoder);

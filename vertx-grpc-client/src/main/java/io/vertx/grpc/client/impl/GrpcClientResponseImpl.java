@@ -10,26 +10,18 @@
  */
 package io.vertx.grpc.client.impl;
 
-import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.core.Expectation;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.HttpClientResponse;
 
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcFrame;
-import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcInboundInvoker;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
-import io.vertx.grpc.common.impl.GrpcTrailersFrame;
-
-import java.nio.charset.StandardCharsets;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>

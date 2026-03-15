@@ -13,7 +13,6 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   protected final ContextInternal context;
   private final GrpcMessageEncoder<T> messageEncoder;
 
-  protected String mediaType;
   protected String encoding;
   protected WireFormat format;
   private boolean headersSent;
@@ -24,10 +23,10 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private MultiMap trailers;
   private Handler<Throwable> exceptionHandler;
 
-  public GrpcWriteStreamBase(ContextInternal context, String mediaType, GrpcMessageEncoder<T> messageEncoder) {
+  public GrpcWriteStreamBase(ContextInternal context, GrpcMessageEncoder<T> messageEncoder) {
     this.context = context;
     this.messageEncoder = messageEncoder;
-    this.mediaType = mediaType;
+    this.format = null;
   }
 
   public void handleError(GrpcError error) {
@@ -156,50 +155,27 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return writeMessage(null, true);
   }
 
-  protected abstract Future<Void> sendTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers);
   protected abstract Future<Void> sendTrailers(MultiMap trailers);
-  protected abstract Future<Void> sendHeaders(String contentType, String encoding, MultiMap headers);
+  protected abstract Future<Void> sendHeaders(WireFormat wireFormat, String encoding, MultiMap headers);
   protected abstract Future<Void> sendMessage(GrpcMessage message);
   protected abstract boolean sendCancel();
 
-  protected Future<Void> sendHeaders(boolean writeHeaders) {
+  private Future<Void> sendHeaders(boolean writeHeaders) {
     if (!writeHeaders) {
       throw new IllegalArgumentException();
     }
-    String contentType = contentType(format);
-    return sendHeaders(contentType, encoding, headers);
+    return sendHeaders(format, encoding, headers);
   }
 
-  protected Future<Void> sendMessage(boolean writeHeaders, GrpcMessage message) {
+  private Future<Void> sendMessage(boolean writeHeaders, GrpcMessage message) {
     if (writeHeaders) {
-      String contentType = contentType(format);
-      sendHeaders(contentType, encoding, headers);
+      sendHeaders(format, encoding, headers);
     }
     return sendMessage(message);
   }
 
-  protected Future<Void> sendEnd(boolean writeHeaders) {
-    if (writeHeaders) {
-      String contentType = contentType(format);
-      return sendTrailers(contentType, encoding, headers, trailers);
-    } else {
-      return sendTrailers(trailers);
-    }
-  }
-
-  protected String contentType(WireFormat wireFormat) {
-    if (wireFormat != null) {
-      switch (wireFormat) {
-        case JSON:
-          if (!mediaType.endsWith("/json")) {
-            return mediaType + "+json";
-          }
-        case PROTOBUF:
-          // contentType = mediaType + "+proto";
-          break;
-      }
-    }
-    return mediaType;
+  private Future<Void> sendEnd() {
+    return sendTrailers(trailers);
   }
 
   public final Future<Void> writeHead() {
@@ -269,9 +245,8 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
       trailersSent = true;
       if (payload != null) {
         sendMessage(writeHeaders, payload);
-        writeHeaders = false;
       }
-      return sendEnd(writeHeaders);
+      return sendEnd();
     } else {
       if (payload != null) {
         return sendMessage(writeHeaders, payload);

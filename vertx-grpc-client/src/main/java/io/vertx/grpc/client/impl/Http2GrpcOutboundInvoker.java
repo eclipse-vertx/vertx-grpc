@@ -96,8 +96,20 @@ abstract class Http2GrpcOutboundInvoker implements GrpcInvoker {
       httpRequest.putHeader(GrpcHeaderNames.GRPC_TIMEOUT, headerValue);
     }
 
+    String contentType;
+    switch (frame.format()) {
+      case PROTOBUF:
+        contentType = "application/grpc";
+        break;
+      case JSON:
+        contentType = "application/grpc+json";
+        break;
+      default:
+        throw new UnsupportedOperationException();
+    }
+
     String uri = serviceName.pathOf(methodName);
-    httpRequest.putHeader(HttpHeaders.CONTENT_TYPE, frame.contentType());
+    httpRequest.putHeader(HttpHeaders.CONTENT_TYPE, contentType);
     if (frame.encoding() != null) {
       httpRequest.putHeader(GrpcHeaderNames.GRPC_ENCODING, frame.encoding());
     }

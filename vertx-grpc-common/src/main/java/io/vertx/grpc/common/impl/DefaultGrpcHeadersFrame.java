@@ -1,30 +1,32 @@
 package io.vertx.grpc.common.impl;
 
 import io.vertx.core.MultiMap;
+import io.vertx.grpc.common.WireFormat;
 
 import java.time.Duration;
 import java.util.Objects;
 
 public class DefaultGrpcHeadersFrame implements GrpcHeadersFrame {
 
-  private final String contentType;
+  private final WireFormat format;
   private final String encoding;
   private final MultiMap headers;
   private final Duration timeout;
 
-  public DefaultGrpcHeadersFrame(String contentType, String encoding, MultiMap headers) {
-    this(contentType, encoding, headers, null);
+  public DefaultGrpcHeadersFrame(WireFormat format, String encoding, MultiMap headers) {
+    this(format, encoding, headers, null);
   }
 
-  public DefaultGrpcHeadersFrame(String contentType, String encoding, MultiMap headers, Duration timeout) {
-    this.contentType = Objects.requireNonNull(contentType);
+  public DefaultGrpcHeadersFrame(WireFormat format, String encoding, MultiMap headers, Duration timeout) {
+    this.format = Objects.requireNonNull(format);
     this.encoding = encoding;
     this.headers = headers;
     this.timeout = timeout;
   }
 
-  public String contentType() {
-    return contentType;
+  @Override
+  public WireFormat format() {
+    return format;
   }
 
   public String encoding() {

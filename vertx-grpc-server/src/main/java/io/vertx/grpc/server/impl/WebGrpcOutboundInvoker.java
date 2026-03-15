@@ -9,6 +9,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
@@ -28,6 +29,11 @@ public class WebGrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
 
     this.httpResponse = httpRequest.response();
     this.protocol = protocol;
+  }
+
+  @Override
+  protected String contentType(WireFormat wireFormat) {
+    return protocol.mediaType();
   }
 
   public static Buffer grpcWebEncode(Buffer message) {

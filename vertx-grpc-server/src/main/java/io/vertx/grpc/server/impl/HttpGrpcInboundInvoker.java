@@ -10,6 +10,8 @@ import io.vertx.grpc.common.GrpcCancelFrame;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcHeaderNames;
+import io.vertx.grpc.common.GrpcMediaType;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcDeframingStream;
@@ -17,6 +19,7 @@ import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcInboundInvoker;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
+import io.vertx.grpc.server.GrpcProtocol;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -24,8 +27,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
 public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
 
@@ -44,6 +45,7 @@ public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
     TIMEOUT_MAPPING = timeoutMapping;
   }
 
+  protected final GrpcProtocol protocol;
   protected final ContextInternal context;
   private final GrpcMessageDeframer deframer;
   private GrpcDeframingStream deframingStream;
@@ -51,9 +53,10 @@ public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
   private Handler<Throwable> exceptionHandler;
   private Handler<Void> endHandler;
 
-  public HttpGrpcInboundInvoker(ContextInternal context, GrpcMessageDeframer deframer) {
+  public HttpGrpcInboundInvoker(ContextInternal context, GrpcProtocol protocol, GrpcMessageDeframer deframer) {
     this.context = context;
     this.deframer = deframer;
+    this.protocol = protocol;
   }
 
   @Override
@@ -120,7 +123,10 @@ public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
     // Fire GrpcHeadersFrame event
     String encoding = httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING);
     String contentType = httpRequest.headers().get(HttpHeaders.CONTENT_TYPE);
-    GrpcHeadersFrame headersFrame = new DefaultGrpcHeadersFrame(contentType, encoding, httpRequest.headers(), timeout);
+
+    WireFormat wireFormat = GrpcMediaType.parseContentType(contentType, protocol.mediaType());
+
+    GrpcHeadersFrame headersFrame = new DefaultGrpcHeadersFrame(wireFormat, encoding, httpRequest.headers(), timeout);
 
     emit(headersFrame);
   }

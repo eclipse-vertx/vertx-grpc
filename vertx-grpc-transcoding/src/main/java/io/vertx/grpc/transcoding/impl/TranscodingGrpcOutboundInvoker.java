@@ -11,6 +11,7 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.server.GrpcProtocol;
@@ -30,6 +31,18 @@ public class TranscodingGrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
     this.context = context;
     this.httpResponse = httpRequest.response();
     this.transcodingResponseBody = transcodingResponseBody;
+  }
+
+  @Override
+  protected String contentType(WireFormat wireFormat) {
+    switch (wireFormat) {
+      case PROTOBUF:
+        throw new UnsupportedOperationException();
+      case JSON:
+        return protocol.mediaType();
+      default:
+        throw new UnsupportedOperationException();
+    }
   }
 
   @Override

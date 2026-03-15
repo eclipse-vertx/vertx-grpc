@@ -9,7 +9,6 @@ import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.DefaultGrpcCancelFrame;
-import io.vertx.grpc.common.GrpcCancelFrame;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcHeaderNames;
@@ -166,7 +165,7 @@ public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
         stream = deframingStream;
 
         String encoding = httpResponse.getHeader(GrpcHeaderNames.GRPC_ENCODING);
-        GrpcHeadersFrame headersFrame = new DefaultGrpcHeadersFrame(contentType, encoding, httpResponse.headers());
+        GrpcHeadersFrame headersFrame = new DefaultGrpcHeadersFrame(format, encoding, httpResponse.headers());
         emit(headersFrame);
       }
 

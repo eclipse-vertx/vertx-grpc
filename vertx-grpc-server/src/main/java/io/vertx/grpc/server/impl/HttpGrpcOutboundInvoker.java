@@ -12,6 +12,7 @@ import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
@@ -27,16 +28,16 @@ import java.util.Map;
 
 public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker implements GrpcInvoker {
 
-  private final GrpcProtocol protocol;
   private boolean headersSent;
   private final HttpServerResponse httpResponse;
   protected GrpcStatus status;
 
   public HttpGrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcProtocol protocol,  GrpcMessageDeframer deframer) {
-    super(((HttpServerRequestInternal) httpRequest).context(), deframer);
+    super(((HttpServerRequestInternal) httpRequest).context(), protocol, deframer);
     this.httpResponse = httpRequest.response();
-    this.protocol = protocol;
   }
+
+  protected abstract String contentType(WireFormat wireFormat);
 
   void init() {
     httpResponse.exceptionHandler(this::handleException);
@@ -69,7 +70,8 @@ public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker imp
   protected Future<Void> writeHeaders(GrpcHeadersFrame frame) {
     headersSent = true;
     MultiMap httpHeaders = httpResponse.headers();
-    httpHeaders.set("content-type", frame.contentType());
+    String contentType = contentType(frame.format());
+    httpHeaders.set("content-type", contentType);
     encodeGrpcHeaders(frame.headers(), httpHeaders, frame.encoding());
     return writeHead();
   }

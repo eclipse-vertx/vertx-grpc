@@ -1,6 +1,7 @@
 package io.vertx.grpc.common.impl;
 
 import io.vertx.core.MultiMap;
+import io.vertx.grpc.common.WireFormat;
 
 import java.time.Duration;
 
@@ -14,7 +15,7 @@ public interface GrpcHeadersFrame extends GrpcFrame {
     return GrpcFrameType.HEADERS;
   }
 
-  String contentType();
+  WireFormat format();
   String encoding();
   MultiMap headers();
   Duration timeout();
