@@ -6,6 +6,11 @@ public interface GrpcMessageFrame extends GrpcFrame {
 
   // TODO : add compressed
 
+  @Override
+  default GrpcFrameType type() {
+    return GrpcFrameType.MESSAGE;
+  }
+
   GrpcMessage message();
 
 }

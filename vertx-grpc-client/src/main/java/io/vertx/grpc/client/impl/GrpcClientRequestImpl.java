@@ -272,49 +272,60 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   private void handleFrame(GrpcFrame frame) {
-    if (frame instanceof GrpcHeadersFrame) {
+    switch (frame.type()) {
+      case HEADERS:
+        handleHeadersFrame((GrpcHeadersFrame) frame);
+        break;
+      case MESSAGE:
+        handleMessageFrame((GrpcMessageFrame) frame);
+        break;
+      case TRAILERS:
+        handleTrailersFrame((GrpcTrailersFrame) frame);
+        break;
+      default:
+        //
+        break;
+    }
+  }
 
-      GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
-
-      // Todo : move this to GrpcHeadersFrame
-      WireFormat format;
-      if (headersFrame.contentType() != null) {
-        format = GrpcMediaType.parseContentType(headersFrame.contentType(), "application/grpc");
-      } else {
-        format = null;
-      }
-
-      response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this,
-        invoker, format, headersFrame.encoding(), messageDecoder);
-
-      response.invalidMessageHandler(invalidMsg -> {
-        cancel();
-        response.tryFail(invalidMsg);
-      });
-
-      response.handleHeaders(headersFrame.headers());
-
-      responsePromise.tryComplete(response);
-
-    } else if (frame instanceof GrpcMessageFrame) {
-      GrpcMessageFrame messageFrame = (GrpcMessageFrame)frame;
-      GrpcClientResponseImpl<Req, Resp> r2 = response;
-      if (r2 != null) {
-        r2.handleMessage(messageFrame.message());
-      }
-    } else if (frame instanceof GrpcTrailersFrame) {
-      GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
-      if (response == null) {
-        response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this, invoker, WireFormat.PROTOBUF,
-          null, messageDecoder);
-        response.handleHeaders(trailersFrame.trailers());
-        response.handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), HttpHeaders.headers());
-        responsePromise.tryComplete(response);
-      } else {
-        response.handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), trailersFrame.trailers());
-      }
+  private void handleHeadersFrame(GrpcHeadersFrame frame) {
+    // Todo : move this to GrpcHeadersFrame
+    WireFormat format;
+    if (frame.contentType() != null) {
+      format = GrpcMediaType.parseContentType(frame.contentType(), "application/grpc");
     } else {
-      System.out.println("handle me " + frame);
+      format = null;
+    }
+
+    response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this,
+      invoker, format, frame.encoding(), messageDecoder);
+
+    response.invalidMessageHandler(invalidMsg -> {
+      cancel();
+      response.tryFail(invalidMsg);
+    });
+
+    response.handleHeaders(frame.headers());
+
+    responsePromise.tryComplete(response);
+  }
+
+  private void handleMessageFrame(GrpcMessageFrame frame) {
+    GrpcClientResponseImpl<Req, Resp> r = response;
+    if (r != null) {
+      r.handleMessage(frame.message());
+    }
+  }
+
+  private void handleTrailersFrame(GrpcTrailersFrame frame) {
+    if (response == null) {
+      response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this, invoker, WireFormat.PROTOBUF,
+        null, messageDecoder);
+      response.handleHeaders(frame.trailers());
+      response.handleTrailers(frame.status(), frame.statusMessage(), HttpHeaders.headers());
+      responsePromise.tryComplete(response);
+    } else {
+      response.handleTrailers(frame.status(), frame.statusMessage(), frame.trailers());
     }
   }
 

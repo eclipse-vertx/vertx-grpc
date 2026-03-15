@@ -54,14 +54,16 @@ public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker imp
 
   @Override
   public Future<Void> write(GrpcFrame frame) {
-    if (frame instanceof GrpcHeadersFrame) {
-      return writeHeaders((GrpcHeadersFrame) frame);
-    } else if (frame instanceof GrpcMessageFrame) {
-      return writeMessage((GrpcMessageFrame) frame);
-    } else if (frame instanceof GrpcTrailersFrame) {
-      return writeTrailers((GrpcTrailersFrame) frame);
+    switch (frame.type()) {
+      case HEADERS:
+        return writeHeaders((GrpcHeadersFrame) frame);
+      case MESSAGE:
+        return writeMessage((GrpcMessageFrame) frame);
+      case TRAILERS:
+        return writeTrailers((GrpcTrailersFrame) frame);
+      default:
+        return context.failedFuture("Invalid message: " + frame.type());
     }
-    return context.failedFuture("Invalid message");
   }
 
   protected Future<Void> writeHeaders(GrpcHeadersFrame frame) {

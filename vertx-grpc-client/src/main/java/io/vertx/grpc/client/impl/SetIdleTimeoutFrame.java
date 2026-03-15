@@ -1,6 +1,7 @@
 package io.vertx.grpc.client.impl;
 
 import io.vertx.grpc.common.impl.GrpcFrame;
+import io.vertx.grpc.common.impl.GrpcFrameType;
 
 import java.time.Duration;
 
@@ -13,6 +14,11 @@ public class SetIdleTimeoutFrame implements GrpcFrame {
       throw new IllegalArgumentException("Timeout must be > 0");
     }
     this.timeout = timeout;
+  }
+
+  @Override
+  public GrpcFrameType type() {
+    return GrpcFrameType.OTHER;
   }
 
   public Duration timeout() {

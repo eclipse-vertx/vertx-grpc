@@ -5,7 +5,6 @@ import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;

@@ -60,65 +60,81 @@ abstract class Http2GrpcOutboundInvoker implements GrpcInvoker {
   }
 
   protected Future<Void> write(GrpcFrame frame, boolean end) {
-    if (frame instanceof GrpcHeadersFrame) {
-      GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
-
-      MultiMap headers = headersFrame.headers();
-
-      if (headers != null && !headers.isEmpty()) {
-        MultiMap requestHeaders = httpRequest.headers();
-        for (Map.Entry<String, String> header : headers) {
-          requestHeaders.add(header.getKey(), header.getValue());
+    switch (frame.type()) {
+      case HEADERS:
+        return handleHeadersFrame((GrpcHeadersFrame) frame, end);
+      case MESSAGE:
+        return handleMessageFrame((GrpcMessageFrame) frame, end);
+      case CANCEL:
+        return handleCancelFrame((GrpcCancelFrame) frame, end);
+      case OTHER:
+        if (frame instanceof SetIdleTimeoutFrame) {
+          return handleSetIdleTimeout((SetIdleTimeoutFrame) frame, end);
         }
-      }
+        // Fall through
+      default:
+        return context.failedFuture("Unsupported frame " + frame.type());
+    }
+  }
 
-      Duration timeout = headersFrame.timeout();
-      if (timeout != null && !timeout.isNegative() && !timeout.isZero()) {
-        String headerValue = toTimeoutHeader(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        if (headerValue == null) {
-          return context.failedFuture("Not a valid gRPC timeout value (" + timeout + ')');
-        }
-        httpRequest.putHeader(GrpcHeaderNames.GRPC_TIMEOUT, headerValue);
-      }
+  private Future<Void> handleHeadersFrame(GrpcHeadersFrame frame, boolean end) {
+    MultiMap headers = frame.headers();
 
-      String uri = serviceName.pathOf(methodName);
-      httpRequest.putHeader(HttpHeaders.CONTENT_TYPE, headersFrame.contentType());
-      if (headersFrame.encoding() != null) {
-        httpRequest.putHeader(GrpcHeaderNames.GRPC_ENCODING, headersFrame.encoding());
+    if (headers != null && !headers.isEmpty()) {
+      MultiMap requestHeaders = httpRequest.headers();
+      for (Map.Entry<String, String> header : headers) {
+        requestHeaders.add(header.getKey(), header.getValue());
       }
-      httpRequest.putHeader(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, "gzip");
-      httpRequest.putHeader(HttpHeaderNames.TE, "trailers");
-      httpRequest.setChunked(true);
-      httpRequest.setURI(uri);
-
-      if (end) {
-        return httpRequest.end();
-      } else {
-        return httpRequest.writeHead();
-      }
-    } else if (frame instanceof GrpcMessageFrame) {
-      GrpcMessageFrame messageFrame = (GrpcMessageFrame) frame;
-      Buffer payload;
-      try {
-        GrpcMessage message = messageFrame.message();
-        payload = DefaultGrpcMessage.encode(message.payload(), message.isCompressed(), false);
-      } catch (CodecException e) {
-        return context.failedFuture(e);
-      }
-      if (end) {
-        return httpRequest.end(payload);
-      } else {
-        return httpRequest.write(payload);
-      }
-    } else if (frame instanceof GrpcCancelFrame) {
-      return httpRequest.reset(GrpcError.CANCELLED.http2ResetCode);
-    } else if (frame instanceof SetIdleTimeoutFrame) {
-      SetIdleTimeoutFrame setIdleTimeout = (SetIdleTimeoutFrame) frame;
-      httpRequest.idleTimeout(setIdleTimeout.timeout().toMillis());
-      return context.succeededFuture();
     }
 
-    return context.failedFuture("Unsupported");
+    Duration timeout = frame.timeout();
+    if (timeout != null && !timeout.isNegative() && !timeout.isZero()) {
+      String headerValue = toTimeoutHeader(timeout.toMillis(), TimeUnit.MILLISECONDS);
+      if (headerValue == null) {
+        return context.failedFuture("Not a valid gRPC timeout value (" + timeout + ')');
+      }
+      httpRequest.putHeader(GrpcHeaderNames.GRPC_TIMEOUT, headerValue);
+    }
+
+    String uri = serviceName.pathOf(methodName);
+    httpRequest.putHeader(HttpHeaders.CONTENT_TYPE, frame.contentType());
+    if (frame.encoding() != null) {
+      httpRequest.putHeader(GrpcHeaderNames.GRPC_ENCODING, frame.encoding());
+    }
+    httpRequest.putHeader(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, "gzip");
+    httpRequest.putHeader(HttpHeaderNames.TE, "trailers");
+    httpRequest.setChunked(true);
+    httpRequest.setURI(uri);
+
+    if (end) {
+      return httpRequest.end();
+    } else {
+      return httpRequest.writeHead();
+    }
+  }
+
+  private Future<Void> handleMessageFrame(GrpcMessageFrame frame, boolean end) {
+    Buffer payload;
+    try {
+      GrpcMessage message = frame.message();
+      payload = DefaultGrpcMessage.encode(message.payload(), message.isCompressed(), false);
+    } catch (CodecException e) {
+      return context.failedFuture(e);
+    }
+    if (end) {
+      return httpRequest.end(payload);
+    } else {
+      return httpRequest.write(payload);
+    }
+  }
+
+  private Future<Void> handleCancelFrame(GrpcCancelFrame frame, boolean end) {
+    return httpRequest.reset(GrpcError.CANCELLED.http2ResetCode);
+  }
+
+  private Future<Void> handleSetIdleTimeout(SetIdleTimeoutFrame frame, boolean end) {
+    httpRequest.idleTimeout(frame.timeout().toMillis());
+    return context.succeededFuture();
   }
 
   @Override

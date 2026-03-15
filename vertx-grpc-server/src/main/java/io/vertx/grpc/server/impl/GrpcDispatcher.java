@@ -55,54 +55,64 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
 
   @Override
   public void handle(GrpcFrame frame) {
-    if (frame instanceof GrpcHeadersFrame) {
-      GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
-      grpcRequest = new GrpcServerRequestImpl<>(
-        context,
-        headersFrame.headers(),
-        protocol,
-        format,
-        invoker,
-        headersFrame.timeout(),
-        headersFrame.encoding(),
-        messageDecoder,
-        methodCall) {
-        @Override
-        public HttpConnection connection() {
-          return httpConnection;
-        }
-      };
-      invoker.endHandler(v -> grpcRequest.handleEnd());
-      grpcResponse = new GrpcServerResponseImpl<>(
-        context,
-        grpcRequest,
-        invoker,
-        protocol,
-        method.messageEncoder);
-      grpcResponse.format(format);
-      long timeout = grpcRequest.timeout();
-      if (propagateDeadline && timeout > 0L) {
-        long deadline = System.currentTimeMillis() + timeout;
-        grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
-      }
-      grpcRequest.init(grpcResponse, scheduleDeadline);
-      grpcRequest.invalidMessageHandler(invalidMsg -> {
-        if (invalidMsg instanceof MessageSizeOverflowException) {
-          grpcRequest.response().status(GrpcStatus.RESOURCE_EXHAUSTED).end();
-        } else {
-          grpcResponse.cancel();
-        }
-      });
-      grpcRequest.context().dispatch(grpcRequest, method);
 
-    } else if (frame instanceof GrpcMessageFrame) {
-      GrpcMessageFrame messageFrame = (GrpcMessageFrame) frame;
-      GrpcServerRequestImpl<Req, Resp> r = grpcRequest;
-      if (r != null) {
-        r.handleMessage(messageFrame.message());
+    switch (frame.type()) {
+      case HEADERS:
+        handleHeadersFrame((GrpcHeadersFrame) frame);
+        break;
+      case MESSAGE:
+        handleMessage((GrpcMessageFrame) frame);
+        break;
+      default:
+        // Log
+        break;
+    }
+  }
+
+  private void handleHeadersFrame(GrpcHeadersFrame frame) {
+    grpcRequest = new GrpcServerRequestImpl<>(
+      context,
+      frame.headers(),
+      protocol,
+      format,
+      invoker,
+      frame.timeout(),
+      frame.encoding(),
+      messageDecoder,
+      methodCall) {
+      @Override
+      public HttpConnection connection() {
+        return httpConnection;
       }
-    } else {
-      System.out.println("Unhandled frame");
+    };
+    invoker.endHandler(v -> grpcRequest.handleEnd());
+    grpcResponse = new GrpcServerResponseImpl<>(
+      context,
+      grpcRequest,
+      invoker,
+      protocol,
+      method.messageEncoder);
+    grpcResponse.format(format);
+    long timeout = grpcRequest.timeout();
+    if (propagateDeadline && timeout > 0L) {
+      long deadline = System.currentTimeMillis() + timeout;
+      grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
+    }
+    grpcRequest.init(grpcResponse, scheduleDeadline);
+    grpcRequest.invalidMessageHandler(invalidMsg -> {
+      if (invalidMsg instanceof MessageSizeOverflowException) {
+        grpcRequest.response().status(GrpcStatus.RESOURCE_EXHAUSTED).end();
+      } else {
+        grpcResponse.cancel();
+      }
+    });
+    grpcRequest.context().dispatch(grpcRequest, method);
+  }
+
+  private void handleMessage(GrpcMessageFrame frame) {
+    GrpcServerRequestImpl<Req, Resp> r = grpcRequest;
+    if (r != null) {
+      r.handleMessage(frame.message());
     }
   }
 
