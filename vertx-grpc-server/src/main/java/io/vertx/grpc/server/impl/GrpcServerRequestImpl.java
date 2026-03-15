@@ -15,12 +15,10 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcInboundInvoker;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
-import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
 
@@ -81,14 +79,6 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
       deadline = null;
       timer.cancel();
     }
-  }
-
-  public void handleException2(Throwable throwable) {
-    handleException(throwable);
-  }
-
-  public void handleEnd2() {
-    handleEnd();
   }
 
   @Override

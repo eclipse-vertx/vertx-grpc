@@ -72,7 +72,7 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
           return httpConnection;
         }
       };
-      invoker.endHandler(v -> grpcRequest.handleEnd2());
+      invoker.endHandler(v -> grpcRequest.handleEnd());
       grpcResponse = new GrpcServerResponseImpl<>(
         context,
         grpcRequest,
@@ -108,7 +108,7 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
 
   void handleException(Throwable exception) {
     if (grpcRequest != null) {
-      grpcRequest.handleException2(exception);
+      grpcRequest.handleException(exception);
     }
     if (grpcResponse != null) {
       grpcResponse.handleException(exception);
@@ -117,7 +117,7 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
 
   void handleEnd() {
     if (grpcRequest != null) {
-      grpcRequest.handleEnd2();
+      grpcRequest.handleEnd();
     }
   }
 }

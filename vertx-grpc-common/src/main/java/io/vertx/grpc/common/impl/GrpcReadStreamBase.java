@@ -154,7 +154,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     }
   }
 
-  protected void handleEnd() {
+  public void handleEnd() {
     end.tryComplete();
     Handler<Void> handler = endHandler;
     if (handler != null) {

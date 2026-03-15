@@ -95,7 +95,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
     return trailers;
   }
 
-  protected void handleEnd() {
+  public void handleEnd() {
     request.cancelTimeout();
     if (status == null) {
 //      String responseStatus = httpResponse.getTrailer("grpc-status");
