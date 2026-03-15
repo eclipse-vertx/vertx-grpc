@@ -20,12 +20,9 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private boolean trailersSent;
   private GrpcError error;
   private boolean cancelled;
-
   private MultiMap headers;
   private MultiMap trailers;
-
   private Handler<Throwable> exceptionHandler;
-  private Handler<GrpcError> errorHandler;
 
   public GrpcWriteStreamBase(ContextInternal context, String mediaType, GrpcMessageEncoder<T> messageEncoder) {
     this.context = context;
@@ -33,19 +30,9 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     this.mediaType = mediaType;
   }
 
-  // Why is this not called ?
-  public S errorHandler(Handler<GrpcError> handler) {
-    this.errorHandler = handler;
-    return (S) this;
-  }
-
   public void handleError(GrpcError error) {
     if (this.error == null) {
       this.error = error;
-      Handler<GrpcError> handler = errorHandler;
-      if (handler != null) {
-        handler.handle(error);
-      }
     }
   }
 
