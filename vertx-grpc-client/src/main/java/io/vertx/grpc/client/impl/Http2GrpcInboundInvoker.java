@@ -3,15 +3,19 @@ package io.vertx.grpc.client.impl;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.GrpcError;
+import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMediaType;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersAndTrailersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
@@ -27,22 +31,43 @@ import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 
 import java.nio.charset.StandardCharsets;
 
-public class Http2GrpcInboundInvoker implements GrpcInboundInvoker {
-
-  private final ContextInternal context;
-  private final HttpClientResponse httpResponse;
+public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
 
   private Handler<GrpcFrame> frameHandler;
   private Handler<Void> endHandler;
   private Handler<Throwable> exceptionHandler;
   private GrpcDeframingStream stream;
+  private final long maxMessageSize;
 
-  public Http2GrpcInboundInvoker(ContextInternal context, HttpClientResponse httpResponse) {
-    this.context = context;
-    this.httpResponse = httpResponse;
+  public Http2GrpcInboundInvoker(ContextInternal context,
+                                 HttpClientRequest httpRequest,
+                                 ServiceName serviceName,
+                                 String methodName,
+                                 long maxMessageSize) {
+    super(context, httpRequest, serviceName, methodName);
+    this.maxMessageSize = maxMessageSize;
   }
 
-  void init(long maxMessageSize) {
+  void init() {
+    httpRequest
+      .response()
+      .onComplete(ar -> {
+        if (ar.succeeded()) {
+          init(ar.result());
+        } else {
+          Throwable failure = ar.cause();
+          if (failure instanceof StreamResetException) {
+            failure = GrpcErrorException.create((StreamResetException) failure);
+          }
+          Handler<Throwable> handler = exceptionHandler;
+          if (handler != null) {
+            handler.handle(failure);
+          }
+        }
+      });
+  }
+
+  private void init(HttpClientResponse httpResponse) {
 
     String contentType = httpResponse.getHeader(HttpHeaders.CONTENT_TYPE);
 
@@ -140,25 +165,25 @@ public class Http2GrpcInboundInvoker implements GrpcInboundInvoker {
   }
 
   @Override
-  public GrpcInboundInvoker handler(Handler<GrpcFrame> handler) {
+  public Http2GrpcInboundInvoker handler(Handler<GrpcFrame> handler) {
     this.frameHandler = handler;
     return this;
   }
 
   @Override
-  public GrpcInboundInvoker exceptionHandler(Handler<Throwable> handler) {
+  public Http2GrpcInboundInvoker exceptionHandler(Handler<Throwable> handler) {
     this.exceptionHandler = handler;
     return this;
   }
 
   @Override
-  public GrpcInboundInvoker endHandler(Handler<Void> handler) {
+  public Http2GrpcInboundInvoker endHandler(Handler<Void> handler) {
     this.endHandler = handler;
     return this;
   }
 
   @Override
-  public GrpcInboundInvoker pause() {
+  public Http2GrpcInboundInvoker pause() {
     GrpcDeframingStream s = stream;
     if (s != null) {
       s.pause();
@@ -167,7 +192,7 @@ public class Http2GrpcInboundInvoker implements GrpcInboundInvoker {
   }
 
   @Override
-  public GrpcInboundInvoker resume() {
+  public Http2GrpcInboundInvoker resume() {
     GrpcDeframingStream s = stream;
     if (s != null) {
       s.resume();
@@ -176,7 +201,7 @@ public class Http2GrpcInboundInvoker implements GrpcInboundInvoker {
   }
 
   @Override
-  public GrpcInboundInvoker fetch(long amount) {
+  public Http2GrpcInboundInvoker fetch(long amount) {
     GrpcDeframingStream s = stream;
     if (s != null) {
       s.fetch(amount);

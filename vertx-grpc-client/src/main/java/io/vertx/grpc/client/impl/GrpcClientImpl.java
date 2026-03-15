@@ -15,6 +15,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.RequestOptions;
@@ -70,7 +71,12 @@ public class GrpcClientImpl implements GrpcClient {
           maxMessageSize,
           scheduleDeadlineAutomatically,
           GrpcMessageEncoder.IDENTITY,
-          GrpcMessageDecoder.IDENTITY);
+          GrpcMessageDecoder.IDENTITY) {
+          @Override
+          public HttpConnection connection() {
+            return httpRequest.connection();
+          }
+        };
         grpcRequest.init();
         configureTimeout(grpcRequest);
         return grpcRequest;
@@ -123,7 +129,11 @@ public class GrpcClientImpl implements GrpcClient {
           maxMessageSize,
           scheduleDeadlineAutomatically,
           method.encoder(),
-          method.decoder());
+          method.decoder()) {
+          public HttpConnection connection() {
+            return request.connection();
+          }
+        };
         call.init();
         call.serviceName(method.serviceName());
         call.methodName(method.methodName());
