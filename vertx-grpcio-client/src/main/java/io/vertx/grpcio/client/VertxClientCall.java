@@ -19,6 +19,7 @@ import io.vertx.grpc.common.impl.*;
 import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
 import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
 import io.vertx.grpcio.common.impl.ReadStreamAdapter;
+import io.vertx.grpcio.common.impl.WriteStreamAdapter;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
