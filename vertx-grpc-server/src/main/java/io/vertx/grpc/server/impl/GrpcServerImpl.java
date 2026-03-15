@@ -10,14 +10,12 @@
  */
 package io.vertx.grpc.server.impl;
 
-import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Closeable;
 import io.vertx.core.Completable;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -25,13 +23,8 @@ import io.vertx.core.http.HttpVersion;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
-import io.vertx.core.spi.context.storage.AccessMode;
-import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcFrame;
-import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
-import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 import io.vertx.grpc.server.*;
@@ -166,7 +159,6 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
     String encoding = httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING);
 
-    GrpcMessageDeframer deframer;
     HttpGrpcOutboundInvoker outboundInvoker;
     GrpcMessageDecoder<Req> messageDecoder;
     switch (protocol) {
@@ -174,8 +166,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
           return false;
         }
-        deframer = new Http2GrpcMessageDeframer(encoding, format);
-        outboundInvoker = new Http2GrpcOutboundInvoker(httpRequest, deframer);
+        outboundInvoker = new Http2GrpcOutboundInvoker(httpRequest, new Http2GrpcMessageDeframer(encoding, format));
         messageDecoder = method.messageDecoder;
         break;
       case WEB:
@@ -183,6 +174,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
           return false;
         }
+        GrpcMessageDeframer deframer;
         if (httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE))) {
           deframer  = new TextMessageDeframer();
         } else {
@@ -200,7 +192,6 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
           }
         }
         if (invocation != null) {
-          deframer = invocation.deframer;
           outboundInvoker = invocation.outboundInvoker;
           messageDecoder = (GrpcMessageDecoder)invocation.messageDecoder;
           break;
@@ -211,116 +202,18 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         throw new AssertionError();
     }
 
-    class Dispatcher implements Handler<GrpcFrame>, ReadStream<GrpcMessage> {
-
-      GrpcServerRequestImpl<Req, Resp> grpcRequest;
-      GrpcServerResponseImpl<Req, Resp> grpcResponse;
-      Handler<GrpcMessage> messageHandler;
-
-      @Override
-      public Dispatcher exceptionHandler(@Nullable Handler<Throwable> handler) {
-        outboundInvoker.exceptionHandler(handler);
-        return this;
-      }
-
-      @Override
-      public Dispatcher handler(@Nullable Handler<GrpcMessage> handler) {
-        this.messageHandler = handler;
-        return this;
-      }
-
-      @Override
-      public Dispatcher pause() {
-        outboundInvoker.pause();
-        return this;
-      }
-
-      @Override
-      public Dispatcher resume() {
-        outboundInvoker.resume();
-        return this;
-      }
-
-      @Override
-      public Dispatcher fetch(long amount) {
-        outboundInvoker.fetch(amount);
-        return this;
-      }
-
-      @Override
-      public Dispatcher endHandler(@Nullable Handler<Void> endHandler) {
-        outboundInvoker.endHandler(endHandler);
-        return this;
-      }
-
-      @Override
-      public void handle(GrpcFrame frame) {
-        if (frame instanceof GrpcHeadersFrame) {
-          GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
-          grpcRequest = new GrpcServerRequestImpl<>(
-            context,
-            headersFrame.headers(),
-            protocol,
-            format,
-            this,
-            headersFrame.timeout(),
-            headersFrame.encoding(),
-            messageDecoder,
-            methodCall) {
-            @Override
-            public HttpConnection connection() {
-              return httpRequest.connection();
-            }
-          };
-          grpcResponse = new GrpcServerResponseImpl<>(
-            context,
-            grpcRequest,
-            outboundInvoker,
-            protocol,
-            outboundInvoker,
-            method.messageEncoder);
-          grpcResponse.format(format);
-          long timeout = grpcRequest.timeout();
-          if (options.getDeadlinePropagation() && timeout > 0L) {
-            long deadline = System.currentTimeMillis() + timeout;
-            grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
-          }
-          grpcResponse.init();
-          grpcRequest.init(grpcResponse, options.getScheduleDeadlineAutomatically());
-          grpcRequest.invalidMessageHandler(invalidMsg -> {
-            if (invalidMsg instanceof MessageSizeOverflowException) {
-              grpcRequest.response().status(GrpcStatus.RESOURCE_EXHAUSTED).end();
-            } else {
-              grpcResponse.cancel();
-            }
-          });
-          grpcRequest.context().dispatch(grpcRequest, method);
-
-        } else if (frame instanceof GrpcMessageFrame) {
-          GrpcMessageFrame messageFrame = (GrpcMessageFrame) frame;
-          Handler<GrpcMessage> handler = messageHandler;
-          if (handler != null) {
-            handler.handle(messageFrame.message());
-          }
-        } else {
-          System.out.println("Unhandled frame");
-        }
-      }
-
-      void handleException(Throwable exception) {
-        if (grpcRequest != null) {
-          grpcRequest.handleException2(exception);
-        }
-      }
-
-      void handleEnd() {
-        if (grpcRequest != null) {
-          grpcRequest.handleEnd2();
-        }
-      }
-    }
-
-    Dispatcher dispatcher = new Dispatcher();
+    GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
+      this,
+      outboundInvoker,
+      context,
+      protocol,
+      format,
+      messageDecoder,
+      methodCall,
+      httpRequest.connection(),
+      method,
+      options.getDeadlinePropagation(),
+      options.getScheduleDeadlineAutomatically());
     outboundInvoker.handler(dispatcher);
     outboundInvoker.exceptionHandler(dispatcher::handleException);
     outboundInvoker.endHandler(v -> dispatcher.handleEnd());
@@ -402,7 +295,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     return Collections.unmodifiableList(services);
   }
 
-  private static class MethodCallHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
+  static class MethodCallHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
 
     final ServiceMethod<Req, Resp> method;
     final GrpcMessageDecoder<Req> messageDecoder;

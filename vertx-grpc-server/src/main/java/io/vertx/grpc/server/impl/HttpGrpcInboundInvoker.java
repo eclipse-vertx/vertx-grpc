@@ -96,7 +96,6 @@ public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
     String timeoutHeader = httpRequest.getHeader(GrpcHeaderNames.GRPC_TIMEOUT);
     Duration timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : null;
 
-
     // Fire GrpcHeadersFrame event
     String encoding = httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING);
     String contentType = httpRequest.headers().get(HttpHeaders.CONTENT_TYPE);
