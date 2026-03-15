@@ -152,7 +152,15 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   protected Future<Void> sendTrailers(String contentType, String encoding, MultiMap headers, MultiMap trailers) {
     handleStatus(status);
     request.cancelTimeout();
-    return invoker.write(new DefaultGrpcHeadersAndTrailersFrame(contentType, encoding, headers, status, statusMessage, trailers));
+
+    boolean trailersOnly = status != GrpcStatus.OK;
+    if (trailersOnly) {
+      return invoker.write(new DefaultGrpcHeadersAndTrailersFrame(contentType, encoding, headers, status, statusMessage, trailers));
+    } else {
+      invoker.write(new DefaultGrpcHeadersFrame(contentType, encoding, headers));
+      return invoker.write(new DefaultGrpcTrailersFrame(status, statusMessage, trailers));
+    }
+
   }
 
   protected Future<Void> sendTrailers(MultiMap grpcTrailers) {
