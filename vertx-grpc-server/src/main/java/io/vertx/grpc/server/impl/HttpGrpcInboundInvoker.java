@@ -88,16 +88,19 @@ public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
 
   @Override
   public GrpcInboundInvoker pause() {
-    throw new UnsupportedOperationException();
+    deframingStream.pause();
+    return this;
   }
 
   @Override
   public GrpcInboundInvoker resume() {
-    throw new UnsupportedOperationException();
+    deframingStream.resume();
+    return this;
   }
 
   @Override
   public GrpcInboundInvoker fetch(long amount) {
-    throw new UnsupportedOperationException();
+    deframingStream.fetch(amount);
+    return this;
   }
 }

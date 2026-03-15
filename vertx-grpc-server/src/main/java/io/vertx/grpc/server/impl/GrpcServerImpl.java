@@ -25,6 +25,7 @@ import io.vertx.core.http.HttpVersion;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
+import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcFrame;
@@ -220,6 +221,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
       @Override
       public Dispatcher exceptionHandler(@Nullable Handler<Throwable> handler) {
+        invoker.exceptionHandler(handler);
         return this;
       }
 
@@ -231,21 +233,25 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
       @Override
       public Dispatcher pause() {
+        invoker.pause();
         return this;
       }
 
       @Override
       public Dispatcher resume() {
+        invoker.resume();
         return this;
       }
 
       @Override
       public Dispatcher fetch(long amount) {
+        invoker.fetch(amount);
         return this;
       }
 
       @Override
       public Dispatcher endHandler(@Nullable Handler<Void> endHandler) {
+        invoker.endHandler(endHandler);
         return this;
       }
 
@@ -276,7 +282,10 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
             outboundInvoker,
             method.messageEncoder);
           grpcResponse.format(format);
-
+          if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
+            long deadline = System.currentTimeMillis() + grpcRequest.timeout;
+            grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
+          }
           grpcResponse.init();
           grpcRequest.init(grpcResponse, options.getScheduleDeadlineAutomatically());
           grpcRequest.invalidMessageHandler(invalidMsg -> {
