@@ -61,7 +61,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
 
   public void init(GrpcWriteStreamBase<?, ?> ws, boolean scheduleDeadline) {
     this.response = (GrpcServerResponseImpl<Req, Resp>) ws;
-    super.init(ws);
+    super.init();
     if (timeout != null && (!timeout.isNegative() && !timeout.isZero())) {
       if (scheduleDeadline) {
         Timer timer = context.timer(timeout.toMillis(), TimeUnit.MILLISECONDS);

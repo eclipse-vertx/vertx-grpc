@@ -16,12 +16,9 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
-
-import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
 /**
  * Transforms {@code Buffer} into a stream of {@link GrpcMessage}
@@ -58,9 +55,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private final Promise<Void> end;
   private Handler<GrpcError> errorHandler;
 
-  // Todo: THIS SHOULD BE REMOVED
-  private GrpcWriteStreamBase<?, ?> ws;
-
   protected GrpcReadStreamBase(Context context,
                                ReadStream<GrpcMessage> stream,
                                String encoding,
@@ -75,8 +69,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     this.end = ctx.promise();
   }
 
-  public void init(GrpcWriteStreamBase<?, ?> ws) {
-    this.ws = ws;
+  public void init() {
     this.stream
       .handler(this::handleMessage)
       .endHandler(v -> handleEnd());
