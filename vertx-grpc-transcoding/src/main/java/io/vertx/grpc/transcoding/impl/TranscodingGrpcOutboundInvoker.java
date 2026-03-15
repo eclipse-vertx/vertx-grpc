@@ -11,6 +11,7 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.HttpGrpcOutboundInvoker;
@@ -22,8 +23,9 @@ public class TranscodingGrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
   private final HttpServerResponse httpResponse;
   private final String transcodingResponseBody;
 
-  public TranscodingGrpcOutboundInvoker(ContextInternal context, HttpServerRequest httpRequest, String transcodingResponseBody) {
-    super(httpRequest);
+  public TranscodingGrpcOutboundInvoker(ContextInternal context, HttpServerRequest httpRequest,
+                                        String transcodingResponseBody, GrpcMessageDeframer deframer) {
+    super(httpRequest, deframer);
 
     this.context = context;
     this.httpResponse = httpRequest.response();

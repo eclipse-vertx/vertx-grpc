@@ -10,6 +10,7 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
+import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
 
 import java.util.Map;
@@ -22,8 +23,8 @@ public class WebGrpcOutboundInvoker extends HttpGrpcOutboundInvoker {
   private final HttpServerResponse httpResponse;
   private Buffer trailers;
 
-  public WebGrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcProtocol protocol) {
-    super(httpRequest);
+  public WebGrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcProtocol protocol, GrpcMessageDeframer deframer) {
+    super(httpRequest, deframer);
 
     this.httpResponse = httpRequest.response();
     this.protocol = protocol;

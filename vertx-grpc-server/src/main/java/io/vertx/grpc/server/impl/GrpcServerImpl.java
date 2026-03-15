@@ -174,8 +174,8 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
           return false;
         }
-        outboundInvoker = new Http2GrpcOutboundInvoker(httpRequest);
         deframer = new Http2GrpcMessageDeframer(encoding, format);
+        outboundInvoker = new Http2GrpcOutboundInvoker(httpRequest, deframer);
         messageDecoder = method.messageDecoder;
         break;
       case WEB:
@@ -188,7 +188,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         } else {
           deframer  = new Http2GrpcMessageDeframer(encoding, format);
         }
-        outboundInvoker = new WebGrpcOutboundInvoker(httpRequest, protocol);
+        outboundInvoker = new WebGrpcOutboundInvoker(httpRequest, protocol, deframer);
         messageDecoder = method.messageDecoder;
         break;
       case TRANSCODING:
@@ -211,8 +211,6 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         throw new AssertionError();
     }
 
-    HttpGrpcInboundInvoker invoker = new HttpGrpcInboundInvoker(context, deframer);
-
     class Dispatcher implements Handler<GrpcFrame>, ReadStream<GrpcMessage> {
 
       GrpcServerRequestImpl<Req, Resp> grpcRequest;
@@ -221,7 +219,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
       @Override
       public Dispatcher exceptionHandler(@Nullable Handler<Throwable> handler) {
-        invoker.exceptionHandler(handler);
+        outboundInvoker.exceptionHandler(handler);
         return this;
       }
 
@@ -233,25 +231,25 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
       @Override
       public Dispatcher pause() {
-        invoker.pause();
+        outboundInvoker.pause();
         return this;
       }
 
       @Override
       public Dispatcher resume() {
-        invoker.resume();
+        outboundInvoker.resume();
         return this;
       }
 
       @Override
       public Dispatcher fetch(long amount) {
-        invoker.fetch(amount);
+        outboundInvoker.fetch(amount);
         return this;
       }
 
       @Override
       public Dispatcher endHandler(@Nullable Handler<Void> endHandler) {
-        invoker.endHandler(endHandler);
+        outboundInvoker.endHandler(endHandler);
         return this;
       }
 
@@ -261,11 +259,11 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
           GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
           grpcRequest = new GrpcServerRequestImpl<>(
             context,
-            httpRequest.headers(),
+            headersFrame.headers(),
             protocol,
             format,
             this,
-            httpRequest,
+            headersFrame.timeout(),
             headersFrame.encoding(),
             messageDecoder,
             methodCall) {
@@ -282,8 +280,9 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
             outboundInvoker,
             method.messageEncoder);
           grpcResponse.format(format);
-          if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
-            long deadline = System.currentTimeMillis() + grpcRequest.timeout;
+          long timeout = grpcRequest.timeout();
+          if (options.getDeadlinePropagation() && timeout > 0L) {
+            long deadline = System.currentTimeMillis() + timeout;
             grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
           }
           grpcResponse.init();
@@ -322,11 +321,11 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     }
 
     Dispatcher dispatcher = new Dispatcher();
-    invoker.handler(dispatcher);
-    invoker.exceptionHandler(dispatcher::handleException);
-    invoker.endHandler(v -> dispatcher.handleEnd());
+    outboundInvoker.handler(dispatcher);
+    outboundInvoker.exceptionHandler(dispatcher::handleException);
+    outboundInvoker.endHandler(v -> dispatcher.handleEnd());
 
-    invoker.init(httpRequest, options.getMaxMessageSize());
+    outboundInvoker.init(httpRequest, options.getMaxMessageSize());
 
     return true;
   }

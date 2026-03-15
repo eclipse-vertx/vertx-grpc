@@ -15,6 +15,8 @@ import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
+import io.vertx.grpc.common.impl.GrpcInvoker;
+import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcOutboundInvoker;
 import io.vertx.grpc.common.impl.GrpcTrailersFrame;
@@ -22,22 +24,21 @@ import io.vertx.grpc.common.impl.Utils;
 
 import java.util.Map;
 
-public abstract class HttpGrpcOutboundInvoker implements GrpcOutboundInvoker {
+public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker implements GrpcInvoker {
 
-  private final ContextInternal contextInternal;
   private final HttpServerRequest httpRequest;
   private final HttpServerResponse httpResponse;
   protected GrpcStatus status;
 
-  public HttpGrpcOutboundInvoker(HttpServerRequest httpRequest) {
-    this.contextInternal = ((HttpServerRequestInternal) httpRequest).context();
+  public HttpGrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcMessageDeframer deframer) {
+    super(((HttpServerRequestInternal) httpRequest).context(), deframer);
     this.httpRequest = httpRequest;
     this.httpResponse = httpRequest.response();
   }
 
   @Override
   public Future<Void> end() {
-    return contextInternal.succeededFuture();
+    return context.succeededFuture();
   }
 
   @Override
@@ -60,7 +61,7 @@ public abstract class HttpGrpcOutboundInvoker implements GrpcOutboundInvoker {
     } else if (frame instanceof GrpcTrailersFrame) {
       return writeTrailers((GrpcTrailersFrame) frame);
     }
-    return contextInternal.failedFuture("Invalid message");
+    return context.failedFuture("Invalid message");
   }
 
   protected Future<Void> writeHeaders(GrpcHeadersFrame frame) {
@@ -144,7 +145,7 @@ public abstract class HttpGrpcOutboundInvoker implements GrpcOutboundInvoker {
     try {
       payload = frame.message().payload();
     } catch (CodecException e) {
-      return contextInternal.failedFuture(e);
+      return context.failedFuture(e);
     }
     return httpResponse.write(encodeMessage(payload, frame.message().isCompressed(), false));
   }
@@ -154,8 +155,9 @@ public abstract class HttpGrpcOutboundInvoker implements GrpcOutboundInvoker {
   }
 
   @Override
-  public GrpcOutboundInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
+  public HttpGrpcOutboundInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
     httpResponse.exceptionHandler(handler);
+    super.exceptionHandler(handler);
     return this;
   }
 

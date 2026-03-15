@@ -14,7 +14,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
 import io.vertx.core.http.HttpConnection;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.*;
@@ -24,45 +23,16 @@ import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
 public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcServerRequestImpl<Req, Resp>, Req> implements GrpcServerRequest<Req, Resp> {
 
-  private static final Pattern TIMEOUT_PATTERN = Pattern.compile("([0-9]{1,8})([HMSmun])");
-
-  private static final Map<String, TimeUnit> TIMEOUT_MAPPING;
-
-  static {
-    Map<String, TimeUnit> timeoutMapping = new HashMap<>();
-    timeoutMapping.put("H", TimeUnit.HOURS);
-    timeoutMapping.put("M", TimeUnit.MINUTES);
-    timeoutMapping.put("S", TimeUnit.SECONDS);
-    timeoutMapping.put("m", TimeUnit.MILLISECONDS);
-    timeoutMapping.put("u", TimeUnit.MICROSECONDS);
-    timeoutMapping.put("n", TimeUnit.NANOSECONDS);
-    TIMEOUT_MAPPING = timeoutMapping;
-  }
-
-  private static long parseTimeout(String timeout) {
-    Matcher matcher = TIMEOUT_PATTERN.matcher(timeout);
-    if (matcher.matches()) {
-      long value = Long.parseLong(matcher.group(1));
-      TimeUnit unit = TIMEOUT_MAPPING.get(matcher.group(2));
-      return unit.toMillis(value);
-    } else {
-      return 0L;
-    }
-  }
-
   private final MultiMap headers;
-  final long timeout;
+  final Duration timeout;
   final GrpcProtocol protocol;
   private GrpcServerResponseImpl<Req, Resp> response;
   private final GrpcMethodCall methodCall;
@@ -73,13 +43,11 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                GrpcProtocol protocol,
                                WireFormat format,
                                ReadStream<GrpcMessage> stream,
-                               HttpServerRequest httpRequest,
+                               Duration timeout,
                                String encoding,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMethodCall methodCall) {
     super(context, stream,  encoding, format, messageDecoder);
-    String timeoutHeader = httpRequest.getHeader(GrpcHeaderNames.GRPC_TIMEOUT);
-    long timeout = timeoutHeader != null ? parseTimeout(timeoutHeader) : 0L;
 
     this.headers = headers;
     this.protocol = protocol;
@@ -94,9 +62,9 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   public void init(GrpcWriteStreamBase<?, ?> ws, boolean scheduleDeadline) {
     this.response = (GrpcServerResponseImpl<Req, Resp>) ws;
     super.init(ws);
-    if (timeout > 0L) {
+    if (timeout != null && (!timeout.isNegative() && !timeout.isZero())) {
       if (scheduleDeadline) {
-        Timer timer = context.timer(timeout, TimeUnit.MILLISECONDS);
+        Timer timer = context.timer(timeout.toMillis(), TimeUnit.MILLISECONDS);
         deadline = timer;
         timer.onSuccess(v -> {
           response.handleTimeout();
@@ -174,7 +142,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
 
   @Override
   public long timeout() {
-    return timeout;
+    return timeout == null ? 0L : timeout.toMillis();
   }
 
   @Override
