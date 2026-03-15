@@ -259,11 +259,16 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     });
 
     invoker.exceptionHandler(err -> {
-      if (err instanceof GrpcErrorException) {
-        handleError(((GrpcErrorException)err).error());
-      }
+//      if (err instanceof GrpcErrorException) {
+//        handleError(((GrpcErrorException)err).error());
+//      }
       handleException(err);
-      response.tryFail(err);
+      if (!response.tryFail(err)) {
+        GrpcClientResponseImpl<Req, Resp> resp = r;
+        if (resp != null) {
+          resp.handleException(err);
+        }
+      }
     });
 
     Duration to = timeout > 0L ? Duration.of(timeout, timeoutUnit.toChronoUnit()) : null;

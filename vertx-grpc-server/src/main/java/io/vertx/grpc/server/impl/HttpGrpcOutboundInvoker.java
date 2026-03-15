@@ -7,7 +7,6 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
-import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcHeaderNames;
@@ -26,14 +25,16 @@ import java.util.Map;
 
 public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker implements GrpcInvoker {
 
-  private final HttpServerRequest httpRequest;
   private final HttpServerResponse httpResponse;
   protected GrpcStatus status;
 
   public HttpGrpcOutboundInvoker(HttpServerRequest httpRequest, GrpcMessageDeframer deframer) {
     super(((HttpServerRequestInternal) httpRequest).context(), deframer);
-    this.httpRequest = httpRequest;
     this.httpResponse = httpRequest.response();
+  }
+
+  void init() {
+    httpResponse.exceptionHandler(this::handleException);
   }
 
   @Override
@@ -156,7 +157,6 @@ public abstract class HttpGrpcOutboundInvoker extends HttpGrpcInboundInvoker imp
 
   @Override
   public HttpGrpcOutboundInvoker exceptionHandler(@Nullable Handler<Throwable> handler) {
-    httpResponse.exceptionHandler(handler);
     super.exceptionHandler(handler);
     return this;
   }

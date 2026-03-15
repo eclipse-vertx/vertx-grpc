@@ -3,7 +3,10 @@ package io.vertx.grpc.server.impl;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.grpc.common.GrpcError;
+import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
@@ -19,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
 public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
 
@@ -57,6 +62,9 @@ public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
 
   @Override
   public GrpcInboundInvoker exceptionHandler(Handler<Throwable> handler) {
+    if (handler != null && exceptionHandler != null) {
+      throw new IllegalStateException();
+    }
     this.exceptionHandler = handler;
     return this;
   }
@@ -67,6 +75,17 @@ public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
     return this;
   }
 
+  void handleException(Throwable err) {
+    Handler<Throwable> handler = exceptionHandler;
+    if (handler != null) {
+      if (err instanceof StreamResetException) {
+        StreamResetException reset = (StreamResetException) err;
+        err = GrpcErrorException.create(reset);
+      }
+      handler.handle(err);
+    }
+  }
+
   void init(HttpServerRequest httpRequest, long maxMessageSize) {
 
     // Wire
@@ -75,12 +94,7 @@ public class HttpGrpcInboundInvoker implements GrpcInboundInvoker {
       emit(new DefaultGrpcMessageFrame(message));
     });
 
-    stream.exceptionHandler(err -> {
-      Handler<Throwable> handler = exceptionHandler;
-      if (handler != null) {
-        handler.handle(err);
-      }
-    });
+    stream.exceptionHandler(this::handleException);
 
     stream.endHandler(v -> {
       Handler<Void> handler = endHandler;

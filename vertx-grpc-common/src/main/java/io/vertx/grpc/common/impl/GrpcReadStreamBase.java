@@ -56,6 +56,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private GrpcMessage last;
   private final GrpcMessageDecoder<T> messageDecoder;
   private final Promise<Void> end;
+  private Handler<GrpcError> errorHandler;
 
   // Todo: THIS SHOULD BE REMOVED
   private GrpcWriteStreamBase<?, ?> ws;
@@ -78,7 +79,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     this.ws = ws;
     this.stream
       .handler(this::handleMessage)
-      .exceptionHandler(this::handleException)
       .endHandler(v -> handleEnd());
   }
 
@@ -129,7 +129,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
 
   @Override
   public final S errorHandler(@Nullable Handler<GrpcError> handler) {
-    ws.errorHandler(handler);
+    errorHandler = handler;
     return (S) this;
   }
 
@@ -163,15 +163,15 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     }
   }
 
-  protected final void handleException(Throwable err) {
+  public final void handleException(Throwable err) {
     if (err instanceof InvalidMessageException) {
       InvalidMessageException ime = (InvalidMessageException) err;
       handleInvalidMessage(ime);
-    } else if (err instanceof StreamResetException) {
-      // Fishy
-      StreamResetException reset = (StreamResetException) err;
-      GrpcError error = mapHttp2ErrorCode(reset.getCode());
-      ws.handleError(error);
+    } else if (err instanceof GrpcErrorException) {
+      Handler<GrpcError> handler = errorHandler;
+      if (handler != null) {
+        handler.handle(((GrpcErrorException)err).error());
+      }
     } else {
       tryFail(err);
     }

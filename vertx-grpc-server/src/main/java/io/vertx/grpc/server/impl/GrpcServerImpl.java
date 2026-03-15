@@ -202,6 +202,8 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         throw new AssertionError();
     }
 
+    outboundInvoker.init();
+
     GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
       this,
       outboundInvoker,

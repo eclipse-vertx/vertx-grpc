@@ -152,6 +152,9 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame>, ReadStream<GrpcMe
     if (grpcRequest != null) {
       grpcRequest.handleException2(exception);
     }
+    if (grpcResponse != null) {
+      grpcResponse.handleException(exception);
+    }
   }
 
   void handleEnd() {

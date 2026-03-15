@@ -50,6 +50,10 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   }
 
   public void handleException(Throwable err) {
+    if (err instanceof GrpcErrorException) {
+      GrpcErrorException ee = (GrpcErrorException) err;
+      handleError(ee.error());
+    }
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {
       handler.handle(err);
