@@ -20,7 +20,9 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.PromiseInternal;
 import io.vertx.core.internal.VertxInternal;
+import io.vertx.core.internal.http.HttpClientRequestInternal;
 import io.vertx.core.net.Address;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
@@ -67,8 +69,8 @@ public class GrpcClientImpl implements GrpcClient {
     return client.request(options)
       .map(httpRequest -> {
         GrpcClientRequestImpl<Buffer, Buffer> grpcRequest = new GrpcClientRequestImpl<>(
-          httpRequest,
-          maxMessageSize,
+          ((PromiseInternal<?>)httpRequest.response()).context(),
+          new Http2GrpcClientInvokerResolver(httpRequest, maxMessageSize),
           scheduleDeadlineAutomatically,
           GrpcMessageEncoder.IDENTITY,
           GrpcMessageDecoder.IDENTITY) {
@@ -124,8 +126,8 @@ public class GrpcClientImpl implements GrpcClient {
     return client.request(options)
       .map(request -> {
         GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(
-          request,
-          maxMessageSize,
+          ((PromiseInternal<?>)request.response()).context(),
+          new Http2GrpcClientInvokerResolver(request, maxMessageSize),
           scheduleDeadlineAutomatically,
           method.encoder(),
           method.decoder()) {

@@ -59,8 +59,7 @@ abstract class Http2GrpcOutboundInvoker implements GrpcInvoker {
     return httpRequest.end();
   }
 
-  public Future<Void> write(GrpcFrame frame, boolean end) {
-
+  protected Future<Void> write(GrpcFrame frame, boolean end) {
     if (frame instanceof GrpcHeadersFrame) {
       GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
 

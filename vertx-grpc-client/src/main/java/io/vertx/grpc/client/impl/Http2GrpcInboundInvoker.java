@@ -38,6 +38,7 @@ public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
   private Handler<Throwable> exceptionHandler;
   private GrpcDeframingStream stream;
   private final long maxMessageSize;
+  private boolean initialized;
 
   public Http2GrpcInboundInvoker(ContextInternal context,
                                  HttpClientRequest httpRequest,
@@ -64,6 +65,15 @@ public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
           handleStreamException(failure);
         }
       });
+  }
+
+  @Override
+  protected Future<Void> write(GrpcFrame frame, boolean end) {
+    if (!initialized) {
+      initialized = true;
+      init();
+    }
+    return super.write(frame, end);
   }
 
   private void handleStreamException(Throwable failure) {

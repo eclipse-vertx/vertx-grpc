@@ -16,7 +16,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
 import io.vertx.core.Timer;
-import io.vertx.core.http.HttpClientRequest;
 
 import java.time.Duration;
 import java.util.EnumMap;
@@ -24,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
-import io.vertx.core.internal.PromiseInternal;
+import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
@@ -32,6 +31,7 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
+import io.vertx.grpc.common.impl.GrpcInvoker;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcTrailersFrame;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
@@ -44,7 +44,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private final GrpcClientInvokerResolver invokerResolver;
   private final boolean scheduleDeadline;
   private final GrpcMessageDecoder<Resp> messageDecoder;
-  private Http2GrpcInboundInvoker invoker;
+  private GrpcInvoker invoker;
   private ServiceName serviceName;
   private String methodName;
   private Promise<GrpcClientResponse<Req, Resp>> response;
@@ -57,19 +57,19 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private Handler<GrpcMessage> messageHandler;
   private Handler<Void> drainHandler;
 
-  public GrpcClientRequestImpl(HttpClientRequest httpRequest,
-                               long maxMessageSize,
+  public GrpcClientRequestImpl(ContextInternal context,
+                               GrpcClientInvokerResolver invokerResolver,
                                boolean scheduleDeadline,
                                GrpcMessageEncoder<Req> messageEncoder,
                                GrpcMessageDecoder<Resp> messageDecoder) {
-    super( ((PromiseInternal<?>)httpRequest.response()).context(), "application/grpc", messageEncoder);
+    super(context, "application/grpc", messageEncoder);
 
     Promise<GrpcClientResponse<Req, Resp>> promise = context().promise();
 
+    this.invokerResolver = invokerResolver;
     this.scheduleDeadline = scheduleDeadline;
     this.timeout = 0L;
     this.timeoutUnit = null;
-    this.invokerResolver = new Http2GrpcClientInvokerResolver(httpRequest, maxMessageSize);
     this.response = promise;
     this.messageDecoder = messageDecoder;
   }
@@ -81,7 +81,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   @Override
   public GrpcClientRequest<Req, Resp> drainHandler(@Nullable Handler<Void> handler) {
-    Http2GrpcInboundInvoker i = invoker;
+    GrpcInvoker i = invoker;
     if (i != null) {
       i.drainHandler(handler);
     } else {
@@ -92,7 +92,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   @Override
   public boolean writeQueueFull() {
-    Http2GrpcInboundInvoker i = invoker;
+    GrpcInvoker i = invoker;
     return i != null && i.writeQueueFull();
   }
 
@@ -265,8 +265,6 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       handleException(err);
       response.tryFail(err);
     });
-
-    invoker.init();
 
     Duration to = timeout > 0L ? Duration.of(timeout, timeoutUnit.toChronoUnit()) : null;
     if (scheduleDeadline && timeout > 0L) {
