@@ -29,6 +29,7 @@ import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
+import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcInvoker;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
@@ -46,12 +47,11 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private GrpcInvoker invoker;
   private ServiceName serviceName;
   private String methodName;
-  private Promise<GrpcClientResponse<Req, Resp>> response;
+  private Promise<GrpcClientResponse<Req, Resp>> responsePromise;
   private long timeout;
   private TimeUnit timeoutUnit;
   private Timer deadline;
-
-  private GrpcClientResponseImpl<Req, Resp> r;
+  private GrpcClientResponseImpl<Req, Resp> response;
   private Handler<Void> drainHandler;
 
   public GrpcClientRequestImpl(ContextInternal context,
@@ -67,7 +67,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     this.scheduleDeadline = scheduleDeadline;
     this.timeout = 0L;
     this.timeoutUnit = null;
-    this.response = promise;
+    this.responsePromise = promise;
     this.messageDecoder = messageDecoder;
   }
 
@@ -165,70 +165,9 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
     invoker = invokerResolver.resolveInvoker(serviceName, methodName);
     invoker.drainHandler(drainHandler);
-
-    invoker.handler(frame -> {
-      if (frame instanceof GrpcHeadersFrame) {
-
-        GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
-
-        // Todo : move this to GrpcHeadersFrame
-        WireFormat format;
-        if (headersFrame.contentType() != null) {
-          format = GrpcMediaType.parseContentType(headersFrame.contentType(), "application/grpc");
-        } else {
-          format = null;
-        }
-
-        r = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this,
-          invoker, format, headersFrame.encoding(), messageDecoder);
-
-        r.invalidMessageHandler(invalidMsg -> {
-          cancel();
-          r.tryFail(invalidMsg);
-        });
-
-        r.handleHeaders(headersFrame.headers());
-
-        response.tryComplete(r);
-
-      } else if (frame instanceof GrpcMessageFrame) {
-        GrpcMessageFrame messageFrame = (GrpcMessageFrame)frame;
-        GrpcClientResponseImpl<Req, Resp> r2 = r;
-        if (r2 != null) {
-          r2.handleMessage(messageFrame.message());
-        }
-      } else if (frame instanceof GrpcTrailersFrame) {
-        GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
-        if (r == null) {
-          r = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this, invoker, WireFormat.PROTOBUF,
-            null, messageDecoder);
-          r.handleHeaders(trailersFrame.trailers());
-          r.handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), HttpHeaders.headers());
-          response.tryComplete(r);
-        } else {
-          r.handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), trailersFrame.trailers());
-        }
-      } else {
-        System.out.println("handle me " + frame);
-      }
-    });
-
-    invoker.endHandler(v -> {
-      GrpcClientResponseImpl<Req, Resp> r2 = r;
-      if (r2 != null) {
-        r2.handleEnd();
-      }
-    });
-
-    invoker.exceptionHandler(err -> {
-      handleException(err);
-      if (!response.tryFail(err)) {
-        GrpcClientResponseImpl<Req, Resp> resp = r;
-        if (resp != null) {
-          resp.handleException(err);
-        }
-      }
-    });
+    invoker.handler(this::handleFrame);
+    invoker.endHandler(this::handleEnd);
+    invoker.exceptionHandler(this::internalHandleException);
 
     Duration to = timeout > 0L ? Duration.of(timeout, timeoutUnit.toChronoUnit()) : null;
     if (scheduleDeadline && timeout > 0L) {
@@ -271,7 +210,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override public Future<GrpcClientResponse<Req, Resp>> response() {
-    return response.future();
+    return responsePromise.future();
   }
 
   @Override
@@ -330,5 +269,69 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       return Long.toString(v) + GRPC_TIMEOUT_UNIT_SUFFIXES.get(grpcTimeoutUnit);
     }
     return null;
+  }
+
+  private void handleFrame(GrpcFrame frame) {
+    if (frame instanceof GrpcHeadersFrame) {
+
+      GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
+
+      // Todo : move this to GrpcHeadersFrame
+      WireFormat format;
+      if (headersFrame.contentType() != null) {
+        format = GrpcMediaType.parseContentType(headersFrame.contentType(), "application/grpc");
+      } else {
+        format = null;
+      }
+
+      response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this,
+        invoker, format, headersFrame.encoding(), messageDecoder);
+
+      response.invalidMessageHandler(invalidMsg -> {
+        cancel();
+        response.tryFail(invalidMsg);
+      });
+
+      response.handleHeaders(headersFrame.headers());
+
+      responsePromise.tryComplete(response);
+
+    } else if (frame instanceof GrpcMessageFrame) {
+      GrpcMessageFrame messageFrame = (GrpcMessageFrame)frame;
+      GrpcClientResponseImpl<Req, Resp> r2 = response;
+      if (r2 != null) {
+        r2.handleMessage(messageFrame.message());
+      }
+    } else if (frame instanceof GrpcTrailersFrame) {
+      GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
+      if (response == null) {
+        response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this, invoker, WireFormat.PROTOBUF,
+          null, messageDecoder);
+        response.handleHeaders(trailersFrame.trailers());
+        response.handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), HttpHeaders.headers());
+        responsePromise.tryComplete(response);
+      } else {
+        response.handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), trailersFrame.trailers());
+      }
+    } else {
+      System.out.println("handle me " + frame);
+    }
+  }
+
+  private void handleEnd(Void v) {
+    GrpcClientResponseImpl<Req, Resp> r2 = response;
+    if (r2 != null) {
+      r2.handleEnd();
+    }
+  }
+
+  private void internalHandleException(Throwable err) {
+    handleException(err);
+    if (!responsePromise.tryFail(err)) {
+      GrpcClientResponseImpl<Req, Resp> resp = response;
+      if (resp != null) {
+        resp.handleException(err);
+      }
+    }
   }
 }
