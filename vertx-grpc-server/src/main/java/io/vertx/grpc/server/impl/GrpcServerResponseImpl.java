@@ -10,7 +10,9 @@
  */
 package io.vertx.grpc.server.impl;
 
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.streams.WriteStream;
@@ -48,11 +50,27 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
                                 GrpcServerRequestImpl<Req, Resp> request,
                                 GrpcOutboundInvoker invoker,
                                 GrpcProtocol protocol,
-                                WriteStream<?> response,
                                 GrpcMessageEncoder<Resp> encoder) {
-    super(context, protocol.mediaType(), response, encoder);
+    super(context, protocol.mediaType(), encoder);
     this.invoker = invoker;
     this.request = request;
+  }
+
+  @Override
+  public GrpcServerResponse<Req, Resp> setWriteQueueMaxSize(int maxSize) {
+    invoker.setWriteQueueMaxSize(maxSize);
+    return this;
+  }
+
+  @Override
+  public GrpcServerResponse<Req, Resp> drainHandler(@Nullable Handler<Void> handler) {
+    invoker.drainHandler(handler);
+    return this;
+  }
+
+  @Override
+  public boolean writeQueueFull() {
+    return invoker.writeQueueFull();
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {

@@ -120,7 +120,6 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame>, ReadStream<GrpcMe
         grpcRequest,
         invoker,
         protocol,
-        invoker,
         method.messageEncoder);
       grpcResponse.format(format);
       long timeout = grpcRequest.timeout();

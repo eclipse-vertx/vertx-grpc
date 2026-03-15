@@ -3,20 +3,15 @@ package io.vertx.grpc.common.impl;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.*;
 
 import java.util.Objects;
-
-import static io.vertx.grpc.common.GrpcError.mapHttp2ErrorCode;
 
 public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T> implements GrpcWriteStream<T> {
 
   protected final ContextInternal context;
   private final GrpcMessageEncoder<T> messageEncoder;
-  private final WriteStream<?> writeStream;
 
   protected String mediaType;
   protected String encoding;
@@ -32,9 +27,8 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcError> errorHandler;
 
-  public GrpcWriteStreamBase(ContextInternal context, String mediaType, WriteStream<?> writeStream, GrpcMessageEncoder<T> messageEncoder) {
+  public GrpcWriteStreamBase(ContextInternal context, String mediaType, GrpcMessageEncoder<T> messageEncoder) {
     this.context = context;
-    this.writeStream = writeStream;
     this.messageEncoder = messageEncoder;
     this.mediaType = mediaType;
   }
@@ -130,25 +124,8 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   }
 
   @Override
-  public final boolean writeQueueFull() {
-    return writeStream.writeQueueFull();
-  }
-
-  @Override
-  public final S drainHandler(Handler<Void> handler) {
-    writeStream.drainHandler(handler);
-    return (S) this;
-  }
-
-  @Override
   public final S exceptionHandler(Handler<Throwable> handler) {
     exceptionHandler = handler;
-    return (S) this;
-  }
-
-  @Override
-  public S setWriteQueueMaxSize(int maxSize) {
-    writeStream.setWriteQueueMaxSize(maxSize);
     return (S) this;
   }
 

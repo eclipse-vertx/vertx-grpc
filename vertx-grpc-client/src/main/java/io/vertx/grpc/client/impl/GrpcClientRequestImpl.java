@@ -55,13 +55,14 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private GrpcClientResponseImpl<Req, Resp> r;
   private ReadStream<GrpcMessage> r2;
   private Handler<GrpcMessage> messageHandler;
+  private Handler<Void> drainHandler;
 
   public GrpcClientRequestImpl(HttpClientRequest httpRequest,
                                long maxMessageSize,
                                boolean scheduleDeadline,
                                GrpcMessageEncoder<Req> messageEncoder,
                                GrpcMessageDecoder<Resp> messageDecoder) {
-    super( ((PromiseInternal<?>)httpRequest.response()).context(), "application/grpc", httpRequest, messageEncoder);
+    super( ((PromiseInternal<?>)httpRequest.response()).context(), "application/grpc", messageEncoder);
 
     Promise<GrpcClientResponse<Req, Resp>> promise = context().promise();
 
@@ -71,6 +72,28 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     this.invokerResolver = new Http2GrpcClientInvokerResolver(httpRequest, maxMessageSize);
     this.response = promise;
     this.messageDecoder = messageDecoder;
+  }
+
+  @Override
+  public GrpcClientRequest<Req, Resp> setWriteQueueMaxSize(int maxSize) {
+    return this;
+  }
+
+  @Override
+  public GrpcClientRequest<Req, Resp> drainHandler(@Nullable Handler<Void> handler) {
+    Http2GrpcInboundInvoker i = invoker;
+    if (i != null) {
+      i.drainHandler(handler);
+    } else {
+      drainHandler = handler;
+    }
+    return this;
+  }
+
+  @Override
+  public boolean writeQueueFull() {
+    Http2GrpcInboundInvoker i = invoker;
+    return i != null && i.writeQueueFull();
   }
 
   @Override
@@ -144,6 +167,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     }
 
     invoker = invokerResolver.resolveInvoker(serviceName, methodName);
+    invoker.drainHandler(drainHandler);
 
     invoker.handler(frame -> {
       if (frame instanceof GrpcHeadersFrame) {
