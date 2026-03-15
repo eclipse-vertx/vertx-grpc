@@ -8,6 +8,8 @@ import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.grpc.common.DefaultGrpcCancelFrame;
+import io.vertx.grpc.common.GrpcCancelFrame;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcHeaderNames;
@@ -73,7 +75,11 @@ public class Http2GrpcInboundInvoker extends Http2GrpcOutboundInvoker {
 
   private void handleStreamException(Throwable failure) {
     if (failure instanceof StreamResetException) {
-      failure = GrpcErrorException.create((StreamResetException) failure);
+      GrpcErrorException error = GrpcErrorException.create((StreamResetException) failure);
+      if (error.error() == GrpcError.CANCELLED) {
+        emit(DefaultGrpcCancelFrame.INSTANCE);
+      }
+      failure = error;
     }
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {

@@ -4,6 +4,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.spi.context.storage.AccessMode;
+import io.vertx.grpc.common.GrpcCancelFrame;
 import io.vertx.grpc.common.GrpcLocal;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcStatus;
@@ -63,6 +64,9 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
       case MESSAGE:
         handleMessage((GrpcMessageFrame) frame);
         break;
+      case CANCEL:
+        handleCancel((GrpcCancelFrame) frame);
+        break;
       default:
         // Log
         break;
@@ -116,12 +120,16 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
     }
   }
 
+  private void handleCancel(GrpcCancelFrame frame) {
+    GrpcServerRequestImpl<Req, Resp> r = grpcRequest;
+    if (r != null) {
+      r.handleCancel();
+    }
+  }
+
   void handleException(Throwable exception) {
     if (grpcRequest != null) {
       grpcRequest.handleException(exception);
-    }
-    if (grpcResponse != null) {
-      grpcResponse.handleException(exception);
     }
   }
 

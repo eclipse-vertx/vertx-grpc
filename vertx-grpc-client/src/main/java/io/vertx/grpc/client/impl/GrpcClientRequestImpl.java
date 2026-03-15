@@ -282,6 +282,9 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       case TRAILERS:
         handleTrailersFrame((GrpcTrailersFrame) frame);
         break;
+      case CANCEL:
+        handleCancelFrame((GrpcCancelFrame) frame);
+        break;
       default:
         //
         break;
@@ -327,6 +330,10 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     } else {
       response.handleTrailers(frame.status(), frame.statusMessage(), frame.trailers());
     }
+  }
+
+  private void handleCancelFrame(GrpcCancelFrame frame) {
+    cancel();
   }
 
   private void handleEnd(Void v) {

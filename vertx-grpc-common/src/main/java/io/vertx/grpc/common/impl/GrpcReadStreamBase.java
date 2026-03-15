@@ -140,7 +140,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     }
   }
 
-  public final void handleException(Throwable err) {
+  public void handleException(Throwable err) {
     if (err instanceof InvalidMessageException) {
       InvalidMessageException ime = (InvalidMessageException) err;
       handleInvalidMessage(ime);

@@ -33,6 +33,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     this.mediaType = mediaType;
   }
 
+  // Why is this not called ?
   public S errorHandler(Handler<GrpcError> handler) {
     this.errorHandler = handler;
     return (S) this;
@@ -40,13 +41,16 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
   public void handleError(GrpcError error) {
     if (this.error == null) {
-      cancelled |= error == GrpcError.CANCELLED;
       this.error = error;
       Handler<GrpcError> handler = errorHandler;
       if (handler != null) {
         handler.handle(error);
       }
     }
+  }
+
+  public void handleCancel() {
+    cancelled = true;
   }
 
   public void handleException(Throwable err) {

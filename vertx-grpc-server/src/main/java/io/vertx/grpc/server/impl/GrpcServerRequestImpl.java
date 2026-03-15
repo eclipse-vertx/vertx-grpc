@@ -82,6 +82,16 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   }
 
   @Override
+  public void handleException(Throwable err) {
+    super.handleException(err);
+    response.handleException(err);
+  }
+
+  void handleCancel() {
+    response.handleCancel();
+  }
+
+  @Override
   public GrpcServerRequestImpl<Req, Resp> pause() {
     invoker.pause();
     return this;
