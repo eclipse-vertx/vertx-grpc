@@ -2,6 +2,11 @@ package io.vertx.grpc.common.impl;
 
 import io.vertx.grpc.common.GrpcMessage;
 
+/**
+ * A message.
+ *
+ * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
+ */
 public interface GrpcMessageFrame extends GrpcFrame {
 
   // TODO : add compressed
@@ -11,6 +16,9 @@ public interface GrpcMessageFrame extends GrpcFrame {
     return GrpcFrameType.MESSAGE;
   }
 
+  /**
+   * @return the message
+   */
   GrpcMessage message();
 
 }

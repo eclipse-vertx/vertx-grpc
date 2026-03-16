@@ -7,6 +7,9 @@ package io.vertx.grpc.common.impl;
  */
 public interface GrpcFrame {
 
+  /**
+   * @return the frame type
+   */
   GrpcFrameType type();
 
 }
