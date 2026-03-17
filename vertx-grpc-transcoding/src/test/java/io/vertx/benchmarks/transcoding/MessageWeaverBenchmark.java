@@ -1,5 +1,7 @@
 package io.vertx.benchmarks.transcoding;
 
+import com.google.protobuf.DescriptorProtos;
+import com.google.protobuf.Descriptors;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.transcoding.impl.MessageWeaver;
@@ -26,6 +28,27 @@ public class MessageWeaverBenchmark {
     private List<HttpVariableBinding> complexBindings;
     private String simpleTranscodingPath;
     private String complexTranscodingPath;
+    private Descriptors.Descriptor descriptor;
+
+    private static Descriptors.Descriptor buildDescriptor() {
+        try {
+            DescriptorProtos.DescriptorProto msg = DescriptorProtos.DescriptorProto.newBuilder()
+                .setName("BenchMsg")
+                .addField(DescriptorProtos.FieldDescriptorProto.newBuilder()
+                    .setName("name").setNumber(1).setType(DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
+                    .setLabel(DescriptorProtos.FieldDescriptorProto.Label.LABEL_OPTIONAL).build())
+                .addField(DescriptorProtos.FieldDescriptorProto.newBuilder()
+                    .setName("id").setNumber(2).setType(DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
+                    .setLabel(DescriptorProtos.FieldDescriptorProto.Label.LABEL_OPTIONAL).build())
+                .build();
+            DescriptorProtos.FileDescriptorProto fileProto = DescriptorProtos.FileDescriptorProto.newBuilder()
+                .setName("bench.proto").addMessageType(msg).build();
+            return Descriptors.FileDescriptor.buildFrom(fileProto, new Descriptors.FileDescriptor[]{})
+                .findMessageTypeByName("BenchMsg");
+        } catch (Descriptors.DescriptorValidationException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @Setup
     public void setup() {
@@ -63,6 +86,7 @@ public class MessageWeaverBenchmark {
 
         simpleTranscodingPath = "";
         complexTranscodingPath = "data.user";
+        descriptor = buildDescriptor();
     }
 
     private HttpVariableBinding createBinding(String path, String value) {
@@ -75,7 +99,8 @@ public class MessageWeaverBenchmark {
         Buffer result = MessageWeaver.weaveRequestMessage(
             simpleMessage,
             null,
-            null
+            null,
+            descriptor
         );
         blackhole.consume(result);
     }
@@ -85,7 +110,8 @@ public class MessageWeaverBenchmark {
         Buffer result = MessageWeaver.weaveRequestMessage(
             simpleMessage,
             simpleBindings,
-            null
+            null,
+            descriptor
         );
         blackhole.consume(result);
     }
@@ -95,7 +121,8 @@ public class MessageWeaverBenchmark {
         Buffer result = MessageWeaver.weaveRequestMessage(
             complexMessage,
             complexBindings,
-            null
+            null,
+            descriptor
         );
         blackhole.consume(result);
     }
@@ -105,7 +132,8 @@ public class MessageWeaverBenchmark {
         Buffer result = MessageWeaver.weaveRequestMessage(
             complexMessage,
             complexBindings,
-            complexTranscodingPath
+            complexTranscodingPath,
+            descriptor
         );
         blackhole.consume(result);
     }

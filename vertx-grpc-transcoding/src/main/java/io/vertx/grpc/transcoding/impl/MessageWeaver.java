@@ -1,7 +1,9 @@
 package io.vertx.grpc.transcoding.impl;
 
+import com.google.protobuf.Descriptors;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.DecodeException;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
 
@@ -26,10 +28,11 @@ public final class MessageWeaver {
    * @param message The original message buffer
    * @param bindings The HTTP variable bindings
    * @param transcodingRequestBody The transcoding request body path
+   * @param descriptor The protobuf message descriptor, used to identify repeated fields
    * @return The modified buffer with weaved content
    * @throws DecodeException If JSON decoding fails
    */
-  public static Buffer weaveRequestMessage(Buffer message, List<HttpVariableBinding> bindings, String transcodingRequestBody) throws DecodeException {
+  public static Buffer weaveRequestMessage(Buffer message, List<HttpVariableBinding> bindings, String transcodingRequestBody, Descriptors.Descriptor descriptor) throws DecodeException {
     if ((bindings == null || bindings.isEmpty()) && (transcodingRequestBody == null || transcodingRequestBody.isEmpty())) {
       return message;
     }
@@ -37,7 +40,7 @@ public final class MessageWeaver {
     JsonObject result = new JsonObject();
 
     if (bindings != null && !bindings.isEmpty()) {
-      applyBindings(result, bindings);
+      applyBindings(result, bindings, descriptor);
     }
 
     JsonObject messageJson = null;
@@ -63,15 +66,16 @@ public final class MessageWeaver {
   /**
    * Applies HTTP variable bindings to the result object.
    */
-  private static void applyBindings(JsonObject result, List<HttpVariableBinding> bindings) {
+  private static void applyBindings(JsonObject result, List<HttpVariableBinding> bindings, Descriptors.Descriptor descriptor) {
     for (HttpVariableBinding binding : bindings) {
       List<String> fieldPath = binding.getFieldPath();
       if (fieldPath == null || fieldPath.isEmpty()) {
         continue;
       }
 
-      // Navigate to parent object, creating nested structure as needed
+      // Navigate to parent object, resolving descriptors alongside
       JsonObject current = result;
+      Descriptors.Descriptor currentDescriptor = descriptor;
       for (int i = 0; i < fieldPath.size() - 1; i++) {
         String fieldName = fieldPath.get(i);
         JsonObject next = current.getJsonObject(fieldName);
@@ -80,11 +84,27 @@ public final class MessageWeaver {
           current.put(fieldName, next);
         }
         current = next;
+        if (currentDescriptor != null) {
+          Descriptors.FieldDescriptor fd = currentDescriptor.findFieldByName(fieldName);
+          currentDescriptor = (fd != null && fd.getType() == Descriptors.FieldDescriptor.Type.MESSAGE) ? fd.getMessageType() : null;
+        }
       }
 
-      // Set the value at the final path position
+      // Check if the leaf field is repeated
       String lastField = fieldPath.get(fieldPath.size() - 1);
-      current.put(lastField, binding.getValue());
+      Descriptors.FieldDescriptor fd = currentDescriptor != null ? currentDescriptor.findFieldByName(lastField) : null;
+      boolean repeated = fd != null && fd.isRepeated();
+
+      if (repeated) {
+        Object existing = current.getValue(lastField);
+        if (existing instanceof JsonArray) {
+          ((JsonArray) existing).add(binding.getValue());
+        } else {
+          current.put(lastField, new JsonArray().add(binding.getValue()));
+        }
+      } else {
+        current.put(lastField, binding.getValue());
+      }
     }
   }
 
