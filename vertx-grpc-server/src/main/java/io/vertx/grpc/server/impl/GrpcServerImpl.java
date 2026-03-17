@@ -19,17 +19,21 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.HttpVersion;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
-import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 import io.vertx.grpc.server.*;
 
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -153,87 +157,71 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
   private <Req, Resp> boolean handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall, GrpcProtocol protocol, WireFormat format) {
     io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
 
-    GrpcServerRequestImpl<Req, Resp> grpcRequest;
-    GrpcServerResponseImpl<Req, Resp> grpcResponse;
+    String encoding = httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING);
+
+    HttpGrpcOutboundStream outboundInvoker;
+    GrpcMessageDecoder<Req> messageDecoder;
     switch (protocol) {
       case HTTP_2:
         if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
           return false;
         }
-        grpcRequest = new Http2GrpcServerRequest<>(
-          context,
-          protocol,
-          format,
-          httpRequest,
-          method.messageDecoder,
-          methodCall);
-        grpcResponse = new Http2GrpcServerResponse<>(
-          context,
-          grpcRequest,
-          protocol,
-          httpRequest.response(),
-          method.messageEncoder);
+        outboundInvoker = new Http2GrpcOutboundStream(httpRequest, new Http2GrpcMessageDeframer(encoding, format));
+        messageDecoder = method.messageDecoder;
         break;
       case WEB:
       case WEB_TEXT:
         if (method.method != null && !httpRequest.path().equals("/" + method.method.fullMethodName())) {
           return false;
         }
-        grpcRequest = new WebGrpcServerRequest<>(
-          context,
-          protocol,
-          format,
-          options.getMaxMessageSize(),
-          httpRequest,
-          method.messageDecoder,
-          methodCall);
-        grpcResponse = new WebGrpcServerResponse<>(
-          context,
-          grpcRequest,
-          protocol,
-          httpRequest.response(),
-          method.messageEncoder);
+        GrpcMessageDeframer deframer;
+        if (httpRequest.version() != HttpVersion.HTTP_2 && GrpcMediaType.isGrpcWebText(httpRequest.getHeader(CONTENT_TYPE))) {
+          deframer  = new TextMessageDeframer();
+        } else {
+          deframer  = new Http2GrpcMessageDeframer(encoding, format);
+        }
+        outboundInvoker = new WebGrpcOutboundStream(httpRequest, protocol, deframer);
+        messageDecoder = method.messageDecoder;
         break;
       case TRANSCODING:
-        grpcRequest = null;
-        grpcResponse = null;
+        GrpcInvocation invocation = null;
         for (GrpcHttpInvoker invoker : invokers) {
-          GrpcInvocation<Req, Resp> invocation = invoker.accept(httpRequest, method.method);
+          invocation = invoker.accept(httpRequest, method.method);
           if (invocation != null) {
-            grpcRequest = invocation.grpcRequest;
-            grpcResponse = invocation.grpcResponse;
             break;
           }
         }
-        break;
+        if (invocation != null) {
+          outboundInvoker = invocation.outboundInvoker;
+          messageDecoder = (GrpcMessageDecoder)invocation.messageDecoder;
+          break;
+        } else {
+          return false;
+        }
       default:
         throw new AssertionError();
     }
-    if (grpcRequest == null || grpcResponse == null) {
-      return false;
-    }
-    grpcResponse.format(format);
-    handle(grpcRequest, grpcResponse, method);
-    return true;
-  }
 
-  private <Req, Resp> void handle(GrpcServerRequestImpl<Req, Resp> grpcRequest,
-                                  GrpcServerResponseImpl<Req, Resp> grpcResponse,
-                                  Handler<GrpcServerRequest<Req, Resp>> handler) {
-    if (options.getDeadlinePropagation() && grpcRequest.timeout() > 0L) {
-      long deadline = System.currentTimeMillis() + grpcRequest.timeout;
-      grpcRequest.context().putLocal(GrpcLocal.CONTEXT_LOCAL_KEY, AccessMode.CONCURRENT, new GrpcLocal(deadline));
-    }
-    grpcResponse.init();
-    grpcRequest.init(grpcResponse, options.getScheduleDeadlineAutomatically(), options.getMaxMessageSize());
-    grpcRequest.invalidMessageHandler(invalidMsg -> {
-      if (invalidMsg instanceof MessageSizeOverflowException) {
-        grpcRequest.response().status(GrpcStatus.RESOURCE_EXHAUSTED).end();
-      } else {
-        grpcResponse.cancel();
-      }
-    });
-    grpcRequest.context().dispatch(grpcRequest, handler);
+    outboundInvoker.init();
+
+    GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
+      outboundInvoker,
+      context,
+      protocol,
+      format,
+      messageDecoder,
+      methodCall,
+      httpRequest.connection(),
+      method,
+      options.getDeadlinePropagation(),
+      options.getScheduleDeadlineAutomatically());
+    outboundInvoker.handler(dispatcher);
+    outboundInvoker.exceptionHandler(dispatcher::handleException);
+    outboundInvoker.endHandler(v -> dispatcher.handleEnd());
+
+    outboundInvoker.init(httpRequest, options.getMaxMessageSize());
+
+    return true;
   }
 
   public synchronized GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {
@@ -308,7 +296,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     return Collections.unmodifiableList(services);
   }
 
-  private static class MethodCallHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
+  static class MethodCallHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
 
     final ServiceMethod<Req, Resp> method;
     final GrpcMessageDecoder<Req> messageDecoder;

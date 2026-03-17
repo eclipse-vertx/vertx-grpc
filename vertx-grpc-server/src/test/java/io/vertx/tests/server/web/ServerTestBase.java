@@ -21,7 +21,7 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.tests.common.GrpcTestBase;
-import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.tests.server.grpc.web.*;
 import org.junit.Test;
@@ -498,7 +498,7 @@ public abstract class ServerTestBase extends GrpcTestBase {
   }
 
   protected Buffer encode(Message message) {
-    return GrpcMessageImpl.encode(GrpcMessage.message("identity", Buffer.buffer(message.toByteArray())));
+    return DefaultGrpcMessage.encode(GrpcMessage.message("identity", Buffer.buffer(message.toByteArray())));
   }
 
   private static EchoResponse parseEchoResponse(Buffer buffer) {

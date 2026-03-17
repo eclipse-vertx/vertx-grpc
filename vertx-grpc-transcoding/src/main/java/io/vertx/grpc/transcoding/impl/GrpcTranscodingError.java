@@ -2,7 +2,7 @@ package io.vertx.grpc.transcoding.impl;
 
 public enum GrpcTranscodingError {
 
-  CANCELLED(0x01, 408, "Request timeout"),
+  CANCELLED(0x01, 400, "Request timeout"),
   UNKNOWN(0x02, 500, "Internal Server Error"),
   INVALID_ARGUMENT(0x03, 400, "Invalid Argument"),
   DEADLINE_EXCEEDED(0x04, 504, "Deadline Exceeded"),

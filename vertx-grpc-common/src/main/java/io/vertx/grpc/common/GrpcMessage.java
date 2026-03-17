@@ -11,9 +11,8 @@
 package io.vertx.grpc.common;
 
 import io.vertx.codegen.annotations.DataObject;
-import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 
 /**
  * A generic gRPC message
@@ -27,14 +26,18 @@ public interface GrpcMessage {
    * @return a new message
    */
   static GrpcMessage message(String encoding, WireFormat format, Buffer payload) {
-    return new GrpcMessageImpl(encoding, format, payload);
+    return new DefaultGrpcMessage(encoding, format, payload);
   }
 
   /**
    * @return a new message in proto format
    */
   static GrpcMessage message(String encoding, Buffer payload) {
-    return new GrpcMessageImpl(encoding, WireFormat.PROTOBUF, payload);
+    return new DefaultGrpcMessage(encoding, WireFormat.PROTOBUF, payload);
+  }
+
+  default boolean isCompressed() {
+    return !encoding().equals("identity");
   }
 
   /**

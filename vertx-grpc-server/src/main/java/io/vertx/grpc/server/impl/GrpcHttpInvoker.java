@@ -29,6 +29,6 @@ public interface GrpcHttpInvoker {
    * @param serviceMethod the gRPC service method that corresponds to the incoming request
    * @return an instance of {@code GrpcInvocation} that represents the invocation of the gRPC service method
    */
-  <Req, Resp> GrpcInvocation<Req, Resp> accept(HttpServerRequest request, ServiceMethod<Req, Resp> serviceMethod);
+  <Req, Resp> GrpcInvocation accept(HttpServerRequest request, ServiceMethod<Req, Resp> serviceMethod);
 
 }

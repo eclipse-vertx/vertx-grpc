@@ -14,11 +14,11 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.PromiseInternal;
 import io.vertx.core.internal.VertxInternal;
 import io.vertx.core.net.Address;
 import io.vertx.grpc.client.GrpcClient;
@@ -66,12 +66,16 @@ public class GrpcClientImpl implements GrpcClient {
     return client.request(options)
       .map(httpRequest -> {
         GrpcClientRequestImpl<Buffer, Buffer> grpcRequest = new GrpcClientRequestImpl<>(
-          httpRequest,
-          maxMessageSize,
+          ((PromiseInternal<?>)httpRequest.response()).context(),
+          new Http2GrpcClientInvoker(httpRequest, maxMessageSize),
           scheduleDeadlineAutomatically,
           GrpcMessageEncoder.IDENTITY,
-          GrpcMessageDecoder.IDENTITY);
-        grpcRequest.init();
+          GrpcMessageDecoder.IDENTITY) {
+          @Override
+          public HttpConnection connection() {
+            return httpRequest.connection();
+          }
+        };
         configureTimeout(grpcRequest);
         return grpcRequest;
       });
@@ -119,12 +123,15 @@ public class GrpcClientImpl implements GrpcClient {
     return client.request(options)
       .map(request -> {
         GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(
-          request,
-          maxMessageSize,
+          ((PromiseInternal<?>)request.response()).context(),
+          new Http2GrpcClientInvoker(request, maxMessageSize),
           scheduleDeadlineAutomatically,
           method.encoder(),
-          method.decoder());
-        call.init();
+          method.decoder()) {
+          public HttpConnection connection() {
+            return request.connection();
+          }
+        };
         call.serviceName(method.serviceName());
         call.methodName(method.methodName());
         configureTimeout(call);

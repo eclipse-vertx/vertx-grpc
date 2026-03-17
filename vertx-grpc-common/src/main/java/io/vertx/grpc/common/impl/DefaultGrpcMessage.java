@@ -17,13 +17,13 @@ import io.vertx.grpc.common.GrpcMessage;
 
 import java.util.Objects;
 
-public class GrpcMessageImpl implements GrpcMessage {
+public class DefaultGrpcMessage implements GrpcMessage {
 
   private final String encoding;
   private final WireFormat format;
   private final Buffer payload;
 
-  public GrpcMessageImpl(String encoding, WireFormat format, Buffer payload) {
+  public DefaultGrpcMessage(String encoding, WireFormat format, Buffer payload) {
     this.encoding = Objects.requireNonNull(encoding);
     this.format = Objects.requireNonNull(format);
     this.payload = Objects.requireNonNull(payload);
