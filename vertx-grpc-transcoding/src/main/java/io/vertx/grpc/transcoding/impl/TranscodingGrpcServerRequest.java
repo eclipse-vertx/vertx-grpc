@@ -40,7 +40,7 @@ public class TranscodingGrpcServerRequest<Req, Resp> extends GrpcServerRequestIm
       public Req decode(GrpcMessage msg) throws CodecException {
         Buffer transcoded;
         try {
-          transcoded = MessageWeaver.weaveRequestMessage(msg.payload(), bindings, transcodingRequestBody);
+          transcoded = MessageWeaver.weaveRequestMessage(msg.payload(), bindings, transcodingRequestBody, messageDecoder.messageDescriptor());
         } catch (DecodeException e) {
           throw new CodecException(e);
         }
