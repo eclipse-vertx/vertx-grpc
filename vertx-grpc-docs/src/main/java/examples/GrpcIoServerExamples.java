@@ -6,27 +6,27 @@ import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.http.HttpServerConfig;
+import io.vertx.core.net.ServerSSLOptions;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpcio.server.GrpcIoServer;
-import io.vertx.grpcio.server.GrpcIoServiceBridge;
 
 @Source
 public class GrpcIoServerExamples {
 
-  public void createServer(Vertx vertx, HttpServerOptions options) {
+  public void createServer(Vertx vertx, HttpServerConfig config, ServerSSLOptions sslOptions) {
 
     GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
 
-    HttpServer server = vertx.createHttpServer(options);
+    HttpServer server = vertx.createHttpServer(config, sslOptions);
 
     server
       .requestHandler(grpcServer)
       .listen();
   }
 
-  public void stubExample(Vertx vertx, HttpServerOptions options) {
+  public void stubExample(Vertx vertx, HttpServerConfig config) {
 
     GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
 
@@ -42,12 +42,12 @@ public class GrpcIoServerExamples {
     grpcServer.addService(service);
 
     // Start the HTTP/2 server
-    vertx.createHttpServer(options)
+    vertx.createHttpServer(config)
       .requestHandler(grpcServer)
       .listen();
   }
 
-  public void reflectionExample(Vertx vertx, HttpServerOptions options) {
+  public void reflectionExample(Vertx vertx, HttpServerConfig config, ServerSSLOptions sslOptions) {
     GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
 
     // Add reflection service
@@ -65,12 +65,12 @@ public class GrpcIoServerExamples {
     grpcServer.addService(greeterService);
 
     // Start the HTTP/2 server
-    vertx.createHttpServer(options)
+    vertx.createHttpServer(config, sslOptions)
       .requestHandler(grpcServer)
       .listen();
   }
 
-  public void idiomaticStubExample(Vertx vertx, HttpServerOptions options) {
+  public void idiomaticStubExample(Vertx vertx, HttpServerConfig config, ServerSSLOptions sslOptions) {
 
     GrpcIoServer grpcServer = GrpcIoServer.server(vertx);
 
@@ -85,7 +85,7 @@ public class GrpcIoServerExamples {
     grpcServer.addService(service);
 
     // Start the HTTP/2 server
-    vertx.createHttpServer(options)
+    vertx.createHttpServer(config, sslOptions)
       .requestHandler(grpcServer)
       .listen();
   }
