@@ -19,7 +19,6 @@ import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientBuilder;
 import io.vertx.grpc.client.GrpcClientOptions;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -30,17 +29,15 @@ import java.util.List;
 public class GrpcClientBuilderImpl<C extends GrpcClient> implements GrpcClientBuilder<C> {
 
   private final Vertx vertx;
-  private final HttpClientBuilder httpClientBuilder;
+  private AddressResolver addressResolver;
+  private LoadBalancer loadBalancer;
   private GrpcClientOptions options;
+  private HttpClientOptions httpTransportOptions;
+  private HttpClientConfig httpTransportConfig;
+  private ClientSSLOptions sslTransportOptions;
 
   public GrpcClientBuilderImpl(Vertx vertx) {
-
-    HttpClientConfig defaultCfg = new HttpClientConfig()
-      .setVersions(HttpVersion.HTTP_2)
-      .setHttp2Config(new Http2ClientConfig().setClearTextUpgrade(false));
-
     this.vertx = vertx;
-    this.httpClientBuilder = vertx.httpClientBuilder().with(defaultCfg);
   }
 
   @Override
@@ -52,49 +49,77 @@ public class GrpcClientBuilderImpl<C extends GrpcClient> implements GrpcClientBu
   @Override
   public GrpcClientBuilderImpl<C> with(HttpClientOptions transportOptions) {
     if (transportOptions != null) {
-      transportOptions.setProtocolVersion(HttpVersion.HTTP_2);
+      transportOptions = new HttpClientOptions(transportOptions)
+        .setProtocolVersion(HttpVersion.HTTP_2)
+        .setHttp2ClearTextUpgrade(false);
     }
-    httpClientBuilder.with(transportOptions);
+    this.httpTransportOptions = transportOptions;
+    this.httpTransportConfig = null;
     return this;
   }
 
   @Override
   public GrpcClientBuilderImpl<C> withAddressResolver(AddressResolver resolver) {
-    httpClientBuilder.withAddressResolver(resolver);
+    this.addressResolver = resolver;
     return this;
   }
 
   @Override
   public GrpcClientBuilderImpl<C> withLoadBalancer(LoadBalancer loadBalancer) {
-    httpClientBuilder.withLoadBalancer(loadBalancer);
+    this.loadBalancer = loadBalancer;
     return this;
   }
 
   @Override
   public GrpcClientBuilder<C> with(HttpClientConfig transportConfig) {
-    List<HttpVersion> versions;
-    if (transportConfig != null && !(versions = transportConfig.getVersions()).contains(HttpVersion.HTTP_2)) {
-      versions = new ArrayList<>(versions);
-      versions.add(0, HttpVersion.HTTP_2);
-      transportConfig.setVersions(HttpVersion.HTTP_2);
+    if (transportConfig != null) {
+      transportConfig = new HttpClientConfig(transportConfig)
+        .setVersions(HttpVersion.HTTP_2);
+      if (transportConfig.getHttp2Config() == null) {
+        transportConfig.setHttp2Config(new Http2ClientConfig());
+      }
+      transportConfig.getHttp2Config().setClearTextUpgrade(false);
     }
-    httpClientBuilder.with(transportConfig);
+    this.httpTransportConfig = transportConfig;
+    this.httpTransportOptions = null;
     return this;
   }
 
   @Override
   public GrpcClientBuilder<C> with(ClientSSLOptions sslOptions) {
-    httpClientBuilder.with(sslOptions);
+    if (sslOptions != null) {
+      sslOptions = sslOptions.copy();
+    }
+    this.sslTransportOptions = sslOptions;
     return this;
   }
 
   @Override
   public C build() {
+    HttpClientBuilder builder = vertx.httpClientBuilder();
+    builder.withAddressResolver(addressResolver);
+    builder.withLoadBalancer(loadBalancer);
+    if (httpTransportOptions != null) {
+      builder.with(httpTransportOptions);
+    } else {
+      HttpClientConfig config = httpTransportConfig;
+      if (config == null) {
+        config = new HttpClientConfig()
+          .setSsl(sslTransportOptions != null)
+          .setVersions(HttpVersion.HTTP_2)
+          .setHttp2Config(new Http2ClientConfig()
+            .setClearTextUpgrade(false));
+      }
+      if (sslTransportOptions != null) {
+        builder.with(sslTransportOptions);
+      }
+      builder.with(config);
+    }
     GrpcClientOptions options = this.options;
     if (options == null) {
       options = new GrpcClientOptions();
     }
-    return create(vertx, options, httpClientBuilder.build());
+    return create(vertx, options, builder.build());
   }
 
   protected C create(Vertx vertx, GrpcClientOptions options, HttpClient transport) {
