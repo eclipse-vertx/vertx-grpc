@@ -11,15 +11,16 @@
 package io.vertx.grpc.client.impl;
 
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientBuilder;
-import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpVersion;
+import io.vertx.core.http.*;
 import io.vertx.core.net.AddressResolver;
+import io.vertx.core.net.ClientSSLOptions;
 import io.vertx.core.net.endpoint.LoadBalancer;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientBuilder;
 import io.vertx.grpc.client.GrpcClientOptions;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Implementation of {@link GrpcClientBuilder}.
@@ -29,13 +30,17 @@ import io.vertx.grpc.client.GrpcClientOptions;
 public class GrpcClientBuilderImpl<C extends GrpcClient> implements GrpcClientBuilder<C> {
 
   private final Vertx vertx;
+  private final HttpClientBuilder httpClientBuilder;
   private GrpcClientOptions options;
-  private HttpClientOptions transportOptions;
-  private AddressResolver addressResolver;
-  private LoadBalancer loadBalancer;
 
   public GrpcClientBuilderImpl(Vertx vertx) {
+
+    HttpClientConfig defaultCfg = new HttpClientConfig()
+      .setVersions(HttpVersion.HTTP_2)
+      .setHttp2Config(new Http2ClientConfig().setClearTextUpgrade(false));
+
     this.vertx = vertx;
+    this.httpClientBuilder = vertx.httpClientBuilder().with(defaultCfg);
   }
 
   @Override
@@ -46,43 +51,50 @@ public class GrpcClientBuilderImpl<C extends GrpcClient> implements GrpcClientBu
 
   @Override
   public GrpcClientBuilderImpl<C> with(HttpClientOptions transportOptions) {
-    this.transportOptions = transportOptions == null ? null : new HttpClientOptions(transportOptions);
+    if (transportOptions != null) {
+      transportOptions.setProtocolVersion(HttpVersion.HTTP_2);
+    }
+    httpClientBuilder.with(transportOptions);
     return this;
   }
 
   @Override
   public GrpcClientBuilderImpl<C> withAddressResolver(AddressResolver resolver) {
-    this.addressResolver = resolver;
+    httpClientBuilder.withAddressResolver(resolver);
     return this;
   }
 
   @Override
   public GrpcClientBuilderImpl<C> withLoadBalancer(LoadBalancer loadBalancer) {
-    this.loadBalancer = loadBalancer;
+    httpClientBuilder.withLoadBalancer(loadBalancer);
+    return this;
+  }
+
+  @Override
+  public GrpcClientBuilder<C> with(HttpClientConfig transportConfig) {
+    List<HttpVersion> versions;
+    if (transportConfig != null && !(versions = transportConfig.getVersions()).contains(HttpVersion.HTTP_2)) {
+      versions = new ArrayList<>(versions);
+      versions.add(0, HttpVersion.HTTP_2);
+      transportConfig.setVersions(HttpVersion.HTTP_2);
+    }
+    httpClientBuilder.with(transportConfig);
+    return this;
+  }
+
+  @Override
+  public GrpcClientBuilder<C> with(ClientSSLOptions sslOptions) {
+    httpClientBuilder.with(sslOptions);
     return this;
   }
 
   @Override
   public C build() {
-    HttpClientOptions transportOptions = this.transportOptions;
-    if (transportOptions == null) {
-      transportOptions = new HttpClientOptions().setHttp2ClearTextUpgrade(false);
-    }
-    transportOptions = transportOptions.setProtocolVersion(HttpVersion.HTTP_2);
-    HttpClientBuilder transportBuilder = vertx
-      .httpClientBuilder()
-      .with(transportOptions);
-    if (loadBalancer != null) {
-      transportBuilder.withLoadBalancer(loadBalancer);
-    }
-    if (addressResolver != null) {
-      transportBuilder.withAddressResolver(addressResolver);
-    }
     GrpcClientOptions options = this.options;
     if (options == null) {
       options = new GrpcClientOptions();
     }
-    return create(vertx, options, transportBuilder.build());
+    return create(vertx, options, httpClientBuilder.build());
   }
 
   protected C create(Vertx vertx, GrpcClientOptions options, HttpClient transport) {
