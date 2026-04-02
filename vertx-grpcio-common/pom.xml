@@ -50,6 +50,10 @@
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java-util</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.google.errorprone</groupId>
+      <artifactId>error_prone_annotations</artifactId>
+    </dependency>
   </dependencies>
 
   <profiles>
