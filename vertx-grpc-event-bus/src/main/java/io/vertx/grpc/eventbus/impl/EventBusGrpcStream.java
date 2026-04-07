@@ -101,7 +101,7 @@ public class EventBusGrpcStream implements GrpcStream {
   @Override
   public Future<Void> end() {
     if (message == null) {
-      return context.failedFuture("Should send at least one message");
+      return context.failedFuture(new IllegalStateException("No message received"));
     }
 
     Buffer payload = message.payload();
