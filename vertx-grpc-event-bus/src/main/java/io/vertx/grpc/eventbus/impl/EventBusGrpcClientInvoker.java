@@ -18,6 +18,6 @@ public class EventBusGrpcClientInvoker implements GrpcClientInvoker {
 
   @Override
   public GrpcStream invoke(ServiceName serviceName, String methodName) {
-    return new EventBusGrpcStream(context, eventBus, serviceName, methodName);
+    return new EventBusGrpcClientStream(context, eventBus, serviceName, methodName);
   }
 }
