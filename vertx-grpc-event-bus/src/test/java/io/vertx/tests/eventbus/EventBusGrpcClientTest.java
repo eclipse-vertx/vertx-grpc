@@ -1,51 +1,46 @@
 package io.vertx.tests.eventbus;
 
-import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
+import io.vertx.tests.common.GrpcTestBase;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
 import io.vertx.tests.common.grpc.TestConstants;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-@RunWith(VertxUnitRunner.class)
-public class EventBusGrpcClientTest {
+public class EventBusGrpcClientTest extends GrpcTestBase {
 
-  private static final ServiceMethod<Reply, Request> UNARY = ServiceMethod.client(TestConstants.TEST_SERVICE, "Unary", TestConstants.REQUEST_ENC, TestConstants.REPLY_DEC);
+  private static final ServiceMethod<Reply, Request> UNARY = ServiceMethod.client(
+    TestConstants.TEST_SERVICE,
+    "Unary",
+    TestConstants.REQUEST_ENC,
+    TestConstants.REPLY_DEC
+  );
 
-  private Vertx vertx;
   private EventBusGrpcClient client;
 
   @Before
-  public void setUp() {
-    vertx = Vertx.vertx();
+  public void setUp(TestContext should) {
+    super.setUp(should);
     client = EventBusGrpcClient.create(vertx);
-  }
-
-  @After
-  public void tearDown(TestContext should) {
-    vertx.close().onComplete(should.asyncAssertSuccess());
   }
 
   @Test
   public void testRequestReplyProtobuf() throws Exception {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().toString(), msg -> {
+    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
       try {
         Request request = Request.parseFrom(msg.body().getBytes());
         Reply reply = Reply.newBuilder().setMessage("Hello " + request.getName()).build();
@@ -68,7 +63,7 @@ public class EventBusGrpcClientTest {
 
   @Test
   public void testRequestReplyJson() throws TimeoutException {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().toString(), msg -> {
+    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
       String name = msg.body().toJsonObject().getString("name");
       msg.reply(new JsonObject().put("message", "Hello " + name).toBuffer());
     });
@@ -87,17 +82,15 @@ public class EventBusGrpcClientTest {
 
   @Test
   public void testRequestReplyWithDelay() throws Exception {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().toString(), msg -> {
-      vertx.setTimer(50, id -> {
-        try {
-          Request request = Request.parseFrom(msg.body().getBytes());
-          Reply reply = Reply.newBuilder().setMessage("Delayed " + request.getName()).build();
-          msg.reply(Buffer.buffer(reply.toByteArray()));
-        } catch (Exception e) {
-          msg.fail(GrpcStatus.INTERNAL.code, e.getMessage());
-        }
-      });
-    });
+    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> vertx.setTimer(50, id -> {
+      try {
+        Request request = Request.parseFrom(msg.body().getBytes());
+        Reply reply = Reply.newBuilder().setMessage("Delayed " + request.getName()).build();
+        msg.reply(Buffer.buffer(reply.toByteArray()));
+      } catch (Exception e) {
+        msg.fail(GrpcStatus.INTERNAL.code, e.getMessage());
+      }
+    }));
 
     Reply reply = client.request(UNARY)
       .compose(request -> {
@@ -128,9 +121,7 @@ public class EventBusGrpcClientTest {
 
   @Test
   public void testConsumerFailureUnmappedCode() throws TimeoutException {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().toString(), msg -> {
-      msg.fail(500, "Service error");
-    });
+    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> msg.fail(500, "Service error"));
 
     try {
       client.request(UNARY)
@@ -153,9 +144,7 @@ public class EventBusGrpcClientTest {
         continue;
       }
 
-      MessageConsumer<Buffer> consumer = vertx.eventBus().consumer(UNARY.serviceName().toString(), msg -> {
-        msg.fail(status.code, status.name());
-      });
+      MessageConsumer<Buffer> consumer = vertx.eventBus().consumer(UNARY.serviceName().fullyQualifiedName(), msg -> msg.fail(status.code, status.name()));
 
       consumer.completion().await(10, TimeUnit.SECONDS);
 
@@ -178,7 +167,7 @@ public class EventBusGrpcClientTest {
 
   @Test
   public void testRequestHeaders() throws Exception {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().toString(), msg -> {
+    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
       String customHeader = msg.headers().get("x-custom");
       Reply reply = Reply.newBuilder().setMessage("Header: " + customHeader).build();
       msg.reply(Buffer.buffer(reply.toByteArray()));
@@ -198,7 +187,7 @@ public class EventBusGrpcClientTest {
 
   @Test
   public void testDeadlineExceeded() throws TimeoutException {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().toString(), msg -> {
+    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
       // do nothing
     });
 
