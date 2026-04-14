@@ -17,6 +17,17 @@ public interface GrpcMessageEncoder<T> {
    */
   @GenIgnore
   static <T extends MessageLite> GrpcMessageEncoder<T> encoder() {
+    return encoder(JsonFormat.printer());
+  }
+
+  /**
+   * Create an encoder for arbitrary message extending {@link MessageLite} with a custom JSON format printer.
+   *
+   * @param jsonPrinter the JSON format printer to use for JSON encoding
+   * @return the message encoder
+   */
+  @GenIgnore
+  static <T extends MessageLite> GrpcMessageEncoder<T> encoder(JsonFormat.Printer jsonPrinter) {
     return new GrpcMessageEncoder<T>() {
       @Override
       public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
@@ -28,7 +39,7 @@ public interface GrpcMessageEncoder<T> {
             if (msg instanceof MessageOrBuilder) {
               MessageOrBuilder mob = (MessageOrBuilder) msg;
               try {
-                String res = JsonFormat.printer().print(mob);
+                String res = jsonPrinter.print(mob);
                 return GrpcMessage.message("identity", WireFormat.JSON, Buffer.buffer(res));
               } catch (InvalidProtocolBufferException e) {
                 throw new CodecException(e);
@@ -61,19 +72,29 @@ public interface GrpcMessageEncoder<T> {
   };
 
   /**
-   * Create and reutrn an encoder in JSON format encoding instances of {@link MessageOrBuilder} using the protobuf-java-util library
+   * Create and return an encoder in JSON format encoding instances of {@link MessageOrBuilder} using the protobuf-java-util library
    * otherwise using {@link Json#encodeToBuffer(Object)} (Jackson Databind is required).
    *
    * @return an encoder in JSON format encoding instances of {@code <T>}.
    */
   static <T> GrpcMessageEncoder<T> json() {
+    return json(JsonFormat.printer());
+  }
+
+  /**
+   * Create and return an encoder in JSON format with a custom JSON format printer.
+   *
+   * @param jsonPrinter the JSON format printer to use for encoding MessageOrBuilder instances
+   * @return an encoder in JSON format encoding instances of {@code <T>}.
+   */
+  static <T> GrpcMessageEncoder<T> json(JsonFormat.Printer jsonPrinter) {
     return new GrpcMessageEncoder<>() {
       @Override
       public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
         if (msg instanceof MessageOrBuilder) {
           MessageOrBuilder mob = (MessageOrBuilder) msg;
           try {
-            String res = JsonFormat.printer().print(mob);
+            String res = jsonPrinter.print(mob);
             return GrpcMessage.message("identity", WireFormat.JSON, Buffer.buffer(res));
           } catch (InvalidProtocolBufferException e) {
             throw new CodecException(e);

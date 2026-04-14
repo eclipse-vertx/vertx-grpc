@@ -111,6 +111,13 @@ public class VertxGrpcGeneratorImpl extends Generator {
     //serviceContext.fileName = CLASS_PREFIX + serviceProto.getName() + "Grpc.java";
     //serviceContext.className = CLASS_PREFIX + serviceProto.getName() + "Grpc";
 
+    // Configure JSON encoder based on options
+    if (options.jsonIncludeDefaultValues) {
+      serviceContext.encoderExpression = "GrpcMessageEncoder.encoder(com.google.protobuf.util.JsonFormat.printer().includingDefaultValueFields())";
+    } else {
+      serviceContext.encoderExpression = "GrpcMessageEncoder.encoder()";
+    }
+
     List<DescriptorProtos.SourceCodeInfo.Location> allLocationsForService = locations.stream()
       .filter(location ->
         location.getPathCount() >= 2 &&
@@ -434,6 +441,7 @@ public class VertxGrpcGeneratorImpl extends Generator {
     public boolean codegenEnabled;
     public boolean deprecated;
     public String javaDoc;
+    public String encoderExpression;
     public final List<MethodContext> methods = new ArrayList<>();
 
     public ServiceContext(DescriptorProtos.ServiceDescriptorProto proto, String classPrefix) {

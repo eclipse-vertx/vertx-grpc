@@ -32,6 +32,9 @@ public class VertxGrpcGenerator implements Callable<Integer> {
   @Option(names = { "--vertx-codegen" }, description = "Whether to generate vertx generator annotations")
   boolean generateVertxGeneratorAnnotations = false;
 
+  @Option(names = { "--json-include-default-values" }, description = "Whether to include default values in JSON output.")
+  public boolean jsonIncludeDefaultValues = false;
+
   @Option(
     names = { "--service-prefix" },
     description = "Generate service classes with a prefix. For example, if you set it to `MyService`, the generated service class will be `MyServiceGreeterService` instead of `GreeterService`."

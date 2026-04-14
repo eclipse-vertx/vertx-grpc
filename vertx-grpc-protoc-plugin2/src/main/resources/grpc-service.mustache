@@ -117,7 +117,7 @@ public class {{grpcServiceFqn}} extends {{serviceFqn}} implements Service {
   public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
     SERVICE_NAME,
     "{{methodName}}",
-    GrpcMessageEncoder.encoder(),
+    {{{encoderExpression}}},
     GrpcMessageDecoder.decoder({{inputType}}.newBuilder()),
     {{methodName}}_OPTIONS
   );

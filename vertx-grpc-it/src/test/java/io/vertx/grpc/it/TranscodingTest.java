@@ -128,6 +128,32 @@ public class TranscodingTest extends ProxyTestBase {
   }
 
   @Test
+  public void testUnaryJsonDefaultValue() throws TimeoutException {
+      HttpClient client = vertx.createHttpClient();
+
+      vertx.createHttpServer()
+        .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHello, call -> call.handler(helloRequest -> {
+          HelloReply helloReply = HelloReply.newBuilder().setMessage("").build();
+          call.response().end(helloReply);
+        }))).listen(58080, "localhost").await(10, TimeUnit.SECONDS);
+
+      RequestOptions options = new RequestOptions().setHost("localhost").setPort(58080).setURI("/v1/hello").setMethod(HttpMethod.POST);
+
+      Buffer body = client.request(options).compose(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        req.putHeader(HttpHeaders.ACCEPT, "application/json");
+        return req.send(createRequest("Julien"));
+      }).expecting(HttpResponseExpectation.SC_OK)
+        .expecting(HttpResponseExpectation.JSON)
+        .compose(HttpClientResponse::body)
+        .await(10, TimeUnit.SECONDS);
+
+      // Verify the "message" key is present in JSON (default values are included)
+      JsonObject jsonResponse = new JsonObject(body.toString());
+      assertEquals(true, jsonResponse.containsKey("message"));
+  }
+
+  @Test
   public void testUnaryAdditionalBindingsUnknownPath() throws TimeoutException {
     HttpClient client = vertx.createHttpClient();
 
