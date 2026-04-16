@@ -21,10 +21,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientResponse;
-import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcHeaderNames;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.*;
 import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Test;
 
@@ -73,6 +70,7 @@ public class ClientMessageEncodingTest extends ClientTestBase {
         }
         should.assertEquals(expected, payload);
         req.response()
+          .putHeader(HttpHeaders.CONTENT_TYPE, GrpcMediaType.GRPC)
           .putHeader(GrpcHeaderNames.GRPC_STATUS, "" + GrpcStatus.CANCELLED.code)
           .end();
       });

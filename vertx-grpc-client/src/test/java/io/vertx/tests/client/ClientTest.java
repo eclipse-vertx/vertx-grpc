@@ -450,4 +450,15 @@ public abstract class ClientTest extends ClientTestBase {
       .toCompletableFuture()
       .get(20, TimeUnit.SECONDS);
   }
+
+
+  public void testHttpInvalidStatusCode(int statusCode) throws Exception {
+    HttpServer server = vertx.createHttpServer();
+    server
+      .requestHandler(request -> {
+        request.response().setStatusCode(statusCode).end();
+      })
+      .listen(port, "localhost")
+      .await();
+  }
 }
