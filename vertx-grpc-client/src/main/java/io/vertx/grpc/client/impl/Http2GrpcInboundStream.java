@@ -88,24 +88,26 @@ public class Http2GrpcInboundStream extends Http2GrpcOutboundStream {
 
   private void init(HttpClientResponse httpResponse) {
 
+    int httpStatus = httpResponse.statusCode();
     String contentType = httpResponse.getHeader(HttpHeaders.CONTENT_TYPE);
-
-    String msg = null;
-    String statusHeader = httpResponse.getHeader(GrpcHeaderNames.GRPC_STATUS);
-    GrpcStatus status = statusHeader != null ? GrpcStatus.valueOf(Integer.parseInt(statusHeader)) : null;
-    WireFormat format = null;
-    if (status == null) {
+    GrpcStatus status;
+    WireFormat format;
+    if (httpStatus == 200) {
+      String statusHeader = httpResponse.getHeader(GrpcHeaderNames.GRPC_STATUS);
+      status = statusHeader != null ? GrpcStatus.valueOf(Integer.parseInt(statusHeader)) : null;
       if (contentType != null) {
-        format = GrpcMediaType.parseContentType(contentType, "application/grpc");
-      }
-      if (contentType == null) {
-        msg = "HTTP response missing content-type header";
+        format = GrpcMediaType.parseContentType(contentType, GrpcMediaType.GRPC.toString());
       } else {
-        msg = "Invalid HTTP response content-type header";
+        format = null;
       }
+    } else {
+      status = GrpcStatus.fromHttpStatusCode(httpStatus);
+      format = WireFormat.PROTOBUF;
     }
 
-    if (format != null || status != null) {
+
+
+    if (format != null) {
 
       if (status != null) {
         // Trailers only
@@ -170,6 +172,12 @@ public class Http2GrpcInboundStream extends Http2GrpcOutboundStream {
       }
 
     } else {
+      String msg;
+      if (contentType == null) {
+        msg = "HTTP response missing content-type header";
+      } else {
+        msg = "Invalid HTTP response content-type header";
+      }
       httpResponse.request().reset(GrpcError.CANCELLED.http2ResetCode);
 //      return context().failedFuture(msg);
       throw new UnsupportedOperationException("Handle me: " + msg);
