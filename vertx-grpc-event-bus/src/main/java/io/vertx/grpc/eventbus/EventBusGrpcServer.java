@@ -5,7 +5,10 @@ import io.vertx.core.Closeable;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.grpc.eventbus.impl.EventBusGrpcServerImpl;
-import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerService;
+import io.vertx.grpc.server.Service;
+
+import java.util.List;
 
 /**
  * A gRPC server that uses the Vert.x {@link EventBus} as transport instead of HTTP/2.
@@ -17,11 +20,11 @@ import io.vertx.grpc.server.GrpcServer;
  * <p>The server registers event bus consumers using the service's fully qualified name
  * as the address, and routes to specific method handlers using the {@code action} header.</p>
  *
- * <p>This extends {@link GrpcServer} so it can be used with generated gRPC service stubs
- * via {@link io.vertx.grpc.server.Service#bind(GrpcServer)} or {@link GrpcServer#addService}.</p>
+ * <p>This implements {@link GrpcServerService} so generated gRPC service stubs can bind to it
+ * via {@link Service#bind(GrpcServerService)}.</p>
  */
 @VertxGen
-public interface EventBusGrpcServer extends GrpcServer, Closeable {
+public interface EventBusGrpcServer extends GrpcServerService, Closeable {
 
   /**
    * Create an event bus gRPC server using the event bus from the provided Vert.x instance.
@@ -43,5 +46,8 @@ public interface EventBusGrpcServer extends GrpcServer, Closeable {
   static EventBusGrpcServer create(Vertx vertx, EventBus eventBus) {
     return new EventBusGrpcServerImpl(vertx, eventBus);
   }
+
+  @Override
+  EventBusGrpcServer addService(Service service);
 
 }

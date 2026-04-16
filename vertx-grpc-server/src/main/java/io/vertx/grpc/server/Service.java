@@ -44,12 +44,12 @@ public interface Service {
   Descriptors.ServiceDescriptor descriptor();
 
   /**
-   * Binds this service and all its registered method handlers to the specified gRPC server.
+   * Binds this service and all its registered method handlers to the specified gRPC server service.
    * This allows the server to handle requests for this service.
    *
-   * @param server the gRPC server to bind this service to
+   * @param server the gRPC server service to bind this service to
    */
-  void bind(GrpcServer server);
+  void bind(GrpcServerService server);
 
   /**
    * Close the service.

@@ -14,7 +14,7 @@ import com.google.protobuf.Descriptors;
 import io.vertx.grpc.reflection.v1.*;
 import io.vertx.core.Handler;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerService;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.Service;
@@ -33,9 +33,9 @@ class GrpcServerReflectionV1Handler implements Handler<GrpcServerRequest<ServerR
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(ServerReflectionRequest.newBuilder()));
 
-  private final GrpcServer server;
+  private final GrpcServerService server;
 
-  GrpcServerReflectionV1Handler(GrpcServer server) {
+  GrpcServerReflectionV1Handler(GrpcServerService server) {
     this.server = server;
   }
 
