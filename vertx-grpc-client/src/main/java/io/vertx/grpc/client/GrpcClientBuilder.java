@@ -13,8 +13,10 @@ package io.vertx.grpc.client;
 import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.VertxGen;
+import io.vertx.core.http.HttpClientConfig;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.AddressResolver;
+import io.vertx.core.net.ClientSSLOptions;
 import io.vertx.core.net.endpoint.LoadBalancer;
 
 /**
@@ -40,6 +42,22 @@ public interface GrpcClientBuilder<C> {
    */
   @Fluent
   GrpcClientBuilder<C> with(HttpClientOptions transportOptions);
+
+  /**
+   * Configure the client HTTP transport options.
+   * @param transportConfig the client transport options
+   * @return a reference to this, so the API can be used fluently
+   */
+  @Fluent
+  GrpcClientBuilder<C> with(HttpClientConfig transportConfig);
+
+  /**
+   * Configure the client HTTP transport options.
+   * @param sslOptions the client transport options
+   * @return a reference to this, so the API can be used fluently
+   */
+  @Fluent
+  GrpcClientBuilder<C> with(ClientSSLOptions sslOptions);
 
   /**
    * Configure the client to use a specific address resolver.

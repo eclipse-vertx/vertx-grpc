@@ -13,6 +13,7 @@ package io.vertx.grpc.client.impl;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.*;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpMethod;
@@ -21,9 +22,9 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.core.internal.VertxInternal;
 import io.vertx.core.net.Address;
-import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
@@ -62,7 +63,7 @@ public class GrpcClientImpl implements GrpcClient {
     return vertx;
   }
 
-  public Future<GrpcClientRequest<Buffer, Buffer>> request(RequestOptions options) {
+  private Future<GrpcClientRequest<Buffer, Buffer>> request(RequestOptions options) {
     return client.request(options)
       .map(httpRequest -> {
         GrpcClientRequestImpl<Buffer, Buffer> grpcRequest = new GrpcClientRequestImpl<>(
@@ -83,12 +84,19 @@ public class GrpcClientImpl implements GrpcClient {
 
   @Override
   public Future<GrpcClientRequest<Buffer, Buffer>> request() {
-    return request(new RequestOptions().setMethod(HttpMethod.POST));
+    return request(new RequestOptions()
+      .setMethod(HttpMethod.POST)
+      .setProtocolVersion(HttpVersion.HTTP_2)
+    );
   }
 
   @Override
   public Future<GrpcClientRequest<Buffer, Buffer>> request(Address server) {
-    return request(new RequestOptions().setMethod(HttpMethod.POST).setServer(server));
+    return request(new RequestOptions()
+      .setMethod(HttpMethod.POST)
+      .setServer(server)
+      .setProtocolVersion(HttpVersion.HTTP_2)
+    );
   }
 
   private void configureTimeout(GrpcClientRequest<?, ?> request) {

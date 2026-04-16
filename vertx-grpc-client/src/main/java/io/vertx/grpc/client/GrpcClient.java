@@ -15,8 +15,10 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientConfig;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.Address;
+import io.vertx.core.net.ClientSSLOptions;
 import io.vertx.grpc.client.impl.GrpcClientBuilderImpl;
 import io.vertx.grpc.client.impl.GrpcClientImpl;
 import io.vertx.grpc.common.ServiceMethod;
@@ -62,6 +64,29 @@ public interface GrpcClient {
    */
   static GrpcClient client(Vertx vertx, GrpcClientOptions options) {
     return builder(vertx).with(options).build();
+  }
+
+  /**
+   * Create a client with the specified {@code sslOptions}.
+   *
+   * @param vertx the vertx instance
+   * @param grpcOptions the http client options
+   * @param sslOptions the http client options
+   * @return the created client
+   */
+  static GrpcClient client(Vertx vertx, GrpcClientOptions grpcOptions, ClientSSLOptions sslOptions) {
+    return builder(vertx).with(grpcOptions).with(sslOptions).build();
+  }
+
+  /**
+   * Create a client with the specified {@code sslOptions}.
+   *
+   * @param vertx the vertx instance
+   * @param sslOptions the http client options
+   * @return the created client
+   */
+  static GrpcClient client(Vertx vertx, ClientSSLOptions sslOptions) {
+    return builder(vertx).with(sslOptions).build();
   }
 
   /**

@@ -3,12 +3,12 @@ package examples;
 import examples.grpc.*;
 import io.vertx.core.Completable;
 import io.vertx.core.Future;
-import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.http.HttpServerConfig;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.ServerSSLOptions;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.docgen.Source;
@@ -16,16 +16,15 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.health.HealthService;
 import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpc.server.*;
-import io.vertx.grpc.transcoding.TranscodingServiceMethod;
 
 @Source
 public class GrpcServerExamples {
 
-  public void createServer(Vertx vertx, HttpServerOptions options) {
+  public void createServer(Vertx vertx, HttpServerConfig config, ServerSSLOptions sslOptions) {
 
     GrpcServer grpcServer = GrpcServer.server(vertx);
 
-    HttpServer server = vertx.createHttpServer(options);
+    HttpServer server = vertx.createHttpServer(config, sslOptions);
 
     server
       .requestHandler(grpcServer)
@@ -304,7 +303,7 @@ public class GrpcServerExamples {
     };
   }
 
-  public void reflectionExample(Vertx vertx, HttpServerOptions options) {
+  public void reflectionExample(Vertx vertx, HttpServerConfig config, ServerSSLOptions sslOptions) {
     GrpcServer grpcServer = GrpcServer.server(vertx);
 
     // Add reflection service
@@ -320,12 +319,12 @@ public class GrpcServerExamples {
     grpcServer.addService(greeterService);
 
     // Start the server
-    vertx.createHttpServer(options)
+    vertx.createHttpServer(config, sslOptions)
       .requestHandler(grpcServer)
       .listen();
   }
 
-  public void healthServiceExample(Vertx vertx, HttpServerOptions options) {
+  public void healthServiceExample(Vertx vertx, HttpServerConfig config, ServerSSLOptions sslOptions) {
     // Create a gRPC server
     GrpcServer grpcServer = GrpcServer.server(vertx);
 
@@ -339,7 +338,7 @@ public class GrpcServerExamples {
     grpcServer.addService(healthService);
 
     // Start the server
-    vertx.createHttpServer(options)
+    vertx.createHttpServer(config, sslOptions)
       .requestHandler(grpcServer)
       .listen();
   }
