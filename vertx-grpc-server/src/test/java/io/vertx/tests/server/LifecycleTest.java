@@ -15,6 +15,7 @@ import io.vertx.core.Future;
 import io.vertx.core.http.HttpServer;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerService;
 import io.vertx.grpc.server.Service;
 import org.junit.Test;
 
@@ -42,7 +43,7 @@ public class LifecycleTest extends ServerTestBase {
           return null;
         }
         @Override
-        public void bind(GrpcServer server) {
+        public void bind(GrpcServerService server) {
         }
         @Override
         public Future<Void> close() {
@@ -73,7 +74,7 @@ public class LifecycleTest extends ServerTestBase {
           return null;
         }
         @Override
-        public void bind(GrpcServer server) {
+        public void bind(GrpcServerService server) {
         }
       });
       fail();

@@ -12,12 +12,12 @@ package io.vertx.grpcio.server;
 
 import io.grpc.BindableService;
 import io.grpc.ServerServiceDefinition;
-import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerService;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpcio.server.impl.GrpcIoServiceBridgeImpl;
 
 /**
- * Bridge a gRPC service with a {@link GrpcServer}.
+ * Bridge a gRPC service with a {@link GrpcServerService}.
  */
 public interface GrpcIoServiceBridge extends Service {
 
@@ -49,7 +49,7 @@ public interface GrpcIoServiceBridge extends Service {
   void bind(GrpcIoServer server);
 
   @Override
-  default void bind(GrpcServer server) {
+  default void bind(GrpcServerService server) {
     bind((GrpcIoServer) server);
   }
 
