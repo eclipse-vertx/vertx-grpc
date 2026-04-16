@@ -3,7 +3,7 @@ package io.vertx.grpc.eventbus;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientService;
 import io.vertx.grpc.eventbus.impl.EventBusGrpcClientImpl;
 
 /**
@@ -15,11 +15,11 @@ import io.vertx.grpc.eventbus.impl.EventBusGrpcClientImpl;
  * <p>The client sends gRPC messages over the event bus using the service name
  * as the event bus address and the method name as a header for routing.</p>
  *
- * <p>This extends {@link GrpcClient} so it can be used with generated gRPC client stubs.
- * The {@code Address} parameter in request methods is ignored since the event bus uses the service name for addressing.</p>
+ * <p>This implements {@link GrpcClientService} so it can be used directly with generated gRPC client stubs
+ * via the {@code create(GrpcClientService)} factory methods.</p>
  */
 @VertxGen
-public interface EventBusGrpcClient extends GrpcClient {
+public interface EventBusGrpcClient extends GrpcClientService {
 
   /**
    * Create an event bus gRPC client using the event bus from the provided Vert.x instance.

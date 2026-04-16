@@ -3,7 +3,6 @@ package io.vertx.grpc.it;
 import io.grpc.examples.helloworld.*;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
-import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.GrpcStatus;
@@ -42,7 +41,7 @@ public class EventBusTest extends GrpcTestBase {
       }
     }));
 
-    greeter = GreeterGrpcClient.create(client, SocketAddress.inetSocketAddress(0, "localhost"));
+    greeter = GreeterGrpcClient.create(client);
   }
 
   @Test
@@ -56,7 +55,7 @@ public class EventBusTest extends GrpcTestBase {
 
   @Test
   public void testUnaryJson() throws Exception {
-    GreeterClient jsonGreeter = GreeterGrpcClient.create(client, SocketAddress.inetSocketAddress(0, "localhost"), WireFormat.JSON);
+    GreeterClient jsonGreeter = GreeterGrpcClient.create(client, WireFormat.JSON);
 
     HelloReply reply = jsonGreeter
       .sayHello(HelloRequest.newBuilder().setName("Julien").build())
