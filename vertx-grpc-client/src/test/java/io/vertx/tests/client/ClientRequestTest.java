@@ -13,6 +13,7 @@ package io.vertx.tests.client;
 import io.grpc.*;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.http.*;
 import io.vertx.core.internal.ContextInternal;
@@ -22,15 +23,13 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.client.GrpcClient;
-import io.vertx.grpc.client.GrpcClientOptions;
-import io.vertx.grpc.client.GrpcClientResponse;
-import io.vertx.grpc.client.InvalidStatusException;
+import io.vertx.grpc.client.*;
 import io.vertx.grpc.common.*;
 import io.vertx.tests.common.grpc.Empty;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
 import io.vertx.tests.common.grpc.TestServiceGrpc;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
@@ -870,5 +869,16 @@ public class ClientRequestTest extends ClientTest {
         callRequest.response().onComplete(should.asyncAssertSuccess(responseHandler));
         callRequest.end(Empty.getDefaultInstance());
       }));
+  }
+
+  @Test
+  public void testHttpInvalidStatusCode() throws Exception {
+    super.testHttpInvalidStatusCode(401);
+    GrpcClient client = GrpcClient.client(vertx, new GrpcClientOptions());
+    Future<GrpcStatus> status = client.request(SocketAddress.inetSocketAddress(port, "localhost"), SOURCE)
+      .compose(request -> request
+        .send(Empty.getDefaultInstance())
+        .map(GrpcClientResponse::status));
+    Assert.assertEquals(GrpcStatus.UNAUTHENTICATED, status.await());
   }
 }

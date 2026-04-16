@@ -15,6 +15,7 @@ import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientCalls;
 import io.grpc.stub.ClientResponseObserver;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerRequest;
@@ -24,11 +25,16 @@ import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientOptions;
+import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.GrpcHeaderNames;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpcio.client.GrpcIoClient;
 import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpcio.common.impl.Utils;
 import io.vertx.tests.common.grpc.*;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -525,7 +531,7 @@ public class ClientBridgeTest extends ClientTest {
       req.endHandler(v -> {
         req.response().putHeader(GrpcHeaderNames.GRPC_STATUS, "0").setStatusCode(500).end();
       });
-    }, Status.Code.INTERNAL);
+    }, Status.Code.UNKNOWN);
   }
 
   @Test
@@ -534,7 +540,7 @@ public class ClientBridgeTest extends ClientTest {
       req.endHandler(v -> {
         req.response().putHeader(GrpcHeaderNames.GRPC_STATUS, "0").setStatusCode(500).end();
       });
-    }, Status.Code.INTERNAL);
+    }, Status.Code.UNKNOWN);
   }
 
   private void testGrpcResponseHttpError(TestContext should, Handler<HttpServerRequest> handler, Status.Code expectedStatus) {
@@ -643,5 +649,22 @@ public class ClientBridgeTest extends ClientTest {
     ClientCall<Request, Reply> call = channel.newCall(unary, CallOptions.DEFAULT);
     Reply response = ClientCalls.blockingUnaryCall(call, Request.newBuilder().setName("Julien").build());
     should.assertEquals("Hello Julien", response.getMessage());
+  }
+
+  @Test
+  public void testHttpInvalidStatusCode() throws Exception {
+    super.testHttpInvalidStatusCode(401);
+
+    client = GrpcIoClient.client(vertx);
+    GrpcIoClientChannel channel = new GrpcIoClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+    Iterator<Reply> reply = stub.source(Empty.getDefaultInstance());
+    try {
+      reply.hasNext();
+      fail();
+    } catch (StatusRuntimeException expected) {
+      Assert.assertEquals(Status.UNAUTHENTICATED, expected.getStatus());
+    }
   }
 }

@@ -62,22 +62,23 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     this.response = httpRequest
       .response()
       .compose(httpResponse -> {
-        String msg = null;
-        String statusHeader = httpResponse.getHeader(GrpcHeaderNames.GRPC_STATUS);
-        GrpcStatus status = statusHeader != null ? GrpcStatus.valueOf(Integer.parseInt(statusHeader)) : null;
-        WireFormat format = null;
-        if (status == null) {
-          String contentType = httpResponse.getHeader(HttpHeaders.CONTENT_TYPE);
+        int httpStatus = httpResponse.statusCode();
+        String contentType = httpResponse.getHeader(HttpHeaders.CONTENT_TYPE);
+        GrpcStatus status;
+        WireFormat format;
+        if (httpStatus == 200) {
+          String statusHeader = httpResponse.getHeader(GrpcHeaderNames.GRPC_STATUS);
+          status = statusHeader != null ? GrpcStatus.valueOf(Integer.parseInt(statusHeader)) : null;
           if (contentType != null) {
-            format = GrpcMediaType.parseContentType(contentType, "application/grpc");
-          }
-          if (contentType == null) {
-            msg = "HTTP response missing content-type header";
+            format = GrpcMediaType.parseContentType(contentType, GrpcMediaType.GRPC.toString());
           } else {
-            msg = "Invalid HTTP response content-type header";
+            format = null;
           }
+        } else {
+          status = GrpcStatus.fromHttpStatusCode(httpStatus);
+          format = WireFormat.PROTOBUF;
         }
-        if (format != null || status != null) {
+        if (format != null) {
           GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(
             context,
             this,
@@ -91,9 +92,16 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
             grpcResponse.tryFail(invalidMsg);
           });
           return Future.succeededFuture(grpcResponse);
+        } else {
+          String msg;
+          if (contentType == null) {
+            msg = "HTTP response missing content-type header";
+          } else {
+            msg = "Invalid HTTP response content-type header";
+          }
+          httpResponse.request().reset(GrpcError.CANCELLED.http2ResetCode);
+          return context().failedFuture(msg);
         }
-        httpResponse.request().reset(GrpcError.CANCELLED.http2ResetCode);
-        return context().failedFuture(msg);
       }, err -> {
         if (err instanceof StreamResetException) {
           err = GrpcErrorException.create((StreamResetException) err);
