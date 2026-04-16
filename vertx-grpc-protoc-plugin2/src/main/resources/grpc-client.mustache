@@ -7,6 +7,7 @@ import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientService;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -45,7 +46,12 @@ public interface {{grpcClientFqn}} extends {{clientFqn}} {
    * @return the configured client
    */
   static {{grpcClientFqn}} create(GrpcClient client, SocketAddress host) {
-    return new {{grpcClientFqn}}Impl(client, host);
+    return new {{grpcClientFqn}}Impl(new GrpcClientService() {
+      @Override
+      public <Req, Resp> Future<io.vertx.grpc.client.GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
+        return client.request(host, method);
+      }
+    });
   }
 
   /**
@@ -57,7 +63,33 @@ public interface {{grpcClientFqn}} extends {{clientFqn}} {
    * @return the configured client
    */
   static {{grpcClientFqn}} create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new {{grpcClientFqn}}Impl(client, host, wireFormat);
+    return new {{grpcClientFqn}}Impl(new GrpcClientService() {
+      @Override
+      public <Req, Resp> Future<io.vertx.grpc.client.GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
+        return client.request(host, method);
+      }
+    }, wireFormat);
+  }
+
+  /**
+   * Create and return a {{serviceName}} gRPC service client. The assumed wire format is Protobuf.
+   *
+   * @param client the gRPC client service
+   * @return the configured client
+   */
+  static {{grpcClientFqn}} create(GrpcClientService client) {
+    return new {{grpcClientFqn}}Impl(client);
+  }
+
+  /**
+   * Create and return a {{serviceName}} gRPC service client.
+   *
+   * @param client     the gRPC client service
+   * @param wireFormat the wire format
+   * @return the configured client
+   */
+  static {{grpcClientFqn}} create(GrpcClientService client, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new {{grpcClientFqn}}Impl(client, wireFormat);
   }
 }
 
@@ -66,23 +98,21 @@ public interface {{grpcClientFqn}} extends {{clientFqn}} {
  */
 class {{grpcClientFqn}}Impl implements {{grpcClientFqn}} {
 
-  private final GrpcClient client;
-  private final SocketAddress socketAddress;
+  private final GrpcClientService client;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  {{grpcClientFqn}}Impl(GrpcClient client, SocketAddress socketAddress) {
-    this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
+  {{grpcClientFqn}}Impl(GrpcClientService client) {
+    this(client, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  {{grpcClientFqn}}Impl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  {{grpcClientFqn}}Impl(GrpcClientService client, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
-    this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
 {{#unaryUnaryMethods}}
 
   public Future<{{outputType}}> {{vertxMethodName}}({{inputType}} request) {
-    return client.request(socketAddress, {{methodName}}).compose(req -> {
+    return client.request({{methodName}}).compose(req -> {
       req.format(wireFormat);
       return req.end(request).compose(v -> req.response().compose(resp -> resp.last()));
     });
@@ -91,7 +121,7 @@ class {{grpcClientFqn}}Impl implements {{grpcClientFqn}} {
 {{#unaryManyMethods}}
 
   public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}({{inputType}} request) {
-    return client.request(socketAddress, {{methodName}}).compose(req -> {
+    return client.request({{methodName}}).compose(req -> {
       req.format(wireFormat);
       return req.end(request).compose(v -> req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
@@ -106,7 +136,7 @@ class {{grpcClientFqn}}Impl implements {{grpcClientFqn}} {
 {{#manyUnaryMethods}}
 
   public Future<{{outputType}}> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable) {
-    return client.request(socketAddress, {{methodName}})
+    return client.request({{methodName}})
       .andThen((res, err) -> {
         if (err == null) {
           res.format(wireFormat);
@@ -121,7 +151,7 @@ class {{grpcClientFqn}}Impl implements {{grpcClientFqn}} {
 {{#manyManyMethods}}
 
   public Future<ReadStream<{{outputType}}>> {{vertxMethodName}}(Completable<WriteStream<{{inputType}}>> completable) {
-    return client.request(socketAddress, {{methodName}})
+    return client.request({{methodName}})
        .andThen((res, err) -> {
         if (err == null) {
           res.format(wireFormat);

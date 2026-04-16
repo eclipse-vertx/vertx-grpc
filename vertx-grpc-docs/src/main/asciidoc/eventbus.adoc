@@ -51,7 +51,7 @@ The server registers an EventBus consumer using the service's fully qualified na
 
 === EventBus client
 
-The `EventBusGrpcClient` sends gRPC requests over the EventBus. It implements `GrpcClient`, so generated client stubs work out of the box.
+The `EventBusGrpcClient` sends gRPC requests over the EventBus. It implements `GrpcClientService`, so generated client stubs work out of the box.
 
 [source,java]
 ----
@@ -64,8 +64,6 @@ You can use generated client stubs:
 ----
 {@link examples.GrpcEventBusExamples#clientWithService}
 ----
-
-NOTE: The `SocketAddress` parameter is ignored by the EventBus transport since the service name determines the EventBus address.
 
 === JSON wire format
 

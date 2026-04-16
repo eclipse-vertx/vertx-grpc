@@ -5,6 +5,7 @@ import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientService;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -53,7 +54,12 @@ public interface StreamingGrpcClient extends StreamingClient {
    * @return the configured client
    */
   static StreamingGrpcClient create(GrpcClient client, SocketAddress host) {
-    return new StreamingGrpcClientImpl(client, host);
+    return new StreamingGrpcClientImpl(new GrpcClientService() {
+      @Override
+      public <Req, Resp> Future<io.vertx.grpc.client.GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
+        return client.request(host, method);
+      }
+    });
   }
 
   /**
@@ -65,7 +71,33 @@ public interface StreamingGrpcClient extends StreamingClient {
    * @return the configured client
    */
   static StreamingGrpcClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new StreamingGrpcClientImpl(client, host, wireFormat);
+    return new StreamingGrpcClientImpl(new GrpcClientService() {
+      @Override
+      public <Req, Resp> Future<io.vertx.grpc.client.GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
+        return client.request(host, method);
+      }
+    }, wireFormat);
+  }
+
+  /**
+   * Create and return a Streaming gRPC service client. The assumed wire format is Protobuf.
+   *
+   * @param client the gRPC client service
+   * @return the configured client
+   */
+  static StreamingGrpcClient create(GrpcClientService client) {
+    return new StreamingGrpcClientImpl(client);
+  }
+
+  /**
+   * Create and return a Streaming gRPC service client.
+   *
+   * @param client     the gRPC client service
+   * @param wireFormat the wire format
+   * @return the configured client
+   */
+  static StreamingGrpcClient create(GrpcClientService client, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new StreamingGrpcClientImpl(client, wireFormat);
   }
 }
 
@@ -74,22 +106,20 @@ public interface StreamingGrpcClient extends StreamingClient {
  */
 class StreamingGrpcClientImpl implements StreamingGrpcClient {
 
-  private final GrpcClient client;
-  private final SocketAddress socketAddress;
+  private final GrpcClientService client;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  StreamingGrpcClientImpl(GrpcClient client, SocketAddress socketAddress) {
-    this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
+  StreamingGrpcClientImpl(GrpcClientService client) {
+    this(client, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  StreamingGrpcClientImpl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  StreamingGrpcClientImpl(GrpcClientService client, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
-    this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
 
   public Future<ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request) {
-    return client.request(socketAddress, Source).compose(req -> {
+    return client.request(Source).compose(req -> {
       req.format(wireFormat);
       return req.end(request).compose(v -> req.response().flatMap(resp -> {
         if (resp.status() != null && resp.status() != GrpcStatus.OK) {
@@ -102,7 +132,7 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
   }
 
   public Future<examples.grpc.Empty> sink(Completable<WriteStream<examples.grpc.Item>> completable) {
-    return client.request(socketAddress, Sink)
+    return client.request(Sink)
       .andThen((res, err) -> {
         if (err == null) {
           res.format(wireFormat);
@@ -115,7 +145,7 @@ class StreamingGrpcClientImpl implements StreamingGrpcClient {
   }
 
   public Future<ReadStream<examples.grpc.Item>> pipe(Completable<WriteStream<examples.grpc.Item>> completable) {
-    return client.request(socketAddress, Pipe)
+    return client.request(Pipe)
        .andThen((res, err) -> {
         if (err == null) {
           res.format(wireFormat);

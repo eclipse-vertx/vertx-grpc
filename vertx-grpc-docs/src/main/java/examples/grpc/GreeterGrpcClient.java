@@ -5,6 +5,7 @@ import io.vertx.core.Completable;
 import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientService;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
@@ -35,7 +36,12 @@ public interface GreeterGrpcClient extends GreeterClient {
    * @return the configured client
    */
   static GreeterGrpcClient create(GrpcClient client, SocketAddress host) {
-    return new GreeterGrpcClientImpl(client, host);
+    return new GreeterGrpcClientImpl(new GrpcClientService() {
+      @Override
+      public <Req, Resp> Future<io.vertx.grpc.client.GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
+        return client.request(host, method);
+      }
+    });
   }
 
   /**
@@ -47,7 +53,33 @@ public interface GreeterGrpcClient extends GreeterClient {
    * @return the configured client
    */
   static GreeterGrpcClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new GreeterGrpcClientImpl(client, host, wireFormat);
+    return new GreeterGrpcClientImpl(new GrpcClientService() {
+      @Override
+      public <Req, Resp> Future<io.vertx.grpc.client.GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
+        return client.request(host, method);
+      }
+    }, wireFormat);
+  }
+
+  /**
+   * Create and return a Greeter gRPC service client. The assumed wire format is Protobuf.
+   *
+   * @param client the gRPC client service
+   * @return the configured client
+   */
+  static GreeterGrpcClient create(GrpcClientService client) {
+    return new GreeterGrpcClientImpl(client);
+  }
+
+  /**
+   * Create and return a Greeter gRPC service client.
+   *
+   * @param client     the gRPC client service
+   * @param wireFormat the wire format
+   * @return the configured client
+   */
+  static GreeterGrpcClient create(GrpcClientService client, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new GreeterGrpcClientImpl(client, wireFormat);
   }
 }
 
@@ -56,22 +88,20 @@ public interface GreeterGrpcClient extends GreeterClient {
  */
 class GreeterGrpcClientImpl implements GreeterGrpcClient {
 
-  private final GrpcClient client;
-  private final SocketAddress socketAddress;
+  private final GrpcClientService client;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  GreeterGrpcClientImpl(GrpcClient client, SocketAddress socketAddress) {
-    this(client, socketAddress, io.vertx.grpc.common.WireFormat.PROTOBUF);
+  GreeterGrpcClientImpl(GrpcClientService client) {
+    this(client, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  GreeterGrpcClientImpl(GrpcClient client, SocketAddress socketAddress, io.vertx.grpc.common.WireFormat wireFormat) {
+  GreeterGrpcClientImpl(GrpcClientService client, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
-    this.socketAddress = java.util.Objects.requireNonNull(socketAddress);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }
 
   public Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
-    return client.request(socketAddress, SayHello).compose(req -> {
+    return client.request(SayHello).compose(req -> {
       req.format(wireFormat);
       return req.end(request).compose(v -> req.response().compose(resp -> resp.last()));
     });
