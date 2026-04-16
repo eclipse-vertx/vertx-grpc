@@ -8,7 +8,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
@@ -17,8 +16,8 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusHeaders;
-import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.GrpcServerService;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
@@ -39,17 +38,7 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
   }
 
   @Override
-  public void handle(HttpServerRequest request) {
-    throw new UnsupportedOperationException("EventBus transport does not handle HTTP requests");
-  }
-
-  @Override
-  public GrpcServer callHandler(Handler<GrpcServerRequest<Buffer, Buffer>> handler) {
-    throw new UnsupportedOperationException("EventBus transport requires typed service methods");
-  }
-
-  @Override
-  public <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+  public <Req, Resp> GrpcServerService callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
     String serviceFqn = serviceMethod.serviceName().fullyQualifiedName();
     String methodName = serviceMethod.methodName();
 
@@ -72,7 +61,7 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
   }
 
   @Override
-  public GrpcServer addService(Service service) {
+  public EventBusGrpcServer addService(Service service) {
     for (Service s : services) {
       if (s.name().equals(service.name())) {
         throw new IllegalStateException("Duplicated name: " + service.name().name());

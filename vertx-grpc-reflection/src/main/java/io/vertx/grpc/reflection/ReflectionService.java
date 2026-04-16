@@ -3,7 +3,7 @@ package io.vertx.grpc.reflection;
 import com.google.protobuf.Descriptors;
 import io.vertx.grpc.reflection.v1.ServerReflectionProto;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerService;
 import io.vertx.grpc.server.Service;
 
 /**
@@ -40,7 +40,7 @@ public class ReflectionService implements Service {
   }
 
   @Override
-  public void bind(GrpcServer server) {
+  public void bind(GrpcServerService server) {
     server.callHandler(GrpcServerReflectionV1Handler.SERVICE_METHOD, new GrpcServerReflectionV1Handler(server));
   }
 }

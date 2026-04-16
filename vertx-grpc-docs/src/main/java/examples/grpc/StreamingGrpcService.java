@@ -13,6 +13,7 @@ import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerService;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceBuilder;
 import io.vertx.grpc.server.StatusException;
@@ -56,7 +57,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
   }
 
   @Override
-  public void bind(GrpcServer server) {
+  public void bind(GrpcServerService server) {
     builder(this).bind(all()).build().bind(server);
   }
 
@@ -175,13 +176,13 @@ public class StreamingGrpcService extends StreamingService implements Service {
       /**
        * Bind the contained service methods to the {@code server}.
        */
-      public void bind(GrpcServer server) {
+      public void bind(GrpcServerService server) {
         for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
           bindHandler(serviceMethod, server);
         }
       }
 
-      private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServer server) {
+      private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServerService server) {
         Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
         server.callHandler(serviceMethod, handler);
       }
