@@ -2,10 +2,8 @@ package io.vertx.grpc.eventbus.impl;
 
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.net.Address;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
 import io.vertx.grpc.common.ServiceMethod;
@@ -36,25 +34,5 @@ public class EventBusGrpcClientImpl implements EventBusGrpcClient {
     request.serviceName(method.serviceName());
     request.methodName(method.methodName());
     return context.succeededFuture(request);
-  }
-
-  @Override
-  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, ServiceMethod<Resp, Req> method) {
-    return request(method);
-  }
-
-  @Override
-  public Future<GrpcClientRequest<Buffer, Buffer>> request(Address server) {
-    throw new UnsupportedOperationException("EventBus transport requires a ServiceMethod");
-  }
-
-  @Override
-  public Future<GrpcClientRequest<Buffer, Buffer>> request() {
-    throw new UnsupportedOperationException("EventBus transport requires a ServiceMethod");
-  }
-
-  @Override
-  public Future<Void> close() {
-    return ((ContextInternal) vertx.getOrCreateContext()).succeededFuture();
   }
 }

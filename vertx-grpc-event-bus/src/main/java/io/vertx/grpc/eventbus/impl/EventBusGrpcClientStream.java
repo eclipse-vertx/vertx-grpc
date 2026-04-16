@@ -119,7 +119,7 @@ public class EventBusGrpcClientStream extends EventBusGrpcStreamBase {
         return GrpcStatus.DEADLINE_EXCEEDED;
       }
 
-      // RECIPIENT_FAILURE — use the failure code if it maps to a valid gRPC status
+      // RECIPIENT_FAILURE - use the failure code if it maps to a valid gRPC status
       GrpcStatus status = GrpcStatus.valueOf(replyException.failureCode());
       if (status != null) {
         return status;
