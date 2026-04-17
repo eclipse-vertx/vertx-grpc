@@ -23,6 +23,7 @@ import io.vertx.core.net.SelfSignedCertificate;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcMessageImpl;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -39,6 +40,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -642,5 +645,23 @@ public class ServerRequestTest extends ServerTest {
       }));
 
     test.awaitSuccess(20_000);
+  }
+
+  @Test
+  public void testCancelResponseSignalPropagation(TestContext should) {
+
+    Async async = should.async();
+
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      call.endHandler(v -> {
+        call.errorHandler(err -> {
+          async.complete();
+        });
+      });
+    }));
+
+    super.testCancelResponseSignalPropagation(should);
+
+    async.awaitSuccess();
   }
 }

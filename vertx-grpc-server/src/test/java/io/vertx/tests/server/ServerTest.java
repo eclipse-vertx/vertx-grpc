@@ -19,11 +19,9 @@ import io.vertx.core.http.*;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.common.GrpcHeaderNames;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpc.server.GrpcServer;
 import io.vertx.tests.common.grpc.*;
 import org.junit.Test;
 
@@ -42,6 +40,16 @@ import java.util.stream.IntStream;
 public abstract class ServerTest extends ServerTestBase {
 
   static final int NUM_ITEMS = 128;
+  private HttpClient client;
+
+  @Override
+  public void tearDown(TestContext should) {
+    super.tearDown(should);
+    if (client != null) {
+      client.close().await();
+      client = null;
+    }
+  }
 
   @Test
   public void testUnary(TestContext should) {
@@ -512,5 +520,18 @@ public abstract class ServerTest extends ServerTestBase {
       }));
 
     async.awaitSuccess();
+  }
+
+  @Test
+  public void testCancelResponseSignalPropagation(TestContext should) {
+    client = vertx.createHttpClient(new HttpClientOptions()
+      .setHttp2ClearTextUpgrade(false)
+      .setProtocolVersion(HttpVersion.HTTP_2));
+    client.request(HttpMethod.POST, port, "localhost", "/" + UNARY.fullMethodName())
+      .onComplete(should.asyncAssertSuccess(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
+        req.end(GrpcMessageImpl.encode(Buffer.buffer(Request.getDefaultInstance().toByteArray()), false, false));
+        req.reset(GrpcError.CANCELLED.http2ResetCode);
+      }));
   }
 }

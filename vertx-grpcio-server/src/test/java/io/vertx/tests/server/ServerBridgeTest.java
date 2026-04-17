@@ -26,6 +26,8 @@ import io.vertx.tests.common.grpc.*;
 import org.junit.Test;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -683,6 +685,47 @@ public class ServerBridgeTest extends ServerTest {
       if (!finishLatch.await(10, TimeUnit.SECONDS)) {
         should.fail();
       }
+    }
+  }
+
+  @Test
+  public void testCancelResponseSignalPropagation(TestContext should) {
+
+    Async async = should.async();
+
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    try {
+      TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
+        @Override
+        public void unary(Request request, StreamObserver<Reply> responseObserver) {
+          ServerCallStreamObserver<?> superObserver = (ServerCallStreamObserver<?>)responseObserver;
+          executor.execute(() -> {
+            while (true) {
+              try {
+                Thread.sleep(10);
+              } catch (InterruptedException ignore) {
+                break;
+              }
+              if (superObserver.isCancelled()) {
+                async.complete();
+                break;
+              }
+            }
+          });
+        }
+      };
+
+      GrpcIoServer server = GrpcIoServer.server(vertx);
+      GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(impl);
+      serverStub.bind(server);
+      startServer(server);
+
+      super.testCancelResponseSignalPropagation(should);
+
+      async.awaitSuccess();
+    } finally {
+      executor.shutdownNow();
     }
   }
 }
