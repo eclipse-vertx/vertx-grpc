@@ -4,7 +4,7 @@ import com.google.protobuf.Descriptors;
 import io.vertx.core.Handler;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerService;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceBuilder;
@@ -43,7 +43,7 @@ public class ServiceBuilderImpl implements ServiceBuilder {
         return descriptor;
       }
       @Override
-      public void bind(GrpcServer server) {
+      public void bind(GrpcServerService server) {
         handlers.forEach(h -> h.bind(server));
       }
     };
@@ -91,7 +91,7 @@ public class ServiceBuilderImpl implements ServiceBuilder {
      *
      * @param server the gRPC server to bind to
      */
-    public void bind(GrpcServer server) {
+    public void bind(GrpcServerService server) {
       server.callHandler(serviceMethod, handler);
     }
   }
