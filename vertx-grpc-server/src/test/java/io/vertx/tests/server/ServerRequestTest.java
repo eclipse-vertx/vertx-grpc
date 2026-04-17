@@ -659,4 +659,22 @@ public class ServerRequestTest extends ServerTest {
 
     test.awaitSuccess(20_000);
   }
+
+  @Test
+  public void testCancelResponseSignalPropagation(TestContext should) {
+
+    Async async = should.async();
+
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      call.endHandler(v -> {
+        call.errorHandler(err -> {
+          async.complete();
+        });
+      });
+    }));
+
+    super.testCancelResponseSignalPropagation(should);
+
+    async.awaitSuccess();
+  }
 }
