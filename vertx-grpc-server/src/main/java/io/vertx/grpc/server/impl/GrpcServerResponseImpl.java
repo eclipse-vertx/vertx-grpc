@@ -16,6 +16,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.StreamResetException;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcMessage;
@@ -44,7 +45,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
   private boolean headersSent;
-  private boolean trailersSent;
+  boolean trailersSent;
   private boolean cancelled;
   private MultiMap headers, trailers;
   private Set<String> acceptedEncodings;
@@ -53,6 +54,18 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
     this.request = request;
     this.httpResponse = httpResponse;
     this.encoder = encoder;
+  }
+
+  void requestEnded() {
+    // When request ends set a signal handler for reset.
+    if (!trailersSent && !cancelled) {
+      httpResponse.exceptionHandler(err -> {
+        if (err instanceof StreamResetException) {
+          StreamResetException sre = (StreamResetException) err;
+          request.handleReset(sre.getCode());
+        }
+      });
+    }
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {

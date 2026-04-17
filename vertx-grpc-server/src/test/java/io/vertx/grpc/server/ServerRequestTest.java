@@ -18,8 +18,10 @@ import io.grpc.examples.streaming.Empty;
 import io.grpc.examples.streaming.Item;
 import io.grpc.examples.streaming.StreamingGrpc;
 import io.grpc.stub.ClientCallStreamObserver;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.net.SelfSignedCertificate;
@@ -29,6 +31,9 @@ import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.InvalidMessagePayloadException;
 import io.vertx.grpc.common.MessageSizeOverflowException;
+import io.vertx.grpc.common.impl.GrpcMessageImpl;
+import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpcio.server.GrpcIoServiceBridge;
 import org.junit.Test;
 
 import java.io.File;
@@ -37,6 +42,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -487,5 +496,66 @@ public class ServerRequestTest extends ServerTest {
     }));
 
     test.awaitSuccess(20_000);
+  }
+
+  @Test
+  public void testCancelResponseSignalPropagation(TestContext should) {
+
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setHttp2ClearTextUpgrade(false)
+      .setProtocolVersion(HttpVersion.HTTP_2));
+
+    try {
+      Async async = should.async();
+
+      StreamingGrpc.StreamingImplBase impl = new StreamingGrpc.StreamingImplBase() {
+        @Override
+        public StreamObserver<Item> sink(StreamObserver<Empty> responseObserver) {
+          return new StreamObserver<Item>() {
+            @Override
+            public void onNext(Item value) {
+            }
+            @Override
+            public void onError(Throwable t) {
+            }
+            @Override
+            public void onCompleted() {
+              ServerCallStreamObserver<?> superObserver = (ServerCallStreamObserver<?>)responseObserver;
+              executor.execute(() -> {
+                while (true) {
+                  try {
+                    Thread.sleep(10);
+                  } catch (InterruptedException ignore) {
+                    break;
+                  }
+                  if (superObserver.isCancelled()) {
+                    async.complete();
+                    break;
+                  }
+                }
+              });
+            }
+          };
+        }
+      };
+
+      GrpcIoServer server = GrpcIoServer.server(vertx);
+      GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(impl);
+      serverStub.bind(server);
+      startServer(server);
+
+      client.request(HttpMethod.POST, port, "localhost", "/" + StreamingGrpc.SERVICE_NAME + "/Sink")
+        .onComplete(should.asyncAssertSuccess(req -> {
+          req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
+          req.end(GrpcMessageImpl.encode(Buffer.buffer(Item.getDefaultInstance().toByteArray()), false));
+          req.reset(GrpcError.CANCELLED.http2ResetCode);
+        }));
+
+      async.awaitSuccess();
+    } finally {
+      client.close();
+      executor.shutdownNow();
+    }
   }
 }
