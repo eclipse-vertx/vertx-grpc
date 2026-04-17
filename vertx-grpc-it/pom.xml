@@ -126,6 +126,7 @@
                 <arg>--grpc-client</arg>
                 <arg>--grpc-service</arg>
                 <arg>--grpc-io</arg>
+                <arg>--json-include-default-values</arg>
               </args>
             </protocPlugin>
           </protocPlugins>
