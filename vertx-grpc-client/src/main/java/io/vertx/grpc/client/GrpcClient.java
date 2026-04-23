@@ -34,7 +34,7 @@ import io.vertx.grpc.common.ServiceMethod;
  * <p>The client handles only the gRPC protocol and does not encode/decode protobuf messages.</p>
  */
 @VertxGen
-public interface GrpcClient {
+public interface GrpcClient extends GrpcClientService {
 
   /**
    * Provide a builder for {@link GrpcClient}, it can be used to configure advanced

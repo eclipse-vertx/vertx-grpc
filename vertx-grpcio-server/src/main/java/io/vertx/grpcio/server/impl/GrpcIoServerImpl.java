@@ -18,9 +18,9 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.GrpcServerService;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
@@ -149,7 +149,7 @@ public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
       }
 
       @Override
-      public void bind(GrpcServer server) {
+      public void bind(GrpcServerService server) {
         // Handlers are already registered via callHandler(MethodDescriptor, Handler).
       }
     };
