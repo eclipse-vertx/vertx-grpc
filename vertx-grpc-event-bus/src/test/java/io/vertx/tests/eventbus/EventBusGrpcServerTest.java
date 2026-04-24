@@ -13,11 +13,14 @@ import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusHeaders;
+import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.StatusException;
 import io.vertx.tests.common.GrpcTestBase;
+import io.vertx.tests.common.grpc.Empty;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
 import io.vertx.tests.common.grpc.TestConstants;
+import io.vertx.tests.common.grpc.Tests;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -134,6 +137,29 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
     } catch (ReplyException e) {
       Assert.assertEquals(ReplyFailure.RECIPIENT_FAILURE, e.failureType());
       Assert.assertEquals(GrpcStatus.UNIMPLEMENTED.code, e.failureCode());
+    }
+  }
+
+  @Test
+  public void testStreamingMethodRejected() throws TimeoutException {
+    ServiceMethod<Empty, Reply> sourceMethod = ServiceMethod.server(TestConstants.TEST_SERVICE, "Source", TestConstants.REPLY_ENC, TestConstants.EMPTY_DEC);
+    Service service = Service.service(TestConstants.TEST_SERVICE, Tests.getDescriptor().findServiceByName("TestService"))
+      .bind(sourceMethod, request -> request.handler(msg -> request.response().end(Reply.getDefaultInstance())))
+      .build();
+    server.addService(service);
+
+    Buffer payload = Buffer.buffer(Empty.getDefaultInstance().toByteArray());
+    DeliveryOptions opts = new DeliveryOptions()
+      .addHeader(EventBusHeaders.ACTION, "Source")
+      .addHeader(EventBusHeaders.WIRE_FORMAT, WireFormat.PROTOBUF.name());
+
+    try {
+      vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).await(10, TimeUnit.SECONDS);
+      Assert.fail("Should have thrown");
+    } catch (ReplyException e) {
+      Assert.assertEquals(ReplyFailure.RECIPIENT_FAILURE, e.failureType());
+      Assert.assertEquals(GrpcStatus.UNIMPLEMENTED.code, e.failureCode());
+      Assert.assertTrue(e.getMessage(), e.getMessage().toLowerCase().contains("streaming"));
     }
   }
 

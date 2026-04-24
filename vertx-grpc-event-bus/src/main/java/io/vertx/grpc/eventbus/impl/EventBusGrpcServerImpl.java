@@ -1,5 +1,6 @@
 package io.vertx.grpc.eventbus.impl;
 
+import com.google.protobuf.Descriptors;
 import io.vertx.core.Completable;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -9,6 +10,8 @@ import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.logging.Logger;
+import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceMethod;
@@ -25,6 +28,8 @@ import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import java.util.*;
 
 public class EventBusGrpcServerImpl implements EventBusGrpcServer {
+
+  private static final Logger log = LoggerFactory.getLogger(EventBusGrpcServer.class);
 
   private final Vertx vertx;
   private final EventBus eventBus;
@@ -43,8 +48,7 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
     String methodName = serviceMethod.methodName();
 
     if (handler != null) {
-      MethodHandler<Req, Resp> mh = new MethodHandler<>(serviceMethod, handler);
-      handlers.computeIfAbsent(serviceFqn, k -> new HashMap<>()).put(methodName, mh);
+      handlers.computeIfAbsent(serviceFqn, k -> new HashMap<>()).put(methodName, new MethodHandler<>(serviceMethod, handler));
       ensureConsumer(serviceFqn);
     } else {
       Map<String, MethodHandler<?, ?>> methodHandlers = handlers.get(serviceFqn);
@@ -68,8 +72,26 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
       }
     }
 
+    String serviceFqn = service.name().fullyQualifiedName();
+    List<String> streaming = new ArrayList<>();
+    for (Descriptors.MethodDescriptor descriptor : service.descriptor().getMethods()) {
+      if (descriptor.isClientStreaming() || descriptor.isServerStreaming()) {
+        streaming.add(descriptor.getName());
+        log.warn("Streaming method " + serviceFqn + "/" + descriptor.getName() + " is not supported over the event bus transport, calls will be rejected with UNIMPLEMENTED");
+      }
+    }
+
     services.add(service);
     service.bind(this);
+
+    if (!streaming.isEmpty()) {
+      Map<String, MethodHandler<?, ?>> methodHandlers = handlers.get(serviceFqn);
+      if (methodHandlers != null) {
+        streaming.forEach(methodHandlers::remove);
+      }
+      ensureConsumer(serviceFqn);
+    }
+
     return this;
   }
 
@@ -109,21 +131,35 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
     }
   }
 
-  private void handleMessage(String serviceFqn, Message<Buffer> msg) {
-    String methodName = msg.headers().get(EventBusHeaders.ACTION);
+  private void handleMessage(String serviceFqn, Message<Buffer> message) {
+    String methodName = message.headers().get(EventBusHeaders.ACTION);
     if (methodName == null) {
-      msg.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing 'action' header");
+      message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing 'action' header");
       return;
     }
 
     Map<String, MethodHandler<?, ?>> methodHandlers = handlers.get(serviceFqn);
-    MethodHandler<?, ?> mh = methodHandlers != null ? methodHandlers.get(methodName) : null;
-    if (mh == null) {
-      msg.fail(GrpcStatus.UNIMPLEMENTED.code, "Method not found: " + methodName);
+    MethodHandler<?, ?> handler = methodHandlers != null ? methodHandlers.get(methodName) : null;
+    if (handler == null) {
+      String reason = "Method not found: " + methodName;
+
+      // TODO: support streaming this depends on the event bus transport supporting streaming first
+      // See https://github.com/eclipse-vertx/vert.x/pull/4712
+      for (Service service : services) {
+        if (service.name().fullyQualifiedName().equals(serviceFqn)) {
+          Descriptors.MethodDescriptor descriptor = service.descriptor().findMethodByName(methodName);
+          if (descriptor != null && (descriptor.isClientStreaming() || descriptor.isServerStreaming())) {
+            reason = "Streaming method not supported over event bus transport: " + methodName;
+          }
+          break;
+        }
+      }
+
+      message.fail(GrpcStatus.UNIMPLEMENTED.code, reason);
       return;
     }
 
-    dispatch(msg, mh);
+    dispatch(message, handler);
   }
 
   private <Req, Resp> void dispatch(Message<Buffer> message, MethodHandler<Req, Resp> handler) {
