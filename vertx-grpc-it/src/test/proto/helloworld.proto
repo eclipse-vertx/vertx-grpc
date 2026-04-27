@@ -95,6 +95,10 @@ service Greeter {
 
   // Sends a greeting without the options
   rpc SayHelloWithoutOptions (HelloRequest) returns (HelloReply) {}
+
+  // Bogus method with a lowerCamelCase name to exercise code generation for
+  // non-conventional proto method names. Not invoked by tests.
+  rpc sayHelloLowerCamel (HelloRequest) returns (HelloReply) {}
 }
 
 // The request message containing the user's name.

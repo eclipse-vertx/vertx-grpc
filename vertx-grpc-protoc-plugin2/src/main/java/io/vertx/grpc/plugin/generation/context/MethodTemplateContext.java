@@ -1,5 +1,7 @@
 package io.vertx.grpc.plugin.generation.context;
 
+import io.vertx.codegen.format.CamelCase;
+import io.vertx.codegen.format.LowerCamelCase;
 import io.vertx.grpc.plugin.descriptors.MethodDescriptor;
 
 public class MethodTemplateContext {
@@ -49,7 +51,7 @@ public class MethodTemplateContext {
   }
 
   public String methodNameGetter() {
-    return NameUtils.formatMethodName("Get" + methodName + "Method");
+    return NameUtils.formatMethodName("Get" + CamelCase.INSTANCE.format(LowerCamelCase.INSTANCE.parse(methodName)) + "Method");
   }
 
   private static String buildMethodHeader(MethodDescriptor method) {
