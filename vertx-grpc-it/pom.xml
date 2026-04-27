@@ -70,10 +70,6 @@
       <artifactId>vertx-grpc-event-bus</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-service-proxy</artifactId>
-    </dependency>
 
     <dependency>
       <groupId>io.vertx</groupId>
@@ -121,10 +117,6 @@
                   <groupId>io.vertx</groupId>
                   <artifactId>vertx-codegen</artifactId>
                   <classifier>processor</classifier>
-                </annotationProcessorPath>
-                <annotationProcessorPath>
-                  <groupId>io.vertx</groupId>
-                  <artifactId>vertx-service-proxy</artifactId>
                 </annotationProcessorPath>
               </annotationProcessorPaths>
             </configuration>
