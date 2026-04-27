@@ -76,11 +76,10 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
       .addHeader(EventBusHeaders.ACTION, "Unary")
       .addHeader(EventBusHeaders.WIRE_FORMAT, WireFormat.JSON.name());
 
-    Buffer payload = new JsonObject().put("name", "Julien").toBuffer();
-    Buffer body = vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).map(Message::body).await(10, TimeUnit.SECONDS);
+    JsonObject payload = new JsonObject().put("name", "Julien");
+    JsonObject body = vertx.eventBus().<JsonObject> request(ADDRESS, payload, opts).map(Message::body).await(10, TimeUnit.SECONDS);
 
-    String message = new JsonObject(body).getString("message");
-    Assert.assertEquals("Hello Julien", message);
+    Assert.assertEquals("Hello Julien", body.getString("message"));
   }
 
   @Test

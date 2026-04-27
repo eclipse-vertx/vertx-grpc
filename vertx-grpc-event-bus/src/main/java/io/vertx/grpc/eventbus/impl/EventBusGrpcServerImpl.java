@@ -34,7 +34,7 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
   private final Vertx vertx;
   private final EventBus eventBus;
   private final Map<String, Map<String, MethodHandler<?, ?>>> handlers = new HashMap<>();
-  private final Map<String, MessageConsumer<Buffer>> consumers = new HashMap<>();
+  private final Map<String, MessageConsumer<Object>> consumers = new HashMap<>();
   private final List<Service> services = new ArrayList<>();
 
   public EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus) {
@@ -103,7 +103,7 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
   @Override
   public void close(Completable<Void> completion) {
     List<Future<Void>> futures = new ArrayList<>();
-    for (MessageConsumer<Buffer> consumer : consumers.values()) {
+    for (MessageConsumer<Object> consumer : consumers.values()) {
       futures.add(consumer.unregister());
     }
 
@@ -119,22 +119,27 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
 
   private void ensureConsumer(String serviceFqn) {
     if (!consumers.containsKey(serviceFqn)) {
-      MessageConsumer<Buffer> consumer = eventBus.consumer(serviceFqn, msg -> handleMessage(serviceFqn, msg));
+      MessageConsumer<Object> consumer = eventBus.consumer(serviceFqn, msg -> handleMessage(serviceFqn, msg));
       consumers.put(serviceFqn, consumer);
     }
   }
 
   private void removeConsumer(String serviceFqn) {
-    MessageConsumer<Buffer> consumer = consumers.remove(serviceFqn);
+    MessageConsumer<Object> consumer = consumers.remove(serviceFqn);
     if (consumer != null) {
       consumer.unregister();
     }
   }
 
-  private void handleMessage(String serviceFqn, Message<Buffer> message) {
+  private void handleMessage(String serviceFqn, Message<Object> message) {
     String methodName = message.headers().get(EventBusHeaders.ACTION);
     if (methodName == null) {
-      message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing 'action' header");
+      message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ACTION + "' header");
+      return;
+    }
+
+    if (message.headers().get(EventBusHeaders.WIRE_FORMAT) == null) {
+      message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.WIRE_FORMAT + "' header");
       return;
     }
 
@@ -162,11 +167,13 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
     dispatch(message, handler);
   }
 
-  private <Req, Resp> void dispatch(Message<Buffer> message, MethodHandler<Req, Resp> handler) {
+  private <Req, Resp> void dispatch(Message<Object> message, MethodHandler<Req, Resp> handler) {
     ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
     WireFormat wireFormat = WireFormat.valueOf(message.headers().get(EventBusHeaders.WIRE_FORMAT));
 
-    EventBusGrpcServerStream stream = new EventBusGrpcServerStream(context, message);
+    Buffer payload = EventBusGrpcBody.asBuffer(message.body());
+
+    EventBusGrpcServerStream stream = new EventBusGrpcServerStream(context, message, wireFormat);
     GrpcMethodCall methodCall = new GrpcMethodCall(handler.serviceMethod.serviceName().pathOf(handler.serviceMethod.methodName()));
     GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(
       context,
@@ -180,7 +187,7 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
       methodCall
     );
 
-    GrpcMessage grpcMessage = GrpcMessage.message("identity", wireFormat, message.body());
+    GrpcMessage grpcMessage = GrpcMessage.message("identity", wireFormat, payload);
     GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, request, stream, null, handler.serviceMethod.encoder());
 
     response.format(wireFormat);

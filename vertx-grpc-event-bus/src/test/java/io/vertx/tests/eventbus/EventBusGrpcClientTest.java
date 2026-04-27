@@ -63,9 +63,9 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
 
   @Test
   public void testRequestReplyJson() throws TimeoutException {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
-      String name = msg.body().toJsonObject().getString("name");
-      msg.reply(new JsonObject().put("message", "Hello " + name).toBuffer());
+    vertx.eventBus().<JsonObject> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
+      String name = msg.body().getString("name");
+      msg.reply(new JsonObject().put("message", "Hello " + name));
     });
 
     Reply reply = client.request(UNARY)

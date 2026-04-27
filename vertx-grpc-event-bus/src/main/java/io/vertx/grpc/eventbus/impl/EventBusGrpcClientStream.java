@@ -5,6 +5,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.*;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.eventbus.EventBusHeaders;
 import io.vertx.grpc.common.GrpcStatus;
@@ -88,13 +89,15 @@ public class EventBusGrpcClientStream extends EventBusGrpcStreamBase {
 
     deliveryOptions.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
 
-    Future<Message<Buffer>> responseFuture = eventBus.request(serviceName.fullyQualifiedName(), payload, deliveryOptions);
+    Object body = wireFormat == WireFormat.JSON ? (payload.length() == 0 ? new JsonObject() : new JsonObject(payload)) : payload;
+    Future<Message<Object>> response = eventBus.request(serviceName.fullyQualifiedName(), body, deliveryOptions);
 
-    responseFuture.onComplete(ar -> {
+    response.onComplete(ar -> {
       if (ar.succeeded()) {
-        Message<Buffer> reply = ar.result();
+        Message<Object> reply = ar.result();
+        Buffer replyPayload = EventBusGrpcBody.asBuffer(reply.body());
         emit(new DefaultGrpcHeadersFrame(wireFormat, encoding, MultiMap.caseInsensitiveMultiMap()));
-        emit(new DefaultGrpcMessageFrame(GrpcMessage.message(encoding, wireFormat, reply.body())));
+        emit(new DefaultGrpcMessageFrame(GrpcMessage.message(encoding, wireFormat, replyPayload)));
         emit(new DefaultGrpcTrailersFrame(GrpcStatus.OK, null, MultiMap.caseInsensitiveMultiMap()));
       } else {
         GrpcStatus status = mapFailure(ar.cause());
