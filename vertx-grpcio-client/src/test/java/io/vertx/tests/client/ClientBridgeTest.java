@@ -607,7 +607,7 @@ public class ClientBridgeTest extends ClientTest {
     try {
       c.accept(stub);
     } catch (StatusRuntimeException e) {
-      should.assertEquals(Status.Code.CANCELLED, e.getStatus().getCode());
+      should.assertEquals(Status.Code.DEADLINE_EXCEEDED, e.getStatus().getCode());
     }
   }
 
