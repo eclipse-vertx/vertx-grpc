@@ -33,7 +33,7 @@ public final class MessageWeaver {
    * @throws DecodeException If JSON decoding fails
    */
   public static Buffer weaveRequestMessage(Buffer message, List<HttpVariableBinding> bindings, String transcodingRequestBody, Descriptors.Descriptor descriptor) throws DecodeException {
-    if ((bindings == null || bindings.isEmpty()) && (transcodingRequestBody == null || transcodingRequestBody.isEmpty())) {
+    if ((bindings == null || bindings.isEmpty()) && transcodingRequestBody == null) {
       return message;
     }
 
