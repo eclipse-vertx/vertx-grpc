@@ -282,9 +282,9 @@ public class TranscodingTest extends ProxyTestBase {
       .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloEmpty, call -> call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello there").build();
         call.response().end(helloReply);
-      }))).listen(18080, "localhost").await(10, TimeUnit.SECONDS);
+      }))).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
 
-  RequestOptions options = new RequestOptions().setHost("localhost").setPort(18080).setURI("/v1/hello").setMethod(HttpMethod.GET);
+  RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello").setMethod(HttpMethod.GET);
 
   Buffer body = client.request(options).compose(req -> {
       req.putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
