@@ -10,14 +10,15 @@
  */
 package io.vertx.grpcio.common.impl;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
-import com.google.protobuf.util.JsonFormat;
 import io.grpc.Compressor;
 import io.grpc.Drainable;
 import io.grpc.MethodDescriptor;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.CodecException;
+import io.vertx.grpc.common.JsonWireFormat;
+import io.vertx.grpc.common.ProtobufJsonWriter;
+import io.vertx.grpc.common.ProtobufWireFormat;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageEncoder;
@@ -39,56 +40,46 @@ public class BridgeMessageEncoder<T> implements GrpcMessageEncoder<T> {
 
   @Override
   public boolean accepts(WireFormat format) {
-    return format == WireFormat.PROTOBUF;
+    return format instanceof ProtobufWireFormat;
   }
 
   @Override
   public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
-
     Buffer encoded;
-    switch (format) {
-      case PROTOBUF:
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(); // Improve that ???
-        try (InputStream is = marshaller.stream(msg)) {
-          OutputStream compressingStream;
-          if (compressor == null) {
-            compressingStream = baos;
+    if (format instanceof ProtobufWireFormat) {
+      ByteArrayOutputStream output = new ByteArrayOutputStream(); // Improve that ???
+      try (InputStream is = marshaller.stream(msg)) {
+        OutputStream compressingStream;
+        if (compressor == null) {
+          compressingStream = output;
+        } else {
+          compressingStream = compressor.compress(output);
+        }
+        try (OutputStream o = compressingStream) {
+          if (is instanceof Drainable) {
+            Drainable stream = (Drainable) is;
+            stream.drainTo(compressingStream);
           } else {
-            compressingStream = compressor.compress(baos);
-          }
-          try (OutputStream o = compressingStream) {
-            if (is instanceof Drainable) {
-              Drainable stream = (Drainable) is;
-              stream.drainTo(compressingStream);
-            } else {
-              byte[] tmp = new byte[1024];
-              int len;
-              while ((len = is.read(tmp)) != -1) {
-                o.write(tmp, 0, len);
-              }
+            byte[] tmp = new byte[1024];
+            int len;
+            while ((len = is.read(tmp)) != -1) {
+              o.write(tmp, 0, len);
             }
           }
-        } catch (IOException e) {
-          throw new CodecException(e);
         }
-        byte[] bytes = baos.toByteArray();
-        encoded = Buffer.buffer(bytes);
-        break;
-      case JSON:
-        if (msg instanceof MessageOrBuilder) {
-          MessageOrBuilder mob = (MessageOrBuilder) msg;
-          try {
-            String res = JsonFormat.printer().print(mob);
-            encoded = Buffer.buffer(res);
-          } catch (InvalidProtocolBufferException e) {
-            throw new CodecException(e);
-          }
-        } else {
-          throw new CodecException();
-        }
-        break;
-      default:
-        throw new AssertionError();
+      } catch (IOException e) {
+        throw new CodecException(e);
+      }
+      encoded = Buffer.buffer(output.toByteArray());
+    } else if (format instanceof JsonWireFormat) {
+      JsonWireFormat json = (JsonWireFormat) format;
+      if (msg instanceof MessageOrBuilder) {
+        encoded = ProtobufJsonWriter.create(json.writerConfig()).write((MessageOrBuilder) msg);
+      } else {
+        throw new CodecException();
+      }
+    } else {
+      throw new AssertionError();
     }
     return GrpcMessage.message(compressor == null ? "identity" : compressor.getMessageEncoding(), format, encoded);
   }

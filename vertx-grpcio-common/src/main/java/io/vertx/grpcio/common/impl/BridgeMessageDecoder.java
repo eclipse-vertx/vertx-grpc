@@ -11,10 +11,8 @@
 package io.vertx.grpcio.common.impl;
 
 import com.google.protobuf.Descriptors;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.MessageLite;
-import com.google.protobuf.util.JsonFormat;
 import io.grpc.Decompressor;
 import io.grpc.KnownLength;
 import io.grpc.MethodDescriptor;
@@ -25,11 +23,13 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.JsonWireFormat;
+import io.vertx.grpc.common.ProtobufJsonReader;
+import io.vertx.grpc.common.ProtobufWireFormat;
 import io.vertx.grpc.common.WireFormat;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 
 public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
 
@@ -59,37 +59,34 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
 
   @Override
   public T decode(GrpcMessage msg) {
-    switch (msg.format()) {
-      case PROTOBUF:
-        try (KnownLengthStream kls = new KnownLengthStream(msg.payload())) {
-          if (msg.encoding().equals("identity")) {
-            return marshaller.parse(kls);
-          } else if (decompressor != null) {
-            try (InputStream in = decompressor.decompress(kls)) {
-              return marshaller.parse(in);
-            } catch (IOException e) {
-              throw new CodecException(e);
-            }
-          } else {
-            throw new DecodeException();
+    WireFormat format = msg.format();
+    if (format instanceof ProtobufWireFormat) {
+      try (KnownLengthStream kls = new KnownLengthStream(msg.payload())) {
+        if (msg.encoding().equals("identity")) {
+          return marshaller.parse(kls);
+        } else if (decompressor != null) {
+          try (InputStream in = decompressor.decompress(kls)) {
+            return marshaller.parse(in);
+          } catch (IOException e) {
+            throw new CodecException(e);
           }
+        } else {
+          throw new DecodeException();
         }
-      case JSON:
-        try {
-          Message.Builder builder = (Message.Builder) messageLite.toBuilder();
-          JsonFormat.parser().merge(msg.payload().toString(StandardCharsets.UTF_8), builder);
-          return (T) builder.build();
-        } catch (InvalidProtocolBufferException e) {
-          throw new CodecException(e);
-        }
-      default:
-        throw new CodecException("Invalid wire format: " + msg.format());
+      }
+    } else if (format instanceof JsonWireFormat) {
+      JsonWireFormat json = (JsonWireFormat) format;
+      Message.Builder builder = (Message.Builder) messageLite.toBuilder();
+      ProtobufJsonReader.create(json.readerConfig()).merge(msg.payload(), builder);
+      return (T) builder.build();
+    } else {
+      throw new CodecException("Invalid wire format: " + format);
     }
   }
 
   @Override
   public boolean accepts(WireFormat format) {
-    return format == WireFormat.PROTOBUF;
+    return format instanceof ProtobufWireFormat;
   }
 
   @Override
