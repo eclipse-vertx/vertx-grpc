@@ -21,10 +21,15 @@ import io.vertx.grpc.common.impl.GrpcMessageDeframer;
  */
 public class TranscodingMessageDeframer implements GrpcMessageDeframer {
 
+  private final WireFormat format;
   private long maxMessageSize;
   private boolean processed;
   private Buffer buffer;
   private Object result;
+
+  public TranscodingMessageDeframer(WireFormat format) {
+    this.format = format;
+  }
 
   @Override
   public void maxMessageSize(long maxMessageSize) {
@@ -63,7 +68,7 @@ public class TranscodingMessageDeframer implements GrpcMessageDeframer {
   @Override
   public void end() {
     if (!processed) {
-      result = GrpcMessage.message("identity", WireFormat.JSON, buffer == null ? Buffer.buffer() : buffer);
+      result = GrpcMessage.message("identity", format, buffer == null ? Buffer.buffer() : buffer);
       buffer = null;
     }
   }
