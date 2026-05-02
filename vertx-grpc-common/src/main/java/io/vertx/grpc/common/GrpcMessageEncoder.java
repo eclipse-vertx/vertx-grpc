@@ -1,9 +1,7 @@
 package io.vertx.grpc.common;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageOrBuilder;
-import com.google.protobuf.util.JsonFormat;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.Json;
@@ -20,26 +18,17 @@ public interface GrpcMessageEncoder<T> {
     return new GrpcMessageEncoder<T>() {
       @Override
       public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
-        switch (format) {
-          case PROTOBUF:
-            byte[] bytes = msg.toByteArray();
-            return GrpcMessage.message("identity", Buffer.buffer(bytes));
-          case JSON:
-            if (msg instanceof MessageOrBuilder) {
-              MessageOrBuilder mob = (MessageOrBuilder) msg;
-              try {
-                String res = JsonFormat.printer().print(mob);
-                return GrpcMessage.message("identity", WireFormat.JSON, Buffer.buffer(res));
-              } catch (InvalidProtocolBufferException e) {
-                throw new CodecException(e);
-              }
-            }
-            return GrpcMessage.message(
-              "identity",
-              WireFormat.JSON,
-              Json.encodeToBuffer(msg));
-          default:
-            throw new IllegalArgumentException("Invalid wire format: " + format);
+        if (format instanceof ProtobufWireFormat) {
+          byte[] bytes = msg.toByteArray();
+          return GrpcMessage.message("identity", format, Buffer.buffer(bytes));
+        } else if (format instanceof JsonWireFormat) {
+          JsonWireFormat json = (JsonWireFormat) format;
+          if (msg instanceof MessageOrBuilder) {
+            return GrpcMessage.message("identity", format, ProtobufJsonWriter.create(json.writerConfig()).write((MessageOrBuilder) msg));
+          }
+          return GrpcMessage.message("identity", format, Json.encodeToBuffer(msg));
+        } else {
+          throw new IllegalArgumentException("Invalid wire format: " + format);
         }
       }
       @Override
@@ -70,23 +59,15 @@ public interface GrpcMessageEncoder<T> {
     return new GrpcMessageEncoder<>() {
       @Override
       public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
+        JsonWireFormat json = (JsonWireFormat) format;
         if (msg instanceof MessageOrBuilder) {
-          MessageOrBuilder mob = (MessageOrBuilder) msg;
-          try {
-            String res = JsonFormat.printer().print(mob);
-            return GrpcMessage.message("identity", WireFormat.JSON, Buffer.buffer(res));
-          } catch (InvalidProtocolBufferException e) {
-            throw new CodecException(e);
-          }
+          return GrpcMessage.message("identity", format, ProtobufJsonWriter.create(json.writerConfig()).write((MessageOrBuilder) msg));
         }
-        return GrpcMessage.message(
-          "identity",
-          WireFormat.JSON,
-          Json.encodeToBuffer(msg));
+        return GrpcMessage.message("identity", format, Json.encodeToBuffer(msg));
       }
       @Override
       public boolean accepts(WireFormat format) {
-        return format == WireFormat.JSON;
+        return format instanceof JsonWireFormat;
       }
     };
   }
@@ -97,11 +78,11 @@ public interface GrpcMessageEncoder<T> {
   GrpcMessageEncoder<JsonObject> JSON_OBJECT = new GrpcMessageEncoder<>() {
     @Override
     public GrpcMessage encode(JsonObject msg, WireFormat format) throws CodecException {
-      return GrpcMessage.message("identity", WireFormat.JSON, msg == null ? Buffer.buffer("null") : msg.toBuffer());
+      return GrpcMessage.message("identity", format, msg == null ? Buffer.buffer("null") : msg.toBuffer());
     }
     @Override
     public boolean accepts(WireFormat format) {
-      return format == WireFormat.JSON;
+      return format instanceof JsonWireFormat;
     }
   };
 

@@ -14,7 +14,10 @@ import io.vertx.grpc.common.GrpcCancelFrame;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.JsonWireFormat;
+import io.vertx.grpc.common.ProtobufWireFormat;
 import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
@@ -97,15 +100,13 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
     }
 
     String contentType;
-    switch (frame.format()) {
-      case PROTOBUF:
-        contentType = "application/grpc";
-        break;
-      case JSON:
-        contentType = "application/grpc+json";
-        break;
-      default:
-        throw new UnsupportedOperationException();
+    WireFormat format = frame.format();
+    if (format instanceof ProtobufWireFormat) {
+      contentType = "application/grpc";
+    } else if (format instanceof JsonWireFormat) {
+      contentType = "application/grpc+json";
+    } else {
+      throw new UnsupportedOperationException();
     }
 
     String uri = serviceName.pathOf(methodName);
