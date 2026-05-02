@@ -136,7 +136,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private GrpcMessage encodeMessage(T message) {
     WireFormat f = format;
     if (f == null) {
-      f = WireFormat.PROTOBUF;
+      f = messageEncoder.accepts(WireFormat.PROTOBUF) ? WireFormat.PROTOBUF : WireFormat.JSON;
     }
     return messageEncoder.encode(message, f);
   }

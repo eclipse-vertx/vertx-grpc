@@ -12,13 +12,14 @@ package io.vertx.grpc.transcoding.impl;
 
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.server.impl.GrpcHttpInvoker;
 import io.vertx.grpc.server.impl.GrpcInvocation;
 
 public class TranscodingInvoker implements GrpcHttpInvoker {
 
   @Override
-  public <Req, Resp> GrpcInvocation accept(HttpServerRequest request, ServiceMethod<Req, Resp> serviceMethod) {
+  public <Req, Resp> GrpcInvocation accept(HttpServerRequest request, ServiceMethod<Req, Resp> serviceMethod, WireFormat format) {
     TranscodingServiceMethodImpl<Req, Resp> transcodingServiceMethod;
 
     if (serviceMethod instanceof TranscodingServiceMethodImpl) {
@@ -32,6 +33,6 @@ public class TranscodingInvoker implements GrpcHttpInvoker {
       );
     }
 
-    return transcodingServiceMethod.accept(request);
+    return transcodingServiceMethod.accept(request, format);
   }
 }

@@ -11,12 +11,16 @@
 package io.vertx.grpc.server;
 
 import io.vertx.codegen.annotations.DataObject;
+import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.Unstable;
 import io.vertx.codegen.json.annotations.JsonGen;
 import io.vertx.core.json.JsonObject;
+import io.vertx.grpc.common.WireFormat;
 
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -31,6 +35,11 @@ public class GrpcServerOptions {
    * The default set of enabled protocols = {@code [HTTP/2, TRANSCODING, WEB, WEB_TEXT]}
    */
   public static final Set<GrpcProtocol> DEFAULT_ENABLED_PROTOCOLS = Collections.unmodifiableSet(EnumSet.allOf(GrpcProtocol.class));
+
+  /**
+   * The default set of enabled wire formats = {@code [PROTOBUF, JSON]}
+   */
+  public static final Set<WireFormat> DEFAULT_ENABLED_FORMATS = Set.of(WireFormat.PROTOBUF, WireFormat.JSON);
 
   /**
    * Whether the server schedule deadline automatically when a request carrying a timeout is received, by default = {@code false}
@@ -48,6 +57,12 @@ public class GrpcServerOptions {
   public static final long DEFAULT_MAX_MESSAGE_SIZE = 256 * 1024;
 
   private Set<GrpcProtocol> enabledProtocols;
+  // TODO(?): the set holds mixed types (ProtobufWireFormat or JsonWireFormat with config) and
+  //          codegen has no way to pick the right one when reading JSON, so the accessors below
+  //          are @GenIgnore and the field doesn't round-trip. Revisit if we add more formats
+  //          or want the JSON config to show up in the serialized options.
+  private Set<WireFormat> enabledFormats;
+
   private boolean scheduleDeadlineAutomatically;
   private boolean deadlinePropagation;
   private long maxMessageSize;
@@ -57,6 +72,7 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions() {
     enabledProtocols = EnumSet.copyOf(DEFAULT_ENABLED_PROTOCOLS);
+    enabledFormats = new LinkedHashSet<>(DEFAULT_ENABLED_FORMATS);
     scheduleDeadlineAutomatically = DEFAULT_SCHEDULE_DEADLINE_AUTOMATICALLY;
     deadlinePropagation = DEFAULT_PROPAGATE_DEADLINE;
     maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
@@ -67,6 +83,7 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions(GrpcServerOptions other) {
     enabledProtocols = EnumSet.copyOf(other.enabledProtocols);
+    enabledFormats = new LinkedHashSet<>(other.enabledFormats);
     scheduleDeadlineAutomatically = other.scheduleDeadlineAutomatically;
     deadlinePropagation = other.deadlinePropagation;
     maxMessageSize = other.maxMessageSize;
@@ -119,6 +136,69 @@ public class GrpcServerOptions {
    */
   public Set<GrpcProtocol> getEnabledProtocols() {
     return enabledProtocols;
+  }
+
+  /**
+   * @return the wire formats the server accepts on inbound calls. The set is mutable. Entries
+   *         compare by {@link WireFormat#name()}, so it holds at most one instance per format
+   *         name. The configured one wins.
+   */
+  @GenIgnore
+  public Set<WireFormat> getEnabledFormats() {
+    return enabledFormats;
+  }
+
+  /**
+   * Determines if the specified wire format is enabled in the current server configuration.
+   *
+   * @param format the wire format to check
+   * @return true if the format is enabled; false otherwise
+   */
+  @GenIgnore
+  public boolean isFormatEnabled(WireFormat format) {
+    return enabledFormats.contains(format);
+  }
+
+  /**
+   * @return the configured instance of the wire format with the given {@code name}, or {@code null}
+   *         if no format with that name is enabled
+   */
+  @GenIgnore
+  public WireFormat getEnabledFormat(String name) {
+    Objects.requireNonNull(name, "name");
+    for (WireFormat format : enabledFormats) {
+      if (name.equals(format.name())) {
+        return format;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Enables a wire format. Equality is name-based, so adding a format with the same name
+   * replaces the previously configured instance.
+   *
+   * @param format the wire format to enable, must not be null
+   * @return a reference to this, so the API can be used fluently
+   */
+  @GenIgnore
+  public GrpcServerOptions addEnabledFormat(WireFormat format) {
+    Objects.requireNonNull(format, "format");
+    enabledFormats.remove(format);
+    enabledFormats.add(format);
+    return this;
+  }
+
+  /**
+   * Removes the specified wire format from the set of enabled formats.
+   *
+   * @param format the wire format to remove
+   * @return a reference to this, so the API can be used fluently
+   */
+  @GenIgnore
+  public GrpcServerOptions removeEnabledFormat(WireFormat format) {
+    enabledFormats.remove(format);
+    return this;
   }
 
   /**

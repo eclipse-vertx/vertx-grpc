@@ -151,11 +151,21 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       return 415;
     }
 
+    if (!options.isFormatEnabled(details.format)) {
+      log.trace(details.format + " is not supported, sending error 415");
+      return 415;
+    }
+
     return -1;
   }
 
   private <Req, Resp> boolean handle(MethodCallHandler<Req, Resp> method, HttpServerRequest httpRequest, GrpcMethodCall methodCall, GrpcProtocol protocol, WireFormat format) {
     io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
+
+    WireFormat configured = options.getEnabledFormat(format.name());
+    if (configured != null) {
+      format = configured;
+    }
 
     String encoding = httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING);
 
@@ -186,7 +196,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       case TRANSCODING:
         GrpcInvocation invocation = null;
         for (GrpcHttpInvoker invoker : invokers) {
-          invocation = invoker.accept(httpRequest, method.method);
+          invocation = invoker.accept(httpRequest, method.method, format);
           if (invocation != null) {
             break;
           }

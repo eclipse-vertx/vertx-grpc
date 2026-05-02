@@ -13,11 +13,13 @@ import java.util.List;
 public class TranscodingMessageDecoder<Req> implements GrpcMessageDecoder<Req> {
 
   private final GrpcMessageDecoder<Req> messageDecoder;
+  private final WireFormat format;
   private final String transcodingRequestBody;
   private final List<HttpVariableBinding> bindings;
 
-  public TranscodingMessageDecoder(GrpcMessageDecoder<Req> messageDecoder, String transcodingRequestBody, List<HttpVariableBinding> bindings) {
+  public TranscodingMessageDecoder(GrpcMessageDecoder<Req> messageDecoder, WireFormat format, String transcodingRequestBody, List<HttpVariableBinding> bindings) {
     this.messageDecoder = messageDecoder;
+    this.format = format;
     this.transcodingRequestBody = transcodingRequestBody;
     this.bindings = bindings;
   }
@@ -30,7 +32,7 @@ public class TranscodingMessageDecoder<Req> implements GrpcMessageDecoder<Req> {
     } catch (DecodeException e) {
       throw new CodecException(e);
     }
-    return messageDecoder.decode(GrpcMessage.message("identity", WireFormat.JSON, transcoded));
+    return messageDecoder.decode(GrpcMessage.message("identity", format, transcoded));
   }
   @Override
   public boolean accepts(WireFormat format) {
