@@ -1,23 +1,13 @@
 package io.vertx.tests.common;
 
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.json.JsonObject;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.JsonWireFormat;
-import io.vertx.grpc.common.ProtobufWireFormat;
 import io.vertx.grpc.common.WireFormat;
-import io.vertx.tests.common.grpc.Request;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class JsonWireFormatTest {
@@ -29,37 +19,51 @@ public class JsonWireFormatTest {
   }
 
   @Test
-  public void testDefaultConfigsNonNull() {
+  public void testDefaultFlagsAreFalse() {
     JsonWireFormat fmt = WireFormat.JSON;
-    assertNotNull(fmt.writerConfig());
-    assertNotNull(fmt.readerConfig());
+    assertFalse(fmt.getAlwaysPrintFieldsWithNoPresence());
+    assertFalse(fmt.getOmittingInsignificantWhitespace());
+    assertFalse(fmt.getPreservingProtoFieldNames());
+    assertFalse(fmt.getPrintingEnumsAsInts());
+    assertFalse(fmt.getSortingMapKeys());
+    assertFalse(fmt.getIgnoringUnknownFields());
   }
 
   @Test
-  public void testWithWriterConfigIsImmutable() {
+  public void testWriterFlagsAreImmutable() {
     JsonWireFormat original = WireFormat.JSON;
-    JsonWireFormat.WriterConfig customPrinter = new JsonWireFormat.WriterConfig().setAlwaysPrintFieldsWithNoPresence(true);
-    JsonWireFormat derived = original.withWriterConfig(customPrinter);
+    JsonWireFormat derived = original.alwaysPrintFieldsWithNoPresence(true);
     assertNotSame(original, derived);
-    assertNotSame(original.writerConfig(), derived.writerConfig());
-    assertSame(customPrinter, derived.writerConfig());
-    assertSame(original.readerConfig(), derived.readerConfig());
+    assertFalse(original.getAlwaysPrintFieldsWithNoPresence());
+    assertTrue(derived.getAlwaysPrintFieldsWithNoPresence());
+    assertFalse(derived.getIgnoringUnknownFields());
   }
 
   @Test
-  public void testWithReaderConfigIsImmutable() {
+  public void testReaderFlagsAreImmutable() {
     JsonWireFormat original = WireFormat.JSON;
-    JsonWireFormat.ReaderConfig customParser = new JsonWireFormat.ReaderConfig().setIgnoringUnknownFields(true);
-    JsonWireFormat derived = original.withReaderConfig(customParser);
+    JsonWireFormat derived = original.ignoringUnknownFields(true);
     assertNotSame(original, derived);
-    assertNotSame(original.readerConfig(), derived.readerConfig());
-    assertSame(customParser, derived.readerConfig());
-    assertSame(original.writerConfig(), derived.writerConfig());
+    assertFalse(original.getIgnoringUnknownFields());
+    assertTrue(derived.getIgnoringUnknownFields());
+    assertFalse(derived.getAlwaysPrintFieldsWithNoPresence());
+  }
+
+  @Test
+  public void testFlagsCompose() {
+    JsonWireFormat fmt = WireFormat.JSON
+      .alwaysPrintFieldsWithNoPresence(true)
+      .ignoringUnknownFields(true)
+      .printingEnumsAsInts(true);
+    assertTrue(fmt.getAlwaysPrintFieldsWithNoPresence());
+    assertTrue(fmt.getIgnoringUnknownFields());
+    assertTrue(fmt.getPrintingEnumsAsInts());
+    assertFalse(fmt.getSortingMapKeys());
   }
 
   @Test
   public void testEqualsByName() {
-    JsonWireFormat custom = WireFormat.JSON.withReaderConfig(new JsonWireFormat.ReaderConfig().setIgnoringUnknownFields(true));
+    JsonWireFormat custom = WireFormat.JSON.ignoringUnknownFields(true);
     JsonWireFormat defaultJson = WireFormat.JSON;
     assertEquals(defaultJson, custom);
     assertEquals(custom, defaultJson);
@@ -68,49 +72,9 @@ public class JsonWireFormatTest {
 
   @Test
   public void testNotEqualsAcrossFormats() {
-    assertNotEquals(WireFormat.JSON, WireFormat.PROTOBUF);
-    assertNotEquals(WireFormat.PROTOBUF, WireFormat.JSON);
-  }
-
-  @Test
-  public void testCustomPrinterFlowsThroughEncoder() throws Exception {
-    GrpcMessageEncoder<Request> encoder = GrpcMessageEncoder.encoder();
-    Request emptyRequest = Request.newBuilder().build();
-
-    JsonWireFormat defaultJson = WireFormat.JSON;
-    GrpcMessage defaultMsg = encoder.encode(emptyRequest, defaultJson);
-    assertEquals(new JsonObject(), defaultMsg.payload().toJsonObject());
-
-    JsonWireFormat verbose = defaultJson.withWriterConfig(new JsonWireFormat.WriterConfig().setAlwaysPrintFieldsWithNoPresence(true));
-    GrpcMessage verboseMsg = encoder.encode(emptyRequest, verbose);
-    assertEquals(new JsonObject().put("name", ""), verboseMsg.payload().toJsonObject());
-  }
-
-  @Test
-  public void testCustomParserFlowsThroughDecoder() {
-    GrpcMessageDecoder<Request> decoder = GrpcMessageDecoder.decoder(Request.newBuilder());
-
-    Buffer payload = new JsonObject().put("name", "Julien").put("unknown", 42).toBuffer();
-
-    JsonWireFormat strict = WireFormat.JSON;
-    GrpcMessage strictMsg = GrpcMessage.message("identity", strict, payload);
-    assertThrows(Exception.class, () -> decoder.decode(strictMsg));
-
-    JsonWireFormat lenient = strict.withReaderConfig(new JsonWireFormat.ReaderConfig().setIgnoringUnknownFields(true));
-    GrpcMessage lenientMsg = GrpcMessage.message("identity", lenient, payload);
-    Request decoded = decoder.decode(lenientMsg);
-    assertEquals("Julien", decoded.getName());
-  }
-
-  @Test
-  public void testCustomFormatPropagatesViaEncodedMessage() throws Exception {
-    GrpcMessageEncoder<Request> encoder = GrpcMessageEncoder.encoder();
-    JsonWireFormat custom = WireFormat.JSON.withWriterConfig(new JsonWireFormat.WriterConfig().setAlwaysPrintFieldsWithNoPresence(true));
-
-    GrpcMessage msg = encoder.encode(Request.newBuilder().setName("Julien").build(), custom);
-
-    assertSame(custom, msg.format());
-    assertTrue(msg.format() instanceof JsonWireFormat);
-    assertFalse(msg.format() instanceof ProtobufWireFormat);
+    WireFormat json = WireFormat.JSON;
+    WireFormat proto = WireFormat.PROTOBUF;
+    assertNotEquals(json, proto);
+    assertNotEquals(proto, json);
   }
 }

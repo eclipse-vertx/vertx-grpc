@@ -74,7 +74,7 @@ public class BridgeMessageEncoder<T> implements GrpcMessageEncoder<T> {
     } else if (format instanceof JsonWireFormat) {
       JsonWireFormat json = (JsonWireFormat) format;
       if (msg instanceof MessageOrBuilder) {
-        encoded = ProtobufJsonWriter.create(json.writerConfig()).write((MessageOrBuilder) msg);
+        encoded = ProtobufJsonWriter.create(json).write((MessageOrBuilder) msg);
       } else {
         throw new CodecException();
       }

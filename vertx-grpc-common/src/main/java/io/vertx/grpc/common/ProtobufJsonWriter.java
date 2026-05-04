@@ -8,17 +8,17 @@ import io.vertx.grpc.common.impl.ProtobufJsonWriterImpl;
 /**
  * Writes a protobuf {@link MessageOrBuilder} as a JSON {@link Buffer}.
  * <p>
- * Use {@link #create(JsonWireFormat.WriterConfig)} to get an instance. The default
- * implementation is backed by {@code com.google.protobuf.util.JsonFormat}.
+ * Use {@link #create(JsonWireFormat)} to get an instance. The default implementation is backed
+ * by {@code com.google.protobuf.util.JsonFormat}.
  */
 @GenIgnore(GenIgnore.PERMITTED_TYPE)
 public interface ProtobufJsonWriter {
 
   /**
-   * @return a writer configured from {@code config}
+   * @return a writer configured from {@code format}
    */
-  static ProtobufJsonWriter create(JsonWireFormat.WriterConfig config) {
-    return new ProtobufJsonWriterImpl(config);
+  static ProtobufJsonWriter create(JsonWireFormat format) {
+    return new ProtobufJsonWriterImpl(format);
   }
 
   /**

@@ -71,7 +71,7 @@ public class JsonWireFormatTest extends ProxyTestBase {
       });
     })).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
 
-    JsonWireFormat customFormat = WireFormat.JSON.withWriterConfig(new JsonWireFormat.WriterConfig().setAlwaysPrintFieldsWithNoPresence(true));
+    JsonWireFormat customFormat = WireFormat.JSON.alwaysPrintFieldsWithNoPresence(true);
 
     HelloReply reply = client.request(SocketAddress.inetSocketAddress(8080, "localhost"), GreeterGrpcClient.SayHello)
       .compose(callRequest -> {
@@ -89,7 +89,7 @@ public class JsonWireFormatTest extends ProxyTestBase {
     GrpcClient client = GrpcClient.client(vertx);
 
     // Server uses a lenient parser to tolerate unknown fields a future client might send.
-    JsonWireFormat lenientServerFormat = WireFormat.JSON.withReaderConfig(new JsonWireFormat.ReaderConfig().setIgnoringUnknownFields(true));
+    JsonWireFormat lenientServerFormat = WireFormat.JSON.ignoringUnknownFields(true);
 
     vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(SayHello, call -> {
       call.handler(helloRequest -> {
@@ -116,8 +116,8 @@ public class JsonWireFormatTest extends ProxyTestBase {
     // A successful round-trip means the configuration reached both ends.
     GrpcServerOptions serverOptions = new GrpcServerOptions()
       .addEnabledFormat(WireFormat.JSON
-        .withWriterConfig(new JsonWireFormat.WriterConfig().setAlwaysPrintFieldsWithNoPresence(true))
-        .withReaderConfig(new JsonWireFormat.ReaderConfig().setIgnoringUnknownFields(true))
+        .alwaysPrintFieldsWithNoPresence(true)
+        .ignoringUnknownFields(true)
       );
 
     vertx.createHttpServer().requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(SayHello, call -> {
