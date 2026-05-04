@@ -30,7 +30,6 @@
 syntax = "proto3";
 
 import "google/api/annotations.proto";
-import "empty.proto";
 
 option java_multiple_files = true;
 option java_package = "io.grpc.examples.helloworld";
@@ -96,14 +95,6 @@ service Greeter {
 
   // Sends a greeting without the options
   rpc SayHelloWithoutOptions (HelloRequest) returns (HelloReply) {}
-
-
-  // Sends a greeting with an empty request
-  rpc SayHelloEmpty (grpc.testing.Empty) returns (HelloReply) {
-    option (google.api.http) = {
-      get: "/v1/hello"
-    };
-  }
 
   // Bogus method with a lowerCamelCase name to exercise code generation for
   // non-conventional proto method names. Not invoked by tests.

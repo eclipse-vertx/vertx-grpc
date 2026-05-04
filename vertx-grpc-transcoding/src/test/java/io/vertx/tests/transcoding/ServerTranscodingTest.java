@@ -63,7 +63,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static final ServiceName TEST_SERVICE_NAME = ServiceName.create(TestServiceGrpc.SERVICE_NAME);
 
   public static final MethodTranscodingOptions EMPTY_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/hello");
-  public static final MethodTranscodingOptions UNARY_EMPTY_REQUEST_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.GET).setPath("/hello").setBody("request");
+  public static final MethodTranscodingOptions UNARY_EMPTY_REQUEST_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.GET).setPath("/hello").setBody("");
   public static final MethodTranscodingOptions UNARY_TRANSCODING = new MethodTranscodingOptions().setPath("/hello");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_PARAM = new MethodTranscodingOptions().setPath("/hello/{payload}");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_CUSTOM_METHOD = new MethodTranscodingOptions().setHttpMethod(HttpMethod.valueOf("ACL")).setPath("/hello");
