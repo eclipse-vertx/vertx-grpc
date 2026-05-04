@@ -77,7 +77,7 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
     } else if (format instanceof JsonWireFormat) {
       JsonWireFormat json = (JsonWireFormat) format;
       Message.Builder builder = (Message.Builder) messageLite.toBuilder();
-      ProtobufJsonReader.create(json.readerConfig()).merge(msg.payload(), builder);
+      ProtobufJsonReader.create(json).merge(msg.payload(), builder);
       return (T) builder.build();
     } else {
       throw new CodecException("Invalid wire format: " + format);

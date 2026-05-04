@@ -24,7 +24,7 @@ public interface GrpcMessageEncoder<T> {
         } else if (format instanceof JsonWireFormat) {
           JsonWireFormat json = (JsonWireFormat) format;
           if (msg instanceof MessageOrBuilder) {
-            return GrpcMessage.message("identity", format, ProtobufJsonWriter.create(json.writerConfig()).write((MessageOrBuilder) msg));
+            return GrpcMessage.message("identity", format, ProtobufJsonWriter.create(json).write((MessageOrBuilder) msg));
           }
           return GrpcMessage.message("identity", format, Json.encodeToBuffer(msg));
         } else {
@@ -61,7 +61,7 @@ public interface GrpcMessageEncoder<T> {
       public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
         JsonWireFormat json = (JsonWireFormat) format;
         if (msg instanceof MessageOrBuilder) {
-          return GrpcMessage.message("identity", format, ProtobufJsonWriter.create(json.writerConfig()).write((MessageOrBuilder) msg));
+          return GrpcMessage.message("identity", format, ProtobufJsonWriter.create(json).write((MessageOrBuilder) msg));
         }
         return GrpcMessage.message("identity", format, Json.encodeToBuffer(msg));
       }
