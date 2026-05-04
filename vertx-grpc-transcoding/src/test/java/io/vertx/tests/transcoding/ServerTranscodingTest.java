@@ -63,6 +63,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static final ServiceName TEST_SERVICE_NAME = ServiceName.create(TestServiceGrpc.SERVICE_NAME);
 
   public static final MethodTranscodingOptions EMPTY_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/hello");
+  public static final MethodTranscodingOptions UNARY_EMPTY_REQUEST_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.GET).setPath("/hello").setBody("request");
   public static final MethodTranscodingOptions UNARY_TRANSCODING = new MethodTranscodingOptions().setPath("/hello");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_PARAM = new MethodTranscodingOptions().setPath("/hello/{payload}");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_CUSTOM_METHOD = new MethodTranscodingOptions().setHttpMethod(HttpMethod.valueOf("ACL")).setPath("/hello");
@@ -71,6 +72,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_REPEATED_QUERY = new MethodTranscodingOptions().setPath("/keys");
 
   public static final TranscodingServiceMethod<Empty, Empty> EMPTY_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "EmptyCall", EMPTY_ENCODER, EMPTY_DECODER, EMPTY_TRANSCODING);
+  public static final TranscodingServiceMethod<Empty, EchoResponse> UNARY_EMPTY_REQUEST_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryEmptyRequestCall", ECHO_RESPONSE_ENCODER, EMPTY_DECODER, UNARY_EMPTY_REQUEST_TRANSCODING);
   public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCall", ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING);
   public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_PARAM = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithParam", ECHO_RESPONSE_ENCODER,
     ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_PARAM);
@@ -110,6 +112,17 @@ public class ServerTranscodingTest extends GrpcTestBase {
       copyHeaders(request.headers(), request.response().headers());
       copyTrailers(request.headers(), request.response().trailers());
       request.response().end(Empty.newBuilder().build());
+    });
+    grpcServer.callHandler(UNARY_EMPTY_REQUEST_CALL, request -> {
+      request.handler(requestMsg -> {
+        GrpcServerResponse<Empty, EchoResponse> response = request.response();
+        copyHeaders(request.headers(), response.headers());
+        copyTrailers(request.headers(), response.trailers());
+        EchoResponse responseMsg = EchoResponse.newBuilder()
+          .setPayload("")
+          .build();
+        response.end(responseMsg);
+      });
     });
     grpcServer.callHandler(UNARY_CALL, request -> {
       request.handler(requestMsg -> {
@@ -239,6 +252,26 @@ public class ServerTranscodingTest extends GrpcTestBase {
   @Test
   public void testEmpty(TestContext should) {
     httpClient.request(HttpMethod.POST, "/hello").compose(req -> {
+        req.headers().addAll(HEADERS);
+        return req.send().compose(response -> response.body().map(response));
+      })
+      .onComplete(should.asyncAssertSuccess(response -> {
+        should.verify(v -> {
+          assertEquals(200, response.statusCode());
+          MultiMap headers = response.headers();
+
+          assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+          assertEquals(Integer.parseInt(headers.get(HttpHeaders.CONTENT_LENGTH)), response.body().result().length());
+
+          JsonObject body = decodeBody(response.body().result());
+          assertEquals(0, body.size());
+        });
+      }));
+  }
+
+  @Test
+  public void testUnaryEmptyRequest(TestContext should) {
+    httpClient.request(HttpMethod.GET, "/hello").compose(req -> {
         req.headers().addAll(HEADERS);
         return req.send().compose(response -> response.body().map(response));
       })

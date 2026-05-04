@@ -276,28 +276,6 @@ public class TranscodingTest extends ProxyTestBase {
   }
 
   @Test
-  public void testUnaryWithEmptyMessage() throws TimeoutException {
-    HttpClient client = vertx.createHttpClient();
-    vertx.createHttpServer()
-      .requestHandler(GrpcServer.server(vertx).callHandler(GreeterGrpcService.SayHelloEmpty, call -> call.handler(helloRequest -> {
-        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello there").build();
-        call.response().end(helloReply);
-      }))).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
-
-  RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello").setMethod(HttpMethod.GET);
-
-  Buffer body = client.request(options).compose(req -> {
-      req.putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
-      req.putHeader(HttpHeaders.ACCEPT, "application/json");
-      return req.send("");
-    }).expecting(HttpResponseExpectation.SC_OK)
-    .expecting(HttpResponseExpectation.JSON)
-    .compose(HttpClientResponse::body)
-    .await(10, TimeUnit.SECONDS);
-    assertEquals("Hello there", getMessage(body.toString()));
-  }
-
-  @Test
   public void testIoUnaryWithoutOption1() throws TimeoutException {
     testUnaryWithoutOption(server -> server.callHandler(GreeterGrpc.getSayHelloWithoutOptionsMethod(), call -> call.handler(helloRequest -> {
       HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
