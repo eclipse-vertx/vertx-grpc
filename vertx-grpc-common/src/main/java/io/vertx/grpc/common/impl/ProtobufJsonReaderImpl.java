@@ -14,9 +14,9 @@ public final class ProtobufJsonReaderImpl implements ProtobufJsonReader {
 
   private final JsonFormat.Parser parser;
 
-  public ProtobufJsonReaderImpl(JsonWireFormat.ReaderConfig config) {
+  public ProtobufJsonReaderImpl(JsonWireFormat format) {
     JsonFormat.Parser parser = JsonFormat.parser();
-    if (config.getIgnoringUnknownFields()) {
+    if (format.getIgnoringUnknownFields()) {
       parser = parser.ignoringUnknownFields();
     }
     this.parser = parser;
