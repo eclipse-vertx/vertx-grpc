@@ -30,6 +30,7 @@
 syntax = "proto3";
 
 import "google/api/annotations.proto";
+import "empty.proto";
 
 option java_multiple_files = true;
 option java_package = "io.grpc.examples.helloworld";
@@ -98,7 +99,7 @@ service Greeter {
 
 
   // Sends a greeting with an empty request
-  rpc SayHelloEmpty (HelloEmptyMessage) returns (HelloReply) {
+  rpc SayHelloEmpty (grpc.testing.Empty) returns (HelloReply) {
     option (google.api.http) = {
       get: "/v1/hello"
     };
@@ -127,8 +128,4 @@ message HelloBodyRequest {
 // The response message wrapping HelloReply
 message HelloBodyResponse {
   HelloReply response = 1;
-}
-
-// The request message containing nothing
-message HelloEmptyMessage {
 }
