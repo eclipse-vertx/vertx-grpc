@@ -8,17 +8,17 @@ import io.vertx.grpc.common.impl.ProtobufJsonReaderImpl;
 /**
  * Reads JSON {@link Buffer} payloads into a protobuf {@link Message.Builder}.
  * <p>
- * Use {@link #create(JsonWireFormat.ReaderConfig)} to get an instance. The default
- * implementation is backed by {@code com.google.protobuf.util.JsonFormat}.
+ * Use {@link #create(JsonWireFormat)} to get an instance. The default implementation is backed
+ * by {@code com.google.protobuf.util.JsonFormat}.
  */
 @GenIgnore(GenIgnore.PERMITTED_TYPE)
 public interface ProtobufJsonReader {
 
   /**
-   * @return a reader configured from {@code config}
+   * @return a reader configured from {@code format}
    */
-  static ProtobufJsonReader create(JsonWireFormat.ReaderConfig config) {
-    return new ProtobufJsonReaderImpl(config);
+  static ProtobufJsonReader create(JsonWireFormat format) {
+    return new ProtobufJsonReaderImpl(format);
   }
 
   /**

@@ -47,7 +47,7 @@ public interface GrpcMessageDecoder<T> {
         } else if (format instanceof JsonWireFormat) {
           JsonWireFormat json = (JsonWireFormat) format;
           Message.Builder builder = dit.toBuilder();
-          ProtobufJsonReader.create(json.readerConfig()).merge(msg.payload(), builder);
+          ProtobufJsonReader.create(json).merge(msg.payload(), builder);
           return (T) builder.build();
         } else {
           throw new IllegalArgumentException("Invalid wire format: " + format);
@@ -86,7 +86,7 @@ public interface GrpcMessageDecoder<T> {
       public T decode(GrpcMessage msg) throws CodecException {
         JsonWireFormat json = (JsonWireFormat) msg.format();
         Message.Builder builderInstance = builder.get();
-        ProtobufJsonReader.create(json.readerConfig()).merge(msg.payload(), builderInstance);
+        ProtobufJsonReader.create(json).merge(msg.payload(), builderInstance);
         return (T) builderInstance.build();
       }
       @Override
