@@ -85,7 +85,7 @@ public class MessageWeaverTest {
     Buffer result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(message.encode()),
       new ArrayList<>(),
-      null,
+      "*",
       TEST_DESCRIPTOR
     );
 
@@ -112,7 +112,7 @@ public class MessageWeaverTest {
     Buffer result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(original.encode()),
       bindings,
-      null,
+      "*",
       TEST_DESCRIPTOR
     );
 
@@ -143,7 +143,7 @@ public class MessageWeaverTest {
     Buffer result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(original.encode()),
       bindings,
-      null,
+      "*",
       TEST_DESCRIPTOR
     );
 
@@ -182,7 +182,7 @@ public class MessageWeaverTest {
     Buffer result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(original.encode()),
       bindings,
-      null,
+      "*",
       TEST_DESCRIPTOR
     );
 
@@ -336,7 +336,7 @@ public class MessageWeaverTest {
     Buffer result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(body.encode()),
       bindings,
-      null,
+      "*",
       TEST_DESCRIPTOR
     );
 
@@ -379,6 +379,30 @@ public class MessageWeaverTest {
     );
 
     assertEquals(expected, new JsonObject(result.toString()));
+  }
+
+  @Test
+  public void testEmptyMessageReturnsEmptyObject() {
+    Buffer fromNull = MessageWeaver.weaveRequestMessage(null, new ArrayList<>(), null, TEST_DESCRIPTOR);
+    assertEquals(new JsonObject(), new JsonObject(fromNull.toString()));
+
+    Buffer fromEmpty = MessageWeaver.weaveRequestMessage(Buffer.buffer(), new ArrayList<>(), null, TEST_DESCRIPTOR);
+    assertEquals(new JsonObject(), new JsonObject(fromEmpty.toString()));
+
+    Buffer fromEmptyBody = MessageWeaver.weaveRequestMessage(Buffer.buffer(), new ArrayList<>(), "", TEST_DESCRIPTOR);
+    assertEquals(new JsonObject(), new JsonObject(fromEmptyBody.toString()));
+  }
+
+  @Test
+  public void testUnsetBodyIgnoresHttpBody() {
+    JsonObject httpBody = new JsonObject().put("field1", "value1");
+    Buffer result = MessageWeaver.weaveRequestMessage(
+      Buffer.buffer(httpBody.encode()),
+      new ArrayList<>(),
+      null,
+      TEST_DESCRIPTOR
+    );
+    assertEquals(new JsonObject(), new JsonObject(result.toString()));
   }
 
   @Test
