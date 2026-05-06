@@ -62,12 +62,12 @@ public class ServerTranscodingTest extends GrpcTestBase {
 
   public static final ServiceName TEST_SERVICE_NAME = ServiceName.create(TestServiceGrpc.SERVICE_NAME);
 
-  public static final MethodTranscodingOptions EMPTY_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/hello").setBody("");
-  public static final MethodTranscodingOptions UNARY_TRANSCODING = new MethodTranscodingOptions().setPath("/hello");
+  public static final MethodTranscodingOptions EMPTY_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/hello");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING = new MethodTranscodingOptions().setPath("/hello").setBody("*");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_PARAM = new MethodTranscodingOptions().setPath("/hello/{payload}");
-  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_CUSTOM_METHOD = new MethodTranscodingOptions().setHttpMethod(HttpMethod.valueOf("ACL")).setPath("/hello");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_CUSTOM_METHOD = new MethodTranscodingOptions().setHttpMethod(HttpMethod.valueOf("ACL")).setPath("/hello").setBody("*");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_BODY = new MethodTranscodingOptions().setPath("/body").setBody("request");
-  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_RESPONSE_BODY = new MethodTranscodingOptions().setPath("/response").setResponseBody("response");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_RESPONSE_BODY = new MethodTranscodingOptions().setPath("/response").setResponseBody("response").setBody("*");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_REPEATED_QUERY = new MethodTranscodingOptions().setPath("/keys");
 
   public static final TranscodingServiceMethod<Empty, Empty> EMPTY_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "EmptyCall", EMPTY_ENCODER, EMPTY_DECODER, EMPTY_TRANSCODING);

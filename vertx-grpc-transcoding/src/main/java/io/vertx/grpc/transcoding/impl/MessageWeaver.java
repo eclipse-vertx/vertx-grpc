@@ -33,31 +33,31 @@ public final class MessageWeaver {
    * @throws DecodeException If JSON decoding fails
    */
   public static Buffer weaveRequestMessage(Buffer message, List<HttpVariableBinding> bindings, String transcodingRequestBody, Descriptors.Descriptor descriptor) throws DecodeException {
-    if ((bindings == null || bindings.isEmpty()) && transcodingRequestBody == null) {
-      return message;
+    boolean hasBindings = bindings != null && !bindings.isEmpty();
+    boolean hasBody = transcodingRequestBody != null && !transcodingRequestBody.isEmpty();
+
+    if (!hasBindings && !hasBody) {
+      return new JsonObject().toBuffer();
     }
 
     JsonObject result = new JsonObject();
 
-    if (bindings != null && !bindings.isEmpty()) {
-      applyBindings(result, bindings, descriptor);
-    }
-
-    JsonObject messageJson = null;
-    if (message != null && !message.toString().isBlank()) {
-      messageJson = message.toJsonObject();
-    }
-
-    if (messageJson != null && !messageJson.isEmpty()) {
-      if (transcodingRequestBody == null || transcodingRequestBody.isEmpty()) {
-        // No specific path, merge at root level with deep copy
-        result.mergeIn(messageJson, true);
-      } else if (ROOT_LEVEL.equals(transcodingRequestBody)) {
-        // Wildcard, merge at root level without overwriting bindings
-        result.mergeIn(messageJson);
-      } else {
-        applyAtPath(result, transcodingRequestBody.split("\\."), messageJson);
+    if (hasBody) {
+      JsonObject messageJson = null;
+      if (message != null && !message.toString().isBlank()) {
+        messageJson = message.toJsonObject();
       }
+      if (messageJson != null && !messageJson.isEmpty()) {
+        if (ROOT_LEVEL.equals(transcodingRequestBody)) {
+          result.mergeIn(messageJson, true);
+        } else {
+          applyAtPath(result, transcodingRequestBody.split("\\."), messageJson);
+        }
+      }
+    }
+
+    if (hasBindings) {
+      applyBindings(result, bindings, descriptor);
     }
 
     return result.toBuffer();
