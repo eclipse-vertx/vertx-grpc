@@ -71,6 +71,10 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
       }
       sb.append('/').append(a);
     }
+    String verb = tmpl.getVerb();
+    if (verb != null && !verb.isEmpty()) {
+      sb.append(':').append(verb);
+    }
     paths.add(sb.toString());
     List<MethodTranscodingOptions> extra = options.getAdditionalBindings();
     if (extra != null) {
