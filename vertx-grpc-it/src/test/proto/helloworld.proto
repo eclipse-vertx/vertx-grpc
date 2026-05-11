@@ -46,6 +46,7 @@ service Greeter {
       get: "/v1/hello/{name}"
       additional_bindings {
         post: "/v1/hello"
+        body: "*"
       }
     };
   }
@@ -54,6 +55,7 @@ service Greeter {
   rpc SayHelloAgain (HelloRequest) returns (HelloReply) {
     option (google.api.http) = {
       post: "/v2/hello"
+      body: "*"
       additional_bindings {
         get: "/v2/hello/{name}"
       }
@@ -89,6 +91,7 @@ service Greeter {
   rpc SayHelloWithResponseBOdy (HelloRequest) returns (HelloBodyResponse) {
     option (google.api.http) = {
       post: "/v1/hello/body/response"
+      body: "*"
       response_body: "response"
     };
   }

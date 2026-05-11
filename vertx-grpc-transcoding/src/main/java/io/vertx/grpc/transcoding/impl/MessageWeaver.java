@@ -13,6 +13,18 @@ import java.util.Objects;
 /**
  * The MessageWeaver class handles the merging and transformation of gRPC messages during HTTP-to-gRPC transcoding operations.
  *
+ * <p>The body-field semantics follow the {@code google.api.HttpRule} contract: when {@code body} is unset, the HTTP request
+ * body is ignored and the gRPC message is built only from path/query bindings; {@code body = "*"} maps the entire HTTP body
+ * to the root of the gRPC message; {@code body = "field"} (or a dotted path) maps the HTTP body to that field. Bindings
+ * are applied on top of the body content so path/query values take precedence on collision.
+ *
+ * <p>Reference implementations:
+ * <ul>
+ *   <li>Spec: <a href="https://github.com/googleapis/googleapis/blob/master/google/api/http.proto">google/api/http.proto</a> (the {@code HttpRule.body} field comment)</li>
+ *   <li>C++ (reference): <a href="https://github.com/grpc-ecosystem/grpc-httpjson-transcoding/blob/master/src/include/grpc_transcoding/request_weaver.h">RequestWeaver</a></li>
+ *   <li>C# (ASP.NET Core): <a href="https://github.com/dotnet/aspnetcore/blob/main/src/Grpc/JsonTranscoding/src/Microsoft.AspNetCore.Grpc.JsonTranscoding/Internal/JsonRequestHelpers.cs">JsonRequestHelpers.ReadMessage</a></li>
+ * </ul>
+ *
  * @see HttpVariableBinding
  */
 public final class MessageWeaver {
