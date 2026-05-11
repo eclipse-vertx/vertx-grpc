@@ -406,6 +406,151 @@ public class MessageWeaverTest {
   }
 
   @Test
+  public void testBindingOverridesBodyScalar() {
+    addBinding("y", "from-binding");
+
+    JsonObject body = new JsonObject()
+      .put("y", "from-body")
+      .put("A", new JsonObject().put("y", "nested-body"));
+
+    JsonObject expected = new JsonObject()
+      .put("y", "from-binding")
+      .put("A", new JsonObject().put("y", "nested-body"));
+
+    Buffer result = MessageWeaver.weaveRequestMessage(
+      Buffer.buffer(body.encode()),
+      bindings,
+      "*",
+      TEST_DESCRIPTOR
+    );
+
+    assertEquals(expected, new JsonObject(result.toString()));
+  }
+
+  @Test
+  public void testBindingOverridesNestedBodyScalar() {
+    addBinding("A.y", "from-binding");
+
+    JsonObject body = new JsonObject()
+      .put("A", new JsonObject().put("y", "from-body").put("x", new JsonArray().add("k")));
+
+    JsonObject expected = new JsonObject()
+      .put("A", new JsonObject().put("y", "from-binding").put("x", new JsonArray().add("k")));
+
+    Buffer result = MessageWeaver.weaveRequestMessage(
+      Buffer.buffer(body.encode()),
+      bindings,
+      "*",
+      TEST_DESCRIPTOR
+    );
+
+    assertEquals(expected, new JsonObject(result.toString()));
+  }
+
+  @Test
+  public void testBindingCreatesSubtreeAbsentFromBody() {
+    addBinding("A.y", "from-binding");
+
+    JsonObject body = new JsonObject().put("y", "root-body");
+
+    JsonObject expected = new JsonObject()
+      .put("y", "root-body")
+      .put("A", new JsonObject().put("y", "from-binding"));
+
+    Buffer result = MessageWeaver.weaveRequestMessage(
+      Buffer.buffer(body.encode()),
+      bindings,
+      "*",
+      TEST_DESCRIPTOR
+    );
+
+    assertEquals(expected, new JsonObject(result.toString()));
+  }
+
+  @Test
+  public void testRepeatedBindingAppendedToBodyValues() {
+    addBinding("x", "b");
+    addBinding("x", "c");
+
+    JsonObject body = new JsonObject().put("x", new JsonArray().add("a"));
+
+    JsonObject expected = new JsonObject()
+      .put("x", new JsonArray().add("a").add("b").add("c"));
+
+    Buffer result = MessageWeaver.weaveRequestMessage(
+      Buffer.buffer(body.encode()),
+      bindings,
+      "*",
+      TEST_DESCRIPTOR
+    );
+
+    assertEquals(expected, new JsonObject(result.toString()));
+  }
+
+  @Test
+  public void testBindingAndBodyAtSpecificPath() {
+    addBinding("A.y", "from-binding");
+
+    JsonObject body = new JsonObject().put("x", new JsonArray().add("b"));
+
+    JsonObject expected = new JsonObject()
+      .put("A", new JsonObject()
+        .put("x", new JsonArray().add("b"))
+        .put("y", "from-binding"));
+
+    Buffer result = MessageWeaver.weaveRequestMessage(
+      Buffer.buffer(body.encode()),
+      bindings,
+      "A",
+      TEST_DESCRIPTOR
+    );
+
+    assertEquals(expected, new JsonObject(result.toString()));
+  }
+
+  @Test
+  public void testBindingsDoNotDescendIntoArrayElements() {
+    addBinding("A.y", "from-binding");
+
+    JsonObject body = new JsonObject()
+      .put("L", new JsonArray()
+        .add(new JsonObject().put("A", new JsonObject().put("x", "in-array"))));
+
+    JsonObject expected = new JsonObject()
+      .put("L", new JsonArray()
+        .add(new JsonObject().put("A", new JsonObject().put("x", "in-array"))))
+      .put("A", new JsonObject().put("y", "from-binding"));
+
+    Buffer result = MessageWeaver.weaveRequestMessage(
+      Buffer.buffer(body.encode()),
+      bindings,
+      "*",
+      TEST_DESCRIPTOR
+    );
+
+    assertEquals(expected, new JsonObject(result.toString()));
+  }
+
+  @Test
+  public void testDeepBodyPath() {
+    JsonObject body = new JsonObject().put("payload", "v");
+
+    JsonObject expected = new JsonObject()
+      .put("a", new JsonObject()
+        .put("b", new JsonObject()
+          .put("c", body)));
+
+    Buffer result = MessageWeaver.weaveRequestMessage(
+      Buffer.buffer(body.encode()),
+      new ArrayList<>(),
+      "a.b.c",
+      TEST_DESCRIPTOR
+    );
+
+    assertEquals(expected, new JsonObject(result.toString()));
+  }
+
+  @Test
   public void testInvalidJson() {
     assertThrows(DecodeException.class, () -> MessageWeaver.weaveRequestMessage(
       Buffer.buffer("invalid json"),

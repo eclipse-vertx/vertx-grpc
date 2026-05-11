@@ -89,7 +89,7 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
     if (res != null) {
       List<HttpVariableBinding> bindings = new ArrayList<>(res.getVariableBindings());
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
-      TranscodingMessageDecoder<I> messageDecoder = new TranscodingMessageDecoder<>(decoder, options.getBody(), bindings);
+      TranscodingMessageDecoder<I> messageDecoder = new TranscodingMessageDecoder<>(decoder, res.getBodyFieldPath(), bindings);
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer();
       HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, options.getResponseBody(), deframer);
       return new GrpcInvocation(deframer, protocolHandler, messageDecoder);
