@@ -115,6 +115,7 @@ service Greeter {
       get: "/v1/hello/{name}"
       additional_bindings {
         post: "/v1/hello"  // Alternative POST endpoint
+        body: "*"          // Use the HTTP body as the request message
       }
     };
   }
@@ -123,6 +124,7 @@ service Greeter {
   rpc SayHelloAgain (HelloRequest) returns (HelloReply) {
     option (google.api.http) = {
       post: "/v2/hello"
+      body: "*"
       additional_bindings {
         get: "/v2/hello/{name}"
       }
@@ -150,6 +152,15 @@ service Greeter {
 ----
 
 ==== Request Body Handling
+
+The `body` field on an `HttpRule` controls how the HTTP request body is mapped into the gRPC message:
+
+* Omitted: the HTTP request body is not used; the message is built only from path and query parameters.
+* `body: "*"`: the entire HTTP request body is mapped to the root of the gRPC message.
+* `body: "<field>"`: the HTTP request body is mapped to that specific top-level field.
+
+Path and query parameter bindings always take precedence over body fields on collision.
+
 [source,proto]
 ----
 service Greeter {
