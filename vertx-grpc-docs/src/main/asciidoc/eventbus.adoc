@@ -4,6 +4,8 @@
 The gRPC EventBus transport allows gRPC services to communicate over the Vert.x EventBus instead of HTTP/2.
 The transport supports both protobuf and JSON wire formats and works with generated gRPC service stubs.
 
+NOTE: event-bus is in tech preview in Vert.x 5.1 until the API becomes stable.
+
 === Using the EventBus transport
 
 To use the EventBus transport, add the following dependency:
