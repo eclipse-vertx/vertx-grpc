@@ -10,10 +10,8 @@
  */
 package io.vertx.grpc.server;
 
-import io.vertx.codegen.annotations.GenIgnore;
+import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.VertxGen;
-import io.vertx.core.Handler;
-import io.vertx.grpc.common.ServiceMethod;
 
 import java.util.List;
 
@@ -25,17 +23,7 @@ import java.util.List;
  * allowing them to work with any implementation - HTTP/2 via {@link GrpcServer}, event bus, etc.</p>
  */
 @VertxGen
-public interface GrpcServerService {
-
-  /**
-   * Set a service method call handler.
-   *
-   * @param serviceMethod the service method
-   * @param handler the service method call handler
-   * @return a reference to this, so the API can be used fluently
-   */
-  @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  <Req, Resp> GrpcServerService callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
+public interface ServiceContainer {
 
   /**
    * Add a service to this server.
@@ -44,7 +32,8 @@ public interface GrpcServerService {
    * @return a reference to this, so the API can be used fluently
    * @throws IllegalStateException if a service with the same name is already registered
    */
-  GrpcServerService addService(Service service);
+  @Fluent
+  ServiceContainer addService(Service service);
 
   /**
    * Get a list of all services registered with this server.

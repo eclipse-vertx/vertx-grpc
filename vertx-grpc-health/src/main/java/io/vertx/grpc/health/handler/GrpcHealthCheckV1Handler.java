@@ -5,7 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.health.v1.HealthCheckRequest;
 import io.vertx.grpc.health.v1.HealthCheckResponse;
-import io.vertx.grpc.server.GrpcServerService;
+import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.GrpcServerRequest;
 
 import java.util.Map;
@@ -19,7 +19,7 @@ public class GrpcHealthCheckV1Handler extends GrpcHealthV1HandlerBase implements
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(HealthCheckRequest.newBuilder()));
 
-  public GrpcHealthCheckV1Handler(GrpcServerService server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
+  public GrpcHealthCheckV1Handler(ServiceContainer server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
     super(server, healthChecks);
   }
 

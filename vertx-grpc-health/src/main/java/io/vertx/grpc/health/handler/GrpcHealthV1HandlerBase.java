@@ -2,7 +2,7 @@ package io.vertx.grpc.health.handler;
 
 import io.vertx.core.Future;
 import io.vertx.grpc.health.v1.HealthCheckResponse;
-import io.vertx.grpc.server.GrpcServerService;
+import io.vertx.grpc.server.ServiceContainer;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,10 +10,10 @@ import java.util.function.Supplier;
 
 public abstract class GrpcHealthV1HandlerBase {
 
-  protected final GrpcServerService server;
+  protected final ServiceContainer server;
   protected final Map<String, Supplier<Future<Boolean>>> healthChecks;
 
-  protected GrpcHealthV1HandlerBase(GrpcServerService server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
+  protected GrpcHealthV1HandlerBase(ServiceContainer server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
     this.server = server;
     this.healthChecks = healthChecks;
   }

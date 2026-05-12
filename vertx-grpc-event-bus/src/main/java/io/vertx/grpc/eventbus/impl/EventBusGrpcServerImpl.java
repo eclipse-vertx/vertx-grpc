@@ -17,7 +17,7 @@ import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusHeaders;
 import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.GrpcServerService;
+import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
@@ -49,7 +49,7 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
   }
 
   @Override
-  public <Req, Resp> GrpcServerService callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+  public <Req, Resp> EventBusGrpcServerImpl callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
 
     String serviceFqn = serviceMethod.serviceName().fullyQualifiedName();
 

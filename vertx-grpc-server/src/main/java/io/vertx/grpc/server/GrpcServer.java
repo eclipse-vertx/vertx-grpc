@@ -32,7 +32,7 @@ import io.vertx.grpc.server.impl.GrpcServerImpl;
  * <p>The server handles only the gRPC protocol and does not encode/decode protobuf messages.</p>
  */
 @VertxGen
-public interface GrpcServer extends GrpcServerService, Handler<HttpServerRequest> {
+public interface GrpcServer extends ServiceContainer, Handler<HttpServerRequest> {
 
   /**
    * Create a blank gRPC server with default options.
@@ -69,8 +69,10 @@ public interface GrpcServer extends GrpcServerService, Handler<HttpServerRequest
    * @param serviceMethod the service method
    * @return a reference to this, so the API can be used fluently
    */
+  @Fluent
   <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
 
   @Override
+  @Fluent
   GrpcServer addService(Service service);
 }

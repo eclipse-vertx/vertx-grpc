@@ -1,14 +1,16 @@
 package io.vertx.grpc.eventbus;
 
+import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Closeable;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.eventbus.impl.EventBusGrpcServerImpl;
-import io.vertx.grpc.server.GrpcServerService;
+import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.Service;
-
-import java.util.List;
 
 /**
  * A gRPC server that uses the Vert.x {@link EventBus} as transport instead of HTTP/2.
@@ -19,12 +21,9 @@ import java.util.List;
  *
  * <p>The server registers event bus consumers using the service's fully qualified name
  * as the address, and routes to specific method handlers using the {@code action} header.</p>
- *
- * <p>This implements {@link GrpcServerService} so generated gRPC service stubs can bind to it
- * via {@link Service#bind(GrpcServerService)}.</p>
  */
 @VertxGen
-public interface EventBusGrpcServer extends GrpcServerService, Closeable {
+public interface EventBusGrpcServer extends ServiceContainer, Closeable {
 
   /**
    * Create an event bus gRPC server using the event bus from the provided Vert.x instance.
@@ -35,6 +34,9 @@ public interface EventBusGrpcServer extends GrpcServerService, Closeable {
   static EventBusGrpcServer create(Vertx vertx) {
     return new EventBusGrpcServerImpl(vertx, vertx.eventBus());
   }
+
+  @Fluent
+  <Req, Resp> EventBusGrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
 
   /**
    * Create an event bus gRPC server using the provided event bus.
@@ -48,6 +50,7 @@ public interface EventBusGrpcServer extends GrpcServerService, Closeable {
   }
 
   @Override
+  @Fluent
   EventBusGrpcServer addService(Service service);
 
 }

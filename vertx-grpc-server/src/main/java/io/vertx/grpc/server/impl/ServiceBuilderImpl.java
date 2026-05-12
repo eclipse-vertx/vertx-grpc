@@ -4,7 +4,7 @@ import com.google.protobuf.Descriptors;
 import io.vertx.core.Handler;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.server.GrpcServerService;
+import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceBuilder;
@@ -89,17 +89,6 @@ public class ServiceBuilderImpl implements ServiceBuilder {
      */
     private Handler<GrpcServerRequest<Req, Resp>> handler() {
       return handler;
-    }
-
-    /**
-     * Binds this service method and its handler to the specified gRPC server.
-     * This registers the handler with the server so that it can process requests
-     * for the service method.
-     *
-     * @param server the gRPC server to bind to
-     */
-    public void bind(GrpcServerService server) {
-      server.callHandler(serviceMethod, handler);
     }
   }
 }

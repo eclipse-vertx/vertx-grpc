@@ -35,7 +35,7 @@ dependencies {
 
 === EventBus server
 
-The `EventBusGrpcServer` registers EventBus consumers for each service and dispatches incoming messages to service handlers. It implements `GrpcServerService`, so generated service stubs work out of the box.
+The `EventBusGrpcServer` registers EventBus consumers for each service and dispatches incoming messages to service handlers. It implements `ServiceContainer`, so generated service stubs work out of the box.
 
 [source,java]
 ----

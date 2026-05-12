@@ -10,7 +10,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.health.HealthServiceOptions;
 import io.vertx.grpc.health.v1.HealthCheckRequest;
 import io.vertx.grpc.health.v1.HealthCheckResponse;
-import io.vertx.grpc.server.GrpcServerService;
+import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 
@@ -37,11 +37,11 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
 
   private long timerId = -1;
 
-  public GrpcHealthWatchV1Handler(Vertx vertx, GrpcServerService server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
+  public GrpcHealthWatchV1Handler(Vertx vertx, ServiceContainer server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
     this(vertx, server, healthChecks, new HealthServiceOptions());
   }
 
-  public GrpcHealthWatchV1Handler(Vertx vertx, GrpcServerService server, Map<String, Supplier<Future<Boolean>>> healthChecks, HealthServiceOptions options) {
+  public GrpcHealthWatchV1Handler(Vertx vertx, ServiceContainer server, Map<String, Supplier<Future<Boolean>>> healthChecks, HealthServiceOptions options) {
     super(server, healthChecks);
 
     this.vertx = vertx;

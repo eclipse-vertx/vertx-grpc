@@ -15,7 +15,6 @@ import io.vertx.core.Future;
 import io.vertx.core.http.HttpServer;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerService;
 import io.vertx.grpc.server.Service;
 import org.junit.Test;
 

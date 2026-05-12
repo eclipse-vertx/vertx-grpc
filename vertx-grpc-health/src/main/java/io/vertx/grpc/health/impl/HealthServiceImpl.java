@@ -15,6 +15,7 @@ import io.vertx.grpc.health.handler.GrpcHealthWatchV1Handler;
 import io.vertx.grpc.health.v1.HealthProto;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.impl.ServerAware;
 
 import java.util.List;
@@ -31,7 +32,7 @@ public class HealthServiceImpl implements HealthService, ServerAware {
   private final HealthServiceOptions options;
   private final Map<String, Supplier<Future<Boolean>>> checks = new ConcurrentHashMap<>();
 
-  private GrpcServer server;
+  private ServiceContainer server;
   private Handler checkHandler;
   private Handler listHandler;
   private Handler watchHandler;
@@ -86,7 +87,7 @@ public class HealthServiceImpl implements HealthService, ServerAware {
   }
 
   @Override
-  public void setServer(GrpcServer server) {
+  public void setServer(ServiceContainer server) {
     this.server = server;
     this.checkHandler = new GrpcHealthCheckV1Handler(server, checks);
     this.listHandler = new GrpcHealthListV1Handler(server, checks);

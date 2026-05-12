@@ -8,6 +8,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
+import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.impl.ServerAware;
 
 import java.util.List;
@@ -60,10 +61,10 @@ public class ReflectionService implements Service, ServerAware {
     }
   }
 
-  private GrpcServer server;
+  private ServiceContainer server;
 
   @Override
-  public void setServer(GrpcServer server) {
+  public void setServer(ServiceContainer server) {
     this.server = server;
   }
 
