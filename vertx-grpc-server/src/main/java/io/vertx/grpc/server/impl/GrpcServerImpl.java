@@ -10,6 +10,8 @@
  */
 package io.vertx.grpc.server.impl;
 
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.MessageLite;
 import io.vertx.core.Closeable;
 import io.vertx.core.Completable;
 import io.vertx.core.Future;
@@ -283,10 +285,15 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
           throw new IllegalStateException("Duplicated name: " + service.name().name());
         }
       }
+      if (service instanceof ServerAware) {
+        ((ServerAware)service).setServer(this);
+      }
+      for (ServiceMethod method : service.methods()) {
+        registerMethodCallHandler(service.pathOfMethod(method.methodName()), new MethodCallHandler<Object, Object>(method, method.decoder(), method.encoder(), service::handle));
+      }
 
       this.services.add(service);
     }
-    service.bind(this);
 
     return this;
   }

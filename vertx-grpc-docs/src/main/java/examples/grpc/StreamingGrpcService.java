@@ -14,7 +14,6 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
-import io.vertx.grpc.server.ServiceBuilder;
 import io.vertx.grpc.server.StatusException;
 
 import com.google.protobuf.Descriptors;
@@ -22,6 +21,8 @@ import com.google.protobuf.Descriptors;
 import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * <p>Provides support for RPC methods implementations of the Streaming gRPC service.</p>
@@ -53,11 +54,6 @@ public class StreamingGrpcService extends StreamingService implements Service {
   @Override
   public Descriptors.ServiceDescriptor descriptor() {
     return SERVICE_DESCRIPTOR;
-  }
-
-  @Override
-  public void bind(GrpcServer server) {
-    builder(this).bind(all()).build().bind(server);
   }
 
   /**
@@ -116,28 +112,13 @@ public class StreamingGrpcService extends StreamingService implements Service {
   /**
    * Service builder.
    */
-  public static class Builder implements ServiceBuilder {
+  public static class Builder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
     private final StreamingService instance;
 
     private Builder(StreamingService instance) {
       this.instance = instance;
-    }
-
-//    private void validate() {
-//      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-//        if (resolveHandler(serviceMethod) == null) {
-//          throw new IllegalArgumentException("Invalid service method:" + serviceMethod);
-//        }
-//      }
-//    }
-
-    /**
-     * Throws {@code UnsupportedOperationException}.
-     */
-    public <Req, Resp> ServiceBuilder bind(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-      throw new UnsupportedOperationException();
     }
 
     /**
@@ -163,21 +144,37 @@ public class StreamingGrpcService extends StreamingService implements Service {
 
       // Defensive copy
       private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>(Builder.this.serviceMethods);
+      private final Map<String, Handler<? extends GrpcServerRequest<?, ?>>> handlers = new HashMap<>();
 
+      {
+        for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
+          Handler<? extends GrpcServerRequest<?, ?>> handler = resolveHandler(serviceMethod);
+          handlers.put(serviceMethod.methodName(), handler);
+        }
+      }
+
+      @Override
       public ServiceName name() {
         return SERVICE_NAME;
       }
 
+      @Override
       public Descriptors.ServiceDescriptor descriptor() {
         return SERVICE_DESCRIPTOR;
       }
 
-      /**
-       * Bind the contained service methods to the {@code server}.
-       */
-      public void bind(GrpcServer server) {
-        for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-          bindHandler(serviceMethod, server);
+      @Override
+      public List<ServiceMethod<?, ?>> methods() {
+        return serviceMethods;
+      }
+
+      @Override
+      public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
+        Handler handler = handlers.get(request.methodName());
+        if (handler != null) {
+          handler.handle(request);
+        } else {
+          Service.super.handle(request);
         }
       }
 

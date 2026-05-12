@@ -42,9 +42,16 @@ public class ServiceBuilderImpl implements ServiceBuilder {
       public Descriptors.ServiceDescriptor descriptor() {
         return descriptor;
       }
+
       @Override
-      public void bind(GrpcServer server) {
-        handlers.forEach(h -> h.bind(server));
+      public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
+        for (ServiceMethodBinding<?, ?> handler : handlers) {
+          if (handler.serviceMethod.methodName().equals(request.methodName())) {
+            handler.handler.handle((GrpcServerRequest)request);
+            return;
+          }
+        }
+        Service.super.handle(request);
       }
     };
   }
