@@ -14,7 +14,6 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.Service;
-import io.vertx.grpc.server.ServiceBuilder;
 import io.vertx.grpc.server.StatusException;
 
 import com.google.protobuf.Descriptors;
@@ -22,6 +21,8 @@ import com.google.protobuf.Descriptors;
 import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * <p>Provides support for RPC methods implementations of the Streaming gRPC service.</p>
@@ -53,11 +54,6 @@ public class StreamingGrpcService extends StreamingService implements Service {
   @Override
   public Descriptors.ServiceDescriptor descriptor() {
     return SERVICE_DESCRIPTOR;
-  }
-
-  @Override
-  public void bind(GrpcServer server) {
-    builder(this).bind(all()).build().bind(server);
   }
 
   /**
@@ -106,6 +102,18 @@ public class StreamingGrpcService extends StreamingService implements Service {
   }
 
 
+  private final Invoker invoker = new Invoker(this, all());
+
+  @Override
+  public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
+    invoker.handle(request);
+  }
+
+  @Override
+  public List<ServiceMethod<?, ?>> methods() {
+    return invoker.methods();
+  }
+
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
@@ -116,28 +124,13 @@ public class StreamingGrpcService extends StreamingService implements Service {
   /**
    * Service builder.
    */
-  public static class Builder implements ServiceBuilder {
+  public static class Builder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
     private final StreamingService instance;
 
     private Builder(StreamingService instance) {
       this.instance = instance;
-    }
-
-//    private void validate() {
-//      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-//        if (resolveHandler(serviceMethod) == null) {
-//          throw new IllegalArgumentException("Invalid service method:" + serviceMethod);
-//        }
-//      }
-//    }
-
-    /**
-     * Throws {@code UnsupportedOperationException}.
-     */
-    public <Req, Resp> ServiceBuilder bind(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-      throw new UnsupportedOperationException();
     }
 
     /**
@@ -156,54 +149,76 @@ public class StreamingGrpcService extends StreamingService implements Service {
     }
 
     public Service build() {
-      return new Invoker();
+      return new Invoker(instance, new ArrayList<>(serviceMethods));
+    }
+  }
+
+  private static class Invoker implements Service {
+
+    private final StreamingService instance;
+    private final List<ServiceMethod<?, ?>> serviceMethods;
+    private final Map<String, Handler<? extends GrpcServerRequest<?, ?>>> handlers;
+
+    public Invoker(StreamingService instance, List<ServiceMethod<?, ?>> serviceMethods) {
+      Map<String, Handler<? extends GrpcServerRequest<?, ?>>> handlers = new HashMap<>();
+      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
+        Handler<? extends GrpcServerRequest<?, ?>> handler = resolveHandler(serviceMethod);
+        handlers.put(serviceMethod.methodName(), handler);
+      }
+
+      this.instance = instance;
+      this.handlers = handlers;
+      this.serviceMethods = serviceMethods;
     }
 
-    private class Invoker implements Service {
+    @Override
+    public ServiceName name() {
+      return SERVICE_NAME;
+    }
 
-      // Defensive copy
-      private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>(Builder.this.serviceMethods);
+    @Override
+    public Descriptors.ServiceDescriptor descriptor() {
+      return SERVICE_DESCRIPTOR;
+    }
 
-      public ServiceName name() {
-        return SERVICE_NAME;
+    @Override
+    public List<ServiceMethod<?, ?>> methods() {
+      return serviceMethods;
+    }
+
+    @Override
+    public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
+      Handler handler = handlers.get(request.methodName());
+      if (handler != null) {
+        handler.handle(request);
+      } else {
+        Service.super.handle(request);
       }
+    }
 
-      public Descriptors.ServiceDescriptor descriptor() {
-        return SERVICE_DESCRIPTOR;
-      }
+    private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServer server) {
+      Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
+      server.callHandler(serviceMethod, handler);
+    }
 
-      /**
-       * Bind the contained service methods to the {@code server}.
-       */
-      public void bind(GrpcServer server) {
-        for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-          bindHandler(serviceMethod, server);
-        }
+    private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
+      if (Source == serviceMethod) {
+        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item>> handler = this::handle_source;
+        Handler<?> handler2 = handler;
+        return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
       }
-
-      private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServer server) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
-        server.callHandler(serviceMethod, handler);
+      if (Sink == serviceMethod) {
+        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Empty>> handler = this::handle_sink;
+        Handler<?> handler2 = handler;
+        return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
       }
-
-      private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
-        if (Source == serviceMethod) {
-          Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item>> handler = this::handle_source;
-          Handler<?> handler2 = handler;
-          return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-        }
-        if (Sink == serviceMethod) {
-          Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Empty>> handler = this::handle_sink;
-          Handler<?> handler2 = handler;
-          return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-        }
-        if (Pipe == serviceMethod) {
-          Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item>> handler = this::handle_pipe;
-          Handler<?> handler2 = handler;
-          return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-        }
-        return null;
+      if (Pipe == serviceMethod) {
+        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item>> handler = this::handle_pipe;
+        Handler<?> handler2 = handler;
+        return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
       }
+      return null;
+    }
 
 
   private void handle_source(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Empty, examples.grpc.Item> request) {
@@ -225,6 +240,5 @@ public class StreamingGrpcService extends StreamingService implements Service {
   private void handle_pipe(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.Item, examples.grpc.Item> request) {
     instance.pipe(request, request.response());
   }
-    }
   }
 }

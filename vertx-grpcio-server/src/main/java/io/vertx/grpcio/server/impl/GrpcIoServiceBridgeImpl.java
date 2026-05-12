@@ -26,10 +26,12 @@ import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.Status;
 import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.server.GrpcServerRequest;
@@ -45,14 +47,19 @@ import io.vertx.grpcio.server.GrpcIoServiceBridge;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
 
   private final ServiceName serviceName;
   private final ServerServiceDefinition serviceDef;
   private final ProtoServiceDescriptorSupplier protoServiceDescriptorSupplier;
+  private Map<String, ServiceMethodHandler<?, ?>> handlers;
 
   public GrpcIoServiceBridgeImpl(ServerServiceDefinition serviceDef) {
 
@@ -65,9 +72,18 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
       throw new IllegalArgumentException("Service definition must have a FileDescriptor");
     }
 
+    HashMap<String, ServiceMethodHandler<?, ?>> handlers = new HashMap<>();
+    serviceDef
+      .getMethods()
+      .forEach(smd -> {
+        ServiceMethodHandler<?, ?> handler = new ServiceMethodHandler<>(smd);
+        handlers.put(handler.serviceMethod.methodName(), handler);
+      });
+
     this.protoServiceDescriptorSupplier = supplier;
     this.serviceName = ServiceName.create(serviceDef.getServiceDescriptor().getName());
     this.serviceDef = serviceDef;
+    this.handlers = handlers;
   }
 
   @Override
@@ -91,31 +107,26 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
 
   @Override
   public void bind(GrpcIoServer server) {
-    serviceDef.getMethods().forEach(m -> bind(server, m));
+    server.addService(this);
   }
 
-  private <Req, Resp> void bind(GrpcIoServer server, ServerMethodDefinition<Req, Resp> methodDef) {
-    server.callHandler(methodDef.getMethodDescriptor(), req -> {
-      ServerCallHandler<Req, Resp> callHandler = methodDef.getServerCallHandler();
-      Context context = Context.current();
-      if (req.timeout() > 0L) {
-        Context.CancellableContext cancellable = context.withDeadlineAfter(req.timeout(), TimeUnit.MILLISECONDS, new VertxScheduledExecutorService(Vertx.currentContext()));
-        context = cancellable;
-        context.addListener(context1 -> ((GrpcServerResponseImpl)req.response()).handleTimeout(), new Executor() {
-          @Override
-          public void execute(Runnable command) {
-            command.run();
-          }
-        });
-      }
-      Context theContext = context;
-      Runnable task = theContext.wrap(() -> {
-        ServerCallImpl<Req, Resp> call = new ServerCallImpl<>(theContext, req, methodDef);
-        ServerCall.Listener<Req> listener = callHandler.startCall(call, io.vertx.grpcio.common.impl.Utils.readMetadata(req.headers()));
-        call.init(listener);
-      });
-      task.run();
-    });
+  @Override
+  public List<ServiceMethod<?, ?>> methods() {
+    return handlers
+      .values()
+      .stream()
+      .map(h -> h.serviceMethod)
+      .collect(Collectors.toList());
+  }
+
+ @Override
+  public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
+    ServiceMethodHandler handler = handlers.get(request.methodName());
+    if (handler != null) {
+      handler.handle(request);
+    } else {
+      GrpcIoServiceBridge.super.handle(request);
+    }
   }
 
   private static class ServerCallImpl<Req, Resp> extends ServerCall<Req, Resp> {
@@ -143,7 +154,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
       this.decompressor = DecompressorRegistry.getDefaultInstance().lookupDecompressor(encoding);
       this.req = req;
       this.methodDef = methodDef;
-      this.readAdapter = new ReadStreamAdapter<Req>() {
+      this.readAdapter = new ReadStreamAdapter<>() {
         @Override
         protected void handleClose() {
           halfClosed = true;
@@ -286,6 +297,50 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
     @Override
     public Attributes getAttributes() {
       return this.attributes;
+    }
+  }
+
+  private static class ServiceMethodHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
+
+    private final ServerMethodDefinition<Req, Resp> methodDef;
+    private final ServiceMethod<Req, Resp> serviceMethod;
+
+    public ServiceMethodHandler(ServerMethodDefinition<Req, Resp> methodDef) {
+
+      MethodDescriptor<Req, Resp> methodDesc = methodDef.getMethodDescriptor();
+
+      ServiceMethod<Req, Resp> serviceMethod = ServiceMethod.server(
+        ServiceName.create(methodDesc.getServiceName()),
+        methodDesc.getBareMethodName(),
+        new BridgeMessageEncoder<>(methodDesc.getResponseMarshaller(), null),
+        new BridgeMessageDecoder<>(methodDesc.getRequestMarshaller(), null)
+      );
+
+      this.methodDef = methodDef;
+      this.serviceMethod = serviceMethod;
+    }
+
+    @Override
+    public void handle(GrpcServerRequest<Req, Resp> req) {
+      ServerCallHandler<Req, Resp> callHandler = methodDef.getServerCallHandler();
+      Context context = Context.current();
+      if (req.timeout() > 0L) {
+        Context.CancellableContext cancellable = context.withDeadlineAfter(req.timeout(), TimeUnit.MILLISECONDS, new VertxScheduledExecutorService(Vertx.currentContext()));
+        context = cancellable;
+        context.addListener(context1 -> ((GrpcServerResponseImpl)req.response()).handleTimeout(), new Executor() {
+          @Override
+          public void execute(Runnable command) {
+            command.run();
+          }
+        });
+      }
+      Context theContext = context;
+      Runnable task = theContext.wrap(() -> {
+        ServerCallImpl<Req, Resp> call = new ServerCallImpl<>(theContext, req, methodDef);
+        ServerCall.Listener<Req> listener = callHandler.startCall(call, io.vertx.grpcio.common.impl.Utils.readMetadata(req.headers()));
+        call.init(listener);
+      });
+      task.run();
     }
   }
 }

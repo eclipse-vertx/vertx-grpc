@@ -2,8 +2,10 @@ package io.vertx.grpc.health.impl;
 
 import com.google.protobuf.Descriptors;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.health.HealthService;
 import io.vertx.grpc.health.HealthServiceOptions;
@@ -12,12 +14,15 @@ import io.vertx.grpc.health.handler.GrpcHealthListV1Handler;
 import io.vertx.grpc.health.handler.GrpcHealthWatchV1Handler;
 import io.vertx.grpc.health.v1.HealthProto;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.impl.ServerAware;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
-public class HealthServiceImpl implements HealthService {
+public class HealthServiceImpl implements HealthService, ServerAware {
 
   private static final ServiceName V1_SERVICE_NAME = ServiceName.create("grpc.health.v1.Health");
   private static final Descriptors.ServiceDescriptor V1_SERVICE_DESCRIPTOR = HealthProto.getDescriptor().findServiceByName("Health");
@@ -25,6 +30,11 @@ public class HealthServiceImpl implements HealthService {
   private final Vertx vertx;
   private final HealthServiceOptions options;
   private final Map<String, Supplier<Future<Boolean>>> checks = new ConcurrentHashMap<>();
+
+  private GrpcServer server;
+  private Handler checkHandler;
+  private Handler listHandler;
+  private Handler watchHandler;
 
   public HealthServiceImpl(Vertx vertx) {
     this(vertx, new HealthServiceOptions());
@@ -47,10 +57,40 @@ public class HealthServiceImpl implements HealthService {
   }
 
   @Override
-  public void bind(GrpcServer server) {
-    server.callHandler(GrpcHealthCheckV1Handler.SERVICE_METHOD, new GrpcHealthCheckV1Handler(server, checks));
-    server.callHandler(GrpcHealthListV1Handler.SERVICE_METHOD, new GrpcHealthListV1Handler(server, checks));
-    server.callHandler(GrpcHealthWatchV1Handler.SERVICE_METHOD, new GrpcHealthWatchV1Handler(vertx, server, checks, options));
+  public List<ServiceMethod<?, ?>> methods() {
+    return List.of(GrpcHealthCheckV1Handler.SERVICE_METHOD, GrpcHealthListV1Handler.SERVICE_METHOD, GrpcHealthWatchV1Handler.SERVICE_METHOD);
+  }
+
+  @Override
+  public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
+    Handler handler;
+    switch (request.methodName()) {
+      case "Check":
+        handler = checkHandler;
+        break;
+      case "List":
+        handler = listHandler;
+        break;
+      case "Watch":
+        handler = watchHandler;
+        break;
+      default:
+        handler = null;
+        break;
+    }
+    if (handler != null) {
+      handler.handle(request);
+    } else {
+      HealthService.super.handle(request);;
+    }
+  }
+
+  @Override
+  public void setServer(GrpcServer server) {
+    this.server = server;
+    this.checkHandler = new GrpcHealthCheckV1Handler(server, checks);
+    this.listHandler = new GrpcHealthListV1Handler(server, checks);
+    this.watchHandler = new GrpcHealthWatchV1Handler(vertx, server, checks, options);
   }
 
   @Override

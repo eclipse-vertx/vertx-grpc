@@ -148,10 +148,6 @@ public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
         return methodDescriptors;
       }
 
-      @Override
-      public void bind(GrpcServer server) {
-        // Handlers are already registered via callHandler(MethodDescriptor, Handler).
-      }
     };
   }
 }

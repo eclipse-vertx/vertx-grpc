@@ -41,14 +41,14 @@ public class DeadlineTest extends ProxyTestBase {
     GrpcClientOptions clientOptions = new GrpcClientOptions().setScheduleDeadlineAutomatically(true);
     GrpcServerOptions serverOptions = new GrpcServerOptions().setDeadlinePropagation(true);
     GrpcClient client = GrpcClient.client(vertx, clientOptions);
-    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx, serverOptions)
+    vertx.createHttpServer().requestHandler(GrpcServer.server(vertx, serverOptions)
       .callHandler(GreeterGrpcService.SayHello, call -> {
       should.assertTrue(call.timeout() > 0L);
       call.errorHandler(err -> {
         should.assertEquals(GrpcStatus.CANCELLED, err.status);
         latch.countDown();
       });
-    })).listen(8080, "localhost");
+    })).listen(8080, "localhost").await();
     GreeterGrpcClient stub = GreeterGrpcClient.create(client, SocketAddress.inetSocketAddress(8080, "localhost"));
     GreeterGrpcService service = new GreeterGrpcService() {
       @Override
@@ -74,18 +74,19 @@ public class DeadlineTest extends ProxyTestBase {
     GrpcServer proxy = GrpcServer.server(vertx, serverOptions);
     proxy.addService(service);
     HttpServer proxyServer = vertx.createHttpServer().requestHandler(proxy);
-    server.flatMap(v -> proxyServer.listen(8081, "localhost")).onComplete(should.asyncAssertSuccess(v -> {
-      client.request(SocketAddress.inetSocketAddress(8081, "localhost"), GreeterGrpcClient.SayHello)
-        .onComplete(should.asyncAssertSuccess(callRequest -> {
-          callRequest.response().onComplete(should.asyncAssertFailure(err -> {
-            should.assertTrue(err instanceof GrpcErrorException);
-            GrpcErrorException sre = (GrpcErrorException) err;
-            should.assertEquals(GrpcStatus.CANCELLED, sre.status());
-            latch.countDown();
-          }));
-          callRequest.timeout(2, TimeUnit.SECONDS).end(HelloRequest.newBuilder().setName("Julien").build());
+    proxyServer.listen(8081, "localhost").await();
+
+    client.request(SocketAddress.inetSocketAddress(8081, "localhost"), GreeterGrpcClient.SayHello)
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.response().onComplete(should.asyncAssertFailure(err -> {
+          should.assertTrue(err instanceof GrpcErrorException);
+          GrpcErrorException sre = (GrpcErrorException) err;
+          should.assertEquals(GrpcStatus.CANCELLED, sre.status());
+          latch.countDown();
         }));
-    }));
+        callRequest.timeout(2, TimeUnit.SECONDS).end(HelloRequest.newBuilder().setName("Julien").build());
+      }));
+
     latch.awaitSuccess();
   }
 }

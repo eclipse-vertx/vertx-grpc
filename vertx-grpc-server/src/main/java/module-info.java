@@ -14,5 +14,5 @@ module io.vertx.grpc.server {
   uses io.vertx.grpc.server.impl.GrpcHttpInvoker;
 
   exports io.vertx.grpc.server;
-  exports io.vertx.grpc.server.impl to io.vertx.grpc.transcoding;
+  exports io.vertx.grpc.server.impl to io.vertx.grpc.transcoding, io.vertx.grpc.reflection, io.vertx.grpc.health;
 }
