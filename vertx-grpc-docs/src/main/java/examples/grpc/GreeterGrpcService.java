@@ -90,6 +90,18 @@ public class GreeterGrpcService extends GreeterService implements Service {
     SayHello_OPTIONS
   );
 
+  private final Invoker invoker = new Invoker(this, all());
+
+  @Override
+  public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
+    invoker.handle(request);
+  }
+
+  @Override
+  public List<ServiceMethod<?, ?>> methods() {
+    return invoker.methods();
+  }
+
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
@@ -125,60 +137,66 @@ public class GreeterGrpcService extends GreeterService implements Service {
     }
 
     public Service build() {
-      return new Invoker();
+      return new Invoker(instance, new ArrayList<>(serviceMethods));
+    }
+  }
+
+  private static class Invoker implements Service {
+
+    private final GreeterService instance;
+    private final List<ServiceMethod<?, ?>> serviceMethods;
+    private final Map<String, Handler<? extends GrpcServerRequest<?, ?>>> handlers;
+
+    public Invoker(GreeterService instance, List<ServiceMethod<?, ?>> serviceMethods) {
+      Map<String, Handler<? extends GrpcServerRequest<?, ?>>> handlers = new HashMap<>();
+      for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
+        Handler<? extends GrpcServerRequest<?, ?>> handler = resolveHandler(serviceMethod);
+        handlers.put(serviceMethod.methodName(), handler);
+      }
+
+      this.instance = instance;
+      this.handlers = handlers;
+      this.serviceMethods = serviceMethods;
     }
 
-    private class Invoker implements Service {
+    @Override
+    public ServiceName name() {
+      return SERVICE_NAME;
+    }
 
-      // Defensive copy
-      private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>(Builder.this.serviceMethods);
-      private final Map<String, Handler<? extends GrpcServerRequest<?, ?>>> handlers = new HashMap<>();
+    @Override
+    public Descriptors.ServiceDescriptor descriptor() {
+      return SERVICE_DESCRIPTOR;
+    }
 
-      {
-        for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-          Handler<? extends GrpcServerRequest<?, ?>> handler = resolveHandler(serviceMethod);
-          handlers.put(serviceMethod.methodName(), handler);
-        }
+    @Override
+    public List<ServiceMethod<?, ?>> methods() {
+      return serviceMethods;
+    }
+
+    @Override
+    public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
+      Handler handler = handlers.get(request.methodName());
+      if (handler != null) {
+        handler.handle(request);
+      } else {
+        Service.super.handle(request);
       }
+    }
 
-      @Override
-      public ServiceName name() {
-        return SERVICE_NAME;
-      }
+    private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServer server) {
+      Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
+      server.callHandler(serviceMethod, handler);
+    }
 
-      @Override
-      public Descriptors.ServiceDescriptor descriptor() {
-        return SERVICE_DESCRIPTOR;
+    private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
+      if (SayHello == serviceMethod) {
+        Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = this::handle_sayHello;
+        Handler<?> handler2 = handler;
+        return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
       }
-
-      @Override
-      public List<ServiceMethod<?, ?>> methods() {
-        return serviceMethods;
-      }
-
-      @Override
-      public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
-        Handler handler = handlers.get(request.methodName());
-        if (handler != null) {
-          handler.handle(request);
-        } else {
-          Service.super.handle(request);
-        }
-      }
-
-      private <Req, Resp> void bindHandler(ServiceMethod<Req, Resp> serviceMethod, GrpcServer server) {
-        Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> handler = resolveHandler(serviceMethod);
-        server.callHandler(serviceMethod, handler);
-      }
-
-      private <Req, Resp> Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
-        if (SayHello == serviceMethod) {
-          Handler<io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = this::handle_sayHello;
-          Handler<?> handler2 = handler;
-          return (Handler<io.vertx.grpc.server.GrpcServerRequest<Req, Resp>>) handler2;
-        }
-        return null;
-      }
+      return null;
+    }
 
 
   private void handle_sayHello(io.vertx.grpc.server.GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply> request) {
@@ -192,6 +210,5 @@ public class GreeterGrpcService extends GreeterService implements Service {
       });
     });
   }
-    }
   }
 }
