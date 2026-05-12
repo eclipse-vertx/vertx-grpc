@@ -48,11 +48,6 @@ public interface GrpcIoServiceBridge extends Service {
    */
   void bind(GrpcIoServer server);
 
-  @Override
-  default void bind(GrpcServerService server) {
-    bind((GrpcIoServer) server);
-  }
-
   /**
    * Unbind all service methods from the @{code server}.
    *

@@ -43,9 +43,6 @@ public class LifecycleTest extends ServerTestBase {
           return null;
         }
         @Override
-        public void bind(GrpcServerService server) {
-        }
-        @Override
         public Future<Void> close() {
           closed.incrementAndGet();
           return Service.super.close().timeout(10, TimeUnit.MILLISECONDS);
@@ -72,9 +69,6 @@ public class LifecycleTest extends ServerTestBase {
         @Override
         public Descriptors.ServiceDescriptor descriptor() {
           return null;
-        }
-        @Override
-        public void bind(GrpcServerService server) {
         }
       });
       fail();

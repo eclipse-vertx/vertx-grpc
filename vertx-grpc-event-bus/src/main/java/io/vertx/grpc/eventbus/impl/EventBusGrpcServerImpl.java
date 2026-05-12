@@ -12,10 +12,7 @@ import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusHeaders;
@@ -26,6 +23,7 @@ import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class EventBusGrpcServerImpl implements EventBusGrpcServer {
 
@@ -33,32 +31,52 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
 
   private final Vertx vertx;
   private final EventBus eventBus;
-  private final Map<String, Map<String, MethodHandler<?, ?>>> handlers = new HashMap<>();
-  private final Map<String, MessageConsumer<Object>> consumers = new HashMap<>();
-  private final List<Service> services = new ArrayList<>();
+  private final Map<String, ServiceConsumer> consumers = new HashMap<>();
 
   public EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus) {
     this.vertx = vertx;
     this.eventBus = eventBus;
   }
 
+    private static class MethodHandler<Req, Resp> {
+      final ServiceMethod<Req, Resp> serviceMethod;
+      final Handler<GrpcServerRequest<Req, Resp>> handler;
+
+      MethodHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+        this.serviceMethod = serviceMethod;
+        this.handler = handler;
+      }
+  }
+
   @Override
   public <Req, Resp> GrpcServerService callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-    String serviceFqn = serviceMethod.serviceName().fullyQualifiedName();
-    String methodName = serviceMethod.methodName();
 
-    if (handler != null) {
-      handlers.computeIfAbsent(serviceFqn, k -> new HashMap<>()).put(methodName, new MethodHandler<>(serviceMethod, handler));
-      ensureConsumer(serviceFqn);
-    } else {
-      Map<String, MethodHandler<?, ?>> methodHandlers = handlers.get(serviceFqn);
-      if (methodHandlers != null) {
-        methodHandlers.remove(methodName);
-        if (methodHandlers.isEmpty()) {
-          handlers.remove(serviceFqn);
-          removeConsumer(serviceFqn);
-        }
+    String serviceFqn = serviceMethod.serviceName().fullyQualifiedName();
+
+    ServiceConsumer consumer = consumers.get(serviceFqn);
+
+    Service service;
+    if (consumer == null) {
+      if (handler == null) {
+        return this;
       }
+      service = new SimpleService(serviceMethod.serviceName());
+      addService(service);
+    } else {
+      service = consumer.service;
+    }
+
+    if (service instanceof SimpleService) {
+      SimpleService simpleService = (SimpleService) service;
+      String methodName = serviceMethod.methodName();
+      if (handler != null) {
+        simpleService.handlers.put(methodName, new MethodHandler<>(serviceMethod, handler));
+        simpleService.methods.add(serviceMethod);
+      } else {
+        throw new UnsupportedOperationException("Not yet implemented");
+      }
+    } else {
+      throw new IllegalStateException();
     }
 
     return this;
@@ -66,152 +84,188 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
 
   @Override
   public EventBusGrpcServer addService(Service service) {
-    for (Service s : services) {
-      if (s.name().equals(service.name())) {
+    for (ServiceConsumer consumer : consumers.values()) {
+      if (consumer.service.name().equals(service.name())) {
         throw new IllegalStateException("Duplicated name: " + service.name().name());
       }
     }
 
     String serviceFqn = service.name().fullyQualifiedName();
-    List<String> streaming = new ArrayList<>();
-    for (Descriptors.MethodDescriptor descriptor : service.descriptor().getMethods()) {
-      if (descriptor.isClientStreaming() || descriptor.isServerStreaming()) {
-        streaming.add(descriptor.getName());
-        log.warn("Streaming method " + serviceFqn + "/" + descriptor.getName() + " is not supported over the event bus transport, calls will be rejected with UNIMPLEMENTED");
+    Descriptors.ServiceDescriptor descriptor1 = service.descriptor();
+    if (descriptor1 != null) {
+      for (Descriptors.MethodDescriptor descriptor : descriptor1.getMethods()) {
+        if (descriptor.isClientStreaming() || descriptor.isServerStreaming()) {
+//        streaming.add(descriptor.getName());
+          log.warn("Streaming method " + serviceFqn + "/" + descriptor.getName() + " is not supported over the event bus transport, calls will be rejected with UNIMPLEMENTED");
+        }
       }
     }
 
-    services.add(service);
-    service.bind(this);
-
-    if (!streaming.isEmpty()) {
-      Map<String, MethodHandler<?, ?>> methodHandlers = handlers.get(serviceFqn);
-      if (methodHandlers != null) {
-        streaming.forEach(methodHandlers::remove);
-      }
-      ensureConsumer(serviceFqn);
-    }
+    Adapter adapter = new Adapter(serviceFqn, service);
+    MessageConsumer<Object> consumer = eventBus.consumer(serviceFqn, adapter);
+    consumers.put(serviceFqn, new ServiceConsumer(consumer, service));
 
     return this;
   }
 
   @Override
   public List<Service> services() {
-    return Collections.unmodifiableList(services);
+    return consumers
+      .values()
+      .stream()
+      .map(sc -> sc.service)
+      .collect(Collectors.toList());
   }
 
   @Override
   public void close(Completable<Void> completion) {
     List<Future<Void>> futures = new ArrayList<>();
-    for (MessageConsumer<Object> consumer : consumers.values()) {
-      futures.add(consumer.unregister());
+    for (ServiceConsumer consumer : consumers.values()) {
+      futures.add(consumer.consumer.unregister());
+      futures.add(consumer.service.close());
     }
-
     consumers.clear();
-    handlers.clear();
-    for (Service service : services) {
-      futures.add(service.close());
-    }
-
-    services.clear();
     Future.all(futures).<Void> mapEmpty().onComplete(completion);
   }
 
-  private void ensureConsumer(String serviceFqn) {
-    if (!consumers.containsKey(serviceFqn)) {
-      MessageConsumer<Object> consumer = eventBus.consumer(serviceFqn, msg -> handleMessage(serviceFqn, msg));
-      consumers.put(serviceFqn, consumer);
+  private static class ServiceConsumer {
+
+    private final MessageConsumer<Object> consumer;
+    private final Service service;
+
+    public ServiceConsumer(MessageConsumer<Object> consumer, Service service) {
+      this.consumer = consumer;
+      this.service = service;
     }
   }
 
-  private void removeConsumer(String serviceFqn) {
-    MessageConsumer<Object> consumer = consumers.remove(serviceFqn);
-    if (consumer != null) {
-      consumer.unregister();
+  private static class SimpleService implements Service {
+
+    private final List<ServiceMethod<?, ?>> methods;
+    private final ServiceName serviceName;
+    private final Map<String, MethodHandler<?, ?>> handlers;
+
+    public SimpleService(ServiceName serviceName) {
+      this.serviceName = serviceName;
+      this.methods = new ArrayList<>();
+      this.handlers = new HashMap<>();
+    }
+
+    @Override
+    public ServiceName name() {
+      return serviceName;
+    }
+
+    @Override
+    public Descriptors.ServiceDescriptor descriptor() {
+      return null;
+    }
+
+    @Override
+    public List<ServiceMethod<?, ?>> methods() {
+      return methods;
+    }
+
+    @Override
+    public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
+      MethodHandler<?, ?> method = handlers.get(request.methodName());
+      if (method != null) {
+        ((Handler)method.handler).handle(request);
+      } else {
+        Service.super.handle(request);
+      }
     }
   }
 
-  private void handleMessage(String serviceFqn, Message<Object> message) {
-    String methodName = message.headers().get(EventBusHeaders.ACTION);
-    if (methodName == null) {
-      message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ACTION + "' header");
-      return;
+  private class Adapter implements Handler<Message<Object>> {
+
+    private final String serviceFqn;
+    private final Service service;
+
+    public Adapter(String serviceFqn, Service service) {
+      this.serviceFqn = serviceFqn;
+      this.service = service;
     }
 
-    if (message.headers().get(EventBusHeaders.WIRE_FORMAT) == null) {
-      message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.WIRE_FORMAT + "' header");
-      return;
-    }
-
-    Map<String, MethodHandler<?, ?>> methodHandlers = handlers.get(serviceFqn);
-    MethodHandler<?, ?> handler = methodHandlers != null ? methodHandlers.get(methodName) : null;
-    if (handler == null) {
-      String reason = "Method not found: " + methodName;
-
-      // TODO: support streaming this depends on the event bus transport supporting streaming first
-      // See https://github.com/eclipse-vertx/vert.x/pull/4712
-      for (Service service : services) {
-        if (service.name().fullyQualifiedName().equals(serviceFqn)) {
-          Descriptors.MethodDescriptor descriptor = service.descriptor().findMethodByName(methodName);
-          if (descriptor != null && (descriptor.isClientStreaming() || descriptor.isServerStreaming())) {
-            reason = "Streaming method not supported over event bus transport: " + methodName;
-          }
+    @Override
+    public void handle(Message<Object> message) {
+      String methodName = message.headers().get(EventBusHeaders.ACTION);
+      if (methodName == null) {
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ACTION + "' header");
+        return;
+      }
+      if (message.headers().get(EventBusHeaders.WIRE_FORMAT) == null) {
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.WIRE_FORMAT + "' header");
+        return;
+      }
+      List<ServiceMethod<?, ?>> methods = service.methods();
+      ServiceMethod<?, ?> serviceMethod = null;
+      for (ServiceMethod<?, ?> candidate : methods) {
+        if (candidate.methodName().equals(methodName)) {
+          serviceMethod = candidate;
           break;
         }
       }
+      if (serviceMethod == null) {
+        String reason = "Method not found: " + methodName;
 
-      message.fail(GrpcStatus.UNIMPLEMENTED.code, reason);
-      return;
+        // TODO: support streaming this depends on the event bus transport supporting streaming first
+        // See https://github.com/eclipse-vertx/vert.x/pull/4712
+        for (ServiceConsumer consumer : consumers.values()) {
+          if (consumer.service.name().fullyQualifiedName().equals(serviceFqn)) {
+            Descriptors.ServiceDescriptor desc = consumer.service.descriptor();
+            if (desc != null) {
+              Descriptors.MethodDescriptor methodDesc = desc.findMethodByName(methodName);
+              if (methodDesc != null && (methodDesc.isClientStreaming() || methodDesc.isServerStreaming())) {
+                reason = "Streaming method not supported over event bus transport: " + methodName;
+              }
+            }
+            break;
+          }
+        }
+
+        message.fail(GrpcStatus.UNIMPLEMENTED.code, reason);
+        return;
+      }
+      dispatch(message, serviceMethod);
     }
 
-    dispatch(message, handler);
-  }
+      private <Req, Resp> void dispatch(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod) {
+        ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
+        WireFormat wireFormat = WireFormat.valueOf(message.headers().get(EventBusHeaders.WIRE_FORMAT));
 
-  private <Req, Resp> void dispatch(Message<Object> message, MethodHandler<Req, Resp> handler) {
-    ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
-    WireFormat wireFormat = WireFormat.valueOf(message.headers().get(EventBusHeaders.WIRE_FORMAT));
+        Buffer payload = EventBusGrpcBody.asBuffer(message.body());
 
-    Buffer payload = EventBusGrpcBody.asBuffer(message.body());
+        EventBusGrpcServerStream stream = new EventBusGrpcServerStream(context, message, wireFormat);
+        GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
+        GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(
+          context,
+          message.headers(),
+          null,
+          wireFormat,
+          stream,
+          null,
+          "identity",
+          serviceMethod.decoder(),
+          methodCall
+        );
 
-    EventBusGrpcServerStream stream = new EventBusGrpcServerStream(context, message, wireFormat);
-    GrpcMethodCall methodCall = new GrpcMethodCall(handler.serviceMethod.serviceName().pathOf(handler.serviceMethod.methodName()));
-    GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(
-      context,
-      message.headers(),
-      null,
-      wireFormat,
-      stream,
-      null,
-      "identity",
-      handler.serviceMethod.decoder(),
-      methodCall
-    );
+        GrpcMessage grpcMessage = GrpcMessage.message("identity", wireFormat, payload);
+        GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, request, stream, null, serviceMethod.encoder());
 
-    GrpcMessage grpcMessage = GrpcMessage.message("identity", wireFormat, payload);
-    GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, request, stream, null, handler.serviceMethod.encoder());
+        response.format(wireFormat);
+        request.init(response, false);
+        stream.endHandler(v -> request.handleEnd());
 
-    response.format(wireFormat);
-    request.init(response, false);
-    stream.endHandler(v -> request.handleEnd());
+        try {
+          service.handle(request);
+        } catch (Exception e) {
+          response.fail(e);
+          return;
+        }
 
-    try {
-      handler.handler.handle(request);
-    } catch (Exception e) {
-      response.fail(e);
-      return;
-    }
-
-    request.handleMessage(grpcMessage);
-    stream.emitEnd();
-  }
-
-  private static class MethodHandler<Req, Resp> {
-    final ServiceMethod<Req, Resp> serviceMethod;
-    final Handler<GrpcServerRequest<Req, Resp>> handler;
-
-    MethodHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-      this.serviceMethod = serviceMethod;
-      this.handler = handler;
-    }
+        request.handleMessage(grpcMessage);
+        stream.emitEnd();
+      }
   }
 }

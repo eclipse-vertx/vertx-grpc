@@ -3,17 +3,22 @@ package io.vertx.grpc.server;
 import com.google.protobuf.Descriptors;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.core.Future;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.impl.ServiceBuilderImpl;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Provides metadata about a gRPC service.
- * <p>
- * This interface gives access to both the name and the service descriptor, which contains detailed information about the service's methods, input and output types, and other
- * metadata defined in the protobuf service definition.
+ * A gRPC service.
+ * <ul>
+ *   <li>gives access to both the name and the service descriptor, which contains detailed information about the service's
+ *   methods, input and output types, and other metadata defined in the protobuf service definition</li>
+ *   <li>handle service calls</li>
+ * </ul>
  */
 @GenIgnore(GenIgnore.PERMITTED_TYPE)
 public interface Service {
@@ -43,13 +48,27 @@ public interface Service {
    */
   Descriptors.ServiceDescriptor descriptor();
 
+
   /**
-   * Binds this service and all its registered method handlers to the specified gRPC server service.
-   * This allows the server to handle requests for this service.
+   * Get the list of all methods implemented by this service.
    *
-   * @param server the gRPC server service to bind this service to
+   * @return the list of service methods
    */
-  void bind(GrpcServerService server);
+  default List<ServiceMethod<?, ?>> methods() {
+    return Collections.emptyList();
+  }
+
+  /**
+   * Handle the method call.
+   *
+   * @param request the service request
+   */
+  default <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
+    request
+      .response()
+      .status(GrpcStatus.UNIMPLEMENTED)
+      .end();
+  }
 
   /**
    * Close the service.
@@ -97,9 +116,6 @@ public interface Service {
    * @throws IllegalArgumentException if the method does not exist
    */
   default String pathOfMethod(String methodName) {
-    if (!hasMethod(methodName)) {
-      throw new IllegalArgumentException("Method not found: " + methodName);
-    }
     return name().pathOf(methodName);
   }
 }
