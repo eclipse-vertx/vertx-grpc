@@ -15,7 +15,7 @@ public final class EventBusHeaders {
   public static final String ACTION = "action";
 
   /**
-   * The wire format, carrying the {@link io.vertx.grpc.common.WireFormat} enum name, e.g. {@code "PROTOBUF"} or {@code "JSON"}.
+   * The wire format, carrying the {@link io.vertx.grpc.common.WireFormat#name()} value, e.g. {@code "proto"} or {@code "json"}.
    */
   public static final String WIRE_FORMAT = "grpc-wire-format";
 
