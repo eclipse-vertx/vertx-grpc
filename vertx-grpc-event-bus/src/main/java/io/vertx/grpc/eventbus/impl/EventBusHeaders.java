@@ -1,4 +1,4 @@
-package io.vertx.grpc.eventbus;
+package io.vertx.grpc.eventbus.impl;
 
 /**
  * Header names used by the EventBus gRPC transport.

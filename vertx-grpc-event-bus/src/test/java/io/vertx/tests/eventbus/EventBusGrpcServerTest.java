@@ -12,7 +12,7 @@ import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
-import io.vertx.grpc.eventbus.EventBusHeaders;
+import io.vertx.grpc.eventbus.impl.EventBusHeaders;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.StatusException;
 import io.vertx.tests.common.GrpcTestBase;

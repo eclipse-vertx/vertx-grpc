@@ -15,7 +15,6 @@ import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
-import io.vertx.grpc.eventbus.EventBusHeaders;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceMethodInvoker;

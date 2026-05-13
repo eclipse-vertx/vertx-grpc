@@ -7,7 +7,6 @@ import io.vertx.core.eventbus.*;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.eventbus.EventBusHeaders;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.WireFormat;
