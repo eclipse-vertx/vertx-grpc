@@ -64,6 +64,8 @@ public class ServerTranscodingTest extends GrpcTestBase {
 
   public static final MethodTranscodingOptions EMPTY_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/hello").setBody("");
   public static final MethodTranscodingOptions UNARY_TRANSCODING = new MethodTranscodingOptions().setPath("/hello");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_VERB = new MethodTranscodingOptions().setPath("/foo:run");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_VERB_WITH_BODY = new MethodTranscodingOptions().setPath("/foo:take").setBody("request");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_PARAM = new MethodTranscodingOptions().setPath("/hello/{payload}");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_CUSTOM_METHOD = new MethodTranscodingOptions().setHttpMethod(HttpMethod.valueOf("ACL")).setPath("/hello");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_BODY = new MethodTranscodingOptions().setPath("/body").setBody("request");
@@ -72,6 +74,8 @@ public class ServerTranscodingTest extends GrpcTestBase {
 
   public static final TranscodingServiceMethod<Empty, Empty> EMPTY_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "EmptyCall", EMPTY_ENCODER, EMPTY_DECODER, EMPTY_TRANSCODING);
   public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCall", ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING);
+  public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_VERB = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithVerb", ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_VERB);
+  public static final TranscodingServiceMethod<EchoRequestBody, EchoResponse> UNARY_CALL_WITH_VERB_WITH_BODY = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithVerbAndBody", ECHO_RESPONSE_ENCODER, ECHO_REQUEST_BODY_DECODER, UNARY_TRANSCODING_WITH_VERB_WITH_BODY);
   public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_PARAM = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithParam", ECHO_RESPONSE_ENCODER,
     ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_PARAM);
   public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_CUSTOM_METHOD = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithCustomMethod",
@@ -130,6 +134,18 @@ public class ServerTranscodingTest extends GrpcTestBase {
         }
       });
     });
+    grpcServer.callHandler(UNARY_CALL_WITH_VERB, request -> {
+      request.handler(requestMsg -> {
+        GrpcServerResponse<EchoRequest, EchoResponse> response = request.response();
+        copyHeaders(request.headers(), response.headers());
+        copyTrailers(request.headers(), response.trailers());
+        String payload = requestMsg.getPayload();
+        EchoResponse responseMsg = EchoResponse.newBuilder()
+          .setPayload(payload)
+          .build();
+        response.end(responseMsg);
+      });
+    });
     grpcServer.callHandler(UNARY_CALL_WITH_PARAM, request -> {
       request.handler(requestMsg -> {
         GrpcServerResponse<EchoRequest, EchoResponse> response = request.response();
@@ -162,6 +178,18 @@ public class ServerTranscodingTest extends GrpcTestBase {
             .build();
           response.end(responseMsg);
         }
+      });
+    });
+    grpcServer.callHandler(UNARY_CALL_WITH_VERB_WITH_BODY, request -> {
+      request.handler(requestMsg -> {
+        GrpcServerResponse<EchoRequestBody, EchoResponse> response = request.response();
+        copyHeaders(request.headers(), response.headers());
+        copyTrailers(request.headers(), response.trailers());
+        String payload = requestMsg.getRequest().getPayload();
+        EchoResponse responseMsg = EchoResponse.newBuilder()
+          .setPayload(payload)
+          .build();
+        response.end(responseMsg);
       });
     });
     grpcServer.callHandler(UNARY_CALL_WITH_BODY, request -> {
@@ -278,6 +306,38 @@ public class ServerTranscodingTest extends GrpcTestBase {
     String payload = "foobar";
     httpClient.request(HttpMethod.GET, "/hello?payload=" + payload).compose(req -> {
       req.headers().addAll(HEADERS);
+      return req.send().compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      MultiMap headers = response.headers();
+      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonObject body = decodeBody(response.body().result());
+      assertEquals(payload, body.getString("payload"));
+    })));
+  }
+
+  @Test
+  public void testVerbWithQuery(TestContext should) {
+    String payload = "foobar";
+    httpClient.request(HttpMethod.GET, "/foo:run?payload=" + payload).compose(req -> {
+      req.headers().addAll(HEADERS);
+      return req.send().compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      MultiMap headers = response.headers();
+      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonObject body = decodeBody(response.body().result());
+      assertEquals(payload, body.getString("payload"));
+    })));
+  }
+
+  @Test
+  public void testVerbWithBody(TestContext should) {
+    String payload = "foobar";
+    httpClient.request(HttpMethod.GET, "/foo:take").compose(req -> {
+      String body = encode(EchoRequestBody.newBuilder().setRequest(EchoRequest.newBuilder().setPayload("foobar").build()).build()).toString();
+      req.headers().addAll(HEADERS);
+      req.headers().set(HttpHeaders.CONTENT_LENGTH, String.valueOf(body.length()));
       return req.send().compose(response -> response.body().map(response));
     }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
       assertEquals(200, response.statusCode());
