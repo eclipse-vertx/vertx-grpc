@@ -36,6 +36,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
@@ -98,8 +99,8 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
   }
 
   @Override
-  public void unbind(GrpcIoServer server) {
-    serviceDef.getMethods().forEach(m -> unbind(server, m));
+  public void unbind(ServiceContainer server) {
+    serviceDef.getMethods().forEach(m -> unbind((GrpcIoServer) server, m));
   }
 
   private <Req, Resp> void unbind(GrpcIoServer server, ServerMethodDefinition<Req, Resp> methodDef) {
@@ -107,7 +108,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
   }
 
   @Override
-  public void bind(GrpcIoServer server) {
+  public void bind(ServiceContainer server) {
     server.addService(this);
   }
 

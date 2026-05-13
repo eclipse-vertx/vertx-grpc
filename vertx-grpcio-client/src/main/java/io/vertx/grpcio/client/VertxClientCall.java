@@ -12,8 +12,10 @@ import io.vertx.core.Future;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
+import io.vertx.grpc.client.ServiceInvoker;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
+import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
@@ -27,8 +29,8 @@ import java.util.concurrent.TimeUnit;
 
 class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, ResponseT> {
 
-  private final GrpcIoClient client;
-  private final SocketAddress server;
+  private final ServiceInvoker client;
+  private final ServiceMethod<ResponseT, RequestT> serviceMethod;
   private final Executor exec;
   private final MethodDescriptor<RequestT, ResponseT> methodDescriptor;
   private final String encoding;
@@ -41,15 +43,15 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
   private GrpcClientRequest<RequestT, ResponseT> request;
   private GrpcClientResponse<RequestT, ResponseT> grpcResponse;
 
-  VertxClientCall(GrpcIoClient client,
-                  SocketAddress server,
+  VertxClientCall(ServiceInvoker client,
+                  ServiceMethod<ResponseT, RequestT> serviceMethod,
                   Executor exec,
                   MethodDescriptor<RequestT, ResponseT> methodDescriptor,
                   String encoding,
                   Compressor compressor,
                   Deadline deadline) {
     this.client = client;
-    this.server = server;
+    this.serviceMethod = serviceMethod;
     this.exec = exec;
     this.methodDescriptor = methodDescriptor;
     this.encoding = encoding;
@@ -81,7 +83,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
   @Override
   public void start(Listener<ResponseT> responseListener, Metadata headers) {
     listener = responseListener;
-    fut = client.request(server, methodDescriptor);
+    fut = client.invoker(serviceMethod);
     fut.onComplete(ar1 -> {
       if (ar1.succeeded()) {
         request = ar1.result();
