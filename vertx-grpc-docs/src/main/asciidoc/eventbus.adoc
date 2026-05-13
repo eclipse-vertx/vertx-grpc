@@ -35,7 +35,7 @@ dependencies {
 
 === EventBus server
 
-The `EventBusGrpcServer` registers EventBus consumers for each service and dispatches incoming messages to service handlers. It implements `ServiceContainer`, so generated service stubs work out of the box.
+The {@link io.vertx.grpc.eventbus.EventBusGrpcServer} registers event bus consumers for each service and dispatches incoming messages to service handlers. It extends {@link io.vertx.grpc.server.ServiceContainer}, so generated service stubs work out of the box.
 
 [source,java]
 ----
@@ -53,7 +53,7 @@ The server registers an EventBus consumer using the service's fully qualified na
 
 === EventBus client
 
-The `EventBusGrpcClient` sends gRPC requests over the EventBus. It implements `ServiceInvoker`, so generated client stubs work out of the box.
+The {@link io.vertx.grpc.eventbus.EventBusGrpcClient} sends gRPC requests over the event bus. It extends {@link io.vertx.grpc.client.ServiceInvoker}, so generated client stubs work out of the box.
 
 [source,java]
 ----
@@ -69,15 +69,15 @@ You can use generated client stubs:
 
 === JSON wire format
 
-By default, the transport uses protobuf encoding. You can switch to JSON by passing the wire format when creating the client:
+By default, the transport uses protobuf encoding. You can use JSON by passing the wire format when creating the client:
 
 [source,java]
 ----
 {@link examples.GrpcEventBusExamples#jsonWireFormat}
 ----
 
-The server automatically detects the wire format from the `grpc-wire-format` delivery header and responds in the same format.
+The server responds in the same wire format than the `grpc-wire-format` delivery header specifies.
 
 === Limitations
 
-The EventBus transport only supports unary (request/response) calls, streaming might be supported later.
+This transport only supports unary (request/response) calls, streaming might be supported later.
