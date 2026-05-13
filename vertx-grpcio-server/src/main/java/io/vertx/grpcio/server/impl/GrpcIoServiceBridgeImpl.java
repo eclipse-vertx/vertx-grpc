@@ -28,6 +28,7 @@ import io.grpc.Status;
 import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpConnection;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
@@ -207,24 +208,27 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
 
     private Attributes createAttributes() {
       Attributes.Builder builder = Attributes.newBuilder();
-      SocketAddress remoteAddr = req.connection().remoteAddress();
-      if (remoteAddr != null && remoteAddr.isInetSocket()) {
-        try {
-          InetAddress address = InetAddress.getByName(remoteAddr.hostAddress());
-          builder.set(Grpc.TRANSPORT_ATTR_REMOTE_ADDR, new InetSocketAddress(address, remoteAddr.port()));
-        } catch (UnknownHostException ignored) {
+      HttpConnection connection = req.connection();
+      if (connection != null) {
+        SocketAddress remoteAddr = connection.remoteAddress();
+        if (remoteAddr != null && remoteAddr.isInetSocket()) {
+          try {
+            InetAddress address = InetAddress.getByName(remoteAddr.hostAddress());
+            builder.set(Grpc.TRANSPORT_ATTR_REMOTE_ADDR, new InetSocketAddress(address, remoteAddr.port()));
+          } catch (UnknownHostException ignored) {
+          }
         }
-      }
-      SocketAddress localAddr = req.connection().localAddress();
-      if (localAddr != null && localAddr.isInetSocket()) {
-        try {
-          InetAddress address = InetAddress.getByName(localAddr.hostAddress());
-          builder.set(Grpc.TRANSPORT_ATTR_LOCAL_ADDR, new InetSocketAddress(address, localAddr.port()));
-        } catch (UnknownHostException ignored) {
+        SocketAddress localAddr = connection.localAddress();
+        if (localAddr != null && localAddr.isInetSocket()) {
+          try {
+            InetAddress address = InetAddress.getByName(localAddr.hostAddress());
+            builder.set(Grpc.TRANSPORT_ATTR_LOCAL_ADDR, new InetSocketAddress(address, localAddr.port()));
+          } catch (UnknownHostException ignored) {
+          }
         }
-      }
-      if (req.connection().isSsl()) {
-        builder.set(Grpc.TRANSPORT_ATTR_SSL_SESSION, req.connection().sslSession());
+        if (connection.isSsl()) {
+          builder.set(Grpc.TRANSPORT_ATTR_SSL_SESSION, connection.sslSession());
+        }
       }
       return builder.build();
     }

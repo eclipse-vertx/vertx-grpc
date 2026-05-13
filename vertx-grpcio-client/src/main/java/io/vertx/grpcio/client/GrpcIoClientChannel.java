@@ -32,11 +32,15 @@ public class GrpcIoClientChannel extends io.grpc.Channel {
 
   private ServiceInvoker invoker;
 
-  public GrpcIoClientChannel(GrpcClient invoker, SocketAddress server) {
+  public GrpcIoClientChannel(ServiceInvoker invoker) {
+    this.invoker = invoker;
+  }
+
+  public GrpcIoClientChannel(GrpcClient client, SocketAddress server) {
     this.invoker = new ServiceInvoker() {
       @Override
       public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method) {
-        return invoker.request(server, method);
+        return client.request(server, method);
       }
     };
   }
