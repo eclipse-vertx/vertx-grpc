@@ -1,8 +1,10 @@
 package io.vertx.grpc.server;
 
 import io.vertx.codegen.annotations.GenIgnore;
+import io.vertx.codegen.annotations.Unstable;
 import io.vertx.grpc.common.ServiceMethod;
 
+@Unstable
 @GenIgnore(GenIgnore.PERMITTED_TYPE)
 public interface ServiceInvoker {
 

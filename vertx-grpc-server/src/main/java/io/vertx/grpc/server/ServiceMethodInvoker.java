@@ -1,8 +1,10 @@
 package io.vertx.grpc.server;
 
+import io.vertx.codegen.annotations.Unstable;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceMethod;
 
+@Unstable
 @FunctionalInterface
 public interface ServiceMethodInvoker<Req, Resp> {
 

@@ -1,6 +1,7 @@
 package io.vertx.grpc.client;
 
 import io.vertx.codegen.annotations.GenIgnore;
+import io.vertx.codegen.annotations.Unstable;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Future;
 import io.vertx.grpc.common.ServiceMethod;
@@ -12,6 +13,7 @@ import io.vertx.grpc.common.ServiceMethod;
  * <p>Generated gRPC client stubs use this interface as their underlying transport abstraction,
  * allowing them to work with any implementation - HTTP/2 via {@link GrpcClient}, event bus, etc.</p>
  */
+@Unstable
 @VertxGen
 public interface ServiceInvoker {
 
