@@ -10,9 +10,9 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>vertx-grpc-event-bus</artifactId>
+  <artifactId>vertx-grpc-eventbus</artifactId>
 
-  <name>Vert.x gRPC Event Bus</name>
+  <name>Vert.x gRPC Event: Bus</name>
 
   <dependencies>
     <dependency>

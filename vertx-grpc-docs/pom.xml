@@ -57,7 +57,7 @@
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-grpc-event-bus</artifactId>
+      <artifactId>vertx-grpc-eventbus</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

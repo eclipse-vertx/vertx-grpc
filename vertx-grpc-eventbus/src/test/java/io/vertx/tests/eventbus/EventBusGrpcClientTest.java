@@ -39,8 +39,10 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
   }
 
   @Test
-  public void testRequestReplyProtobuf() throws Exception {
+  public void testRequestReplyProtobuf(TestContext testContext) throws Exception {
     vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
+      testContext.assertEquals("Unary", msg.headers().get("action"));
+      testContext.assertEquals("PROTOBUF", msg.headers().get("grpc-wire-format"));
       try {
         Request request = Request.parseFrom(msg.body().getBytes());
         Reply reply = Reply.newBuilder().setMessage("Hello " + request.getName()).build();
@@ -62,8 +64,10 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
   }
 
   @Test
-  public void testRequestReplyJson() throws TimeoutException {
+  public void testRequestReplyJson(TestContext testContext) throws TimeoutException {
     vertx.eventBus().<JsonObject> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
+      testContext.assertEquals("Unary", msg.headers().get("action"));
+      testContext.assertEquals("JSON", msg.headers().get("grpc-wire-format"));
       String name = msg.body().getString("name");
       msg.reply(new JsonObject().put("message", "Hello " + name));
     });

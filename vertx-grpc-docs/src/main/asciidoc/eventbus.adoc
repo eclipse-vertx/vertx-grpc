@@ -1,14 +1,14 @@
 [[grpc-eventbus]]
 == gRPC EventBus transport
 
-The gRPC EventBus transport allows gRPC services to communicate over the Vert.x EventBus instead of HTTP/2.
+The gRPC EventBus transport allows gRPC services to communicate over the Vert.x EventBus instead of HTTP.
 The transport supports both protobuf and JSON wire formats and works with generated gRPC service stubs.
 
-NOTE: event-bus is in tech preview in Vert.x 5.1 until the API becomes stable.
+NOTE: this module is in tech preview in Vert.x 5.1 until the API becomes stable.
 
 === Using the EventBus transport
 
-To use the EventBus transport, add the following dependency:
+To use the event bus transport, add the following dependency:
 
 [tabs]
 ====
@@ -18,7 +18,7 @@ pom.xml::
 ----
 <dependency>
   <groupId>io.vertx</groupId>
-  <artifactId>vertx-grpc-event-bus</artifactId>
+  <artifactId>vertx-grpceventbus</artifactId>
   <version>${maven.version}</version>
 </dependency>
 ----
@@ -28,7 +28,7 @@ build.gradle::
 [source,groovy,subs="+attributes"]
 ----
 dependencies {
-  compile 'io.vertx:vertx-grpc-event-bus:${maven.version}'
+  compile 'io.vertx:vertx-grpc-eventbus:${maven.version}'
 }
 ----
 ====
@@ -69,7 +69,7 @@ You can use generated client stubs:
 
 === JSON wire format
 
-By default the transport uses protobuf encoding. You can switch to JSON by passing the wire format when creating the client:
+By default, the transport uses protobuf encoding. You can switch to JSON by passing the wire format when creating the client:
 
 [source,java]
 ----
@@ -80,4 +80,4 @@ The server automatically detects the wire format from the `grpc-wire-format` del
 
 === Limitations
 
-The EventBus transport only supports unary (request/response) calls. Streaming is not supported because the Vert.x EventBus does not currently support streaming messages at the moment.
+The EventBus transport only supports unary (request/response) calls, streaming might be supported later.
