@@ -4,10 +4,7 @@ import com.google.protobuf.Descriptors;
 import io.vertx.core.Handler;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.server.ServiceContainer;
-import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.Service;
-import io.vertx.grpc.server.ServiceBuilder;
+import io.vertx.grpc.server.*;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -44,14 +41,13 @@ public class ServiceBuilderImpl implements ServiceBuilder {
       }
 
       @Override
-      public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
+      public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
         for (ServiceMethodBinding<?, ?> handler : handlers) {
-          if (handler.serviceMethod.methodName().equals(request.methodName())) {
-            handler.handler.handle((GrpcServerRequest)request);
-            return;
+          if (handler.serviceMethod.equals(method)) {
+            return (ServiceMethodInvoker) handler;
           }
         }
-        Service.super.handle(request);
+        return Service.super.invoker(method);
       }
     };
   }
@@ -64,13 +60,19 @@ public class ServiceBuilderImpl implements ServiceBuilder {
    * @param <Req> the request type for the service method
    * @param <Resp> the response type for the service method
    */
-  public static final class ServiceMethodBinding<Req, Resp> {
+  public static final class ServiceMethodBinding<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {
+
     private final ServiceMethod<Req, Resp> serviceMethod;
     private final Handler<GrpcServerRequest<Req, Resp>> handler;
 
     public ServiceMethodBinding(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
       this.serviceMethod = serviceMethod;
       this.handler = handler;
+    }
+
+    @Override
+    public void invoke(GrpcServerRequest<Req, Resp> request) {
+      handler.handle(request);
     }
 
     /**

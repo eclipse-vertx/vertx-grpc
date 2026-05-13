@@ -16,6 +16,7 @@ import io.vertx.grpc.health.v1.HealthProto;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.ServiceContainer;
+import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.impl.ServerAware;
 
 import java.util.List;
@@ -33,9 +34,9 @@ public class HealthServiceImpl implements HealthService, ServerAware {
   private final Map<String, Supplier<Future<Boolean>>> checks = new ConcurrentHashMap<>();
 
   private ServiceContainer server;
-  private Handler checkHandler;
-  private Handler listHandler;
-  private Handler watchHandler;
+  private ServiceMethodInvoker checkHandler;
+  private ServiceMethodInvoker listHandler;
+  private ServiceMethodInvoker watchHandler;
 
   public HealthServiceImpl(Vertx vertx) {
     this(vertx, new HealthServiceOptions());
@@ -63,27 +64,23 @@ public class HealthServiceImpl implements HealthService, ServerAware {
   }
 
   @Override
-  public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
-    Handler handler;
-    switch (request.methodName()) {
+  public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
+    ServiceMethodInvoker<Req, Resp> invoker;
+    switch (method.methodName()) {
       case "Check":
-        handler = checkHandler;
+        invoker = checkHandler;
         break;
       case "List":
-        handler = listHandler;
+        invoker = listHandler;
         break;
       case "Watch":
-        handler = watchHandler;
+        invoker = watchHandler;
         break;
       default:
-        handler = null;
+        invoker = HealthService.super.invoker(method);
         break;
     }
-    if (handler != null) {
-      handler.handle(request);
-    } else {
-      HealthService.super.handle(request);;
-    }
+    return invoker;
   }
 
   @Override

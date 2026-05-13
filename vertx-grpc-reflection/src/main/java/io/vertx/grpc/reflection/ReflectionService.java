@@ -5,10 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.reflection.v1.ServerReflectionProto;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.Service;
-import io.vertx.grpc.server.ServiceContainer;
+import io.vertx.grpc.server.*;
 import io.vertx.grpc.server.impl.ServerAware;
 
 import java.util.List;
@@ -52,12 +49,11 @@ public class ReflectionService implements Service, ServerAware {
   }
 
   @Override
-  public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
-    if (request.methodName().equals(GrpcServerReflectionV1Handler.SERVICE_METHOD.methodName())) {
-      Handler handler = new GrpcServerReflectionV1Handler(server);
-      handler.handle(request);
+  public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
+    if (method.equals(GrpcServerReflectionV1Handler.SERVICE_METHOD)) {
+      return (ServiceMethodInvoker<Req, Resp>) new GrpcServerReflectionV1Handler(server);
     } else {
-      Service.super.handle(request);
+      return Service.super.invoker(method);
     }
   }
 

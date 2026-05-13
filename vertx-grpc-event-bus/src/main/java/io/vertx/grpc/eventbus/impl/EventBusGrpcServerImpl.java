@@ -17,8 +17,8 @@ import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusHeaders;
 import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.Service;
+import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 
@@ -38,7 +38,7 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
     this.eventBus = eventBus;
   }
 
-    private static class MethodHandler<Req, Resp> {
+    private static class MethodHandler<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {
       final ServiceMethod<Req, Resp> serviceMethod;
       final Handler<GrpcServerRequest<Req, Resp>> handler;
 
@@ -46,7 +46,12 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
         this.serviceMethod = serviceMethod;
         this.handler = handler;
       }
-  }
+
+      @Override
+      public void invoke(GrpcServerRequest<Req, Resp> request) {
+        handler.handle(request);
+      }
+    }
 
   @Override
   public <Req, Resp> EventBusGrpcServerImpl callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
@@ -167,12 +172,12 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
     }
 
     @Override
-    public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
-      MethodHandler<?, ?> method = handlers.get(request.methodName());
-      if (method != null) {
-        ((Handler)method.handler).handle(request);
+    public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
+      MethodHandler<?, ?> methodHandler = handlers.get(method.methodName());
+      if (methodHandler != null) {
+        return (ServiceMethodInvoker<Req, Resp>) methodHandler;
       } else {
-        Service.super.handle(request);
+        return Service.super.invoker(method);
       }
     }
   }
@@ -258,7 +263,8 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
         stream.endHandler(v -> request.handleEnd());
 
         try {
-          service.handle(request);
+          ServiceMethodInvoker<Req, Resp> invoker = service.invoker(serviceMethod);
+          invoker.invoke(request);
         } catch (Exception e) {
           response.fail(e);
           return;
