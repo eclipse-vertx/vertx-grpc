@@ -13,7 +13,7 @@ import io.vertx.grpc.common.ServiceMethod;
  * allowing them to work with any implementation - HTTP/2 via {@link GrpcClient}, event bus, etc.</p>
  */
 @VertxGen
-public interface GrpcClientService {
+public interface ServiceInvoker {
 
   /**
    * Create a request for the given service method.
@@ -22,6 +22,6 @@ public interface GrpcClientService {
    * @return a future request
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method);
+  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method);
 
 }

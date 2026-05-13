@@ -15,7 +15,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientConfig;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.Address;
 import io.vertx.core.net.ClientSSLOptions;
@@ -34,7 +33,7 @@ import io.vertx.grpc.common.ServiceMethod;
  * <p>The client handles only the gRPC protocol and does not encode/decode protobuf messages.</p>
  */
 @VertxGen
-public interface GrpcClient extends GrpcClientService {
+public interface GrpcClient {
 
   /**
    * Provide a builder for {@link GrpcClient}, it can be used to configure advanced

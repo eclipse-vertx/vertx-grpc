@@ -53,7 +53,7 @@ The server registers an EventBus consumer using the service's fully qualified na
 
 === EventBus client
 
-The `EventBusGrpcClient` sends gRPC requests over the EventBus. It implements `GrpcClientService`, so generated client stubs work out of the box.
+The `EventBusGrpcClient` sends gRPC requests over the EventBus. It implements `ServiceInvoker`, so generated client stubs work out of the box.
 
 [source,java]
 ----
