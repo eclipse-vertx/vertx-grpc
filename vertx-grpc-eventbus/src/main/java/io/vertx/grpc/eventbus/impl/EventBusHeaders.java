@@ -1,5 +1,9 @@
 package io.vertx.grpc.eventbus.impl;
 
+import io.vertx.core.MultiMap;
+
+import java.util.Map;
+
 /**
  * Header names used by the EventBus gRPC transport.
  */
@@ -15,6 +19,33 @@ public final class EventBusHeaders {
    */
   public static final String WIRE_FORMAT = "grpc-wire-format";
 
-  private EventBusHeaders() {
+  /**
+   * The prefix for grpc headers among delivery options.
+   */
+  public static final String HEADER_PREFIX = "__header__.";
+
+  /**
+   * The prefix for grpc trailers among delivery options.
+   */
+  public static final String TRAILER_PREFIX = "__trailer__.";
+
+  /**
+   * Prefixed header encoding.
+   */
+  static void encodeMultiMap(String prefix, MultiMap src, MultiMap dst) {
+    for (Map.Entry<String, String> entry : src) {
+      dst.set(prefix + entry.getKey(), entry.getValue());
+    }
+  }
+
+  /**
+   * Prefixed header decoding.
+   */
+  static void decodeMultimap(String prefix, MultiMap src, MultiMap dst) {
+    for (Map.Entry<String, String> entry : src) {
+      if (entry.getKey().startsWith(prefix)) {
+        dst.set(entry.getKey().substring(prefix.length()), entry.getValue());
+      }
+    }
   }
 }
