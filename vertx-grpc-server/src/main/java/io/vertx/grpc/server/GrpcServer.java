@@ -19,8 +19,6 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 
-import java.util.List;
-
 /**
  * <p>A gRPC server based on Vert.x HTTP server.</p>
  *
@@ -34,7 +32,7 @@ import java.util.List;
  * <p>The server handles only the gRPC protocol and does not encode/decode protobuf messages.</p>
  */
 @VertxGen
-public interface GrpcServer extends Handler<HttpServerRequest> {
+public interface GrpcServer extends ServiceContainer, Handler<HttpServerRequest> {
 
   /**
    * Create a blank gRPC server with default options.
@@ -71,24 +69,10 @@ public interface GrpcServer extends Handler<HttpServerRequest> {
    * @param serviceMethod the service method
    * @return a reference to this, so the API can be used fluently
    */
+  @Fluent
   <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
 
-  /**
-   * Add a service to this gRPC server.
-   * <p>
-   * This method registers a service with the server, allowing it to handle requests for that service.
-   * Each service must have a unique name.
-   *
-   * @param service the service to add
-   * @return a reference to this, so the API can be used fluently
-   * @throws IllegalStateException if a service with the same name is already registered
-   */
+  @Override
+  @Fluent
   GrpcServer addService(Service service);
-
-  /**
-   * Get a list of all services registered with this gRPC server.
-   *
-   * @return an unmodifiable list of all registered services
-   */
-  List<Service> services();
 }

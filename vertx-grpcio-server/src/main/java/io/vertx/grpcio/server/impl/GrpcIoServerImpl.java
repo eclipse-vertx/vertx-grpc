@@ -18,7 +18,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;

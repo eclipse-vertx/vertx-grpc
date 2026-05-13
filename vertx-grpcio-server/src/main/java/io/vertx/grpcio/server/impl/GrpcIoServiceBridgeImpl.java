@@ -36,6 +36,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
 import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
@@ -119,13 +120,13 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
       .collect(Collectors.toList());
   }
 
- @Override
-  public <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
-    ServiceMethodHandler handler = handlers.get(request.methodName());
+  @Override
+  public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
+    ServiceMethodHandler handler = handlers.get(method.methodName());
     if (handler != null) {
-      handler.handle(request);
+      return handler;
     } else {
-      GrpcIoServiceBridge.super.handle(request);
+      return GrpcIoServiceBridge.super.invoker(method);
     }
   }
 
@@ -300,7 +301,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
     }
   }
 
-  private static class ServiceMethodHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
+  private static class ServiceMethodHandler<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {
 
     private final ServerMethodDefinition<Req, Resp> methodDef;
     private final ServiceMethod<Req, Resp> serviceMethod;
@@ -321,7 +322,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
     }
 
     @Override
-    public void handle(GrpcServerRequest<Req, Resp> req) {
+    public void invoke(GrpcServerRequest<Req, Resp> req) {
       ServerCallHandler<Req, Resp> callHandler = methodDef.getServerCallHandler();
       Context context = Context.current();
       if (req.timeout() > 0L) {

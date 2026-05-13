@@ -10,9 +10,10 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.health.HealthServiceOptions;
 import io.vertx.grpc.health.v1.HealthCheckRequest;
 import io.vertx.grpc.health.v1.HealthCheckResponse;
-import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.ServiceMethodInvoker;
 
 import java.io.Closeable;
 import java.util.Map;
@@ -21,7 +22,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements Handler<GrpcServerRequest<HealthCheckRequest, HealthCheckResponse>>, Closeable {
+public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements ServiceMethodInvoker<HealthCheckRequest, HealthCheckResponse>, Closeable {
 
   private static final Logger logger = Logger.getLogger(GrpcHealthWatchV1Handler.class.getName());
 
@@ -37,11 +38,11 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
 
   private long timerId = -1;
 
-  public GrpcHealthWatchV1Handler(Vertx vertx, GrpcServer server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
+  public GrpcHealthWatchV1Handler(Vertx vertx, ServiceContainer server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
     this(vertx, server, healthChecks, new HealthServiceOptions());
   }
 
-  public GrpcHealthWatchV1Handler(Vertx vertx, GrpcServer server, Map<String, Supplier<Future<Boolean>>> healthChecks, HealthServiceOptions options) {
+  public GrpcHealthWatchV1Handler(Vertx vertx, ServiceContainer server, Map<String, Supplier<Future<Boolean>>> healthChecks, HealthServiceOptions options) {
     super(server, healthChecks);
 
     this.vertx = vertx;
@@ -70,7 +71,7 @@ public class GrpcHealthWatchV1Handler extends GrpcHealthV1HandlerBase implements
   }
 
   @Override
-  public void handle(GrpcServerRequest<HealthCheckRequest, HealthCheckResponse> request) {
+  public void invoke(GrpcServerRequest<HealthCheckRequest, HealthCheckResponse> request) {
     request.handler(check -> {
       final String service = check.getService();
       final GrpcServerResponse<HealthCheckRequest, HealthCheckResponse> response = request.response();

@@ -1,0 +1,83 @@
+[[grpc-eventbus]]
+== gRPC EventBus transport
+
+The gRPC EventBus transport allows gRPC services to communicate over the Vert.x EventBus instead of HTTP.
+The transport supports both protobuf and JSON wire formats and works with generated gRPC service stubs.
+
+NOTE: this module is in tech preview in Vert.x 5.1 until the API becomes stable.
+
+=== Using the EventBus transport
+
+To use the event bus transport, add the following dependency:
+
+[tabs]
+====
+pom.xml::
++
+[source,xml,subs="+attributes"]
+----
+<dependency>
+  <groupId>io.vertx</groupId>
+  <artifactId>vertx-grpceventbus</artifactId>
+  <version>${maven.version}</version>
+</dependency>
+----
+
+build.gradle::
++
+[source,groovy,subs="+attributes"]
+----
+dependencies {
+  compile 'io.vertx:vertx-grpc-eventbus:${maven.version}'
+}
+----
+====
+
+=== EventBus server
+
+The {@link io.vertx.grpc.eventbus.EventBusGrpcServer} registers event bus consumers for each service and dispatches incoming messages to service handlers. It extends {@link io.vertx.grpc.server.ServiceContainer}, so generated service stubs work out of the box.
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#createServer}
+----
+
+You can add generated services just like a regular gRPC server:
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#serverWithService}
+----
+
+The server registers an EventBus consumer using the service's fully qualified name as the address (e.g. `examples.grpc.Greeter`) and routes to specific methods using the `action` delivery header.
+
+=== EventBus client
+
+The {@link io.vertx.grpc.eventbus.EventBusGrpcClient} sends gRPC requests over the event bus. It extends {@link io.vertx.grpc.client.ServiceInvoker}, so generated client stubs work out of the box.
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#createClient}
+----
+
+You can use generated client stubs:
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#clientWithService}
+----
+
+=== JSON wire format
+
+By default, the transport uses protobuf encoding. You can use JSON by passing the wire format when creating the client:
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#jsonWireFormat}
+----
+
+The server responds in the same wire format than the `grpc-wire-format` delivery header specifies.
+
+=== Limitations
+
+This transport only supports unary (request/response) calls, streaming might be supported later.

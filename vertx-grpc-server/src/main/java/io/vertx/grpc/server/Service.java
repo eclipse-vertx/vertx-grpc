@@ -21,7 +21,7 @@ import java.util.Optional;
  * </ul>
  */
 @GenIgnore(GenIgnore.PERMITTED_TYPE)
-public interface Service {
+public interface Service extends ServiceInvoker {
 
   /**
    * Creates a new Service instance with the specified service name and descriptor.
@@ -56,18 +56,6 @@ public interface Service {
    */
   default List<ServiceMethod<?, ?>> methods() {
     return Collections.emptyList();
-  }
-
-  /**
-   * Handle the method call.
-   *
-   * @param request the service request
-   */
-  default <Req, Resp> void handle(GrpcServerRequest<Req, Resp> request) {
-    request
-      .response()
-      .status(GrpcStatus.UNIMPLEMENTED)
-      .end();
   }
 
   /**

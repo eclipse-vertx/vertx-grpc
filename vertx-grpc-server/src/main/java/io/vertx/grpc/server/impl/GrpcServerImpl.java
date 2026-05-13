@@ -10,8 +10,6 @@
  */
 package io.vertx.grpc.server.impl;
 
-import com.google.protobuf.Descriptors;
-import com.google.protobuf.MessageLite;
 import io.vertx.core.Closeable;
 import io.vertx.core.Completable;
 import io.vertx.core.Future;
@@ -289,7 +287,8 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         ((ServerAware)service).setServer(this);
       }
       for (ServiceMethod method : service.methods()) {
-        registerMethodCallHandler(service.pathOfMethod(method.methodName()), new MethodCallHandler<Object, Object>(method, method.decoder(), method.encoder(), service::handle));
+        ServiceMethodInvoker invoker = service.invoker(method);
+        registerMethodCallHandler(service.pathOfMethod(method.methodName()), new MethodCallHandler<Object, Object>(method, method.decoder(), method.encoder(), invoker));
       }
 
       this.services.add(service);
@@ -308,19 +307,26 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     final ServiceMethod<Req, Resp> method;
     final GrpcMessageDecoder<Req> messageDecoder;
     final GrpcMessageEncoder<Resp> messageEncoder;
-    final Handler<GrpcServerRequest<Req, Resp>> handler;
+    final ServiceMethodInvoker<Req, Resp> invoker;
 
     MethodCallHandler(ServiceMethod<Req, Resp> method, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, Handler<GrpcServerRequest<Req, Resp>> handler) {
       this.method = method;
       this.messageDecoder = messageDecoder;
       this.messageEncoder = messageEncoder;
-      this.handler = handler;
+      this.invoker = handler::handle;
+    }
+
+    MethodCallHandler(ServiceMethod<Req, Resp> method, GrpcMessageDecoder<Req> messageDecoder, GrpcMessageEncoder<Resp> messageEncoder, ServiceMethodInvoker<Req, Resp> invoker) {
+      this.method = method;
+      this.messageDecoder = messageDecoder;
+      this.messageEncoder = messageEncoder;
+      this.invoker = invoker;
     }
 
     @Override
     public void handle(GrpcServerRequest<Req, Resp> grpcRequest) {
       try {
-        handler.handle(grpcRequest);
+        invoker.invoke(grpcRequest);
       } catch (Exception e) {
         grpcRequest.response().fail(e);
       }

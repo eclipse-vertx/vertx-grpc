@@ -9,13 +9,14 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.health.v1.HealthCheckResponse;
 import io.vertx.grpc.health.v1.HealthListRequest;
 import io.vertx.grpc.health.v1.HealthListResponse;
-import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.GrpcServerRequest;
+import io.vertx.grpc.server.ServiceMethodInvoker;
 
 import java.util.Map;
 import java.util.function.Supplier;
 
-public class GrpcHealthListV1Handler extends GrpcHealthV1HandlerBase implements Handler<GrpcServerRequest<HealthListRequest, HealthListResponse>> {
+public class GrpcHealthListV1Handler extends GrpcHealthV1HandlerBase implements ServiceMethodInvoker<HealthListRequest, HealthListResponse> {
 
   public static final ServiceMethod<HealthListRequest, HealthListResponse> SERVICE_METHOD = ServiceMethod.server(
     ServiceName.create("grpc.health.v1.Health"),
@@ -23,12 +24,12 @@ public class GrpcHealthListV1Handler extends GrpcHealthV1HandlerBase implements 
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(HealthListRequest.newBuilder()));
 
-  public GrpcHealthListV1Handler(GrpcServer server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
+  public GrpcHealthListV1Handler(ServiceContainer server, Map<String, Supplier<Future<Boolean>>> healthChecks) {
     super(server, healthChecks);
   }
 
   @Override
-  public void handle(GrpcServerRequest<HealthListRequest, HealthListResponse> event) {
+  public void invoke(GrpcServerRequest<HealthListRequest, HealthListResponse> event) {
     event.handler(request -> {
       HealthListResponse.Builder builder = HealthListResponse.newBuilder();
       healthChecks().forEach((name, check) -> {
