@@ -11,8 +11,17 @@
 package io.vertx.grpcio.client;
 
 import io.grpc.*;
+import io.vertx.core.Future;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.grpc.client.ServiceInvoker;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
+import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
 
 import java.util.concurrent.Executor;
 
@@ -21,16 +30,29 @@ import java.util.concurrent.Executor;
  */
 public class GrpcIoClientChannel extends io.grpc.Channel {
 
-  private GrpcIoClient client;
-  private SocketAddress server;
+  private ServiceInvoker invoker;
+
+  public GrpcIoClientChannel(ServiceInvoker invoker) {
+    this.invoker = invoker;
+  }
 
   public GrpcIoClientChannel(GrpcClient client, SocketAddress server) {
-    this.client = (GrpcIoClient) client;
-    this.server = server;
+    this.invoker = new ServiceInvoker() {
+      @Override
+      public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method) {
+        return client.request(server, method);
+      }
+    };
   }
 
   @Override
   public <RequestT, ResponseT> ClientCall<RequestT, ResponseT> newCall(MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions) {
+
+    GrpcMessageDecoder<ResponseT> messageDecoder = new BridgeMessageDecoder<>(methodDescriptor.getResponseMarshaller(), null);
+    GrpcMessageEncoder<RequestT> messageEncoder = new BridgeMessageEncoder<>(methodDescriptor.getRequestMarshaller(), null);
+    ServiceMethod<ResponseT, RequestT> serviceMethod = ServiceMethod.client(ServiceName.create(methodDescriptor.getServiceName()), methodDescriptor.getBareMethodName(), messageEncoder, messageDecoder);
+
+
     String encoding = callOptions.getCompressor();
     Compressor compressor;
     if (encoding != null) {
@@ -45,7 +67,7 @@ public class GrpcIoClientChannel extends io.grpc.Channel {
     if (contextDeadline != null && (deadline == null || contextDeadline.isBefore(deadline))) {
       deadline = contextDeadline;
     }
-    return new VertxClientCall<>(client, server, exec, methodDescriptor, encoding, compressor, deadline);
+    return new VertxClientCall<>(invoker, serviceMethod, exec, methodDescriptor, encoding, compressor, deadline);
   }
 
   @Override
@@ -53,7 +75,4 @@ public class GrpcIoClientChannel extends io.grpc.Channel {
     return null;
   }
 
-  public GrpcIoClient client() {
-    return client;
-  }
 }

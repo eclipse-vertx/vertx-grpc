@@ -46,13 +46,13 @@ public interface GrpcIoServiceBridge extends Service {
    *
    * @param server the server to bind to
    */
-  void bind(GrpcIoServer server);
+  void bind(ServiceContainer server);
 
   /**
    * Unbind all service methods from the @{code server}.
    *
    * @param server the server to unbind from
    */
-  void unbind(GrpcIoServer server);
+  void unbind(ServiceContainer server);
 
 }

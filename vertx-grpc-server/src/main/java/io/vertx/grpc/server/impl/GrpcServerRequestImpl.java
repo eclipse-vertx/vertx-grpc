@@ -150,7 +150,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
 
   @Override
   public HttpConnection connection() {
-    throw new UnsupportedOperationException();
+    return null;
   }
 
   @Override

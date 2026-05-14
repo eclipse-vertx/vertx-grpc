@@ -9,8 +9,10 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerConfig;
 import io.vertx.core.net.ServerSSLOptions;
 import io.vertx.docgen.Source;
+import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpcio.server.GrpcIoServer;
+import io.vertx.grpcio.server.GrpcIoServiceBridge;
 
 @Source
 public class GrpcIoServerExamples {
@@ -45,6 +47,15 @@ public class GrpcIoServerExamples {
     vertx.createHttpServer(config)
       .requestHandler(grpcServer)
       .listen();
+  }
+
+  public void eventBusExample(Vertx vertx, GreeterGrpc.GreeterImplBase service) {
+
+    EventBusGrpcServer server = EventBusGrpcServer.create(vertx);
+
+    GrpcIoServiceBridge bridge = GrpcIoServiceBridge.bridge(service);
+
+    server.addService(bridge);
   }
 
   public void reflectionExample(Vertx vertx, HttpServerConfig config, ServerSSLOptions sslOptions) {

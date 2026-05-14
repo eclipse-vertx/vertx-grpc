@@ -1,5 +1,6 @@
 package io.vertx.tests.eventbus;
 
+import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
@@ -13,6 +14,7 @@ import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
+import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.StatusException;
 import io.vertx.tests.common.GrpcTestBase;
@@ -191,22 +193,28 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
   }
 
   @Test
-  public void testRequestHeaders() throws Exception {
+  public void testHeaders() throws Exception {
     server.callHandler(UNARY, request -> request.handler(msg -> {
       String customHeader = request.headers().get("x-custom");
       Reply reply = Reply.newBuilder().setMessage("Header: " + customHeader).build();
-      request.response().end(reply);
+      GrpcServerResponse<Request, Reply> response = request.response();
+      response.headers().set("x-custom", "response_header_value");
+      response.trailers().set("x-custom", "response_trailer_value");
+      response.end(reply);
     }));
 
     DeliveryOptions opts = new DeliveryOptions()
       .addHeader(EventBusHeaders.ACTION, "Unary")
       .addHeader(EventBusHeaders.WIRE_FORMAT, WireFormat.PROTOBUF.name())
-      .addHeader("x-custom", "test-value");
+      .addHeader(EventBusHeaders.HEADER_PREFIX + "x-custom", "request_header_value");
 
     Buffer payload = Buffer.buffer(Request.newBuilder().setName("Julien").build().toByteArray());
-    Buffer body = vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).map(Message::body).await(10, TimeUnit.SECONDS);
+    Message<Buffer> replyMsg = vertx.eventBus().<Buffer>request(ADDRESS, payload, opts).await();
+    Buffer body = replyMsg.body();
 
     Reply reply = Reply.parseFrom(body.getBytes());
-    Assert.assertEquals("Header: test-value", reply.getMessage());
+    Assert.assertEquals("Header: request_header_value", reply.getMessage());
+    Assert.assertEquals("response_header_value", replyMsg.headers().get(EventBusHeaders.HEADER_PREFIX + "x-custom"));
+    Assert.assertEquals("response_trailer_value", replyMsg.headers().get(EventBusHeaders.TRAILER_PREFIX + "x-custom"));
   }
 }

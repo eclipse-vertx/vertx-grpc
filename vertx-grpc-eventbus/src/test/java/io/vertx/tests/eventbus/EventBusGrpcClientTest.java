@@ -1,6 +1,7 @@
 package io.vertx.tests.eventbus;
 
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
@@ -10,6 +11,7 @@ import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
+import io.vertx.grpc.eventbus.impl.EventBusHeaders;
 import io.vertx.tests.common.GrpcTestBase;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
@@ -170,23 +172,34 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
   }
 
   @Test
-  public void testRequestHeaders() throws Exception {
+  public void testRequestHeaders(TestContext testContext) throws Exception {
     vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
-      String customHeader = msg.headers().get("x-custom");
+      String customHeader = msg.headers().get(EventBusHeaders.HEADER_PREFIX + "x-custom");
       Reply reply = Reply.newBuilder().setMessage("Header: " + customHeader).build();
-      msg.reply(Buffer.buffer(reply.toByteArray()));
+      msg.reply(Buffer.buffer(reply.toByteArray()), new DeliveryOptions()
+        .addHeader(EventBusHeaders.HEADER_PREFIX + "x-custom", "response_header_value")
+        .addHeader(EventBusHeaders.TRAILER_PREFIX + "x-custom", "response_trailer_value")
+      );
     });
 
     Reply reply = client.request(UNARY)
       .compose(request -> {
-        request.headers().add("x-custom", "test-value");
+        request.headers().add("x-custom", "request_header_value");
         request.end(Request.newBuilder().setName("Julien").build());
-        return request.response();
+        return request
+          .response()
+          .compose(response -> {
+            testContext.assertEquals("response_header_value", response.headers().get("x-custom"));
+            return response.last().andThen(ar -> {
+              if (ar.succeeded()) {
+                testContext.assertEquals("response_trailer_value", response.trailers().get("x-custom"));
+              }
+            });
+          });
       })
-      .compose(GrpcReadStream::last)
       .await(10, TimeUnit.SECONDS);
 
-    Assert.assertEquals("Header: test-value", reply.getMessage());
+    Assert.assertEquals("Header: request_header_value", reply.getMessage());
   }
 
   @Test

@@ -1,10 +1,7 @@
 package io.vertx.grpc.eventbus.impl;
 
 import com.google.protobuf.Descriptors;
-import io.vertx.core.Completable;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
@@ -23,6 +20,8 @@ import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 
 public class EventBusGrpcServerImpl implements EventBusGrpcServer {
 
@@ -240,11 +239,14 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
 
         Buffer payload = EventBusGrpcBody.asBuffer(message.body());
 
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
+
         EventBusGrpcServerStream stream = new EventBusGrpcServerStream(context, message, wireFormat);
         GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
         GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(
           context,
-          message.headers(),
+          headers,
           null,
           wireFormat,
           stream,

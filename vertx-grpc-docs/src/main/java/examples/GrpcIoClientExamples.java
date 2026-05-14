@@ -9,6 +9,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.docgen.Source;
+import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpcio.client.GrpcIoClient;
 import io.vertx.grpcio.client.GrpcIoClientChannel;
 
@@ -27,7 +28,7 @@ public class GrpcIoClientExamples {
 
     GreeterGrpc.GreeterStub greeter = GreeterGrpc.newStub(channel);
 
-    StreamObserver<HelloReply> observer = new StreamObserver<HelloReply>() {
+    StreamObserver<HelloReply> observer = new StreamObserver<>() {
       @Override
       public void onNext(HelloReply value) {
         // Process response
@@ -45,6 +46,15 @@ public class GrpcIoClientExamples {
     };
 
     greeter.sayHello(HelloRequest.newBuilder().setName("Bob").build(), observer);
+  }
+
+  public void eventBusExample(Vertx vertx) {
+
+    EventBusGrpcClient client = EventBusGrpcClient.create(vertx);
+
+    GrpcIoClientChannel channel = new GrpcIoClientChannel(client);
+
+    GreeterGrpc.GreeterStub greeter = GreeterGrpc.newStub(channel);
   }
 
   public void stubWithDeadline(GrpcIoClientChannel channel, StreamObserver<HelloReply> observer) {

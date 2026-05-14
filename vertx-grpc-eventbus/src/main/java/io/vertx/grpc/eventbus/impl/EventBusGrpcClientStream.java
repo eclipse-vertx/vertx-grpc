@@ -15,6 +15,9 @@ import io.vertx.grpc.common.impl.*;
 import java.time.Duration;
 import java.util.Optional;
 
+import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
+import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
+
 public class EventBusGrpcClientStream extends EventBusGrpcStreamBase {
 
   private final EventBus eventBus;
@@ -61,7 +64,7 @@ public class EventBusGrpcClientStream extends EventBusGrpcStreamBase {
 
   @Override
   public Future<Void> end(GrpcFrame frame) {
-    throw new UnsupportedOperationException();
+    return context.failedFuture(new UnsupportedOperationException());
   }
 
   @Override
@@ -78,9 +81,7 @@ public class EventBusGrpcClientStream extends EventBusGrpcStreamBase {
     }
 
     if (requestHeaders != null) {
-      for (var entry : requestHeaders) {
-        deliveryOptions.addHeader(entry.getKey(), entry.getValue());
-      }
+      EventBusHeaders.encodeMultiMap(HEADER_PREFIX, requestHeaders, deliveryOptions.getHeaders());
     }
 
     String encoding = Optional.ofNullable(this.encoding).orElse("identity");
@@ -94,10 +95,14 @@ public class EventBusGrpcClientStream extends EventBusGrpcStreamBase {
     response.onComplete(ar -> {
       if (ar.succeeded()) {
         Message<Object> reply = ar.result();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
+        EventBusHeaders.decodeMultimap(HEADER_PREFIX, reply.headers(), headers);
+        EventBusHeaders.decodeMultimap(TRAILER_PREFIX, reply.headers(), trailers);
         Buffer replyPayload = EventBusGrpcBody.asBuffer(reply.body());
-        emit(new DefaultGrpcHeadersFrame(wireFormat, encoding, MultiMap.caseInsensitiveMultiMap()));
+        emit(new DefaultGrpcHeadersFrame(wireFormat, encoding, headers));
         emit(new DefaultGrpcMessageFrame(GrpcMessage.message(encoding, wireFormat, replyPayload)));
-        emit(new DefaultGrpcTrailersFrame(GrpcStatus.OK, null, MultiMap.caseInsensitiveMultiMap()));
+        emit(new DefaultGrpcTrailersFrame(GrpcStatus.OK, null, trailers));
       } else {
         GrpcStatus status = mapFailure(ar.cause());
         emit(new DefaultGrpcHeadersFrame(wireFormat, encoding, MultiMap.caseInsensitiveMultiMap()));
