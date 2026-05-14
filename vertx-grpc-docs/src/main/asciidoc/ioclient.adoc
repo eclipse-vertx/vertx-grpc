@@ -40,6 +40,13 @@ The Vert.x gRPC/IO Client provides a gRPC channel to use with _grpc-java_ genera
 {@link examples.GrpcIoClientExamples#stub}
 ----
 
+You can create an event bus channel
+
+[source,java]
+----
+{@link examples.GrpcIoClientExamples#eventBusExample}
+----
+
 Timeout and deadlines are supported through the usual gRPC API.
 
 [source,java]
@@ -84,3 +91,7 @@ The `GreeterGrpcIo` provides a client stub that uses the Vert.x gRPC/IO Client t
 ----
 
 You can read the <<idiomatic-client, idiomatic client>> section to learn more about it.
+
+=== Event bus transport
+
+You can use
