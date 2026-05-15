@@ -13,15 +13,15 @@ import io.vertx.grpc.server.Service;
 public class GrpcEventBusExamples {
 
   public void createServer(Vertx vertx) {
-    EventBusGrpcServer server = EventBusGrpcServer.create(vertx);
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx);
   }
 
   public void createClient(Vertx vertx) {
-    EventBusGrpcClient client = EventBusGrpcClient.create(vertx);
+    EventBusGrpcClient client = EventBusGrpcClient.client(vertx);
   }
 
   public void serverWithService(Vertx vertx) {
-    EventBusGrpcServer server = EventBusGrpcServer.create(vertx);
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx);
 
     Service service = GreeterGrpcService.of(new GreeterService() {
       @Override
@@ -36,7 +36,7 @@ public class GrpcEventBusExamples {
   }
 
   public void clientWithService(Vertx vertx) {
-    EventBusGrpcClient client = EventBusGrpcClient.create(vertx);
+    EventBusGrpcClient client = EventBusGrpcClient.client(vertx);
 
     GreeterClient greeter = GreeterGrpcClient.create(client);
 
@@ -45,7 +45,7 @@ public class GrpcEventBusExamples {
   }
 
   public void jsonWireFormat(Vertx vertx) {
-    EventBusGrpcClient client = EventBusGrpcClient.create(vertx);
+    EventBusGrpcClient client = EventBusGrpcClient.client(vertx);
 
     GreeterClient greeter = GreeterGrpcClient.create(client, WireFormat.JSON);
 

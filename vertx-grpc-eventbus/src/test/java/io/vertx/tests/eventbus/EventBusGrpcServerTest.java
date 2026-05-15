@@ -1,6 +1,5 @@
 package io.vertx.tests.eventbus;
 
-import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
@@ -46,7 +45,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
   @Before
   public void setUp(TestContext should) {
     super.setUp(should);
-    server = EventBusGrpcServer.create(vertx);
+    server = EventBusGrpcServer.server(vertx);
   }
 
   @Test

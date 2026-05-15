@@ -31,7 +31,7 @@ public interface EventBusGrpcClient extends ServiceInvoker {
    * @param vertx the vertx instance
    * @return the created client
    */
-  static EventBusGrpcClient create(Vertx vertx) {
+  static EventBusGrpcClient client(Vertx vertx) {
     return new EventBusGrpcClientImpl(vertx, vertx.eventBus());
   }
 
@@ -42,7 +42,7 @@ public interface EventBusGrpcClient extends ServiceInvoker {
    * @param eventBus the event bus to use as transport
    * @return the created client
    */
-  static EventBusGrpcClient create(Vertx vertx, EventBus eventBus) {
+  static EventBusGrpcClient client(Vertx vertx, EventBus eventBus) {
     return new EventBusGrpcClientImpl(vertx, eventBus);
   }
 

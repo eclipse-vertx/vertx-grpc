@@ -50,7 +50,7 @@ public class GrpcIoClientExamples {
 
   public void eventBusExample(Vertx vertx) {
 
-    EventBusGrpcClient client = EventBusGrpcClient.create(vertx);
+    EventBusGrpcClient client = EventBusGrpcClient.client(vertx);
 
     GrpcIoClientChannel channel = new GrpcIoClientChannel(client);
 

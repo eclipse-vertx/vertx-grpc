@@ -15,11 +15,9 @@ import io.vertx.grpc.server.StatusException;
 import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpcio.server.GrpcIoServiceBridge;
 import io.vertx.tests.common.GrpcTestBase;
-import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -44,8 +42,8 @@ public class EventBusTest extends GrpcTestBase {
   public void setUp(TestContext should) {
     super.setUp(should);
 
-    client = EventBusGrpcClient.create(vertx);
-    server = EventBusGrpcServer.create(vertx);
+    client = EventBusGrpcClient.client(vertx);
+    server = EventBusGrpcServer.server(vertx);
   }
 
   @Test
@@ -76,7 +74,7 @@ public class EventBusTest extends GrpcTestBase {
 
   @Test
   public void testUnaryErrorHandling() throws Exception {
-    EventBusGrpcServer errorServer = EventBusGrpcServer.create(vertx);
+    EventBusGrpcServer errorServer = EventBusGrpcServer.server(vertx);
     errorServer.addService(GreeterGrpcService.of(new GreeterService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
@@ -96,7 +94,7 @@ public class EventBusTest extends GrpcTestBase {
 
   @Test
   public void testUnaryStatusException() throws Exception {
-    EventBusGrpcServer errorServer = EventBusGrpcServer.create(vertx);
+    EventBusGrpcServer errorServer = EventBusGrpcServer.server(vertx);
     errorServer.addService(GreeterGrpcService.of(new GreeterService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {

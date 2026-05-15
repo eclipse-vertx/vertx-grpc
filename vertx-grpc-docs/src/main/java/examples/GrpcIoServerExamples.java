@@ -51,7 +51,7 @@ public class GrpcIoServerExamples {
 
   public void eventBusExample(Vertx vertx, GreeterGrpc.GreeterImplBase service) {
 
-    EventBusGrpcServer server = EventBusGrpcServer.create(vertx);
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx);
 
     GrpcIoServiceBridge bridge = GrpcIoServiceBridge.bridge(service);
 
