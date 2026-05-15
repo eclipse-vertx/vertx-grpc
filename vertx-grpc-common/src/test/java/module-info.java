@@ -5,6 +5,7 @@ open module io.vertx.tests.common {
   requires junit;
   requires com.google.common;
   requires com.google.protobuf;
+  requires com.google.protobuf.util;
   requires io.grpc;
   requires io.grpc.protobuf;
   requires io.grpc.stub;

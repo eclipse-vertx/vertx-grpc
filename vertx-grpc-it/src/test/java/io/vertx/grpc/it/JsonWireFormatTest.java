@@ -15,18 +15,21 @@ import io.grpc.examples.helloworld.GreeterGrpcService;
 import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.vertx.core.Future;
-import io.vertx.core.http.HttpServer;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.ext.unit.Async;
-import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientResponse;
+import io.vertx.grpc.common.JsonWireFormat;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerOptions;
 import org.junit.Test;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.grpc.examples.helloworld.GreeterGrpcService.SayHello;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -34,43 +37,108 @@ import static io.grpc.examples.helloworld.GreeterGrpcService.SayHello;
 public class JsonWireFormatTest extends ProxyTestBase {
 
   @Test
-  public void testUnary01(TestContext should) {
-
+  public void testUnary01() throws TimeoutException {
     GrpcClient client = GrpcClient.client(vertx);
 
-    Future<HttpServer> server = vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(SayHello, call -> {
+    vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(SayHello, call -> {
       call.handler(helloRequest -> {
         HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
         call.response().end(helloReply);
       });
-    })).listen(8080, "localhost");
+    })).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
 
-    Async test = should.async();
-    server.onComplete(should.asyncAssertSuccess(v -> {
-      client.request(SocketAddress.inetSocketAddress(8080, "localhost"), GreeterGrpcClient.SayHello)
-        .onComplete(should.asyncAssertSuccess(callRequest -> {
-          callRequest.format(WireFormat.JSON);
-          callRequest.response().onComplete(should.asyncAssertSuccess(callResponse -> {
-            AtomicInteger count = new AtomicInteger();
-            callResponse.handler(reply -> {
-              should.assertEquals(1, count.incrementAndGet());
-              should.assertEquals("Hello Julien", reply.getMessage());
-            });
-            callResponse.endHandler(v2 -> {
-              should.assertEquals(1, count.get());
-              test.complete();
-            });
-          }));
-          callRequest.end(HelloRequest.newBuilder().setName("Julien").build());
-        }));
-    }));
+    HelloReply reply = client.request(SocketAddress.inetSocketAddress(8080, "localhost"), GreeterGrpcClient.SayHello)
+      .compose(callRequest -> {
+        callRequest.format(WireFormat.JSON);
+        return callRequest.end(HelloRequest.newBuilder().setName("Julien").build()).compose(v -> callRequest.response().compose(GrpcClientResponse::last));
+      }).await(10, TimeUnit.SECONDS);
 
-    test.awaitSuccess(20_000);
+    assertEquals("Hello Julien", reply.getMessage());
   }
 
   @Test
-  public void testUnary02(TestContext should) {
+  public void testCustomJsonPrinterFlowsThroughClient() throws TimeoutException {
+    GrpcClient client = GrpcClient.client(vertx);
 
+    AtomicReference<String> serverObservedRequestBody = new AtomicReference<>();
+    vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(SayHello, call -> {
+      call.handler(helloRequest -> {
+        // The default printer would skip the empty `name` field. With
+        // alwaysPrintFieldsWithNoPresence it shows up on the wire instead.
+        serverObservedRequestBody.set(helloRequest.getName());
+        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        call.response().end(helloReply);
+      });
+    })).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
+
+    JsonWireFormat customFormat = WireFormat.JSON.alwaysPrintFieldsWithNoPresence(true);
+
+    HelloReply reply = client.request(SocketAddress.inetSocketAddress(8080, "localhost"), GreeterGrpcClient.SayHello)
+      .compose(callRequest -> {
+        callRequest.format(customFormat);
+        return callRequest.end(HelloRequest.newBuilder().build()).compose(v -> callRequest.response().compose(GrpcClientResponse::last));
+      })
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals("Hello ", reply.getMessage());
+    assertEquals("", serverObservedRequestBody.get());
+  }
+
+  @Test
+  public void testCustomJsonParserFlowsThroughServer() throws TimeoutException {
+    GrpcClient client = GrpcClient.client(vertx);
+
+    // Server uses a lenient parser to tolerate unknown fields a future client might send.
+    JsonWireFormat lenientServerFormat = WireFormat.JSON.ignoringUnknownFields(true);
+
+    vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(SayHello, call -> {
+      call.handler(helloRequest -> {
+        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        call.response().format(lenientServerFormat).end(helloReply);
+      });
+    })).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
+
+    HelloReply reply = client.request(SocketAddress.inetSocketAddress(8080, "localhost"), GreeterGrpcClient.SayHello)
+      .compose(callRequest -> {
+        callRequest.format(WireFormat.JSON);
+        return callRequest.end(HelloRequest.newBuilder().setName("Julien").build()).compose(v -> callRequest.response().compose(GrpcClientResponse::last));
+      })
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals("Hello Julien", reply.getMessage());
+  }
+
+  @Test
+  public void testServerOptionsJsonFormatPlumbsThrough() throws TimeoutException {
+    GrpcClient client = GrpcClient.client(vertx);
+
+    // Configure JSON server-wide with a printer that emits empty fields and a lenient parser.
+    // A successful round-trip means the configuration reached both ends.
+    GrpcServerOptions serverOptions = new GrpcServerOptions()
+      .addEnabledFormat(WireFormat.JSON
+        .alwaysPrintFieldsWithNoPresence(true)
+        .ignoringUnknownFields(true)
+      );
+
+    vertx.createHttpServer().requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(SayHello, call -> {
+      call.handler(helloRequest -> {
+        HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        call.response().end(helloReply);
+      });
+    })).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
+
+    HelloReply reply = client.request(SocketAddress.inetSocketAddress(8080, "localhost"), GreeterGrpcClient.SayHello)
+      .compose(callRequest -> {
+        callRequest.format(WireFormat.JSON);
+        return callRequest.end(HelloRequest.newBuilder().setName("Julien").build()).compose(v -> callRequest.response().compose(GrpcClientResponse::last));
+      })
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals("Hello Julien", reply.getMessage());
+  }
+
+  @Test
+  public void testUnary02() throws TimeoutException {
     GrpcClient client = GrpcClient.client(vertx);
 
     GreeterGrpcService greeter = new GreeterGrpcService() {
@@ -81,24 +149,18 @@ public class JsonWireFormatTest extends ProxyTestBase {
     };
 
     GrpcServer grpcServer = GrpcServer.server(vertx);
-
     grpcServer.addService(GreeterGrpcService.of(greeter));
 
-    Future<HttpServer> server = vertx
+    vertx
       .createHttpServer()
       .requestHandler(grpcServer)
-      .listen(8080, "localhost");
+      .listen(8080, "localhost")
+      .await(10, TimeUnit.SECONDS);
 
     GreeterGrpcClient stub = GreeterGrpcClient.create(client, SocketAddress.inetSocketAddress(8080, "localhost"), WireFormat.JSON);
 
-    Async test = should.async();
-    server.onComplete(should.asyncAssertSuccess(v -> {
-      stub.sayHello(HelloRequest.newBuilder().setName("Julien").build()).onComplete(should.asyncAssertSuccess(reply -> {
-        should.assertEquals("Hello Julien", reply.getMessage());
-        test.complete();
-      }));
-    }));
+    HelloReply reply = stub.sayHello(HelloRequest.newBuilder().setName("Julien").build()).await(10, TimeUnit.SECONDS);
 
-    test.awaitSuccess(20_000);
+    assertEquals("Hello Julien", reply.getMessage());
   }
 }

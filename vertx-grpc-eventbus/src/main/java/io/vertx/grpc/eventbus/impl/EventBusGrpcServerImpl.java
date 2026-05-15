@@ -197,10 +197,22 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
         message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ACTION + "' header");
         return;
       }
-      if (message.headers().get(EventBusHeaders.WIRE_FORMAT) == null) {
+      String wireFormatName = message.headers().get(EventBusHeaders.WIRE_FORMAT);
+      if (wireFormatName == null) {
         message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.WIRE_FORMAT + "' header");
         return;
       }
+
+      WireFormat wireFormat;
+      if (ProtobufWireFormat.NAME.equals(wireFormatName)) {
+        wireFormat = WireFormat.PROTOBUF;
+      } else if (JsonWireFormat.NAME.equals(wireFormatName)) {
+        wireFormat = WireFormat.JSON;
+      } else {
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Unknown wire format: " + wireFormatName);
+        return;
+      }
+
       List<ServiceMethod<?, ?>> methods = service.methods();
       ServiceMethod<?, ?> serviceMethod = null;
       for (ServiceMethod<?, ?> candidate : methods) {
@@ -230,12 +242,11 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
         message.fail(GrpcStatus.UNIMPLEMENTED.code, reason);
         return;
       }
-      dispatch(message, serviceMethod);
+      dispatch(message, serviceMethod, wireFormat);
     }
 
-      private <Req, Resp> void dispatch(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod) {
+      private <Req, Resp> void dispatch(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
         ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
-        WireFormat wireFormat = WireFormat.valueOf(message.headers().get(EventBusHeaders.WIRE_FORMAT));
 
         Buffer payload = EventBusGrpcBody.asBuffer(message.body());
 

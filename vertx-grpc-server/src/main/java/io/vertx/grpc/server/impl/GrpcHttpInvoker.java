@@ -12,6 +12,7 @@ package io.vertx.grpc.server.impl;
 
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.WireFormat;
 
 /**
  * An interface that defines the behavior for invoking gRPC services based on an incoming HTTP request. This is designed to bridge HTTP requests to corresponding gRPC service
@@ -27,8 +28,11 @@ public interface GrpcHttpInvoker {
    * @param <Resp> the type of the response message for the gRPC service method
    * @param request the HTTP server request to be processed
    * @param serviceMethod the gRPC service method that corresponds to the incoming request
+   * @param format the wire format used to decode the request payload. If a configured
+   *               instance is registered on the server's enabled formats, that instance
+   *               replaces the canonical default before this method is called.
    * @return an instance of {@code GrpcInvocation} that represents the invocation of the gRPC service method
    */
-  <Req, Resp> GrpcInvocation accept(HttpServerRequest request, ServiceMethod<Req, Resp> serviceMethod);
+  <Req, Resp> GrpcInvocation accept(HttpServerRequest request, ServiceMethod<Req, Resp> serviceMethod, WireFormat format);
 
 }
