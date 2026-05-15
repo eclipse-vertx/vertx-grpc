@@ -31,7 +31,7 @@ public interface EventBusGrpcServer extends ServiceContainer, Closeable {
    * @param vertx the vertx instance
    * @return the created server
    */
-  static EventBusGrpcServer create(Vertx vertx) {
+  static EventBusGrpcServer server(Vertx vertx) {
     return new EventBusGrpcServerImpl(vertx, vertx.eventBus());
   }
 
@@ -45,7 +45,7 @@ public interface EventBusGrpcServer extends ServiceContainer, Closeable {
    * @param eventBus the event bus to use as transport
    * @return the created server
    */
-  static EventBusGrpcServer create(Vertx vertx, EventBus eventBus) {
+  static EventBusGrpcServer server(Vertx vertx, EventBus eventBus) {
     return new EventBusGrpcServerImpl(vertx, eventBus);
   }
 
