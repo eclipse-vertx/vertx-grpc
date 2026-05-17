@@ -35,21 +35,22 @@ public final class MessageWeaver {
   }
 
   /**
-   * Weaves HTTP variable bindings and request body into a gRPC message.
+   * Weaves HTTP variable bindings and request body into a gRPC message. The return type is always a {@link JsonObject}
+   * because a protobuf {@code Message} is always object-shaped in JSON form.
    *
    * @param message The original message buffer
    * @param bindings The HTTP variable bindings
    * @param transcodingRequestBody The transcoding request body path
    * @param descriptor The protobuf message descriptor, used to identify repeated fields
-   * @return The modified buffer with weaved content
+   * @return The woven message as a JsonObject
    * @throws DecodeException If JSON decoding fails
    */
-  public static Buffer weaveRequestMessage(Buffer message, List<HttpVariableBinding> bindings, String transcodingRequestBody, Descriptors.Descriptor descriptor) throws DecodeException {
+  public static JsonObject weaveRequestMessage(Buffer message, List<HttpVariableBinding> bindings, String transcodingRequestBody, Descriptors.Descriptor descriptor) throws DecodeException {
     boolean hasBindings = bindings != null && !bindings.isEmpty();
     boolean hasBody = transcodingRequestBody != null && !transcodingRequestBody.isEmpty();
 
     if (!hasBindings && !hasBody) {
-      return new JsonObject().toBuffer();
+      return new JsonObject();
     }
 
     JsonObject result = new JsonObject();
@@ -72,7 +73,7 @@ public final class MessageWeaver {
       applyBindings(result, bindings, descriptor);
     }
 
-    return result.toBuffer();
+    return result;
   }
 
   /**
@@ -138,32 +139,34 @@ public final class MessageWeaver {
   }
 
   /**
-   * Extracts a response message portion based on the transcoding path.
+   * Extracts a response message portion based on the {@code response_body} selector. The result may be any JSON value
+   * the selector lands on: a {@link JsonObject}, a {@link JsonArray} (for selectors pointing at a repeated proto field),
+   * or a scalar ({@link String}, {@link Number}, {@link Boolean}, or {@code null}). Callers should use
+   * {@link io.vertx.core.json.Json#encodeToBuffer(Object)} to serialize the result uniformly.
    *
    * @param message The original message buffer
    * @param transcodingResponseBody The path to extract from the response
-   * @return The modified buffer with the extracted content
+   * @return The selected JSON value (object, array, scalar, or null)
    */
-  public static Buffer weaveResponseMessage(Buffer message, String transcodingResponseBody) throws DecodeException {
+  public static Object weaveResponseMessage(Buffer message, String transcodingResponseBody) throws DecodeException {
     Objects.requireNonNull(message, "Message cannot be null");
 
     if (transcodingResponseBody == null || transcodingResponseBody.isEmpty() || transcodingResponseBody.equals(ROOT_LEVEL)) {
-      return message;
+      return message.toJsonObject();
     }
 
     JsonObject json = message.toJsonObject();
     String[] path = transcodingResponseBody.split("\\.");
 
-    JsonObject current = json;
-    for (String field : path) {
-      Object value = current.getValue(field);
-      if (value instanceof JsonObject) {
-        current = (JsonObject) value;
-      } else {
-        throw new IllegalArgumentException("Path segment '" + field + "' in transcodingResponseBody does not refer to a JSON object");
+    Object current = json;
+    for (int i = 0; i < path.length; i++) {
+      String field = path[i];
+      if (!(current instanceof JsonObject)) {
+        throw new IllegalArgumentException("Path segment '" + path[i - 1] + "' in transcodingResponseBody does not refer to a JSON object");
       }
+      current = ((JsonObject) current).getValue(field);
     }
 
-    return current.toBuffer();
+    return current;
   }
 }

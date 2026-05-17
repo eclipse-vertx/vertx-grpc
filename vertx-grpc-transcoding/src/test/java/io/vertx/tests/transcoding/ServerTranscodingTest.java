@@ -20,6 +20,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.internal.buffer.BufferInternal;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.*;
@@ -59,6 +60,8 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static GrpcMessageDecoder<EchoRequestBody> ECHO_REQUEST_BODY_DECODER = GrpcMessageDecoder.decoder(EchoRequestBody.newBuilder());
   public static GrpcMessageEncoder<EchoResponse> ECHO_RESPONSE_ENCODER = GrpcMessageEncoder.encoder();
   public static GrpcMessageEncoder<EchoResponseBody> ECHO_RESPONSE_BODY_ENCODER = GrpcMessageEncoder.encoder();
+  public static GrpcMessageDecoder<StreamingRequest> STREAMING_REQUEST_DECODER = GrpcMessageDecoder.decoder(StreamingRequest.newBuilder());
+  public static GrpcMessageEncoder<StreamingResponse> STREAMING_RESPONSE_ENCODER = GrpcMessageEncoder.encoder();
 
   public static final ServiceName TEST_SERVICE_NAME = ServiceName.create(TestServiceGrpc.SERVICE_NAME);
 
@@ -90,6 +93,17 @@ public class ServerTranscodingTest extends GrpcTestBase {
 
   public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_REPEATED_QUERY = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithRepeatedQuery",
     ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_REPEATED_QUERY);
+
+  public static final MethodTranscodingOptions STREAMING_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/stream").setBody("*");
+  public static final TranscodingServiceMethod<StreamingRequest, StreamingResponse> STREAMING_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "StreamingCall",
+    STREAMING_RESPONSE_ENCODER, STREAMING_REQUEST_DECODER, STREAMING_TRANSCODING, true);
+
+  // Unary RPC whose HttpRule selects a repeated field as the response body. The HTTP body should be the unwrapped JSON
+  // array of the field, not the surrounding message object.
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_ARRAY_RESPONSE_BODY = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/keylist").setBody("*").setResponseBody("keys");
+  public static GrpcMessageEncoder<EchoRequest> ECHO_REQUEST_ENCODER = GrpcMessageEncoder.encoder();
+  public static final TranscodingServiceMethod<EchoRequest, EchoRequest> UNARY_CALL_WITH_ARRAY_RESPONSE_BODY = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithArrayResponseBody",
+    ECHO_REQUEST_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_ARRAY_RESPONSE_BODY);
 
   private static final CharSequence USER_AGENT = HttpHeaders.createOptimized("X-User-Agent");
   private static final String CONTENT_TYPE = "application/json";
@@ -237,6 +251,36 @@ public class ServerTranscodingTest extends GrpcTestBase {
           .setPayload(String.join(",", keys))
           .build();
         response.end(responseMsg);
+      });
+    });
+    grpcServer.callHandler(UNARY_CALL_WITH_ARRAY_RESPONSE_BODY, request -> {
+      request.handler(requestMsg -> {
+        GrpcServerResponse<EchoRequest, EchoRequest> response = request.response();
+        EchoRequest responseMsg = EchoRequest.newBuilder()
+          .addKeys("alice")
+          .addKeys("bob")
+          .addKeys("carol")
+          .build();
+        response.end(responseMsg);
+      });
+    });
+    grpcServer.callHandler(STREAMING_CALL, request -> {
+      request.handler(requestMsg -> {
+        GrpcServerResponse<StreamingRequest, StreamingResponse> response = request.response();
+        if (requestMsg.getResponseSizeList().isEmpty()) {
+          response.end();
+          return;
+        }
+        for (int size : requestMsg.getResponseSizeList()) {
+          if (size < 0) {
+            response.status(GrpcStatus.INVALID_ARGUMENT).end();
+            return;
+          }
+          char[] value = new char[size];
+          Arrays.fill(value, 'a');
+          response.write(StreamingResponse.newBuilder().setPayload(new String(value)).build());
+        }
+        response.end();
       });
     });
     httpServer = vertx.createHttpServer(new HttpServerOptions().setPort(port)).requestHandler(grpcServer);
@@ -531,6 +575,158 @@ public class ServerTranscodingTest extends GrpcTestBase {
       assertEquals(200, response.statusCode());
       JsonObject body = decodeBody(response.body().result());
       assertEquals("A", body.getString("payload"));
+    })));
+  }
+
+  @Test
+  public void testServerStreaming(TestContext should) {
+    httpClient.request(HttpMethod.POST, "/stream").compose(req -> {
+      String body = encode(StreamingRequest.newBuilder().addResponseSize(1).addResponseSize(2).addResponseSize(3).build()).toString();
+      req.headers().addAll(HEADERS);
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      MultiMap headers = response.headers();
+      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      // Chunked transfer means no Content-Length header.
+      assertFalse(headers.contains(HttpHeaders.CONTENT_LENGTH));
+      JsonArray array = new JsonArray(response.body().result());
+      assertEquals(3, array.size());
+      assertEquals("a", array.getJsonObject(0).getString("payload"));
+      assertEquals("aa", array.getJsonObject(1).getString("payload"));
+      assertEquals("aaa", array.getJsonObject(2).getString("payload"));
+    })));
+  }
+
+  @Test
+  public void testServerStreamingEmpty(TestContext should) {
+    httpClient.request(HttpMethod.POST, "/stream").compose(req -> {
+      String body = encode(StreamingRequest.newBuilder().build()).toString();
+      req.headers().addAll(HEADERS);
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      JsonArray array = new JsonArray(response.body().result());
+      assertEquals(0, array.size());
+    })));
+  }
+
+  @Test
+  public void testServerStreamingErrorBeforeFirstMessage(TestContext should) {
+    httpClient.request(HttpMethod.POST, "/stream").compose(req -> {
+      String body = encode(StreamingRequest.newBuilder().addResponseSize(-1).build()).toString();
+      req.headers().addAll(HEADERS);
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(400, response.statusCode());
+    })));
+  }
+
+  @Test
+  public void testServerStreamingNdjson(TestContext should) {
+    httpClient.request(HttpMethod.POST, "/stream").compose(req -> {
+      String body = encode(StreamingRequest.newBuilder().addResponseSize(1).addResponseSize(2).addResponseSize(3).build()).toString();
+      req.headers().addAll(HEADERS);
+      req.headers().set(HttpHeaders.ACCEPT, "application/x-ndjson");
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      assertTrue(response.headers().contains(HttpHeaders.CONTENT_TYPE, "application/x-ndjson", true));
+      String[] lines = response.body().result().toString().split("\n");
+      assertEquals(3, lines.length);
+      assertEquals("a", new JsonObject(lines[0]).getString("payload"));
+      assertEquals("aa", new JsonObject(lines[1]).getString("payload"));
+      assertEquals("aaa", new JsonObject(lines[2]).getString("payload"));
+    })));
+  }
+
+  @Test
+  public void testServerStreamingSse(TestContext should) {
+    httpClient.request(HttpMethod.POST, "/stream").compose(req -> {
+      String body = encode(StreamingRequest.newBuilder().addResponseSize(1).addResponseSize(2).addResponseSize(3).build()).toString();
+      req.headers().addAll(HEADERS);
+      req.headers().set(HttpHeaders.ACCEPT, "text/event-stream");
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      assertTrue(response.headers().contains(HttpHeaders.CONTENT_TYPE, "text/event-stream", true));
+      String[] events = response.body().result().toString().split("\n\n");
+      assertEquals(3, events.length);
+      for (int i = 0; i < events.length; i++) {
+        assertTrue("event[" + i + "] should start with 'data: ': " + events[i], events[i].startsWith("data: "));
+        String json = events[i].substring("data: ".length());
+        assertEquals("a".repeat(i + 1), new JsonObject(json).getString("payload"));
+      }
+    })));
+  }
+
+  @Test
+  public void testServerStreamingErrorMidStream(TestContext should) {
+    // Server writes one message, then fails with INVALID_ARGUMENT. Headers have already been flushed with HTTP 200,
+    // so the gRPC error cannot change the status code. The JSON array is just closed and the body ends.
+    httpClient.request(HttpMethod.POST, "/stream").compose(req -> {
+      String body = encode(StreamingRequest.newBuilder().addResponseSize(1).addResponseSize(-1).build()).toString();
+      req.headers().addAll(HEADERS);
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      JsonArray array = new JsonArray(response.body().result());
+      assertEquals(1, array.size());
+      assertEquals("a", array.getJsonObject(0).getString("payload"));
+    })));
+  }
+
+  @Test
+  public void testServerStreamingUnknownAcceptFallsBackToJsonArray(TestContext should) {
+    httpClient.request(HttpMethod.POST, "/stream").compose(req -> {
+      String body = encode(StreamingRequest.newBuilder().addResponseSize(1).build()).toString();
+      req.headers().addAll(HEADERS);
+      req.headers().set(HttpHeaders.ACCEPT, "application/xml");
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      assertTrue(response.headers().contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonArray array = new JsonArray(response.body().result());
+      assertEquals(1, array.size());
+    })));
+  }
+
+  @Test
+  public void testServerStreamingWildcardAcceptFallsBackToJsonArray(TestContext should) {
+    httpClient.request(HttpMethod.POST, "/stream").compose(req -> {
+      String body = encode(StreamingRequest.newBuilder().addResponseSize(1).build()).toString();
+      req.headers().addAll(HEADERS);
+      req.headers().set(HttpHeaders.ACCEPT, "*/*");
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      assertTrue(response.headers().contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonArray array = new JsonArray(response.body().result());
+      assertEquals(1, array.size());
+    })));
+  }
+
+  @Test
+  public void testResponseBodyRepeatedFieldUnwrapped(TestContext should) {
+    httpClient.request(HttpMethod.POST, "/keylist").compose(req -> {
+      String body = encode(EchoRequest.newBuilder().build()).toString();
+      req.headers().addAll(HEADERS);
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      assertTrue(response.headers().contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonArray expected = new JsonArray().add("alice").add("bob").add("carol");
+      assertEquals(expected, new JsonArray(response.body().result()));
+    })));
+  }
+
+  @Test
+  public void testServerStreamingMalformedBody(TestContext should) {
+    httpClient.request(HttpMethod.POST, "/stream").compose(req -> {
+      req.headers().addAll(HEADERS);
+      return req.send("not-json").compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(400, response.statusCode());
     })));
   }
 

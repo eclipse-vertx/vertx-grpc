@@ -117,7 +117,8 @@ public class {{grpcServiceFqn}} extends {{serviceFqn}} implements Service {
     "{{methodName}}",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder({{inputType}}.newBuilder()),
-    {{methodName}}_OPTIONS
+    {{methodName}}_OPTIONS,
+    {{isManyOutput}}
   );
 {{/transcodingMethods}}
 

@@ -96,7 +96,7 @@ public class MessageWeaverBenchmark {
 
     @Benchmark
     public void benchmarkWeaveRequestSimpleMessageNoBindings(Blackhole blackhole) {
-        Buffer result = MessageWeaver.weaveRequestMessage(
+        JsonObject result = MessageWeaver.weaveRequestMessage(
             simpleMessage,
             null,
             null,
@@ -107,7 +107,7 @@ public class MessageWeaverBenchmark {
 
     @Benchmark
     public void benchmarkWeaveRequestSimpleMessageWithBindings(Blackhole blackhole) {
-        Buffer result = MessageWeaver.weaveRequestMessage(
+        JsonObject result = MessageWeaver.weaveRequestMessage(
             simpleMessage,
             simpleBindings,
             null,
@@ -118,7 +118,7 @@ public class MessageWeaverBenchmark {
 
     @Benchmark
     public void benchmarkWeaveRequestComplexMessageWithBindings(Blackhole blackhole) {
-        Buffer result = MessageWeaver.weaveRequestMessage(
+        JsonObject result = MessageWeaver.weaveRequestMessage(
             complexMessage,
             complexBindings,
             null,
@@ -129,7 +129,7 @@ public class MessageWeaverBenchmark {
 
     @Benchmark
     public void benchmarkWeaveRequestWithTranscodingPath(Blackhole blackhole) {
-        Buffer result = MessageWeaver.weaveRequestMessage(
+        JsonObject result = MessageWeaver.weaveRequestMessage(
             complexMessage,
             complexBindings,
             complexTranscodingPath,
@@ -140,7 +140,7 @@ public class MessageWeaverBenchmark {
 
     @Benchmark
     public void benchmarkWeaveResponseSimpleMessage(Blackhole blackhole) {
-        Buffer result = MessageWeaver.weaveResponseMessage(
+        Object result = MessageWeaver.weaveResponseMessage(
             simpleMessage,
             simpleTranscodingPath
         );
@@ -149,7 +149,7 @@ public class MessageWeaverBenchmark {
 
     @Benchmark
     public void benchmarkWeaveResponseComplexMessage(Blackhole blackhole) {
-        Buffer result = MessageWeaver.weaveResponseMessage(
+        Object result = MessageWeaver.weaveResponseMessage(
             complexMessage,
             complexTranscodingPath
         );

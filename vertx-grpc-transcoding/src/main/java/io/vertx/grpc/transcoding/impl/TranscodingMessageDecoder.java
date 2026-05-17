@@ -1,7 +1,7 @@
 package io.vertx.grpc.transcoding.impl;
 
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.DecodeException;
+import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
@@ -26,13 +26,13 @@ public class TranscodingMessageDecoder<Req> implements GrpcMessageDecoder<Req> {
 
   @Override
   public Req decode(GrpcMessage msg) throws CodecException {
-    Buffer transcoded;
+    JsonObject transcoded;
     try {
       transcoded = MessageWeaver.weaveRequestMessage(msg.payload(), bindings, transcodingRequestBody, messageDecoder.messageDescriptor());
     } catch (DecodeException e) {
       throw new CodecException(e);
     }
-    return messageDecoder.decode(GrpcMessage.message("identity", format, transcoded));
+    return messageDecoder.decode(GrpcMessage.message("identity", format, transcoded.toBuffer()));
   }
   @Override
   public boolean accepts(WireFormat format) {
