@@ -108,6 +108,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
   @Override
   public void setUp(TestContext should) {
     super.setUp(should);
+    port = 18080;
     httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultPort(port).setProtocolVersion(HttpVersion.HTTP_2));
     GrpcServer grpcServer = GrpcServer.server(vertx);
     grpcServer.callHandler(EMPTY_CALL, request -> {
@@ -335,10 +336,9 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public void testVerbWithBody(TestContext should) {
     String payload = "foobar";
     httpClient.request(HttpMethod.GET, "/foo:take").compose(req -> {
-      String body = encode(EchoRequestBody.newBuilder().setRequest(EchoRequest.newBuilder().setPayload("foobar").build()).build()).toString();
+      String body = encode(EchoRequest.newBuilder().setPayload("foobar").build()).toString();
       req.headers().addAll(HEADERS);
-      req.headers().set(HttpHeaders.CONTENT_LENGTH, String.valueOf(body.length()));
-      return req.send().compose(response -> response.body().map(response));
+      return req.send(body).compose(response -> response.body().map(response));
     }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
       assertEquals(200, response.statusCode());
       MultiMap headers = response.headers();
