@@ -25,9 +25,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <name>vertx-grpc-health</name>
   <artifactId>vertx-grpc-health</artifactId>
-
-  <name>Vert.x gRPC Health</name>
 
   <dependencies>
     <dependency>

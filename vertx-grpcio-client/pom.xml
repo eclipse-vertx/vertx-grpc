@@ -25,9 +25,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <name>vertx-grpcio-client</name>
   <artifactId>vertx-grpcio-client</artifactId>
-
-  <name>Vert.x gRPC/IO Client</name>
 
   <dependencies>
     <dependency>

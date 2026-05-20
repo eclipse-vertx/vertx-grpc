@@ -25,9 +25,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <name>vertx-grpc-server</name>
   <artifactId>vertx-grpc-server</artifactId>
-
-  <name>Vert.x gRPC Server</name>
 
   <dependencies>
     <dependency>

@@ -25,9 +25,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <name>vertx-grpc-common</name>
   <artifactId>vertx-grpc-common</artifactId>
-
-  <name>Vert.x gRPC Common</name>
 
   <dependencies>
     <dependency>

@@ -25,9 +25,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <name>vertx-grpc-it</name>
   <artifactId>vertx-grpc-it</artifactId>
-
-  <name>Vert.x gRPC integration tests</name>
 
   <dependencies>
     <dependency>

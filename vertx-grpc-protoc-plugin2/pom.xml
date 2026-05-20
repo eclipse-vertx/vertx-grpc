@@ -25,9 +25,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <name>vertx-grpc-protoc-plugin2</name>
   <artifactId>vertx-grpc-protoc-plugin2</artifactId>
-
-  <name>Vert.x gRPC Protoc Plugin</name>
 
   <properties>
     <protoc.version>3.21.12</protoc.version>

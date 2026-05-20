@@ -12,9 +12,9 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <name>vertx-grpcio-context-storage</name>
   <artifactId>vertx-grpcio-context-storage</artifactId>
 
-  <name>Vert.x gRPC/IO Context Storage implementation</name>
   <description>This modules provides an io.grpc.override.ContextStorageOverride implementation which uses Vert.x local
     context data maps.
   </description>
