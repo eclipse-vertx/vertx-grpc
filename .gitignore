@@ -18,6 +18,7 @@ Scratch.java
 ScratchTest.java
 test-results
 test-tmp
+dependency-reduced-pom.xml
 *.class
 ScratchPad.java
 src/main/resources/ext-js/*.js

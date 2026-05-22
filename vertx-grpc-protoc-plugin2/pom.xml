@@ -39,6 +39,10 @@
       <version>2.50.0</version>
     </dependency>
     <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.github.spullara.mustache.java</groupId>
       <artifactId>compiler</artifactId>
       <version>0.9.14</version>
@@ -55,17 +59,41 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.2.1</version>
+        <version>3.6.2</version>
         <executions>
           <execution>
             <phase>package</phase>
             <goals>
               <goal>shade</goal>
             </goals>
+            <configuration>
+              <filters>
+                <filter>
+                  <artifact>*</artifact>
+                  <excludes>
+                    <exclude>**/module-info.class</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+              <relocations>
+                <relocation>
+                  <pattern>com.google</pattern>
+                  <shadedPattern>io.vertx.grpc.plugin.com.google</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.github.mustachejava</pattern>
+                  <shadedPattern>io.vertx.grpc.plugin.com.github.mustachejava</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>picocli</pattern>
+                  <shadedPattern>io.vertx.grpc.plugin.picocli</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
           </execution>
         </executions>
         <configuration>
-          <createDependencyReducedPom>false</createDependencyReducedPom>
+          <createDependencyReducedPom>true</createDependencyReducedPom>
         </configuration>
       </plugin>
       <plugin>
