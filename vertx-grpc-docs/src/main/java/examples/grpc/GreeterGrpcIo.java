@@ -2,15 +2,10 @@ package examples.grpc;
 
 import static examples.grpc.GreeterGrpc.getServiceDescriptor;
 import static io.grpc.stub.ServerCalls.asyncUnaryCall;
-import static io.grpc.stub.ServerCalls.asyncServerStreamingCall;
-import static io.grpc.stub.ServerCalls.asyncClientStreamingCall;
-import static io.grpc.stub.ServerCalls.asyncBidiStreamingCall;
 
-import io.grpc.ClientCall;
 
 import io.grpc.stub.StreamObserver;
 
-import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
 /**
@@ -34,7 +29,7 @@ public final class GreeterGrpcIo {
     return new GreeterStub(vertx.getOrCreateContext(), channel);
   }
 
-  
+
   public static final class GreeterStub extends io.grpc.stub.AbstractStub<GreeterStub> implements GreeterClient {
     private final io.vertx.core.internal.ContextInternal context;
     private GreeterGrpc.GreeterStub delegateStub;
@@ -56,7 +51,7 @@ public final class GreeterGrpcIo {
       return new GreeterStub(context, channel, callOptions);
     }
 
-    
+
     public io.vertx.core.Future<examples.grpc.HelloReply> sayHello(examples.grpc.HelloRequest request) {
       return io.vertx.grpcio.common.impl.stub.ClientCalls.oneToOne(context, request, delegateStub::sayHello);
     }

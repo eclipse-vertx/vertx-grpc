@@ -2,7 +2,6 @@ package io.vertx.grpc.health.impl;
 
 import com.google.protobuf.Descriptors;
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.grpc.common.ServiceMethod;
@@ -13,8 +12,6 @@ import io.vertx.grpc.health.handler.GrpcHealthCheckV1Handler;
 import io.vertx.grpc.health.handler.GrpcHealthListV1Handler;
 import io.vertx.grpc.health.handler.GrpcHealthWatchV1Handler;
 import io.vertx.grpc.health.v1.HealthProto;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.impl.ServerAware;

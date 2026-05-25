@@ -27,17 +27,17 @@ public final class HttpProto {
   }
   static final com.google.protobuf.Descriptors.Descriptor
     internal_static_google_api_Http_descriptor;
-  static final 
+  static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_google_api_Http_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
     internal_static_google_api_HttpRule_descriptor;
-  static final 
+  static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_google_api_HttpRule_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
     internal_static_google_api_CustomHttpPattern_descriptor;
-  static final 
+  static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_google_api_CustomHttpPattern_fieldAccessorTable;
 

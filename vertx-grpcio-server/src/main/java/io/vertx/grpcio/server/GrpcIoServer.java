@@ -2,7 +2,6 @@ package io.vertx.grpcio.server;
 
 import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
-import io.grpc.ServerServiceDefinition;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Handler;

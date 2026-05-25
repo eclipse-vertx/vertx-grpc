@@ -1,16 +1,13 @@
 package examples.grpc;
 
 import static examples.grpc.StreamingGrpc.getServiceDescriptor;
-import static io.grpc.stub.ServerCalls.asyncUnaryCall;
 import static io.grpc.stub.ServerCalls.asyncServerStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncClientStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncBidiStreamingCall;
 
-import io.grpc.ClientCall;
 
 import io.grpc.stub.StreamObserver;
 
-import io.vertx.grpcio.client.GrpcIoClientChannel;
 import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 
 /**
@@ -34,7 +31,7 @@ public final class StreamingGrpcIo {
     return new StreamingStub(vertx.getOrCreateContext(), channel);
   }
 
-  
+
   public static final class StreamingStub extends io.grpc.stub.AbstractStub<StreamingStub> implements StreamingClient {
     private final io.vertx.core.internal.ContextInternal context;
     private StreamingGrpc.StreamingStub delegateStub;
@@ -56,17 +53,17 @@ public final class StreamingGrpcIo {
       return new StreamingStub(context, channel, callOptions);
     }
 
-    
+
     public io.vertx.core.Future<io.vertx.core.streams.ReadStream<examples.grpc.Item>> source(examples.grpc.Empty request) {
       return io.vertx.grpcio.common.impl.stub.ClientCalls.oneToMany(context, request, delegateStub::source);
     }
 
-    
+
     public io.vertx.core.Future<examples.grpc.Empty> sink(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<examples.grpc.Item>> handler) {
       return io.vertx.grpcio.common.impl.stub.ClientCalls.manyToOne(context, handler, delegateStub::sink);
     }
 
-    
+
     public io.vertx.core.Future<io.vertx.core.streams.ReadStream<examples.grpc.Item>> pipe(io.vertx.core.Completable<io.vertx.core.streams.WriteStream<examples.grpc.Item>> handler) {
       return io.vertx.grpcio.common.impl.stub.ClientCalls.manyToMany(context, handler, delegateStub::pipe);
     }

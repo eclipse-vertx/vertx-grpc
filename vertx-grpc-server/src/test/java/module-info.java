@@ -16,4 +16,3 @@ open module io.vertx.tests.server {
   exports io.vertx.tests.server.grpc.web;
   exports io.vertx.tests.server;
 }
-

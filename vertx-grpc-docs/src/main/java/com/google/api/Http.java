@@ -75,7 +75,7 @@ private static final long serialVersionUID = 0L;
    * <code>repeated .google.api.HttpRule rules = 1;</code>
    */
   @java.lang.Override
-  public java.util.List<? extends com.google.api.HttpRuleOrBuilder> 
+  public java.util.List<? extends com.google.api.HttpRuleOrBuilder>
       getRulesOrBuilderList() {
     return rules_;
   }
@@ -440,7 +440,7 @@ private static final long serialVersionUID = 0L;
             rulesBuilder_ = null;
             rules_ = other.rules_;
             bitField0_ = (bitField0_ & ~0x00000001);
-            rulesBuilder_ = 
+            rulesBuilder_ =
               com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                  getRulesFieldBuilder() : null;
           } else {
@@ -797,7 +797,7 @@ private static final long serialVersionUID = 0L;
      *
      * <code>repeated .google.api.HttpRule rules = 1;</code>
      */
-    public java.util.List<? extends com.google.api.HttpRuleOrBuilder> 
+    public java.util.List<? extends com.google.api.HttpRuleOrBuilder>
          getRulesOrBuilderList() {
       if (rulesBuilder_ != null) {
         return rulesBuilder_.getMessageOrBuilderList();
@@ -841,12 +841,12 @@ private static final long serialVersionUID = 0L;
      *
      * <code>repeated .google.api.HttpRule rules = 1;</code>
      */
-    public java.util.List<com.google.api.HttpRule.Builder> 
+    public java.util.List<com.google.api.HttpRule.Builder>
          getRulesBuilderList() {
       return getRulesFieldBuilder().getBuilderList();
     }
     private com.google.protobuf.RepeatedFieldBuilder<
-        com.google.api.HttpRule, com.google.api.HttpRule.Builder, com.google.api.HttpRuleOrBuilder> 
+        com.google.api.HttpRule, com.google.api.HttpRule.Builder, com.google.api.HttpRuleOrBuilder>
         getRulesFieldBuilder() {
       if (rulesBuilder_ == null) {
         rulesBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -969,4 +969,3 @@ private static final long serialVersionUID = 0L;
   }
 
 }
-

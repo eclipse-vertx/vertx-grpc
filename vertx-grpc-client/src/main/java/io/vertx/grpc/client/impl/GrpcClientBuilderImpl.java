@@ -19,7 +19,6 @@ import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientBuilder;
 import io.vertx.grpc.client.GrpcClientOptions;
 
-import java.util.List;
 
 /**
  * Implementation of {@link GrpcClientBuilder}.

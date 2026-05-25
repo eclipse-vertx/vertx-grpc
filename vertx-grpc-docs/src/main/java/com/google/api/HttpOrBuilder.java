@@ -18,7 +18,7 @@ public interface HttpOrBuilder extends
    *
    * <code>repeated .google.api.HttpRule rules = 1;</code>
    */
-  java.util.List<com.google.api.HttpRule> 
+  java.util.List<com.google.api.HttpRule>
       getRulesList();
   /**
    * <pre>
@@ -49,7 +49,7 @@ public interface HttpOrBuilder extends
    *
    * <code>repeated .google.api.HttpRule rules = 1;</code>
    */
-  java.util.List<? extends com.google.api.HttpRuleOrBuilder> 
+  java.util.List<? extends com.google.api.HttpRuleOrBuilder>
       getRulesOrBuilderList();
   /**
    * <pre>

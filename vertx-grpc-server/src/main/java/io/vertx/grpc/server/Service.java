@@ -3,7 +3,6 @@ package io.vertx.grpc.server;
 import com.google.protobuf.Descriptors;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.core.Future;
-import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.impl.ServiceBuilderImpl;

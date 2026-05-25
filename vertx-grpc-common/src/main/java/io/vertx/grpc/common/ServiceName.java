@@ -10,9 +10,7 @@
  */
 package io.vertx.grpc.common;
 
-import io.vertx.codegen.annotations.CacheReturn;
 import io.vertx.codegen.annotations.DataObject;
-import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.grpc.common.impl.ServiceNameImpl;
 
 /**

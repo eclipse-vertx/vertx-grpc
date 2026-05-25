@@ -27,22 +27,22 @@ public final class Docs {
   }
   static final com.google.protobuf.Descriptors.Descriptor
     internal_static_examples_grpc_HelloRequest_descriptor;
-  static final 
+  static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_examples_grpc_HelloRequest_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
     internal_static_examples_grpc_HelloReply_descriptor;
-  static final 
+  static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_examples_grpc_HelloReply_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
     internal_static_examples_grpc_Item_descriptor;
-  static final 
+  static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_examples_grpc_Item_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
     internal_static_examples_grpc_Empty_descriptor;
-  static final 
+  static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_examples_grpc_Empty_fieldAccessorTable;
 

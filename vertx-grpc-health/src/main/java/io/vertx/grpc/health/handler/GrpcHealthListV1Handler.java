@@ -1,7 +1,6 @@
 package io.vertx.grpc.health.handler;
 
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceMethod;

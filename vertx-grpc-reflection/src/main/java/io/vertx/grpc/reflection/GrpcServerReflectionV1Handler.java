@@ -12,7 +12,6 @@ package io.vertx.grpc.reflection;
 
 import com.google.protobuf.Descriptors;
 import io.vertx.grpc.reflection.v1.*;
-import io.vertx.core.Handler;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.*;
 

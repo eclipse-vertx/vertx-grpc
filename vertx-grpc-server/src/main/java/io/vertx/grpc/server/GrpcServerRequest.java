@@ -22,7 +22,6 @@ import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.ServiceName;
 
-import java.time.Instant;
 
 @VertxGen
 public interface GrpcServerRequest<Req, Resp> extends GrpcReadStream<Req> {

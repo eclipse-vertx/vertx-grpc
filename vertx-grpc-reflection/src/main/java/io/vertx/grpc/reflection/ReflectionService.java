@@ -1,7 +1,6 @@
 package io.vertx.grpc.reflection;
 
 import com.google.protobuf.Descriptors;
-import io.vertx.core.Handler;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.reflection.v1.ServerReflectionProto;
 import io.vertx.grpc.common.ServiceName;

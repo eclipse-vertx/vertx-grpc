@@ -1,7 +1,6 @@
 package io.vertx.grpc.health.handler;
 
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.health.v1.HealthCheckRequest;
 import io.vertx.grpc.health.v1.HealthCheckResponse;

@@ -23,7 +23,6 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.concurrent.InboundMessageQueue;
 import io.vertx.core.streams.ReadStream;
 
-import java.util.Objects;
 
 /**
  * @author Rogelio Orts

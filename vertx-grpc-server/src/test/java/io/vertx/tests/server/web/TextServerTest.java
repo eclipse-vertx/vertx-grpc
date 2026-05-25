@@ -21,7 +21,6 @@ import java.util.Base64;
 import static io.vertx.core.http.HttpHeaders.ACCEPT;
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
 import static io.vertx.grpc.common.GrpcMediaType.GRPC_WEB_TEXT;
-import static io.vertx.grpc.common.GrpcMediaType.GRPC_WEB_TEXT_PROTO;
 import static org.junit.Assert.assertEquals;
 
 /**
