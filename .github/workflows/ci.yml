@@ -38,7 +38,7 @@ jobs:
           sudo mv grpc_health_probe /usr/local/bin/
       - name: Run tests
         if: runner.os != 'Linux'
-        run: mvn -s .github/maven-ci-settings.xml -q clean verify -B
+        run: mvn -s .github/maven-ci-settings.xml -q clean verify -B -Pcheckstyle
       - name: Run tests with grpcurl and health-probe profiles (Linux only)
         if: runner.os == 'Linux'
-        run: mvn -s .github/maven-ci-settings.xml -q clean verify -B -P grpcurl,health-probe
+        run: mvn -s .github/maven-ci-settings.xml -q clean verify -B -Pcheckstyle -Pgrpcurl -Phealth-probe
