@@ -1,5 +1,9 @@
 package io.vertx.grpc.plugin.generation;
 
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
+
 /**
  * Represents options for configuring code generation.
  * <p>
@@ -51,6 +55,9 @@ public class GenerationOptions {
   private boolean generateTranscoding;
   private boolean generateVertxGeneratorAnnotations;
   private String servicePrefix;
+  private Set<SchemaOutputFormat> schemaOutputFormats;
+  private boolean schemaAllowMerge;
+  private String schemaConfigFile;
 
   public GenerationOptions() {
     this.generateClient = DEFAULT_GENERATE_CLIENT;
@@ -59,6 +66,9 @@ public class GenerationOptions {
     this.generateTranscoding = DEFAULT_GENERATE_TRANSCODING;
     this.generateVertxGeneratorAnnotations = DEFAULT_GENERATE_VERTX_GENERATOR_ANNOTATIONS;
     this.servicePrefix = DEFAULT_SERVICE_PREFIX;
+    this.schemaOutputFormats = EnumSet.noneOf(SchemaOutputFormat.class);
+    this.schemaAllowMerge = true;
+    this.schemaConfigFile = null;
   }
 
   /**
@@ -179,5 +189,130 @@ public class GenerationOptions {
   public GenerationOptions setServicePrefix(String servicePrefix) {
     this.servicePrefix = servicePrefix;
     return this;
+  }
+
+  /**
+   * Determines whether any OpenAPI format generation is enabled.
+   *
+   * @return true if at least one OpenAPI format is configured for generation, false otherwise.
+   */
+  public boolean isGenerateOpenApi() {
+    return !schemaOutputFormats.isEmpty();
+  }
+
+  /**
+   * Determines whether OpenAPI JSON spec generation is enabled.
+   *
+   * @return true if OpenAPI JSON generation is enabled, false otherwise.
+   */
+  public boolean isGenerateOpenApiJson() {
+    return schemaOutputFormats.contains(SchemaOutputFormat.OPEN_API_JSON);
+  }
+
+  /**
+   * Determines whether OpenAPI YAML spec generation is enabled.
+   *
+   * @return true if OpenAPI YAML generation is enabled, false otherwise.
+   */
+  public boolean isGenerateOpenApiYaml() {
+    return schemaOutputFormats.contains(SchemaOutputFormat.OPEN_API_YAML);
+  }
+
+  /**
+   * Returns the set of schema output formats configured for generation.
+   *
+   * @return an unmodifiable set of schema output formats
+   */
+  public Set<SchemaOutputFormat> getSchemaOutputFormats() {
+    return Collections.unmodifiableSet(schemaOutputFormats);
+  }
+
+  /**
+   * Sets the schema output formats to generate.
+   *
+   * @param formats the set of schema output formats to generate
+   * @return the current {@code GenerationOptions} instance to allow method chaining
+   */
+  public GenerationOptions setSchemaOutputFormats(Set<SchemaOutputFormat> formats) {
+    this.schemaOutputFormats = formats != null ? EnumSet.copyOf(formats) : EnumSet.noneOf(SchemaOutputFormat.class);
+    return this;
+  }
+
+  /**
+   * Adds a schema output format to generate.
+   *
+   * @param format the schema output format to add
+   * @return the current {@code GenerationOptions} instance to allow method chaining
+   */
+  public GenerationOptions addSchemaOutputFormat(SchemaOutputFormat format) {
+    if (format != null) {
+      this.schemaOutputFormats.add(format);
+    }
+    return this;
+  }
+
+  /**
+   * Determines whether OpenAPI specs should be merged into a single file.
+   *
+   * @return true if specs should be merged, false for per-service files
+   */
+  public boolean isSchemaAllowMerge() {
+    return schemaAllowMerge;
+  }
+
+  /**
+   * Sets whether OpenAPI specs should be merged into a single file.
+   *
+   * @param schemaAllowMerge true to merge all services into one file, false for per-service files
+   * @return the current {@code GenerationOptions} instance to allow method chaining
+   */
+  public GenerationOptions setSchemaAllowMerge(boolean schemaAllowMerge) {
+    this.schemaAllowMerge = schemaAllowMerge;
+    return this;
+  }
+
+  /**
+   * Returns the path to the OpenAPI configuration file.
+   * The configuration file should be a YAML or JSON file containing OpenAPI specification
+   * fields (info, servers, security, tags, externalDocs, etc.) that will be merged with
+   * the generated specification.
+   *
+   * @return the path to the configuration file, or null if not set
+   */
+  public String getSchemaConfigFile() {
+    return schemaConfigFile;
+  }
+
+  /**
+   * Sets the path to the OpenAPI configuration file.
+   * The configuration file should be a YAML or JSON file containing OpenAPI specification
+   * fields that will be merged with the generated specification.
+   *
+   * @param schemaConfigFile the path to the configuration file
+   * @return the current {@code GenerationOptions} instance to allow method chaining
+   */
+  public GenerationOptions setSchemaConfigFile(String schemaConfigFile) {
+    this.schemaConfigFile = schemaConfigFile;
+    return this;
+  }
+
+  /**
+   * Returns a string representation of this GenerationOptions instance, including all configuration fields.
+   *
+   * @return a string representation of this object
+   */
+  @Override
+  public String toString() {
+    return "GenerationOptions{" +
+      "generateClient=" + generateClient +
+      ", generateService=" + generateService +
+      ", generateIo=" + generateIo +
+      ", generateTranscoding=" + generateTranscoding +
+      ", generateVertxGeneratorAnnotations=" + generateVertxGeneratorAnnotations +
+      ", servicePrefix='" + servicePrefix + '\'' +
+      ", schemaOutputFormats=" + schemaOutputFormats +
+      ", schemaAllowMerge=" + schemaAllowMerge +
+      ", schemaConfigFile='" + schemaConfigFile + '\'' +
+      '}';
   }
 }
