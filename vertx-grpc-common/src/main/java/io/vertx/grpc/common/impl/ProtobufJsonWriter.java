@@ -1,6 +1,8 @@
 package io.vertx.grpc.common.impl;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.JsonWireFormat;
@@ -8,16 +10,38 @@ import io.vertx.grpc.common.JsonWireFormat;
 /**
  * Writes a protobuf {@link MessageOrBuilder} as a JSON {@link Buffer}.
  * <p>
- * Use {@link #create(JsonWireFormat)} to get an instance. The default implementation is backed
- * by {@code com.google.protobuf.util.JsonFormat}.
+ * Use {@link #create(JsonWireFormat)} to get an instance, backed by
+ * {@code com.google.protobuf.util.JsonFormat}.
  */
-public interface ProtobufJsonWriter {
+public final class ProtobufJsonWriter {
 
   /**
    * @return a writer configured from {@code format}
    */
-  static ProtobufJsonWriter create(JsonWireFormat format) {
-    return new ProtobufJsonWriterImpl(format);
+  public static ProtobufJsonWriter create(JsonWireFormat format) {
+    return new ProtobufJsonWriter(format);
+  }
+
+  private final JsonFormat.Printer printer;
+
+  private ProtobufJsonWriter(JsonWireFormat format) {
+    JsonFormat.Printer printer = JsonFormat.printer();
+    if (format.alwaysPrintFieldsWithNoPresence()) {
+      printer = printer.alwaysPrintFieldsWithNoPresence();
+    }
+    if (format.omittingInsignificantWhitespace()) {
+      printer = printer.omittingInsignificantWhitespace();
+    }
+    if (format.preservingProtoFieldNames()) {
+      printer = printer.preservingProtoFieldNames();
+    }
+    if (format.printingEnumsAsInts()) {
+      printer = printer.printingEnumsAsInts();
+    }
+    if (format.sortingMapKeys()) {
+      printer = printer.sortingMapKeys();
+    }
+    this.printer = printer;
   }
 
   /**
@@ -27,5 +51,11 @@ public interface ProtobufJsonWriter {
    * @return the encoded JSON payload
    * @throws CodecException when the message cannot be encoded
    */
-  Buffer write(MessageOrBuilder message) throws CodecException;
+  public Buffer write(MessageOrBuilder message) throws CodecException {
+    try {
+      return Buffer.buffer(printer.print(message));
+    } catch (InvalidProtocolBufferException e) {
+      throw new CodecException(e);
+    }
+  }
 }
