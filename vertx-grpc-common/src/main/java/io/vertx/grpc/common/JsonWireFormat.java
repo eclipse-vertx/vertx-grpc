@@ -4,8 +4,8 @@ import io.vertx.codegen.annotations.DataObject;
 import io.vertx.core.json.JsonObject;
 
 /**
- * JSON {@link WireFormat}. Carries the protobuf-aware writer/reader flags that
- * {@link ProtobufJsonWriter} and {@link ProtobufJsonReader} consult.
+ * JSON {@link WireFormat}. Carries the protobuf-aware writer/reader flags that the JSON
+ * encoder and decoder consult.
  * <p>
  * Instances are immutable. Each flag setter returns a new instance with that flag updated:
  * <pre>
@@ -19,79 +19,48 @@ public class JsonWireFormat implements WireFormat {
 
   public static final String NAME = "json";
 
-  /**
-   * Default {@code alwaysPrintFieldsWithNoPresence} flag = {@code false}.
-   */
-  public static final boolean DEFAULT_ALWAYS_PRINT_FIELDS_WITH_NO_PRESENCE = false;
+  private static final String MEDIA_TYPE = "application/grpc+json";
+  private static final JsonWireFormat[] CACHE = new JsonWireFormat[1 << Flag.values().length];
 
-  /**
-   * Default {@code omittingInsignificantWhitespace} flag = {@code false}.
-   */
-  public static final boolean DEFAULT_OMITTING_INSIGNIFICANT_WHITESPACE = false;
-
-  /**
-   * Default {@code preservingProtoFieldNames} flag = {@code false}.
-   */
-  public static final boolean DEFAULT_PRESERVING_PROTO_FIELD_NAMES = false;
-
-  /**
-   * Default {@code printingEnumsAsInts} flag = {@code false}.
-   */
-  public static final boolean DEFAULT_PRINTING_ENUMS_AS_INTS = false;
-
-  /**
-   * Default {@code sortingMapKeys} flag = {@code false}.
-   */
-  public static final boolean DEFAULT_SORTING_MAP_KEYS = false;
-
-  /**
-   * Default {@code ignoringUnknownFields} flag = {@code false}.
-   */
-  public static final boolean DEFAULT_IGNORING_UNKNOWN_FIELDS = false;
-
-  private final boolean alwaysPrintFieldsWithNoPresence;
-  private final boolean omittingInsignificantWhitespace;
-  private final boolean preservingProtoFieldNames;
-  private final boolean printingEnumsAsInts;
-  private final boolean sortingMapKeys;
-  private final boolean ignoringUnknownFields;
+  private final byte flags;
 
   public JsonWireFormat() {
-    this(
-      DEFAULT_ALWAYS_PRINT_FIELDS_WITH_NO_PRESENCE,
-      DEFAULT_OMITTING_INSIGNIFICANT_WHITESPACE,
-      DEFAULT_PRESERVING_PROTO_FIELD_NAMES,
-      DEFAULT_PRINTING_ENUMS_AS_INTS,
-      DEFAULT_SORTING_MAP_KEYS,
-      DEFAULT_IGNORING_UNKNOWN_FIELDS
-    );
+    this((byte) 0);
   }
 
-  private JsonWireFormat(
-    boolean alwaysPrintFieldsWithNoPresence,
-    boolean omittingInsignificantWhitespace,
-    boolean preservingProtoFieldNames,
-    boolean printingEnumsAsInts,
-    boolean sortingMapKeys,
-    boolean ignoringUnknownFields
-  ) {
-    this.alwaysPrintFieldsWithNoPresence = alwaysPrintFieldsWithNoPresence;
-    this.omittingInsignificantWhitespace = omittingInsignificantWhitespace;
-    this.preservingProtoFieldNames = preservingProtoFieldNames;
-    this.printingEnumsAsInts = printingEnumsAsInts;
-    this.sortingMapKeys = sortingMapKeys;
-    this.ignoringUnknownFields = ignoringUnknownFields;
+  private JsonWireFormat(byte flags) {
+    this.flags = flags;
   }
 
   public JsonWireFormat(JsonObject json) {
-    this(
-      json.getBoolean("alwaysPrintFieldsWithNoPresence", DEFAULT_ALWAYS_PRINT_FIELDS_WITH_NO_PRESENCE),
-      json.getBoolean("omittingInsignificantWhitespace", DEFAULT_OMITTING_INSIGNIFICANT_WHITESPACE),
-      json.getBoolean("preservingProtoFieldNames", DEFAULT_PRESERVING_PROTO_FIELD_NAMES),
-      json.getBoolean("printingEnumsAsInts", DEFAULT_PRINTING_ENUMS_AS_INTS),
-      json.getBoolean("sortingMapKeys", DEFAULT_SORTING_MAP_KEYS),
-      json.getBoolean("ignoringUnknownFields", DEFAULT_IGNORING_UNKNOWN_FIELDS)
-    );
+    this(read(json));
+  }
+
+  static JsonWireFormat of(int flags) {
+    JsonWireFormat fmt = CACHE[flags];
+    if (fmt == null) {
+      fmt = new JsonWireFormat((byte) flags);
+      CACHE[flags] = fmt;
+    }
+    return fmt;
+  }
+
+  private static byte read(JsonObject json) {
+    int flags = 0;
+    for (Flag flag : Flag.values()) {
+      if (json.getBoolean(flag.key, false)) {
+        flags |= flag.mask;
+      }
+    }
+    return (byte) flags;
+  }
+
+  private boolean isSet(Flag flag) {
+    return (flags & flag.mask) != 0;
+  }
+
+  private JsonWireFormat with(Flag flag, boolean value) {
+    return of(value ? flags | flag.mask : flags & ~flag.mask);
   }
 
   @Override
@@ -99,80 +68,101 @@ public class JsonWireFormat implements WireFormat {
     return NAME;
   }
 
+  @Override
+  public String mediaType() {
+    return MEDIA_TYPE;
+  }
+
+  /**
+   * @return whether fields without presence are always printed, including those left at their default value
+   */
   public boolean alwaysPrintFieldsWithNoPresence() {
-    return alwaysPrintFieldsWithNoPresence;
+    return isSet(Flag.ALWAYS_PRINT_FIELDS_WITH_NO_PRESENCE);
   }
 
   /**
    * @return a copy of this format with {@code alwaysPrintFieldsWithNoPresence} set to {@code value}
    */
   public JsonWireFormat alwaysPrintFieldsWithNoPresence(boolean value) {
-    return new JsonWireFormat(value, omittingInsignificantWhitespace, preservingProtoFieldNames, printingEnumsAsInts, sortingMapKeys, ignoringUnknownFields);
+    return with(Flag.ALWAYS_PRINT_FIELDS_WITH_NO_PRESENCE, value);
   }
 
+  /**
+   * @return whether insignificant whitespace is omitted, producing a compact single-line output
+   */
   public boolean omittingInsignificantWhitespace() {
-    return omittingInsignificantWhitespace;
+    return isSet(Flag.OMITTING_INSIGNIFICANT_WHITESPACE);
   }
 
   /**
    * @return a copy of this format with {@code omittingInsignificantWhitespace} set to {@code value}
    */
   public JsonWireFormat omittingInsignificantWhitespace(boolean value) {
-    return new JsonWireFormat(alwaysPrintFieldsWithNoPresence, value, preservingProtoFieldNames, printingEnumsAsInts, sortingMapKeys, ignoringUnknownFields);
+    return with(Flag.OMITTING_INSIGNIFICANT_WHITESPACE, value);
   }
 
+  /**
+   * @return whether the original proto field names are used instead of the lowerCamelCase JSON names
+   */
   public boolean preservingProtoFieldNames() {
-    return preservingProtoFieldNames;
+    return isSet(Flag.PRESERVING_PROTO_FIELD_NAMES);
   }
 
   /**
    * @return a copy of this format with {@code preservingProtoFieldNames} set to {@code value}
    */
   public JsonWireFormat preservingProtoFieldNames(boolean value) {
-    return new JsonWireFormat(alwaysPrintFieldsWithNoPresence, omittingInsignificantWhitespace, value, printingEnumsAsInts, sortingMapKeys, ignoringUnknownFields);
+    return with(Flag.PRESERVING_PROTO_FIELD_NAMES, value);
   }
 
+  /**
+   * @return whether enum values are printed as their integer number instead of their name
+   */
   public boolean printingEnumsAsInts() {
-    return printingEnumsAsInts;
+    return isSet(Flag.PRINTING_ENUMS_AS_INTS);
   }
 
   /**
    * @return a copy of this format with {@code printingEnumsAsInts} set to {@code value}
    */
   public JsonWireFormat printingEnumsAsInts(boolean value) {
-    return new JsonWireFormat(alwaysPrintFieldsWithNoPresence, omittingInsignificantWhitespace, preservingProtoFieldNames, value, sortingMapKeys, ignoringUnknownFields);
+    return with(Flag.PRINTING_ENUMS_AS_INTS, value);
   }
 
+  /**
+   * @return whether map entries are emitted with their keys sorted, for deterministic output
+   */
   public boolean sortingMapKeys() {
-    return sortingMapKeys;
+    return isSet(Flag.SORTING_MAP_KEYS);
   }
 
   /**
    * @return a copy of this format with {@code sortingMapKeys} set to {@code value}
    */
   public JsonWireFormat sortingMapKeys(boolean value) {
-    return new JsonWireFormat(alwaysPrintFieldsWithNoPresence, omittingInsignificantWhitespace, preservingProtoFieldNames, printingEnumsAsInts, value, ignoringUnknownFields);
+    return with(Flag.SORTING_MAP_KEYS, value);
   }
 
+  /**
+   * @return whether unknown fields encountered while parsing are ignored rather than rejected
+   */
   public boolean ignoringUnknownFields() {
-    return ignoringUnknownFields;
+    return isSet(Flag.IGNORING_UNKNOWN_FIELDS);
   }
 
   /**
    * @return a copy of this format with {@code ignoringUnknownFields} set to {@code value}
    */
   public JsonWireFormat ignoringUnknownFields(boolean value) {
-    return new JsonWireFormat(alwaysPrintFieldsWithNoPresence, omittingInsignificantWhitespace, preservingProtoFieldNames, printingEnumsAsInts, sortingMapKeys, value);
+    return with(Flag.IGNORING_UNKNOWN_FIELDS, value);
   }
 
   public JsonObject toJson() {
-    return new JsonObject()
-      .put("alwaysPrintFieldsWithNoPresence", alwaysPrintFieldsWithNoPresence)
-      .put("omittingInsignificantWhitespace", omittingInsignificantWhitespace)
-      .put("preservingProtoFieldNames", preservingProtoFieldNames)
-      .put("printingEnumsAsInts", printingEnumsAsInts)
-      .put("sortingMapKeys", sortingMapKeys)
-      .put("ignoringUnknownFields", ignoringUnknownFields);
+    JsonObject json = new JsonObject();
+    for (Flag flag : Flag.values()) {
+      json.put(flag.key, isSet(flag));
+    }
+    return json;
   }
 
   @Override
@@ -194,5 +184,22 @@ public class JsonWireFormat implements WireFormat {
   @Override
   public String toString() {
     return NAME;
+  }
+
+  private enum Flag {
+    ALWAYS_PRINT_FIELDS_WITH_NO_PRESENCE("alwaysPrintFieldsWithNoPresence"),
+    OMITTING_INSIGNIFICANT_WHITESPACE("omittingInsignificantWhitespace"),
+    PRESERVING_PROTO_FIELD_NAMES("preservingProtoFieldNames"),
+    PRINTING_ENUMS_AS_INTS("printingEnumsAsInts"),
+    SORTING_MAP_KEYS("sortingMapKeys"),
+    IGNORING_UNKNOWN_FIELDS("ignoringUnknownFields");
+
+    final String key;
+    final int mask;
+
+    Flag(String key) {
+      this.key = key;
+      this.mask = 1 << ordinal();
+    }
   }
 }

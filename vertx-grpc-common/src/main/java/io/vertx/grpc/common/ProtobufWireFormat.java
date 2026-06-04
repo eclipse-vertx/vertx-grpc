@@ -9,9 +9,16 @@ public class ProtobufWireFormat implements WireFormat {
 
   public static final String NAME = "proto";
 
+  private static final String MEDIA_TYPE = "application/grpc";
+
   @Override
   public final String name() {
     return NAME;
+  }
+
+  @Override
+  public String mediaType() {
+    return MEDIA_TYPE;
   }
 
   @Override

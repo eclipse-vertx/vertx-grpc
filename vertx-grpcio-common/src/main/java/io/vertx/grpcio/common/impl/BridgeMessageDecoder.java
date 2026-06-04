@@ -24,8 +24,8 @@ import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.JsonWireFormat;
-import io.vertx.grpc.common.ProtobufJsonReader;
 import io.vertx.grpc.common.ProtobufWireFormat;
+import io.vertx.grpc.common.impl.ProtobufJsonReader;
 import io.vertx.grpc.common.WireFormat;
 
 import java.io.IOException;

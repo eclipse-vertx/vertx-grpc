@@ -1,9 +1,9 @@
-package io.vertx.grpc.common;
+package io.vertx.grpc.common.impl;
 
 import com.google.protobuf.Message;
-import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.grpc.common.impl.ProtobufJsonReaderImpl;
+import io.vertx.grpc.common.CodecException;
+import io.vertx.grpc.common.JsonWireFormat;
 
 /**
  * Reads JSON {@link Buffer} payloads into a protobuf {@link Message.Builder}.
@@ -11,7 +11,6 @@ import io.vertx.grpc.common.impl.ProtobufJsonReaderImpl;
  * Use {@link #create(JsonWireFormat)} to get an instance. The default implementation is backed
  * by {@code com.google.protobuf.util.JsonFormat}.
  */
-@GenIgnore(GenIgnore.PERMITTED_TYPE)
 public interface ProtobufJsonReader {
 
   /**
