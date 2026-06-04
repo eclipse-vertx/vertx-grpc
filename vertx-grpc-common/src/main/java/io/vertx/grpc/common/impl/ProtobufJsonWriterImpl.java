@@ -14,19 +14,19 @@ public final class ProtobufJsonWriterImpl implements ProtobufJsonWriter {
 
   public ProtobufJsonWriterImpl(JsonWireFormat format) {
     JsonFormat.Printer printer = JsonFormat.printer();
-    if (format.getAlwaysPrintFieldsWithNoPresence()) {
+    if (format.alwaysPrintFieldsWithNoPresence()) {
       printer = printer.alwaysPrintFieldsWithNoPresence();
     }
-    if (format.getOmittingInsignificantWhitespace()) {
+    if (format.omittingInsignificantWhitespace()) {
       printer = printer.omittingInsignificantWhitespace();
     }
-    if (format.getPreservingProtoFieldNames()) {
+    if (format.preservingProtoFieldNames()) {
       printer = printer.preservingProtoFieldNames();
     }
-    if (format.getPrintingEnumsAsInts()) {
+    if (format.printingEnumsAsInts()) {
       printer = printer.printingEnumsAsInts();
     }
-    if (format.getSortingMapKeys()) {
+    if (format.sortingMapKeys()) {
       printer = printer.sortingMapKeys();
     }
     this.printer = printer;
