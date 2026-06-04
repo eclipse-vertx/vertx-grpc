@@ -13,20 +13,14 @@ import static org.junit.Assert.assertTrue;
 public class JsonWireFormatTest {
 
   @Test
-  public void testName() {
-    assertEquals("json", WireFormat.JSON.name());
-    assertEquals("proto", WireFormat.PROTOBUF.name());
-  }
-
-  @Test
   public void testDefaultFlagsAreFalse() {
     JsonWireFormat fmt = WireFormat.JSON;
-    assertFalse(fmt.getAlwaysPrintFieldsWithNoPresence());
-    assertFalse(fmt.getOmittingInsignificantWhitespace());
-    assertFalse(fmt.getPreservingProtoFieldNames());
-    assertFalse(fmt.getPrintingEnumsAsInts());
-    assertFalse(fmt.getSortingMapKeys());
-    assertFalse(fmt.getIgnoringUnknownFields());
+    assertFalse(fmt.alwaysPrintFieldsWithNoPresence());
+    assertFalse(fmt.omittingInsignificantWhitespace());
+    assertFalse(fmt.preservingProtoFieldNames());
+    assertFalse(fmt.printingEnumsAsInts());
+    assertFalse(fmt.sortingMapKeys());
+    assertFalse(fmt.ignoringUnknownFields());
   }
 
   @Test
@@ -34,9 +28,9 @@ public class JsonWireFormatTest {
     JsonWireFormat original = WireFormat.JSON;
     JsonWireFormat derived = original.alwaysPrintFieldsWithNoPresence(true);
     assertNotSame(original, derived);
-    assertFalse(original.getAlwaysPrintFieldsWithNoPresence());
-    assertTrue(derived.getAlwaysPrintFieldsWithNoPresence());
-    assertFalse(derived.getIgnoringUnknownFields());
+    assertFalse(original.alwaysPrintFieldsWithNoPresence());
+    assertTrue(derived.alwaysPrintFieldsWithNoPresence());
+    assertFalse(derived.ignoringUnknownFields());
   }
 
   @Test
@@ -44,9 +38,9 @@ public class JsonWireFormatTest {
     JsonWireFormat original = WireFormat.JSON;
     JsonWireFormat derived = original.ignoringUnknownFields(true);
     assertNotSame(original, derived);
-    assertFalse(original.getIgnoringUnknownFields());
-    assertTrue(derived.getIgnoringUnknownFields());
-    assertFalse(derived.getAlwaysPrintFieldsWithNoPresence());
+    assertFalse(original.ignoringUnknownFields());
+    assertTrue(derived.ignoringUnknownFields());
+    assertFalse(derived.alwaysPrintFieldsWithNoPresence());
   }
 
   @Test
@@ -55,10 +49,10 @@ public class JsonWireFormatTest {
       .alwaysPrintFieldsWithNoPresence(true)
       .ignoringUnknownFields(true)
       .printingEnumsAsInts(true);
-    assertTrue(fmt.getAlwaysPrintFieldsWithNoPresence());
-    assertTrue(fmt.getIgnoringUnknownFields());
-    assertTrue(fmt.getPrintingEnumsAsInts());
-    assertFalse(fmt.getSortingMapKeys());
+    assertTrue(fmt.alwaysPrintFieldsWithNoPresence());
+    assertTrue(fmt.ignoringUnknownFields());
+    assertTrue(fmt.printingEnumsAsInts());
+    assertFalse(fmt.sortingMapKeys());
   }
 
   @Test

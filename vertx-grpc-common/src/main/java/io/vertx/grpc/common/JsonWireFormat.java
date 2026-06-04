@@ -99,7 +99,7 @@ public class JsonWireFormat implements WireFormat {
     return NAME;
   }
 
-  public boolean getAlwaysPrintFieldsWithNoPresence() {
+  public boolean alwaysPrintFieldsWithNoPresence() {
     return alwaysPrintFieldsWithNoPresence;
   }
 
@@ -110,7 +110,7 @@ public class JsonWireFormat implements WireFormat {
     return new JsonWireFormat(value, omittingInsignificantWhitespace, preservingProtoFieldNames, printingEnumsAsInts, sortingMapKeys, ignoringUnknownFields);
   }
 
-  public boolean getOmittingInsignificantWhitespace() {
+  public boolean omittingInsignificantWhitespace() {
     return omittingInsignificantWhitespace;
   }
 
@@ -121,7 +121,7 @@ public class JsonWireFormat implements WireFormat {
     return new JsonWireFormat(alwaysPrintFieldsWithNoPresence, value, preservingProtoFieldNames, printingEnumsAsInts, sortingMapKeys, ignoringUnknownFields);
   }
 
-  public boolean getPreservingProtoFieldNames() {
+  public boolean preservingProtoFieldNames() {
     return preservingProtoFieldNames;
   }
 
@@ -132,7 +132,7 @@ public class JsonWireFormat implements WireFormat {
     return new JsonWireFormat(alwaysPrintFieldsWithNoPresence, omittingInsignificantWhitespace, value, printingEnumsAsInts, sortingMapKeys, ignoringUnknownFields);
   }
 
-  public boolean getPrintingEnumsAsInts() {
+  public boolean printingEnumsAsInts() {
     return printingEnumsAsInts;
   }
 
@@ -143,7 +143,7 @@ public class JsonWireFormat implements WireFormat {
     return new JsonWireFormat(alwaysPrintFieldsWithNoPresence, omittingInsignificantWhitespace, preservingProtoFieldNames, value, sortingMapKeys, ignoringUnknownFields);
   }
 
-  public boolean getSortingMapKeys() {
+  public boolean sortingMapKeys() {
     return sortingMapKeys;
   }
 
@@ -154,7 +154,7 @@ public class JsonWireFormat implements WireFormat {
     return new JsonWireFormat(alwaysPrintFieldsWithNoPresence, omittingInsignificantWhitespace, preservingProtoFieldNames, printingEnumsAsInts, value, ignoringUnknownFields);
   }
 
-  public boolean getIgnoringUnknownFields() {
+  public boolean ignoringUnknownFields() {
     return ignoringUnknownFields;
   }
 
