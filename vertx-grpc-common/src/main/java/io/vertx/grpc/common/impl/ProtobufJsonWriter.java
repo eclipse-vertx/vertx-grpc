@@ -1,9 +1,9 @@
-package io.vertx.grpc.common;
+package io.vertx.grpc.common.impl;
 
 import com.google.protobuf.MessageOrBuilder;
-import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.grpc.common.impl.ProtobufJsonWriterImpl;
+import io.vertx.grpc.common.CodecException;
+import io.vertx.grpc.common.JsonWireFormat;
 
 /**
  * Writes a protobuf {@link MessageOrBuilder} as a JSON {@link Buffer}.
@@ -11,7 +11,6 @@ import io.vertx.grpc.common.impl.ProtobufJsonWriterImpl;
  * Use {@link #create(JsonWireFormat)} to get an instance. The default implementation is backed
  * by {@code com.google.protobuf.util.JsonFormat}.
  */
-@GenIgnore(GenIgnore.PERMITTED_TYPE)
 public interface ProtobufJsonWriter {
 
   /**

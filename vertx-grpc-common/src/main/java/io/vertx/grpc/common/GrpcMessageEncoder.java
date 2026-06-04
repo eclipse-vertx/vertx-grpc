@@ -6,6 +6,7 @@ import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
+import io.vertx.grpc.common.impl.ProtobufJsonWriter;
 
 public interface GrpcMessageEncoder<T> {
 
