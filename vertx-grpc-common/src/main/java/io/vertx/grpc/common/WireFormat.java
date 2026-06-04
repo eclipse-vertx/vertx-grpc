@@ -31,10 +31,15 @@ public interface WireFormat {
   /**
    * Canonical JSON wire format.
    */
-  JsonWireFormat JSON = new JsonWireFormat();
+  JsonWireFormat JSON = JsonWireFormat.of(0);
 
   /**
    * @return the canonical name of this wire format, e.g. {@code "proto"} or {@code "json"}
    */
   String name();
+
+  /**
+   * @return the media type carrying this wire format, e.g. {@code "application/grpc"} or {@code "application/grpc+json"}
+   */
+  String mediaType();
 }

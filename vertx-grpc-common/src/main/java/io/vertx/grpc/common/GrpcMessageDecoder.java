@@ -21,6 +21,7 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.json.JsonArray;
+import io.vertx.grpc.common.impl.ProtobufJsonReader;
 
 import java.util.function.Supplier;
 

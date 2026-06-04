@@ -6,7 +6,6 @@ import com.google.protobuf.util.JsonFormat;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.JsonWireFormat;
-import io.vertx.grpc.common.ProtobufJsonReader;
 
 import java.nio.charset.StandardCharsets;
 
