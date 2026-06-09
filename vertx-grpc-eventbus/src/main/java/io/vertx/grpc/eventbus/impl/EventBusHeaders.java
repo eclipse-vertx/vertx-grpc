@@ -20,6 +20,11 @@ public final class EventBusHeaders {
   public static final String WIRE_FORMAT = "grpc-wire-format";
 
   /**
+   * The client inbound stream address, carried on the opening request of a streaming call so the server knows where to send {@code server -> client} frames.
+   */
+  public static final String CLIENT_ADDRESS = "grpc-stream-client-addr";
+
+  /**
    * The prefix for grpc headers among delivery options.
    */
   public static final String HEADER_PREFIX = "__header__.";
