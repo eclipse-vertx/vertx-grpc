@@ -16,12 +16,14 @@ import io.vertx.tests.common.GrpcTestBase;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
 import io.vertx.tests.common.grpc.TestConstants;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class EventBusGrpcClientTest extends GrpcTestBase {
 
@@ -62,7 +64,7 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
       .compose(GrpcReadStream::last)
       .await(10, TimeUnit.SECONDS);
 
-    Assert.assertEquals("Hello Julien", reply.getMessage());
+    assertEquals("Hello Julien", reply.getMessage());
   }
 
   @Test
@@ -83,7 +85,7 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
       .compose(GrpcReadStream::last)
       .await(10, TimeUnit.SECONDS);
 
-    Assert.assertEquals("Hello Julien", reply.getMessage());
+    assertEquals("Hello Julien", reply.getMessage());
   }
 
   @Test
@@ -106,7 +108,7 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
       .compose(GrpcReadStream::last)
       .await(10, TimeUnit.SECONDS);
 
-    Assert.assertEquals("Delayed Julien", reply.getMessage());
+    assertEquals("Delayed Julien", reply.getMessage());
   }
 
   @Test
@@ -119,9 +121,9 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
         })
         .compose(GrpcReadStream::last)
         .await(10, TimeUnit.SECONDS);
-      Assert.fail("Should have thrown");
+      fail("Should have thrown");
     } catch (InvalidStatusException e) {
-      Assert.assertEquals(GrpcStatus.UNAVAILABLE, e.actualStatus());
+      assertEquals(GrpcStatus.UNAVAILABLE, e.actualStatus());
     }
   }
 
@@ -137,9 +139,9 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
         })
         .compose(GrpcReadStream::last)
         .await(10, TimeUnit.SECONDS);
-      Assert.fail("Should have thrown");
+      fail("Should have thrown");
     } catch (InvalidStatusException e) {
-      Assert.assertEquals(GrpcStatus.INTERNAL, e.actualStatus());
+      assertEquals(GrpcStatus.INTERNAL, e.actualStatus());
     }
   }
 
@@ -162,9 +164,9 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
           })
           .compose(GrpcReadStream::last)
           .await(10, TimeUnit.SECONDS);
-        Assert.fail("Should have thrown for " + status);
+        fail("Should have thrown for " + status);
       } catch (InvalidStatusException e) {
-        Assert.assertEquals(status, e.actualStatus());
+        assertEquals(status, e.actualStatus());
       }
 
       consumer.unregister().await(10, TimeUnit.SECONDS);
@@ -199,7 +201,7 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
       })
       .await(10, TimeUnit.SECONDS);
 
-    Assert.assertEquals("Header: request_header_value", reply.getMessage());
+    assertEquals("Header: request_header_value", reply.getMessage());
   }
 
   @Test
@@ -217,9 +219,9 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
         })
         .compose(GrpcReadStream::last)
         .await(10, TimeUnit.SECONDS);
-      Assert.fail("Should have thrown");
+      fail("Should have thrown");
     } catch (InvalidStatusException e) {
-      Assert.assertEquals(GrpcStatus.DEADLINE_EXCEEDED, e.actualStatus());
+      assertEquals(GrpcStatus.DEADLINE_EXCEEDED, e.actualStatus());
     }
   }
 }

@@ -71,6 +71,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
   public static final ServiceMethod<examples.grpc.Empty, examples.grpc.Item> Source = ServiceMethod.server(
     SERVICE_NAME,
     "Source",
+    io.vertx.grpc.common.MethodType.SERVER_STREAMING,
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.grpc.Empty.newBuilder()));
 
@@ -80,6 +81,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
   public static final ServiceMethod<examples.grpc.Item, examples.grpc.Empty> Sink = ServiceMethod.server(
     SERVICE_NAME,
     "Sink",
+    io.vertx.grpc.common.MethodType.CLIENT_STREAMING,
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.grpc.Item.newBuilder()));
 
@@ -89,6 +91,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
   public static final ServiceMethod<examples.grpc.Item, examples.grpc.Item> Pipe = ServiceMethod.server(
     SERVICE_NAME,
     "Pipe",
+    io.vertx.grpc.common.MethodType.BIDI,
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.grpc.Item.newBuilder()));
 
