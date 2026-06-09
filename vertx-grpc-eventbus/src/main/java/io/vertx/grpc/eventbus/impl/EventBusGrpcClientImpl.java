@@ -27,7 +27,7 @@ public class EventBusGrpcClientImpl implements EventBusGrpcClient {
   @Override
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
     ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
-    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(context, eventBus);
+    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(context, eventBus, method.type());
     GrpcClientRequestImpl<Req, Resp> request = new GrpcClientRequestImpl<>(
       context,
       invoker,

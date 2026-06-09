@@ -19,6 +19,10 @@ import io.vertx.codegen.annotations.GenIgnore;
 public interface ServiceMethod<I, O> {
 
   static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
+    return client(serviceName, methodName, MethodType.UNARY, encoder, decoder);
+  }
+
+  static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, MethodType type, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
     return new ServiceMethod<>() {
       @Override
       public ServiceName serviceName() {
@@ -27,6 +31,10 @@ public interface ServiceMethod<I, O> {
       @Override
       public String methodName() {
         return methodName;
+      }
+      @Override
+      public MethodType type() {
+        return type;
       }
       @Override
       public GrpcMessageDecoder<Resp> decoder() {
@@ -40,6 +48,10 @@ public interface ServiceMethod<I, O> {
   }
 
   static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
+    return server(serviceName, methodName, MethodType.UNARY, encoder, decoder);
+  }
+
+  static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, MethodType type, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
     return new ServiceMethod<>() {
       @Override
       public ServiceName serviceName() {
@@ -48,6 +60,10 @@ public interface ServiceMethod<I, O> {
       @Override
       public String methodName() {
         return methodName;
+      }
+      @Override
+      public MethodType type() {
+        return type;
       }
       @Override
       public GrpcMessageDecoder<Req> decoder() {
@@ -70,6 +86,24 @@ public interface ServiceMethod<I, O> {
    */
   String methodName();
 
+  /**
+   * Retrieves the cardinality of the gRPC service method.
+   * By default, it will return {@code MethodType.UNARY}, indicating
+   * a single request and a single response.
+   *
+   * @return the {@code MethodType} of the service method
+   */
+  default MethodType type() {
+    return MethodType.UNARY;
+  }
+
+  /**
+   * Computes the fully qualified method name for a gRPC service method.
+   * The name is constructed by combining the fully qualified service name
+   * and the method name, separated by a slash ('/').
+   *
+   * @return the fully qualified method name in the format "fullyQualifiedServiceName/methodName".
+   */
   default String fullMethodName() {
     return serviceName().fullyQualifiedName() + "/" + methodName();
   }
