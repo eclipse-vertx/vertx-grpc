@@ -13,6 +13,7 @@ public class MethodTemplateContext {
   public boolean deprecated;
   public boolean isManyInput;
   public boolean isManyOutput;
+  public String methodType;
   public String vertxCallsMethodName;
   public String grpcCallsMethodName;
   public int methodNumber;
@@ -30,6 +31,7 @@ public class MethodTemplateContext {
     context.deprecated = method.isDeprecated();
     context.isManyInput = method.isClientStreaming();
     context.isManyOutput = method.isServerStreaming();
+    context.methodType = methodType(method.isClientStreaming(), method.isServerStreaming());
     context.vertxCallsMethodName = method.getVertxCallsMethodName();
     context.grpcCallsMethodName = method.getGrpcCallsMethodName();
     context.methodNumber = method.getMethodNumber();
@@ -44,6 +46,19 @@ public class MethodTemplateContext {
     }
 
     return context;
+  }
+
+  private static String methodType(boolean clientStreaming, boolean serverStreaming) {
+    if (clientStreaming && serverStreaming) {
+      return "BIDI";
+    }
+    if (clientStreaming) {
+      return "CLIENT_STREAMING";
+    }
+    if (serverStreaming) {
+      return "SERVER_STREAMING";
+    }
+    return "UNARY";
   }
 
   public String methodNameUpperUnderscore() {

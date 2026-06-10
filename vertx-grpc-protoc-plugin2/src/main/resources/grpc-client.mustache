@@ -34,6 +34,7 @@ public interface {{grpcClientFqn}} extends {{clientFqn}} {
   ServiceMethod<{{outputType}}, {{inputType}}> {{methodName}} = ServiceMethod.client(
     ServiceName.create("{{packageName}}", "{{serviceName}}"),
     "{{methodName}}",
+    io.vertx.grpc.common.MethodType.{{methodType}},
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder({{outputType}}.newBuilder()));
 {{/allMethods}}

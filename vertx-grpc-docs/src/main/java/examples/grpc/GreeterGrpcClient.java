@@ -25,6 +25,7 @@ public interface GreeterGrpcClient extends GreeterClient {
   ServiceMethod<examples.grpc.HelloReply, examples.grpc.HelloRequest> SayHello = ServiceMethod.client(
     ServiceName.create("examples.grpc", "Greeter"),
     "SayHello",
+    io.vertx.grpc.common.MethodType.UNARY,
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.grpc.HelloReply.newBuilder()));
 
