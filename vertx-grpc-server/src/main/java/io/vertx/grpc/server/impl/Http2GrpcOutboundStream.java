@@ -15,14 +15,7 @@ public class Http2GrpcOutboundStream extends HttpGrpcOutboundStream {
 
   @Override
   protected String contentType(WireFormat wireFormat) {
-    switch (wireFormat) {
-      case PROTOBUF:
-        return "application/grpc";
-      case JSON:
-        return "application/grpc+json";
-      default:
-        throw new UnsupportedOperationException();
-    }
+    return wireFormat.mediaType();
   }
 
   @Override
