@@ -115,57 +115,58 @@ response handler.
 
 Everything after the opener would be a `TransportFrame`, serialized as protobuf
 binary, so the event bus body is a plain `Buffer`. The full schema lives in
-[`eventbus_transport.proto`](src/main/proto/eventbus_transport.proto) and is
+[`eventbus_transport.proto`](src/main/proto/io/vertx/grpc/eventbus/transport/v1alpha/eventbus_transport.proto) and is
 reproduced here:
 
 ```proto
 syntax = "proto3";
 
-package io.vertx.grpc.eventbus;
+package io.vertx.grpc.eventbus.transport.v1alpha;
 
-option java_package = "io.vertx.grpc.eventbus.transport";
+option java_package = "io.vertx.grpc.eventbus.transport.v1alpha";
 option java_multiple_files = true;
 
-// Every frame after the opener. Serialized as protobuf binary, so the event bus
-// body is a plain Buffer. The message payload carries the bytes the gRPC encoder
-// already produced for the call's wire format, so it is not re-encoded here.
-// Every variant is its own message type so the oneof reads uniformly and each can
-// grow fields later.
+// A frame exchanged over the event bus during a streaming gRPC call. Unary calls
+// do not use these frames; they map to a plain request/reply. A streaming call
+// opens with a request whose reply is an Ack, after which each direction carries
+// the frames below over its own dedicated address. Frames are serialized as
+// protobuf binary. The handshake and flow control are described in the module
+// README.
 message TransportFrame {
-  uint64 seq = 1; // per-stream, advances on message frames only
+  uint64 seq = 1; // per-call, monotonic, advances on Message frames only
 
   oneof frame {
-    Ack ack = 2; // server -> client, the streaming open reply
-    Message message = 3; // a payload (encoder output), either direction
+    Ack ack = 2; // server -> client, the open reply
+    Message message = 3; // a message payload, either direction
     WindowUpdate window_update = 4; // flow-control credit, either direction
     HalfClose half_close = 5; // client -> server, end of the request stream
     Trailers trailers = 6; // server -> client, terminates the call
-    Cancel cancel = 7; // either direction, abnormal end
-    Headers headers = 8; // server -> client, response initial metadata, before the first message
+    Cancel cancel = 7; // either direction, abnormal termination
+    Headers headers = 8; // server -> client, response metadata, before the first message
   }
 }
 
-// Server -> client, the reply to a streaming call's opening request(), giving the
-// server inbound address. Response initial metadata does not ride here: it is sent
-// later as a Headers frame, once the application handler has had a chance to set it.
+// Server -> client, the reply to a streaming call's opening request, carrying the
+// server's inbound address. Response initial metadata does not ride here; it
+// follows as a Headers frame.
 message Ack {
-  string server_address = 1; // server inbound address (client -> server frames)
+  string server_address = 1; // address for client -> server frames
   uint32 initial_window = 2; // messages the server grants the client to send
 }
 
-// Server -> client, response initial metadata. The metadata itself rides as
-// __header__. prefixed delivery headers, as in unary. This frame is the in-order
-// marker that carries it ahead of the first message.
+// Server -> client, response initial metadata, ordered ahead of the first response
+// message. The metadata itself rides as __header__. prefixed delivery headers.
 message Headers {
 }
 
-// A payload, either direction. The bytes are the gRPC encoder's output for the
-// call's wire format, carried verbatim and handed straight to the decoder.
+// A message payload, either direction. The serialized message in the call's wire
+// format, carried verbatim.
 message Message {
   bytes payload = 1;
 }
 
-// Flow-control credit, either direction. Grants the peer delta more messages.
+// Flow-control credit, either direction: grants the peer delta more messages to
+// send. Counted in messages, after HTTP/2's WINDOW_UPDATE.
 message WindowUpdate {
   uint32 delta = 1;
 }
@@ -175,7 +176,7 @@ message HalfClose {
 }
 
 // Server -> client, terminates the call. Trailing metadata rides as __trailer__.
-// prefixed delivery headers, as in unary.
+// prefixed delivery headers.
 message Trailers {
   uint32 status = 1; // gRPC status code
   string status_message = 2;
