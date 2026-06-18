@@ -12,9 +12,9 @@ import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.*;
-import io.vertx.grpc.eventbus.transport.Headers;
-import io.vertx.grpc.eventbus.transport.Trailers;
-import io.vertx.grpc.eventbus.transport.TransportFrame;
+import io.vertx.grpc.eventbus.transport.v1alpha.Headers;
+import io.vertx.grpc.eventbus.transport.v1alpha.Trailers;
+import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
@@ -22,6 +22,7 @@ import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 public class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
   private final EventBus eventBus;
+  private final String serverAddress;
   private final String clientAddress;
   private final WireFormat wireFormat;
   private final String encoding;
@@ -35,7 +36,7 @@ public class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   public EventBusGrpcServerStreamingCall(
     ContextInternal context,
     EventBus eventBus,
-    MessageConsumer<Object> inboundConsumer,
+    String serverAddress,
     String clientAddress,
     WireFormat wireFormat,
     String encoding,
@@ -43,13 +44,18 @@ public class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   ) {
     super(context, window);
     this.eventBus = eventBus;
+    this.serverAddress = serverAddress;
     this.clientAddress = clientAddress;
     this.wireFormat = wireFormat;
     this.encoding = encoding;
-    this.inboundConsumer = inboundConsumer;
   }
 
-  void handleInbound(Message<Object> message) {
+  Future<Void> init() {
+    inboundConsumer = eventBus.consumer(serverAddress, this::handleInbound);
+    return inboundConsumer.completion();
+  }
+
+  private void handleInbound(Message<Object> message) {
     if (!clientListening) {
       clientListening = true;
       if (headersPending) {

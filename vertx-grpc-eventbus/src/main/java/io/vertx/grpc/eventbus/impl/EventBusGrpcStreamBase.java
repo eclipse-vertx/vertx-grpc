@@ -2,15 +2,15 @@ package io.vertx.grpc.eventbus.impl;
 
 import com.google.protobuf.ByteString;
 import io.vertx.core.Handler;
-import io.vertx.grpc.eventbus.transport.Message;
-import io.vertx.grpc.eventbus.transport.WindowUpdate;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcInboundStream;
 import io.vertx.grpc.common.impl.GrpcOutboundStream;
 import io.vertx.grpc.common.impl.GrpcStream;
-import io.vertx.grpc.eventbus.transport.TransportFrame;
+import io.vertx.grpc.eventbus.transport.v1alpha.Message;
+import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
+import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
 
 import java.util.ArrayDeque;
 import java.util.Deque;

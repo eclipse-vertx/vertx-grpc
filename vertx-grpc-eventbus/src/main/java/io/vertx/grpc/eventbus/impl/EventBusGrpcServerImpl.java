@@ -11,8 +11,8 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
-import io.vertx.grpc.eventbus.transport.Ack;
-import io.vertx.grpc.eventbus.transport.TransportFrame;
+import io.vertx.grpc.eventbus.transport.v1alpha.Ack;
+import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceMethodInvoker;
@@ -20,7 +20,6 @@ import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
@@ -267,37 +266,32 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
       MultiMap headers = MultiMap.caseInsensitiveMultiMap();
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
 
-      AtomicReference<EventBusGrpcServerStreamingCall> ref = new AtomicReference<>();
-      MessageConsumer<Object> consumer = eventBus.consumer(serverAddress, msg -> ref.get().handleInbound(msg));
+      EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
+        context,
+        eventBus,
+        serverAddress,
+        clientAddress,
+        wireFormat,
+        "identity",
+        window
+      );
 
-      consumer.completion().onComplete(ar -> {
+      GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
+      GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context, headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);
+      GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, request, stream, null, serviceMethod.encoder());
+
+      response.format(wireFormat);
+      request.init(response, false);
+
+      stream.handler(frame -> request.handleMessage(((GrpcMessageFrame) frame).message()));
+      stream.endHandler(v -> request.handleEnd());
+      stream.exceptionHandler(request::handleException);
+
+      stream.init().onComplete(ar -> {
         if (ar.failed()) {
           message.fail(GrpcStatus.INTERNAL.code, "Failed to register server consumer: " + ar.cause().getMessage());
           return;
         }
-
-        EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
-          context,
-          eventBus,
-          consumer,
-          clientAddress,
-          wireFormat,
-          "identity",
-          window
-        );
-
-        ref.set(stream);
-
-        GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
-        GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context, headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);
-        GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, request, stream, null, serviceMethod.encoder());
-
-        response.format(wireFormat);
-        request.init(response, false);
-
-        stream.handler(frame -> request.handleMessage(((GrpcMessageFrame) frame).message()));
-        stream.endHandler(v -> request.handleEnd());
-        stream.exceptionHandler(request::handleException);
 
         TransportFrame.Builder ack = TransportFrame.newBuilder().setAck(Ack.newBuilder().setServerAddress(serverAddress).setInitialWindow(window));
         message.reply(EventBusGrpcCodec.encodeFrame(ack));

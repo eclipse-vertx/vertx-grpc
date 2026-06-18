@@ -8,12 +8,12 @@ import io.vertx.core.eventbus.*;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.*;
-import io.vertx.grpc.eventbus.transport.Ack;
-import io.vertx.grpc.eventbus.transport.Cancel;
-import io.vertx.grpc.eventbus.transport.HalfClose;
-import io.vertx.grpc.eventbus.transport.Trailers;
-import io.vertx.grpc.eventbus.transport.TransportFrame;
-import io.vertx.grpc.eventbus.transport.WindowUpdate;
+import io.vertx.grpc.eventbus.transport.v1alpha.Ack;
+import io.vertx.grpc.eventbus.transport.v1alpha.Cancel;
+import io.vertx.grpc.eventbus.transport.v1alpha.HalfClose;
+import io.vertx.grpc.eventbus.transport.v1alpha.Trailers;
+import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
+import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
 
 import java.time.Duration;
 import java.util.ArrayDeque;
