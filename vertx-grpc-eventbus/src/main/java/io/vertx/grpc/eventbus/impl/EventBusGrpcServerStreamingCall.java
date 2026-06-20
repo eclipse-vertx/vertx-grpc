@@ -1,17 +1,18 @@
 package io.vertx.grpc.eventbus.impl;
 
+import io.vertx.core.Completable;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.*;
+import io.vertx.grpc.eventbus.transport.v1alpha.Cancel;
 import io.vertx.grpc.eventbus.transport.v1alpha.Headers;
 import io.vertx.grpc.eventbus.transport.v1alpha.Trailers;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
@@ -19,15 +20,15 @@ import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
-public class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
+class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase implements FrameHandler {
 
+  private final EventBusStreamEndpoint endpoint;
   private final EventBus eventBus;
-  private final String serverAddress;
   private final String clientAddress;
+  private final long clientStreamId;
   private final WireFormat wireFormat;
   private final String encoding;
 
-  private MessageConsumer<Object> inboundConsumer;
   private boolean clientListening;
   private boolean headersPending;
   private MultiMap pendingHeaders;
@@ -35,27 +36,24 @@ public class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
   public EventBusGrpcServerStreamingCall(
     ContextInternal context,
-    EventBus eventBus,
-    String serverAddress,
+    EventBusStreamEndpoint endpoint,
     String clientAddress,
+    long clientStreamId,
     WireFormat wireFormat,
     String encoding,
     int window
   ) {
     super(context, window);
-    this.eventBus = eventBus;
-    this.serverAddress = serverAddress;
+    this.endpoint = endpoint;
+    this.eventBus = endpoint.eventBus();
     this.clientAddress = clientAddress;
+    this.clientStreamId = clientStreamId;
     this.wireFormat = wireFormat;
     this.encoding = encoding;
   }
 
-  Future<Void> init() {
-    inboundConsumer = eventBus.consumer(serverAddress, this::handleInbound);
-    return inboundConsumer.completion();
-  }
-
-  private void handleInbound(Message<Object> message) {
+  @Override
+  public void handle(TransportFrame frame, Message<Object> message) {
     if (!clientListening) {
       clientListening = true;
       if (headersPending) {
@@ -64,7 +62,6 @@ public class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
       }
     }
 
-    TransportFrame frame = EventBusGrpcCodec.decodeFrame(message);
     switch (frame.getFrameCase()) {
       case MESSAGE:
         onInboundMessage();
@@ -80,7 +77,7 @@ public class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
         if (closed) {
           break;
         }
-        close();
+        terminate();
         emitException(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED));
         break;
       default:
@@ -129,7 +126,7 @@ public class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
       EventBusHeaders.encodeMultiMap(HEADER_PREFIX, headers, delivery);
       options.setHeaders(delivery);
     }
-    eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setHeaders(Headers.newBuilder())), options);
+    eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setStreamId(clientStreamId).setHeaders(Headers.newBuilder())), options);
   }
 
   private void sendTrailers(GrpcTrailersFrame frame) {
@@ -144,27 +141,35 @@ public class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
       EventBusHeaders.encodeMultiMap(TRAILER_PREFIX, headers, delivery);
       options.setHeaders(delivery);
     }
-    eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setTrailers(trailers)), options);
+    eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setStreamId(clientStreamId).setTrailers(trailers)), options);
   }
 
   @Override
   protected void onTerminalSent() {
-    close();
+    terminate();
+  }
+
+  @Override
+  public void close(Completable<Void> completion) {
+    if (!closed) {
+      sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.UNAVAILABLE.code).setReason("Server closed")));
+      terminate();
+      emitException(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED));
+    }
+    completion.succeed();
   }
 
   @Override
   protected void sendTransportFrame(TransportFrame.Builder builder) {
+    builder.setStreamId(clientStreamId);
     eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(builder));
   }
 
-  private void close() {
+  private void terminate() {
     if (closed) {
       return;
     }
     closed = true;
-    if (inboundConsumer != null) {
-      inboundConsumer.unregister();
-      inboundConsumer = null;
-    }
+    endpoint.closed(this);
   }
 }

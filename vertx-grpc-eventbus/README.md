@@ -58,28 +58,43 @@ dealing with: the `ServiceMethod` carries the call type (its `type()`, filled in
 the generated stub), so it opens in the right shape without guessing.
 
 For a streaming method the client sends an opening `request()` to the service
-address. The opener is a pure handshake: it carries no message, only the client's
-own inbound address in a header. Triggering it on the headers (rather than waiting
-for the first request message) lets the client bind its inbound consumer up front,
-so a client that only sends headers, or one that wants to receive before it sends,
-still opens the call. The server looks the method up, reads the same `type()`, sets
-up the call and replies with an `Ack` giving its inbound address and an initial
-window. The first request message then follows as an ordinary `Message` frame once
-the call is streaming, the same as every later one. The response initial metadata
-does not ride on the `Ack` (which is sent before the handler runs) but follows as a
-`Headers` frame ahead of the first response message, so it reflects whatever the
-handler set. A unary method takes the request/reply path above instead, with no
-extra addresses and no frames. Both sides pick the same path because both read the
-same `type()` off the `ServiceMethod`, so there is no negotiation or marker on the
-wire, and unary stays interchangeable with a service proxy.
+address. The opener is a pure handshake: its body is an `Initialize` carrying the
+client's private address and the id it has assigned this stream. Triggering it on the
+headers (rather than waiting for the first request message) lets the call register up
+front, so a client that only sends headers, or one that wants to receive before it
+sends, still opens the call. The server looks the method up, reads the same `type()`,
+sets up the call and replies with an `Initialized` giving its own private address, the
+id it has assigned this stream, and an initial window. The first request message then
+follows as an ordinary `Message` frame once the call is streaming, the same as every
+later one. The response initial metadata does not ride on the `Initialized` (which is
+sent before the handler runs) but follows as a `Headers` frame ahead of the first response
+message, so it reflects whatever the handler set. A unary method takes the
+request/reply path above instead, with no extra addresses and no frames. Both sides
+pick the same path because both read the same `type()` off the `ServiceMethod`, so
+there is no negotiation or marker on the wire, and unary stays interchangeable with
+a service proxy.
 
-Once a streaming call is open, each side owns a dedicated event bus address for its
-direction. The client generates its inbound address and sends it in the opener; the
-server generates its inbound address and returns it in the `Ack`. Each side
-registers a consumer on its address, and from then on both push frames at each
-other with fire-and-forget `send()`. Because an address pair belongs to exactly one
-call, a frame's destination is unambiguous, so the frames carry no stream identity
-of their own.
+Once a call is open, frames flow over each endpoint's private address rather than a
+per-call one. Each endpoint, a client or a server, mints a single private address at
+startup and registers one consumer on it, and all of its streams are multiplexed over
+that consumer. A frame carries the destination's `stream_id`, and the receiver
+demuxes it to the right call through a map. Each endpoint assigns the
+ids for its own inbound direction, so they can never collide on a shared address. The
+open handshake is where the two endpoints swap the ids they have each assigned. Both
+push frames at each other with fire-and-forget `send()`.
+
+This matters most on a clustered bus. The service address is registered by every
+server node, so the opening `request()` round-robins and lands on some node; the
+private address in its `Initialized` is unique to that node, so every subsequent frame
+for the stream pins to it. And because the consumer is long-lived and per-endpoint,
+opening or closing a stream is just a map insert or remove, with no per-call consumer
+register/unregister, which on a cluster would otherwise broadcast registration churn
+to every node. A stream timeout, once added, would be a plain map removal too.
+
+Ending a stream, by trailers or cancel, removes it from the map. A frame that arrives
+for a `stream_id` no longer in the map (one still in flight when the stream was torn
+down) is dropped. Closing an endpoint terminates its remaining streams rather than
+dropping them silently: each is sent a `Cancel` so the peer is notified, then removed.
 
 ```mermaid
 sequenceDiagram
@@ -87,20 +102,20 @@ sequenceDiagram
     participant S as Server
 
     Note over C,S: Open, request/reply on the service address
-    C->>S: request, no message body<br/>headers action=method, grpc-wire-format, client address
-    Note right of S: method type is streaming<br/>mint server address, register consumer
-    S-->>C: reply Ack, server_address + initial_window
+    C->>S: request, body Initialize{client_address, client_stream_id}<br/>headers action=method, grpc-wire-format
+    Note right of S: method type is streaming<br/>assign server_stream_id, register in stream map
+    S-->>C: reply Initialized, server_address + server_stream_id + initial_window
 
-    Note over C,S: Full duplex from here. The two directions are<br/>independent and number their messages separately.<br/>The order below is just one possible interleaving.
+    Note over C,S: Full duplex from here, each frame tagged with the<br/>destination's stream_id. The two directions are<br/>independent and number their messages separately.
     C->>S: WindowUpdate, delta to grant the server its window
-    C->>S: Message, request seq 1 (first request message)
+    C->>S: Message, stream_sequence 1 (first request message)
     S->>C: Headers, response initial metadata
-    S->>C: Message, response seq 1
-    C->>S: Message, request seq 2
+    S->>C: Message, stream_sequence 1
+    C->>S: Message, stream_sequence 2
     C->>S: HalfClose, client done sending
-    S->>C: Message, response seq 2
+    S->>C: Message, stream_sequence 2
     S->>C: Trailers, status
-    Note over C,S: both consumers unregister, call done
+    Note over C,S: both ends drop the stream from their map, call done
 ```
 
 The handshake has to be careful about ordering. Neither side should start sending data until the
@@ -128,33 +143,43 @@ option java_multiple_files = true;
 
 // A frame exchanged over the event bus during a streaming gRPC call. Unary calls
 // do not use these frames; they map to a plain request/reply. A streaming call
-// opens with a request whose reply is an Ack, after which each direction carries
-// the frames below over its own dedicated address. Frames are serialized as
-// protobuf binary. The handshake and flow control are described in the module
-// README.
+// opens with a request (its body an Initialize) whose reply is an Initialized. Each
+// endpoint multiplexes all of its streams over a single private address, and
+// stream_id demuxes the call on that address. Frames are serialized as protobuf
+// binary. The handshake and flow control are described in the module README.
 message TransportFrame {
-  uint64 seq = 1; // per-call, monotonic, advances on Message frames only
+  uint64 stream_id = 1; // the destination endpoint's id for this call, demuxes it on the shared private address
+  uint64 stream_sequence = 2; // per-stream, monotonic, advances on Message frames only
 
   oneof frame {
-    Ack ack = 2; // server -> client, the open reply
-    Message message = 3; // a message payload, either direction
-    WindowUpdate window_update = 4; // flow-control credit, either direction
-    HalfClose half_close = 5; // client -> server, end of the request stream
-    Trailers trailers = 6; // server -> client, terminates the call
-    Cancel cancel = 7; // either direction, abnormal termination
-    Headers headers = 8; // server -> client, response metadata, before the first message
+    Initialize initialize = 3; // client to server, the opening request body
+    Initialized initialized = 4; // server to client, the open reply
+    Message message = 5; // a message payload, either direction
+    WindowUpdate window_update = 6; // flow-control credit, either direction
+    HalfClose half_close = 7; // client to server, end of the request stream
+    Trailers trailers = 8; // server to client, terminates the call
+    Cancel cancel = 9; // either direction, abnormal termination
+    Headers headers = 10; // server to client, response metadata, before the first message
   }
 }
 
-// Server -> client, the reply to a streaming call's opening request, carrying the
-// server's inbound address. Response initial metadata does not ride here; it
-// follows as a Headers frame.
-message Ack {
-  string server_address = 1; // address for client -> server frames
+// Client to server, the body of a streaming call's opening request. The server
+// tags every server to client frame with client_stream_id.
+message Initialize {
+  string client_address = 1; // client's private address for server to client frames
+  uint64 client_stream_id = 2; // the client's id for this call
+}
+
+// Server to client, the reply to a streaming call's opening request. The client
+// tags every client to server frame with server_stream_id. Response initial
+// metadata does not ride here; it follows as a Headers frame.
+message Initialized {
+  string server_address = 1; // server's private address for client to server frames
+  uint64 server_stream_id = 3; // the server's id for this call
   uint32 initial_window = 2; // messages the server grants the client to send
 }
 
-// Server -> client, response initial metadata, ordered ahead of the first response
+// Server to client, response initial metadata, ordered ahead of the first response
 // message. The metadata itself rides as __header__. prefixed delivery headers.
 message Headers {
 }
@@ -171,11 +196,11 @@ message WindowUpdate {
   uint32 delta = 1;
 }
 
-// Client -> server, end of the request stream (half close).
+// Client to server, end of the request stream (half close).
 message HalfClose {
 }
 
-// Server -> client, terminates the call. Trailing metadata rides as __trailer__.
+// Server to client, terminates the call. Trailing metadata rides as __trailer__.
 // prefixed delivery headers.
 message Trailers {
   uint32 status = 1; // gRPC status code
@@ -229,37 +254,37 @@ consumer would otherwise just buffer and eventually drop. On a clustered event b
 the window would be the only thing pushing back at all, since a `send()` is already
 on the wire the moment it is issued.
 
+Multiplexing makes the per-stream window the only backpressure available. Because
+every stream on an endpoint shares one consumer, that consumer is never paused, since
+pausing it would stall every stream behind a slow one (head-of-line blocking). A slow
+reader pushes back only by withholding `WindowUpdate` credit on its own stream, while
+the shared consumer keeps draining the others.
+
 ## Open questions and future work
 
 This is an experiment, and several pieces are deliberately out of scope for now.
 These are the directions they would take.
 
-- **Stream and session identity.** As proposed, every streaming call mints its own
-  address pair and consumer. That is simple, but it means a consumer
-  register/unregister per call, and on a clustered bus that registration churn is
-  broadcast to every node. A session layer would address it: one long-lived
-  consumer per client/server session, with many streams multiplexed over it and
-  told apart by a `stream_id`, plus a `session_id` to tie a client's streams
-  together. The frame format would then carry those ids and the addresses would be
-  per-session instead of per-call.
+- **Session identity and resumption.** Streams are already multiplexed over one
+  long-lived private consumer per endpoint and told apart by `stream_id`, so there
+  is no per-call registration churn. The private address doubles as the endpoint's
+  session token: it is minted per process and dies with it, so a restarted endpoint
+  has a new address and stale frames hit a dead one. A distinct, stable `session_id`
+  would only be needed to tie streams across a reconnect (resumption, below) or for
+  session-level flow control; it is deferred until then.
 
 - **Session-level flow control.** HTTP/2 has a second, connection-wide window on top
   of the per-stream one, so a connection can cap total buffering across its streams.
-  The analog would be a session-wide window, which only makes sense once streams
-  share a session, so it depends on the point above.
+  The analog would be a session-wide window across all streams sharing an endpoint's
+  private address, which pairs with the `session_id` above.
 
-- **Resumption.** The `seq` on each `Message` is there to leave room for a dropped
-  client to reconnect and ask the server to replay everything after the last
+- **Resumption.** The `stream_sequence` on each `Message` is there to leave room for
+  a dropped client to reconnect and ask the server to replay everything after the last
   sequence it saw, in the spirit of MCP's `Last-Event-ID` resumption. The reconnect
   handshake and a bounded replay buffer would be the missing pieces. Surviving a
   node failure rather than just a dropped connection would additionally want the
   session state in a shared or durable store, which could be an SPI with a local
   default and, for example, a Redis backend.
-
-- **Streaming initial metadata.** Because the `Ack` would be sent before the handler
-  runs, custom response headers set by a streaming handler are not part of the
-  proposal yet. Status and trailers are. Carrying late headers on the first response
-  frame would close that gap.
 
 - **Readable JSON envelope.** In JSON wire mode the payload would be native JSON but
   the frame wrapping it would be binary, so the bus body would not be readable end

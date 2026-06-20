@@ -9,14 +9,13 @@ import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 
-public class EventBusGrpcClientImpl implements EventBusGrpcClient {
+public class EventBusGrpcClientImpl extends EventBusStreamEndpoint implements EventBusGrpcClient {
 
-  private final Vertx vertx;
-  private final EventBus eventBus;
+  private final ContextInternal context;
 
   public EventBusGrpcClientImpl(Vertx vertx, EventBus eventBus) {
-    this.vertx = vertx;
-    this.eventBus = eventBus;
+    super(eventBus, "grpc.eb.client.");
+    this.context = (ContextInternal) vertx.getOrCreateContext();
   }
 
   @Override
@@ -26,8 +25,7 @@ public class EventBusGrpcClientImpl implements EventBusGrpcClient {
 
   @Override
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
-    ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
-    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(context, eventBus, method.type());
+    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(context, this, method.type());
     GrpcClientRequestImpl<Req, Resp> request = new GrpcClientRequestImpl<>(
       context,
       invoker,

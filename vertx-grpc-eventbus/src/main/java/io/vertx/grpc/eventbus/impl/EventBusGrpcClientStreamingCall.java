@@ -1,5 +1,6 @@
 package io.vertx.grpc.eventbus.impl;
 
+import io.vertx.core.Completable;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
@@ -8,9 +9,10 @@ import io.vertx.core.eventbus.*;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.*;
-import io.vertx.grpc.eventbus.transport.v1alpha.Ack;
 import io.vertx.grpc.eventbus.transport.v1alpha.Cancel;
 import io.vertx.grpc.eventbus.transport.v1alpha.HalfClose;
+import io.vertx.grpc.eventbus.transport.v1alpha.Initialize;
+import io.vertx.grpc.eventbus.transport.v1alpha.Initialized;
 import io.vertx.grpc.eventbus.transport.v1alpha.Trailers;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
@@ -19,18 +21,17 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CancellationException;
 
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
-public class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
+class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements FrameHandler {
 
+  private final EventBusStreamEndpoint endpoint;
   private final EventBus eventBus;
   private final ServiceName serviceName;
   private final String methodName;
-  private final String clientAddress;
   private final Deque<GrpcMessage> pending = new ArrayDeque<>();
 
   private WireFormat wireFormat;
@@ -41,14 +42,14 @@ public class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private State state = State.IDLE;
   private boolean ended;
   private String serverAddress;
-  private MessageConsumer<Object> inboundConsumer;
+  private long serverStreamId;
 
-  public EventBusGrpcClientStreamingCall(ContextInternal context, EventBus eventBus, ServiceName serviceName, String methodName) {
+  public EventBusGrpcClientStreamingCall(ContextInternal context, EventBusStreamEndpoint endpoint, ServiceName serviceName, String methodName) {
     super(context, DEFAULT_WINDOW);
-    this.eventBus = eventBus;
+    this.endpoint = endpoint;
+    this.eventBus = endpoint.eventBus();
     this.serviceName = serviceName;
     this.methodName = methodName;
-    this.clientAddress = "grpc.eb.client." + UUID.randomUUID();
   }
 
   @Override
@@ -104,13 +105,12 @@ public class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private Future<Void> open() {
     state = State.OPENING;
 
-    WireFormat wf = Optional.ofNullable(this.wireFormat).orElse(WireFormat.PROTOBUF);
-    String enc = Optional.ofNullable(this.encoding).orElse("identity");
+    WireFormat wireFormat = Optional.ofNullable(this.wireFormat).orElse(WireFormat.PROTOBUF);
+    String encoding = Optional.ofNullable(this.encoding).orElse("identity");
 
     DeliveryOptions options = new DeliveryOptions()
       .addHeader(EventBusHeaders.ACTION, methodName)
-      .addHeader(EventBusHeaders.WIRE_FORMAT, wf.name())
-      .addHeader(EventBusHeaders.CLIENT_ADDRESS, clientAddress);
+      .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
 
     if (timeout != null) {
       options.setSendTimeout(timeout.toMillis());
@@ -120,17 +120,28 @@ public class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
       EventBusHeaders.encodeMultiMap(HEADER_PREFIX, requestHeaders, options.getHeaders());
     }
 
-    Object body = EventBusGrpcCodec.encodeBody(Buffer.buffer(), wf);
-
     Promise<Void> promise = context.promise();
-    eventBus.request(serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
-      if (ar.failed()) {
-        handleFailure(ar.cause(), enc, wf);
-        promise.fail(ar.cause());
-      } else {
-        handleAck(ar.result(), enc, wf);
-        promise.complete();
+    endpoint.ready().onComplete(reg -> {
+      if (reg.failed()) {
+        handleFailure(reg.cause(), encoding, wireFormat);
+        promise.fail(reg.cause());
+        return;
       }
+      long clientStreamId = endpoint.register(this);
+      Initialize initialize = Initialize.newBuilder()
+        .setClientAddress(endpoint.address())
+        .setClientStreamId(clientStreamId)
+        .build();
+      Buffer body = EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setInitialize(initialize));
+      eventBus.request(serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
+        if (ar.failed()) {
+          handleFailure(ar.cause(), encoding, wireFormat);
+          promise.fail(ar.cause());
+        } else {
+          handleInitialized(ar.result(), encoding, wireFormat);
+          promise.complete();
+        }
+      });
     });
     return promise.future();
   }
@@ -139,34 +150,32 @@ public class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     GrpcStatus status = EventBusGrpcCodec.mapFailure(cause);
     emit(new DefaultGrpcHeadersFrame(wireFormat, encoding, MultiMap.caseInsensitiveMultiMap()));
     emit(new DefaultGrpcTrailersFrame(status, cause.getMessage(), MultiMap.caseInsensitiveMultiMap()));
-    state = State.CLOSED;
+    terminate();
     emitEnd();
   }
 
-  private void handleAck(Message<Object> reply, String encoding, WireFormat wireFormat) {
-    Ack ack = EventBusGrpcCodec.decodeFrame(reply).getAck();
-    this.serverAddress = ack.getServerAddress();
+  private void handleInitialized(Message<Object> reply, String encoding, WireFormat wireFormat) {
+    Initialized initialized = EventBusGrpcCodec.decodeFrame(reply).getInitialized();
+    this.serverAddress = initialized.getServerAddress();
+    this.serverStreamId = initialized.getServerStreamId();
     this.encoding = encoding;
     this.wireFormat = wireFormat;
 
     state = State.STREAMING;
-    grantSendWindow(ack.getInitialWindow());
+    grantSendWindow(initialized.getInitialWindow());
 
-    inboundConsumer = eventBus.consumer(clientAddress, this::handleInbound);
-    inboundConsumer.completion().onComplete(ar -> {
-      sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(window)));
-      GrpcMessage message;
-      while ((message = pending.poll()) != null) {
-        writeMessage(message);
-      }
-      if (ended) {
-        sendHalfClose();
-      }
-    });
+    sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(window)));
+    GrpcMessage message;
+    while ((message = pending.poll()) != null) {
+      writeMessage(message);
+    }
+    if (ended) {
+      sendHalfClose();
+    }
   }
 
-  private void handleInbound(Message<Object> message) {
-    TransportFrame frame = EventBusGrpcCodec.decodeFrame(message);
+  @Override
+  public void handle(TransportFrame frame, Message<Object> message) {
     switch (frame.getFrameCase()) {
       case HEADERS:
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
@@ -186,12 +195,12 @@ public class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
         EventBusHeaders.decodeMultimap(TRAILER_PREFIX, message.headers(), trailers);
         GrpcStatus status = Optional.ofNullable(GrpcStatus.valueOf(t.getStatus())).orElse(GrpcStatus.UNKNOWN);
         emit(new DefaultGrpcTrailersFrame(status, t.getStatusMessage().isEmpty() ? null : t.getStatusMessage(), trailers));
-        close();
+        terminate();
         emitEnd();
         break;
       case CANCEL:
         emitException(new CancellationException(frame.getCancel().getReason()));
-        close();
+        terminate();
         emitEnd();
         break;
       default:
@@ -203,8 +212,21 @@ public class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     if (state == State.STREAMING) {
       sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code)));
     }
-    close();
+    terminate();
     return context.succeededFuture();
+  }
+
+  @Override
+  public void close(Completable<Void> completion) {
+    if (state != State.CLOSED) {
+      if (state == State.STREAMING) {
+        sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Client closed")));
+      }
+      terminate();
+      emitException(new CancellationException("Client closed"));
+      emitEnd();
+    }
+    completion.succeed();
   }
 
   @Override
@@ -212,18 +234,16 @@ public class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     if (serverAddress == null) {
       return;
     }
+    builder.setStreamId(serverStreamId);
     eventBus.send(serverAddress, EventBusGrpcCodec.encodeFrame(builder));
   }
 
-  private void close() {
+  private void terminate() {
     if (state == State.CLOSED) {
       return;
     }
     state = State.CLOSED;
-    if (inboundConsumer != null) {
-      inboundConsumer.unregister();
-      inboundConsumer = null;
-    }
+    endpoint.closed(this);
   }
 
   private enum State {
