@@ -367,4 +367,101 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     assertTrue("server should have been notified of the cancel", serverNotified.get());
     assertTrue("server should have stopped producing before the full stream", serverWrites.get() < serverTotal);
   }
+
+  @Test
+  public void testMultiplexAcrossClients() throws Exception {
+    server.callHandler(PIPE_SERVER, request -> {
+      request.handler(req -> request.response().write(Reply.newBuilder().setMessage("echo-" + req.getName()).build()));
+      request.endHandler(v -> request.response().end());
+    });
+
+    EventBusGrpcClient clientA = EventBusGrpcClient.client(vertx);
+    EventBusGrpcClient clientB = EventBusGrpcClient.client(vertx);
+
+    Future<List<Reply>> a = clientA.request(PIPE_CLIENT).compose(request -> {
+      request.write(Request.newBuilder().setName("a1").build());
+      request.end(Request.newBuilder().setName("a2").build());
+      return request.response();
+    }).compose(EventBusGrpcStreamingTest::collect);
+
+    Future<List<Reply>> b = clientB.request(PIPE_CLIENT).compose(request -> {
+      request.write(Request.newBuilder().setName("b1").build());
+      request.end(Request.newBuilder().setName("b2").build());
+      return request.response();
+    }).compose(EventBusGrpcStreamingTest::collect);
+
+    Future.all(a, b).await(10, TimeUnit.SECONDS);
+
+    // The server multiplexes both clients' streams over its single private consumer, demuxed by
+    // server-assigned stream ids, so the two streams must not cross-talk.
+    List<Reply> ra = a.result();
+    assertEquals(2, ra.size());
+    assertEquals("echo-a1", ra.get(0).getMessage());
+    assertEquals("echo-a2", ra.get(1).getMessage());
+    List<Reply> rb = b.result();
+    assertEquals(2, rb.size());
+    assertEquals("echo-b1", rb.get(0).getMessage());
+    assertEquals("echo-b2", rb.get(1).getMessage());
+  }
+
+  @Test
+  public void testServerCloseTerminatesStream() throws Exception {
+    Promise<Void> serverReady = Promise.promise();
+    server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {
+      request.response().write(Reply.newBuilder().setMessage("first").build());
+      serverReady.tryComplete();
+    }));
+
+    Promise<Throwable> clientFailed = Promise.promise();
+    client.request(SOURCE_CLIENT).onSuccess(request -> {
+      request.end(Empty.getDefaultInstance());
+      request.response().onSuccess(response -> response.exceptionHandler(clientFailed::tryComplete));
+    });
+
+    // Wait until the stream is live, then close the server: its in-flight streams must be terminated
+    // and the client notified, rather than left hanging.
+    serverReady.future().await(10, TimeUnit.SECONDS);
+
+    Promise<Void> closed = Promise.promise();
+    server.close(closed);
+    closed.future().await(10, TimeUnit.SECONDS);
+
+    Throwable failure = clientFailed.future().await(10, TimeUnit.SECONDS);
+    assertNotNull("client should have been notified the stream was terminated", failure);
+  }
+
+  @Test
+  public void testNoHeadOfLineBlocking() throws Exception {
+    int count = 200;
+    server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {
+      for (int i = 0; i < count; i++) {
+        request.response().write(Reply.newBuilder().setMessage("x-" + i).build());
+      }
+      request.response().end();
+    }));
+
+    // Open a stream and pause its reader without resuming, so it stalls on its window once the
+    // initial credit is spent. It shares the client's single private consumer with the next stream.
+    GrpcReadStream<Reply> stalled = client.request(SOURCE_CLIENT)
+      .compose(request -> {
+        request.end(Empty.getDefaultInstance());
+        return request.response();
+      })
+      .await(10, TimeUnit.SECONDS);
+    stalled.pause();
+
+    // A second stream over the same consumer must still run to completion; a stalled stream must
+    // never pause the shared consumer and block the others.
+    List<Reply> replies = client.request(SOURCE_CLIENT)
+      .compose(request -> {
+        request.end(Empty.getDefaultInstance());
+        return request.response();
+      })
+      .compose(EventBusGrpcStreamingTest::collect)
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals(count, replies.size());
+    assertEquals("x-0", replies.get(0).getMessage());
+    assertEquals("x-" + (count - 1), replies.get(count - 1).getMessage());
+  }
 }

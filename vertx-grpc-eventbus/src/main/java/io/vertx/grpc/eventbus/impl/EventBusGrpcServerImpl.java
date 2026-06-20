@@ -11,7 +11,8 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
-import io.vertx.grpc.eventbus.transport.v1alpha.Ack;
+import io.vertx.grpc.eventbus.transport.v1alpha.Initialize;
+import io.vertx.grpc.eventbus.transport.v1alpha.Initialized;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
@@ -24,15 +25,16 @@ import java.util.stream.Collectors;
 
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 
-public class EventBusGrpcServerImpl implements EventBusGrpcServer {
+public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements EventBusGrpcServer {
 
   private final Vertx vertx;
-  private final EventBus eventBus;
+  private final ContextInternal context;
   private final Map<String, ServiceConsumer> consumers = new HashMap<>();
 
   public EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus) {
+    super(eventBus, "grpc.eb.server.");
     this.vertx = vertx;
-    this.eventBus = eventBus;
+    this.context = (ContextInternal) vertx.getOrCreateContext();
   }
 
   @Override
@@ -79,7 +81,7 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
 
     String serviceFqn = service.name().fullyQualifiedName();
     Adapter adapter = new Adapter(serviceFqn, service);
-    MessageConsumer<Object> consumer = eventBus.consumer(serviceFqn, adapter);
+    MessageConsumer<Object> consumer = eventBus().consumer(serviceFqn, adapter);
     consumers.put(serviceFqn, new ServiceConsumer(consumer, service));
 
     return this;
@@ -102,6 +104,7 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
       futures.add(consumer.service.close());
     }
     consumers.clear();
+    futures.add(closeStreams());
     Future.all(futures).<Void> mapEmpty().onComplete(completion);
   }
 
@@ -252,49 +255,51 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
     }
 
     private <Req, Resp> void dispatchStreaming(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
-      ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
 
-      String clientAddress = message.headers().get(EventBusHeaders.CLIENT_ADDRESS);
-      if (clientAddress == null) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' header");
+      Initialize initialize;
+      try {
+        initialize = EventBusGrpcCodec.decodeFrame(message).getInitialize();
+      } catch (Exception e) {
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid initialize frame: " + e.getMessage());
         return;
       }
-
-      String serverAddress = "grpc.eb.server." + UUID.randomUUID();
+      String clientAddress = initialize.getClientAddress();
+      long clientStreamId = initialize.getClientStreamId();
       int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
 
       MultiMap headers = MultiMap.caseInsensitiveMultiMap();
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
 
-      EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
-        context,
-        eventBus,
-        serverAddress,
-        clientAddress,
-        wireFormat,
-        "identity",
-        window
-      );
-
-      GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
-      GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context, headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);
-      GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, request, stream, null, serviceMethod.encoder());
-
-      response.format(wireFormat);
-      request.init(response, false);
-
-      stream.handler(frame -> request.handleMessage(((GrpcMessageFrame) frame).message()));
-      stream.endHandler(v -> request.handleEnd());
-      stream.exceptionHandler(request::handleException);
-
-      stream.init().onComplete(ar -> {
+      context.runOnContext(v -> ready().onComplete(ar -> {
         if (ar.failed()) {
           message.fail(GrpcStatus.INTERNAL.code, "Failed to register server consumer: " + ar.cause().getMessage());
           return;
         }
 
-        TransportFrame.Builder ack = TransportFrame.newBuilder().setAck(Ack.newBuilder().setServerAddress(serverAddress).setInitialWindow(window));
-        message.reply(EventBusGrpcCodec.encodeFrame(ack));
+        EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
+          context,
+          EventBusGrpcServerImpl.this,
+          clientAddress,
+          clientStreamId,
+          wireFormat,
+          "identity",
+          window
+        );
+        long serverStreamId = register(stream);
+
+        GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
+        GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context, headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);
+        GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, request, stream, null, serviceMethod.encoder());
+
+        response.format(wireFormat);
+        request.init(response, false);
+
+        stream.handler(frame -> request.handleMessage(((GrpcMessageFrame) frame).message()));
+        stream.endHandler(x -> request.handleEnd());
+        stream.exceptionHandler(request::handleException);
+
+        TransportFrame.Builder initialized = TransportFrame.newBuilder().setInitialized(Initialized.newBuilder().setServerAddress(address()).setServerStreamId(serverStreamId).setInitialWindow(window));
+        message.reply(EventBusGrpcCodec.encodeFrame(initialized));
 
         try {
           ServiceMethodInvoker<Req, Resp> invoker = service.invoker(serviceMethod);
@@ -302,7 +307,7 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
         } catch (Exception e) {
           response.fail(e);
         }
-      });
+      }));
     }
   }
 }

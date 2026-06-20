@@ -69,7 +69,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream {
   private void doSendMessage(GrpcMessage message) {
     sendWindow--;
     sendTransportFrame(TransportFrame.newBuilder()
-      .setSeq(++sequence)
+      .setStreamSequence(++sequence)
       .setMessage(Message.newBuilder().setPayload(ByteString.copyFrom(message.payload().getBytes()))));
   }
 
