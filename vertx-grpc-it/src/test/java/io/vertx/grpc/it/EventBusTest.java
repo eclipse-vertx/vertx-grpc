@@ -42,8 +42,8 @@ public class EventBusTest extends GrpcTestBase {
   public void setUp(TestContext should) {
     super.setUp(should);
 
-    client = EventBusGrpcClient.client(vertx);
-    server = EventBusGrpcServer.server(vertx);
+    client = EventBusGrpcClient.client(vertx).await();
+    server = EventBusGrpcServer.server(vertx).await();
   }
 
   @Test
@@ -74,7 +74,7 @@ public class EventBusTest extends GrpcTestBase {
 
   @Test
   public void testUnaryErrorHandling() throws Exception {
-    EventBusGrpcServer errorServer = EventBusGrpcServer.server(vertx);
+    EventBusGrpcServer errorServer = EventBusGrpcServer.server(vertx).await();
     errorServer.addService(GreeterGrpcService.of(new GreeterService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
@@ -94,7 +94,7 @@ public class EventBusTest extends GrpcTestBase {
 
   @Test
   public void testUnaryStatusException() throws Exception {
-    EventBusGrpcServer errorServer = EventBusGrpcServer.server(vertx);
+    EventBusGrpcServer errorServer = EventBusGrpcServer.server(vertx).await();
     errorServer.addService(GreeterGrpcService.of(new GreeterService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {

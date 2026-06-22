@@ -26,24 +26,26 @@ import io.vertx.grpc.eventbus.impl.EventBusGrpcClientImpl;
 public interface EventBusGrpcClient extends ServiceInvoker {
 
   /**
-   * Create an event bus gRPC client using the event bus from the provided Vert.x instance.
+   * Create an event bus gRPC client using the event bus from the provided Vert.x instance. The returned future
+   * completes once the client's private address is bound.
    *
    * @param vertx the vertx instance
-   * @return the created client
+   * @return a future of the created client
    */
-  static EventBusGrpcClient client(Vertx vertx) {
-    return new EventBusGrpcClientImpl(vertx, vertx.eventBus());
+  static Future<EventBusGrpcClient> client(Vertx vertx) {
+    return EventBusGrpcClientImpl.create(vertx, vertx.eventBus());
   }
 
   /**
-   * Create an event bus gRPC client using the provided event bus.
+   * Create an event bus gRPC client using the provided event bus. The returned future completes once the client's
+   * private address is bound.
    *
    * @param vertx the vertx instance
    * @param eventBus the event bus to use as transport
-   * @return the created client
+   * @return a future of the created client
    */
-  static EventBusGrpcClient client(Vertx vertx, EventBus eventBus) {
-    return new EventBusGrpcClientImpl(vertx, eventBus);
+  static Future<EventBusGrpcClient> client(Vertx vertx, EventBus eventBus) {
+    return EventBusGrpcClientImpl.create(vertx, eventBus);
   }
 
   /**
