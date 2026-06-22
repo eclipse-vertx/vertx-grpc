@@ -50,12 +50,9 @@ public class GrpcIoServerExamples {
   }
 
   public void eventBusExample(Vertx vertx, GreeterGrpc.GreeterImplBase service) {
-
-    EventBusGrpcServer server = EventBusGrpcServer.server(vertx);
-
     GrpcIoServiceBridge bridge = GrpcIoServiceBridge.bridge(service);
 
-    server.addService(bridge);
+    EventBusGrpcServer.server(vertx).onSuccess(server -> server.addService(bridge));
   }
 
   public void reflectionExample(Vertx vertx, HttpServerConfig config, ServerSSLOptions sslOptions) {

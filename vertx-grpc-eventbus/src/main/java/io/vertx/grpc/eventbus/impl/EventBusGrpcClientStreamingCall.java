@@ -120,28 +120,22 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements 
       EventBusHeaders.encodeMultiMap(HEADER_PREFIX, requestHeaders, options.getHeaders());
     }
 
+    long clientStreamId = endpoint.register(this);
+    Initialize initialize = Initialize.newBuilder()
+      .setClientAddress(endpoint.address())
+      .setClientStreamId(clientStreamId)
+      .build();
+    Buffer body = EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setInitialize(initialize));
+
     Promise<Void> promise = context.promise();
-    endpoint.ready().onComplete(reg -> {
-      if (reg.failed()) {
-        handleFailure(reg.cause(), encoding, wireFormat);
-        promise.fail(reg.cause());
-        return;
+    eventBus.request(serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
+      if (ar.failed()) {
+        handleFailure(ar.cause(), encoding, wireFormat);
+        promise.fail(ar.cause());
+      } else {
+        handleInitialized(ar.result(), encoding, wireFormat);
+        promise.complete();
       }
-      long clientStreamId = endpoint.register(this);
-      Initialize initialize = Initialize.newBuilder()
-        .setClientAddress(endpoint.address())
-        .setClientStreamId(clientStreamId)
-        .build();
-      Buffer body = EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setInitialize(initialize));
-      eventBus.request(serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
-        if (ar.failed()) {
-          handleFailure(ar.cause(), encoding, wireFormat);
-          promise.fail(ar.cause());
-        } else {
-          handleInitialized(ar.result(), encoding, wireFormat);
-          promise.complete();
-        }
-      });
     });
     return promise.future();
   }

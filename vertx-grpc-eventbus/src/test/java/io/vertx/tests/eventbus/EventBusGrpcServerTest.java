@@ -44,7 +44,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
   @Before
   public void setUp(TestContext should) {
     super.setUp(should);
-    server = EventBusGrpcServer.server(vertx);
+    server = EventBusGrpcServer.server(vertx).await();
   }
 
   @Test

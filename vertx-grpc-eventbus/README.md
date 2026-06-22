@@ -21,13 +21,15 @@ factory differs:
 
 ```java
 // server
-EventBusGrpcServer server = EventBusGrpcServer.server(vertx);
-server.addService(GreeterGrpcService.of(new GreeterService() { ... }));
+EventBusGrpcServer.server(vertx).onSuccess(server -> {
+  server.addService(GreeterGrpcService.of(new GreeterService() { ... }));
+});
 
 // client
-EventBusGrpcClient client = EventBusGrpcClient.client(vertx);
-GreeterClient greeter = GreeterGrpcClient.create(client);
-greeter.sayHello(HelloRequest.newBuilder().setName("World").build());
+EventBusGrpcClient.client(vertx).onSuccess(client -> {
+  GreeterClient greeter = GreeterGrpcClient.create(client);
+  greeter.sayHello(HelloRequest.newBuilder().setName("World").build());
+});
 ```
 
 The rest of this document is about what the wire would look like, because the event

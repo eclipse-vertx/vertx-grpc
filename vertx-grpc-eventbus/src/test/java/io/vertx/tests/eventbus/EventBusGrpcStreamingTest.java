@@ -46,8 +46,8 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   @Before
   public void setUp(TestContext should) {
     super.setUp(should);
-    server = EventBusGrpcServer.server(vertx);
-    client = EventBusGrpcClient.client(vertx);
+    server = EventBusGrpcServer.server(vertx).await();
+    client = EventBusGrpcClient.client(vertx).await();
   }
 
   private static <T> Future<List<T>> collect(GrpcReadStream<T> stream) {
@@ -375,8 +375,8 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
       request.endHandler(v -> request.response().end());
     });
 
-    EventBusGrpcClient clientA = EventBusGrpcClient.client(vertx);
-    EventBusGrpcClient clientB = EventBusGrpcClient.client(vertx);
+    EventBusGrpcClient clientA = EventBusGrpcClient.client(vertx).await();
+    EventBusGrpcClient clientB = EventBusGrpcClient.client(vertx).await();
 
     Future<List<Reply>> a = clientA.request(PIPE_CLIENT).compose(request -> {
       request.write(Request.newBuilder().setName("a1").build());
