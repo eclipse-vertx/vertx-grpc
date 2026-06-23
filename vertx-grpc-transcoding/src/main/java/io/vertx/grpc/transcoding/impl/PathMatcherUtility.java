@@ -1,6 +1,5 @@
 package io.vertx.grpc.transcoding.impl;
 
-import com.google.common.base.Splitter;
 import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 import io.vertx.grpc.transcoding.impl.config.HttpTemplate;
 import io.vertx.grpc.transcoding.impl.config.HttpTemplateVariable;
@@ -20,9 +19,9 @@ import java.util.*;
  */
 public final class PathMatcherUtility {
 
-  private static final Splitter PATH_SPLITTER = Splitter.on('/');
-  private static final Splitter QUERY_PARAM_SPLITTER = Splitter.on('&');
-  private static final Splitter NAME_SPLITTER = Splitter.on('.');
+  private static final String PATH_SEPARATOR = "/";
+  private static final String QUERY_PARAM_SEPARATOR = "&";
+  private static final String FIELD_NAME_SEPARATOR = "\\.";
 
   private PathMatcherUtility() {
   }
@@ -139,7 +138,7 @@ public final class PathMatcherUtility {
     }
 
     List<HttpVariableBinding> bindings = new ArrayList<>();
-    List<String> params = QUERY_PARAM_SPLITTER.splitToList(queryParams);
+    String[] params = queryParams.split(QUERY_PARAM_SEPARATOR, -1);
 
     for (String param : params) {
       int pos = param.indexOf('=');
@@ -153,7 +152,7 @@ public final class PathMatcherUtility {
       }
 
       String value = PercentEncoding.urlUnescapeString(param.substring(pos + 1), PercentEncoding.UrlUnescapeSpec.ALL_CHARACTERS, queryParamUnescapePlus);
-      HttpVariableBinding binding = new HttpVariableBinding(NAME_SPLITTER.splitToList(name), value);
+      HttpVariableBinding binding = new HttpVariableBinding(Arrays.asList(name.split(FIELD_NAME_SEPARATOR, -1)), value);
 
       bindings.add(binding);
     }
@@ -189,7 +188,7 @@ public final class PathMatcherUtility {
     }
 
     String pathToSplit = path.charAt(0) == '/' ? path.substring(1) : path;
-    List<String> result = new ArrayList<>(PATH_SPLITTER.splitToList(pathToSplit));
+    List<String> result = new ArrayList<>(Arrays.asList(pathToSplit.split(PATH_SEPARATOR, -1)));
 
     // Remove trailing empty segments
     while (!result.isEmpty() && result.get(result.size() - 1).isEmpty()) {

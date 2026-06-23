@@ -168,8 +168,8 @@ public final class GreeterGrpc {
 
     /**
      */
-    public examples.grpc.HelloReply sayHello(examples.grpc.HelloRequest request) {
-      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+    public examples.grpc.HelloReply sayHello(examples.grpc.HelloRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
           getChannel(), getSayHelloMethod(), getCallOptions(), request);
     }
   }
