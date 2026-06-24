@@ -20,6 +20,31 @@ public final class EventBusHeaders {
   public static final String WIRE_FORMAT = "grpc-wire-format";
 
   /**
+   * Streaming handshake, client to server: the client's private address for server to client frames.
+   */
+  public static final String CLIENT_ADDRESS = "grpc-client-address";
+
+  /**
+   * Streaming handshake, client to server: the client's id for this call, used to demux server to client frames.
+   */
+  public static final String CLIENT_STREAM_ID = "grpc-client-stream-id";
+
+  /**
+   * Streaming handshake, server to client: the server's private address for client to server frames.
+   */
+  public static final String SERVER_ADDRESS = "grpc-server-address";
+
+  /**
+   * Streaming handshake, server to client: the server's id for this call, used to demux client to server frames.
+   */
+  public static final String SERVER_STREAM_ID = "grpc-server-stream-id";
+
+  /**
+   * Streaming handshake, server to client: the number of messages the server grants the client to send.
+   */
+  public static final String INITIAL_WINDOW = "grpc-initial-window";
+
+  /**
    * The prefix for grpc headers among delivery options.
    */
   public static final String HEADER_PREFIX = "__header__.";

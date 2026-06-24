@@ -22,8 +22,8 @@ import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
 class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase implements FrameHandler {
 
-  private final EventBusStreamEndpoint endpoint;
   private final EventBus eventBus;
+  private final EventBusStreamEndpoint.StreamRegistration registration;
   private final String clientAddress;
   private final long clientStreamId;
   private final WireFormat wireFormat;
@@ -36,7 +36,8 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase implements 
 
   public EventBusGrpcServerStreamingCall(
     ContextInternal context,
-    EventBusStreamEndpoint endpoint,
+    EventBus eventBus,
+    EventBusStreamEndpoint.StreamRegistration registration,
     String clientAddress,
     long clientStreamId,
     WireFormat wireFormat,
@@ -44,8 +45,8 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase implements 
     int window
   ) {
     super(context, window);
-    this.endpoint = endpoint;
-    this.eventBus = endpoint.eventBus();
+    this.eventBus = eventBus;
+    this.registration = registration;
     this.clientAddress = clientAddress;
     this.clientStreamId = clientStreamId;
     this.wireFormat = wireFormat;
@@ -170,6 +171,6 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase implements 
       return;
     }
     closed = true;
-    endpoint.closed(this);
+    registration.unbind();
   }
 }

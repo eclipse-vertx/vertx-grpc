@@ -3,6 +3,7 @@ package io.vertx.grpc.eventbus.impl;
 import com.google.protobuf.Descriptors;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
@@ -11,9 +12,6 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
-import io.vertx.grpc.eventbus.transport.v1alpha.Initialize;
-import io.vertx.grpc.eventbus.transport.v1alpha.Initialized;
-import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceMethodInvoker;
@@ -258,31 +256,40 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
 
     private <Req, Resp> void dispatchStreaming(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
 
-      Initialize initialize;
-      try {
-        initialize = EventBusGrpcCodec.decodeFrame(message).getInitialize();
-      } catch (Exception e) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid initialize frame: " + e.getMessage());
+      String clientAddress = message.headers().get(EventBusHeaders.CLIENT_ADDRESS);
+      String clientStreamIdHeader = message.headers().get(EventBusHeaders.CLIENT_STREAM_ID);
+      if (clientAddress == null || clientStreamIdHeader == null) {
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' or '" + EventBusHeaders.CLIENT_STREAM_ID + "' header");
         return;
       }
-      String clientAddress = initialize.getClientAddress();
-      long clientStreamId = initialize.getClientStreamId();
+
+      long clientStreamId;
+      try {
+        clientStreamId = Long.parseLong(clientStreamIdHeader);
+      } catch (NumberFormatException e) {
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.CLIENT_STREAM_ID + "' header: " + clientStreamIdHeader);
+        return;
+      }
+
       int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
 
       MultiMap headers = MultiMap.caseInsensitiveMultiMap();
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
 
       context().runOnContext(v -> {
+        EventBusStreamEndpoint.StreamRegistration registration = createStream();
         EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
           context(),
-          EventBusGrpcServerImpl.this,
+          eventBus(),
+          registration,
           clientAddress,
           clientStreamId,
           wireFormat,
           "identity",
           window
         );
-        long serverStreamId = register(stream);
+
+        registration.bind(stream);
 
         GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
         GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context(), headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);
@@ -295,8 +302,12 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
         stream.endHandler(x -> request.handleEnd());
         stream.exceptionHandler(request::handleException);
 
-        TransportFrame.Builder initialized = TransportFrame.newBuilder().setInitialized(Initialized.newBuilder().setServerAddress(address()).setServerStreamId(serverStreamId).setInitialWindow(window));
-        message.reply(EventBusGrpcCodec.encodeFrame(initialized));
+        DeliveryOptions replyOptions = new DeliveryOptions()
+          .addHeader(EventBusHeaders.SERVER_ADDRESS, address())
+          .addHeader(EventBusHeaders.SERVER_STREAM_ID, Long.toString(registration.id()))
+          .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(window));
+
+        message.reply(Buffer.buffer(), replyOptions);
 
         try {
           ServiceMethodInvoker<Req, Resp> invoker = service.invoker(serviceMethod);
