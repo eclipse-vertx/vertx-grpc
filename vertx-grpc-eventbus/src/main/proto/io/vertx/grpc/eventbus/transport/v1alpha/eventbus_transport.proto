@@ -5,42 +5,26 @@ package io.vertx.grpc.eventbus.transport.v1alpha;
 option java_package = "io.vertx.grpc.eventbus.transport.v1alpha";
 option java_multiple_files = true;
 
-// A frame exchanged over the event bus during a streaming gRPC call. Unary calls
-// do not use these frames; they map to a plain request/reply. A streaming call
-// opens with a request (its body an Initialize) whose reply is an Initialized. Each
-// endpoint multiplexes all of its streams over a single private address, and
-// stream_id demuxes the call on that address. Frames are serialized as protobuf
-// binary. The handshake and flow control are described in the module README.
+// A frame exchanged over the event bus during a streaming gRPC call, on the private
+// address only. Unary calls do not use these frames; they map to a plain request/reply.
+// The opening handshake is an upgrade-style request/reply too: the request carries the
+// client's address and stream id as delivery headers and the reply answers with the
+// server's address, stream id and initial window, both with empty bodies. Once open,
+// each endpoint multiplexes all of its streams over a single private address, and
+// stream_id demuxes the call on that address. Frames are serialized as protobuf binary.
+// The handshake and flow control are described in the module README.
 message TransportFrame {
   uint64 stream_id = 1; // the destination endpoint's id for this call, demuxes it on the shared private address
   uint64 stream_sequence = 2; // per-stream, monotonic, advances on Message frames only
 
   oneof frame {
-    Initialize initialize = 3; // client to server, the opening request body
-    Initialized initialized = 4; // server to client, the open reply
-    Message message = 5; // a message payload, either direction
-    WindowUpdate window_update = 6; // flow-control credit, either direction
-    HalfClose half_close = 7; // client to server, end of the request stream
-    Trailers trailers = 8; // server to client, terminates the call
-    Cancel cancel = 9; // either direction, abnormal termination
-    Headers headers = 10; // server to client, response metadata, before the first message
+    Message message = 3; // a message payload, either direction
+    WindowUpdate window_update = 4; // flow-control credit, either direction
+    HalfClose half_close = 5; // client to server, end of the request stream
+    Trailers trailers = 6; // server to client, terminates the call
+    Cancel cancel = 7; // either direction, abnormal termination
+    Headers headers = 8; // server to client, response metadata, before the first message
   }
-}
-
-// Client to server, the body of a streaming call's opening request. The server
-// tags every server to client frame with client_stream_id.
-message Initialize {
-  string client_address = 1; // client's private address for server to client frames
-  uint64 client_stream_id = 2; // the client's id for this call
-}
-
-// Server to client, the reply to a streaming call's opening request. The client
-// tags every client to server frame with server_stream_id. Response initial
-// metadata does not ride here; it follows as a Headers frame.
-message Initialized {
-  string server_address = 1; // server's private address for client to server frames
-  uint64 server_stream_id = 3; // the server's id for this call
-  uint32 initial_window = 2; // messages the server grants the client to send
 }
 
 // Server to client, response initial metadata, ordered ahead of the first response

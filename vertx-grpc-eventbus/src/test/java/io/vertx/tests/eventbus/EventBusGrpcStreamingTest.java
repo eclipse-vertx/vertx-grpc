@@ -4,6 +4,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -23,6 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class EventBusGrpcStreamingTest extends GrpcTestBase {
 
@@ -39,6 +41,9 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     ServiceMethod.client(TestConstants.TEST_SERVICE, "Sink", MethodType.CLIENT_STREAMING, TestConstants.REQUEST_ENC, TestConstants.EMPTY_DEC);
   private static final ServiceMethod<Reply, Request> PIPE_CLIENT =
     ServiceMethod.client(TestConstants.TEST_SERVICE, "Pipe", MethodType.BIDI, TestConstants.REQUEST_ENC, TestConstants.REPLY_DEC);
+
+  private static final ServiceMethod<Reply, Empty> UNKNOWN_CLIENT =
+    ServiceMethod.client(TestConstants.TEST_SERVICE, "Unknown", MethodType.SERVER_STREAMING, TestConstants.EMPTY_ENC, TestConstants.REPLY_DEC);
 
   private EventBusGrpcServer server;
   private EventBusGrpcClient client;
@@ -463,5 +468,23 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     assertEquals(count, replies.size());
     assertEquals("x-0", replies.get(0).getMessage());
     assertEquals("x-" + (count - 1), replies.get(count - 1).getMessage());
+  }
+
+  @Test
+  public void testInitialFailureSurfacesError() throws Exception {
+    server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> request.response().end()));
+
+    try {
+      client.request(UNKNOWN_CLIENT)
+        .compose(request -> {
+          request.end(Empty.getDefaultInstance());
+          return request.response();
+        })
+        .compose(GrpcReadStream::last)
+        .await(10, TimeUnit.SECONDS);
+      fail("Should have thrown");
+    } catch (InvalidStatusException e) {
+      assertEquals(GrpcStatus.UNIMPLEMENTED, e.actualStatus());
+    }
   }
 }

@@ -16,10 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * A client or server endpoint that multiplexes all of its streams over a single private address. The consumer on that
- * address is bound at creation, so streams just insert into the map and demux from it, with no lazy registration.
- */
 abstract class EventBusStreamEndpoint {
 
   private final ContextInternal context;
@@ -48,14 +44,8 @@ abstract class EventBusStreamEndpoint {
     return address;
   }
 
-  long register(FrameHandler stream) {
-    long id = sequence.incrementAndGet();
-    streams.put(id, stream);
-    return id;
-  }
-
-  void closed(FrameHandler stream) {
-    streams.values().remove(stream);
+  StreamRegistration createStream() {
+    return new StreamRegistration(sequence.incrementAndGet());
   }
 
   Future<Void> bind() {
@@ -89,5 +79,26 @@ abstract class EventBusStreamEndpoint {
       consumer = null;
     }
     return Future.all(futures).mapEmpty();
+  }
+
+  final class StreamRegistration {
+
+    private final long id;
+
+    private StreamRegistration(long id) {
+      this.id = id;
+    }
+
+    long id() {
+      return id;
+    }
+
+    void bind(FrameHandler stream) {
+      streams.put(id, stream);
+    }
+
+    void unbind() {
+      streams.remove(id);
+    }
   }
 }

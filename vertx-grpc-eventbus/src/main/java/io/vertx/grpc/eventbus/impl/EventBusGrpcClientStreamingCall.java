@@ -11,8 +11,6 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.eventbus.transport.v1alpha.Cancel;
 import io.vertx.grpc.eventbus.transport.v1alpha.HalfClose;
-import io.vertx.grpc.eventbus.transport.v1alpha.Initialize;
-import io.vertx.grpc.eventbus.transport.v1alpha.Initialized;
 import io.vertx.grpc.eventbus.transport.v1alpha.Trailers;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
@@ -39,10 +37,13 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements 
   private MultiMap requestHeaders;
   private Duration timeout;
 
-  private State state = State.IDLE;
   private boolean ended;
+  private State state = State.IDLE;
+
   private String serverAddress;
   private long serverStreamId;
+
+  private EventBusStreamEndpoint.StreamRegistration registration;
 
   public EventBusGrpcClientStreamingCall(ContextInternal context, EventBusStreamEndpoint endpoint, ServiceName serviceName, String methodName) {
     super(context, DEFAULT_WINDOW);
@@ -108,9 +109,13 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements 
     WireFormat wireFormat = Optional.ofNullable(this.wireFormat).orElse(WireFormat.PROTOBUF);
     String encoding = Optional.ofNullable(this.encoding).orElse("identity");
 
+    registration = endpoint.createStream();
+
     DeliveryOptions options = new DeliveryOptions()
       .addHeader(EventBusHeaders.ACTION, methodName)
-      .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+      .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name())
+      .addHeader(EventBusHeaders.CLIENT_ADDRESS, endpoint.address())
+      .addHeader(EventBusHeaders.CLIENT_STREAM_ID, Long.toString(registration.id()));
 
     if (timeout != null) {
       options.setSendTimeout(timeout.toMillis());
@@ -120,15 +125,8 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements 
       EventBusHeaders.encodeMultiMap(HEADER_PREFIX, requestHeaders, options.getHeaders());
     }
 
-    long clientStreamId = endpoint.register(this);
-    Initialize initialize = Initialize.newBuilder()
-      .setClientAddress(endpoint.address())
-      .setClientStreamId(clientStreamId)
-      .build();
-    Buffer body = EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setInitialize(initialize));
-
     Promise<Void> promise = context.promise();
-    eventBus.request(serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
+    eventBus.request(serviceName.fullyQualifiedName(), Buffer.buffer(), options).onComplete(ar -> {
       if (ar.failed()) {
         handleFailure(ar.cause(), encoding, wireFormat);
         promise.fail(ar.cause());
@@ -149,14 +147,16 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements 
   }
 
   private void handleInitialized(Message<Object> reply, String encoding, WireFormat wireFormat) {
-    Initialized initialized = EventBusGrpcCodec.decodeFrame(reply).getInitialized();
-    this.serverAddress = initialized.getServerAddress();
-    this.serverStreamId = initialized.getServerStreamId();
+    MultiMap replyHeaders = reply.headers();
+    this.serverAddress = replyHeaders.get(EventBusHeaders.SERVER_ADDRESS);
+    this.serverStreamId = Long.parseLong(replyHeaders.get(EventBusHeaders.SERVER_STREAM_ID));
     this.encoding = encoding;
     this.wireFormat = wireFormat;
+    this.state = State.STREAMING;
 
-    state = State.STREAMING;
-    grantSendWindow(initialized.getInitialWindow());
+    registration.bind(this);
+
+    grantSendWindow(Integer.parseInt(replyHeaders.get(EventBusHeaders.INITIAL_WINDOW)));
 
     sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(window)));
     GrpcMessage message;
@@ -237,7 +237,9 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements 
       return;
     }
     state = State.CLOSED;
-    endpoint.closed(this);
+    if (registration != null) {
+      registration.unbind();
+    }
   }
 
   private enum State {
