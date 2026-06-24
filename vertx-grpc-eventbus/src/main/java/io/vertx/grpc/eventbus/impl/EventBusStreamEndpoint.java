@@ -7,6 +7,7 @@ import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 
 import java.util.ArrayList;
@@ -18,10 +19,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 abstract class EventBusStreamEndpoint {
 
+  protected final ConcurrentMap<Long, FrameHandler> streams = new ConcurrentHashMap<>();
+  protected volatile int maxConcurrentStreams = EventBusGrpcServerOptions.DEFAULT_MAX_CONCURRENT_STREAMS;
+
   private final ContextInternal context;
   private final EventBus eventBus;
   private final String address;
-  private final ConcurrentMap<Long, FrameHandler> streams = new ConcurrentHashMap<>();
   private final AtomicLong sequence = new AtomicLong();
 
   private MessageConsumer<Object> consumer;

@@ -12,6 +12,7 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
+import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceMethodInvoker;
@@ -28,13 +29,14 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
   private final Vertx vertx;
   private final Map<String, ServiceConsumer> consumers = new HashMap<>();
 
-  private EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus) {
+  private EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
     super(vertx, eventBus, "grpc.eb.server.");
     this.vertx = vertx;
+    this.maxConcurrentStreams = options.getMaxConcurrentStreams();
   }
 
-  public static Future<EventBusGrpcServer> create(Vertx vertx, EventBus eventBus) {
-    EventBusGrpcServerImpl server = new EventBusGrpcServerImpl(vertx, eventBus);
+  public static Future<EventBusGrpcServer> create(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
+    EventBusGrpcServerImpl server = new EventBusGrpcServerImpl(vertx, eventBus, options);
     return server.bind().map(server);
   }
 
@@ -255,7 +257,6 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
     }
 
     private <Req, Resp> void dispatchStreaming(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
-
       String clientAddress = message.headers().get(EventBusHeaders.CLIENT_ADDRESS);
       String clientStreamIdHeader = message.headers().get(EventBusHeaders.CLIENT_STREAM_ID);
       if (clientAddress == null || clientStreamIdHeader == null) {
@@ -277,6 +278,10 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
 
       context().runOnContext(v -> {
+        if (streams.size() >= maxConcurrentStreams) {
+          message.fail(GrpcStatus.RESOURCE_EXHAUSTED.code, "Too many concurrent streams");
+          return;
+        }
         EventBusStreamEndpoint.StreamRegistration registration = createStream();
         EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
           context(),
