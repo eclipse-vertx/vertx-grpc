@@ -2,11 +2,16 @@ package io.vertx.tests.eventbus;
 
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.DeliveryOptions;
+import io.vertx.core.eventbus.ReplyException;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
+import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
+import io.vertx.grpc.eventbus.impl.EventBusHeaders;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.tests.common.GrpcTestBase;
 import io.vertx.tests.common.grpc.*;
@@ -485,6 +490,69 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
       fail("Should have thrown");
     } catch (InvalidStatusException e) {
       assertEquals(GrpcStatus.UNIMPLEMENTED, e.actualStatus());
+    }
+  }
+
+  @Test
+  public void testMalformedHandshakeReplyFailsFast() throws Exception {
+    String fqn = SOURCE_SERVER.serviceName().fullyQualifiedName();
+    vertx.eventBus().<Buffer>consumer(fqn, msg -> msg.reply(Buffer.buffer(), new DeliveryOptions()
+      .addHeader(EventBusHeaders.SERVER_ADDRESS, "s.addr")
+      .addHeader(EventBusHeaders.INITIAL_WINDOW, "64"))).completion().await(5, TimeUnit.SECONDS);
+
+    try {
+      client.request(SOURCE_CLIENT)
+        .compose(request -> {
+          request.end(Empty.getDefaultInstance());
+          return request.response();
+        })
+        .compose(GrpcReadStream::last)
+        .await(5, TimeUnit.SECONDS);
+      fail("a malformed handshake reply should fail the call");
+    } catch (InvalidStatusException e) {
+      assertEquals(GrpcStatus.INTERNAL, e.actualStatus());
+    }
+  }
+
+  @Test
+  public void testInvalidWireFormatIsRejected() throws Exception {
+    server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> request.response().end()));
+
+    DeliveryOptions options = new DeliveryOptions()
+      .addHeader(EventBusHeaders.ACTION, "Source")
+      .addHeader(EventBusHeaders.WIRE_FORMAT, "NOT_A_FORMAT")
+      .addHeader(EventBusHeaders.CLIENT_ADDRESS, "c.addr")
+      .addHeader(EventBusHeaders.CLIENT_STREAM_ID, "1")
+      .setSendTimeout(3000);
+    try {
+      vertx.eventBus().request(SOURCE_SERVER.serviceName().fullyQualifiedName(), Buffer.buffer(), options)
+        .await(5, TimeUnit.SECONDS);
+      fail("an invalid wire format should be rejected");
+    } catch (ReplyException e) {
+      assertEquals(GrpcStatus.INVALID_ARGUMENT.code, e.failureCode());
+    }
+  }
+
+  @Test
+  public void testMaxConcurrentStreamsRejectsExcess() throws Exception {
+    EventBusGrpcServer capped = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setMaxConcurrentStreams(2)).await();
+    capped.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {}));
+    String fqn = SOURCE_SERVER.serviceName().fullyQualifiedName();
+
+    DeliveryOptions open = new DeliveryOptions()
+      .addHeader(EventBusHeaders.ACTION, "Source")
+      .addHeader(EventBusHeaders.WIRE_FORMAT, "PROTOBUF")
+      .addHeader(EventBusHeaders.CLIENT_ADDRESS, "c.addr")
+      .setSendTimeout(3000);
+
+    vertx.eventBus().request(fqn, Buffer.buffer(), new DeliveryOptions(open).addHeader(EventBusHeaders.CLIENT_STREAM_ID, "1")).await(5, TimeUnit.SECONDS);
+    vertx.eventBus().request(fqn, Buffer.buffer(), new DeliveryOptions(open).addHeader(EventBusHeaders.CLIENT_STREAM_ID, "2")).await(5, TimeUnit.SECONDS);
+
+    try {
+      vertx.eventBus().request(fqn, Buffer.buffer(), new DeliveryOptions(open).addHeader(EventBusHeaders.CLIENT_STREAM_ID, "3")).await(5, TimeUnit.SECONDS);
+      fail("the third open should be rejected over the cap");
+    } catch (ReplyException e) {
+      assertEquals(GrpcStatus.RESOURCE_EXHAUSTED.code, e.failureCode());
     }
   }
 }

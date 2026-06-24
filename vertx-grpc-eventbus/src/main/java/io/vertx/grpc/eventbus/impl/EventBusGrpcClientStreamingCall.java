@@ -130,9 +130,15 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements 
       if (ar.failed()) {
         handleFailure(ar.cause(), encoding, wireFormat);
         promise.fail(ar.cause());
-      } else {
-        handleInitialized(ar.result(), encoding, wireFormat);
+        return;
+      }
+
+      Throwable malformed = handleInitialized(ar.result(), encoding, wireFormat);
+      if (malformed == null) {
         promise.complete();
+      } else {
+        handleFailure(malformed, encoding, wireFormat);
+        promise.fail(malformed);
       }
     });
     return promise.future();
@@ -146,17 +152,35 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements 
     emitEnd();
   }
 
-  private void handleInitialized(Message<Object> reply, String encoding, WireFormat wireFormat) {
+  private Throwable handleInitialized(Message<Object> reply, String encoding, WireFormat wireFormat) {
     MultiMap replyHeaders = reply.headers();
-    this.serverAddress = replyHeaders.get(EventBusHeaders.SERVER_ADDRESS);
-    this.serverStreamId = Long.parseLong(replyHeaders.get(EventBusHeaders.SERVER_STREAM_ID));
+    String serverAddress = replyHeaders.get(EventBusHeaders.SERVER_ADDRESS);
+    String serverStreamIdHeader = replyHeaders.get(EventBusHeaders.SERVER_STREAM_ID);
+    String initialWindowHeader = replyHeaders.get(EventBusHeaders.INITIAL_WINDOW);
+
+    if (serverAddress == null || serverStreamIdHeader == null || initialWindowHeader == null) {
+      return new IllegalStateException("Malformed stream handshake reply: missing handshake headers");
+    }
+
+    long serverStreamId;
+    int initialWindow;
+
+    try {
+      serverStreamId = Long.parseLong(serverStreamIdHeader);
+      initialWindow = Integer.parseInt(initialWindowHeader);
+    } catch (NumberFormatException e) {
+      return new IllegalStateException("Malformed stream handshake reply: non-numeric handshake headers");
+    }
+
+    this.serverAddress = serverAddress;
+    this.serverStreamId = serverStreamId;
     this.encoding = encoding;
     this.wireFormat = wireFormat;
     this.state = State.STREAMING;
 
     registration.bind(this);
 
-    grantSendWindow(Integer.parseInt(replyHeaders.get(EventBusHeaders.INITIAL_WINDOW)));
+    grantSendWindow(initialWindow);
 
     sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(window)));
     GrpcMessage message;
@@ -166,6 +190,8 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements 
     if (ended) {
       sendHalfClose();
     }
+
+    return null;
   }
 
   @Override
