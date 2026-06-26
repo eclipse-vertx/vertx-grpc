@@ -255,7 +255,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements 
       return;
     }
     builder.setStreamId(serverStreamId);
-    eventBus.send(serverAddress, EventBusGrpcCodec.encodeFrame(builder));
+    eventBus.send(serverAddress, EventBusGrpcCodec.encodeFrame(builder, wireFormat), new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name()));
   }
 
   private void terminate() {

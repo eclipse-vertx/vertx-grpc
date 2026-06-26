@@ -40,12 +40,14 @@ final class EventBusGrpcCodec {
     throw new IllegalStateException("Unsupported event bus body type: " + body.getClass().getName());
   }
 
-  static Buffer encodeFrame(TransportFrame.Builder builder) {
-    return FRAME_ENCODER.encode(builder.build(), WireFormat.PROTOBUF).payload();
+  static Buffer encodeFrame(TransportFrame.Builder builder, WireFormat format) {
+    return FRAME_ENCODER.encode(builder.build(), format).payload();
   }
 
   static TransportFrame decodeFrame(Message<Object> message) {
-    return FRAME_DECODER.decode(GrpcMessage.message("identity", WireFormat.PROTOBUF, (Buffer) message.body()));
+    String header = message.headers().get(EventBusHeaders.WIRE_FORMAT);
+    WireFormat format = header == null ? WireFormat.PROTOBUF : WireFormat.valueOf(header);
+    return FRAME_DECODER.decode(GrpcMessage.message("identity", format, decodeBody(message.body())));
   }
 
   static GrpcMessage message(TransportFrame frame, String encoding, WireFormat wireFormat) {

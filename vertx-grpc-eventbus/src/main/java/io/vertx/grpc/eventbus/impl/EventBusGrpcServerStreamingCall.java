@@ -127,7 +127,8 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase implements 
       EventBusHeaders.encodeMultiMap(HEADER_PREFIX, headers, delivery);
       options.setHeaders(delivery);
     }
-    eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setStreamId(clientStreamId).setHeaders(Headers.newBuilder())), options);
+    options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+    eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setStreamId(clientStreamId).setHeaders(Headers.newBuilder()), wireFormat), options);
   }
 
   private void sendTrailers(GrpcTrailersFrame frame) {
@@ -142,7 +143,8 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase implements 
       EventBusHeaders.encodeMultiMap(TRAILER_PREFIX, headers, delivery);
       options.setHeaders(delivery);
     }
-    eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setStreamId(clientStreamId).setTrailers(trailers)), options);
+    options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+    eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setStreamId(clientStreamId).setTrailers(trailers), wireFormat), options);
   }
 
   @Override
@@ -163,7 +165,8 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase implements 
   @Override
   protected void sendTransportFrame(TransportFrame.Builder builder) {
     builder.setStreamId(clientStreamId);
-    eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(builder));
+    eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(builder, wireFormat),
+      new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name()));
   }
 
   private void terminate() {
