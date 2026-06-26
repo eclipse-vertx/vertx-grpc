@@ -5,10 +5,12 @@ import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.ReplyException;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
+import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
@@ -20,13 +22,16 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -553,6 +558,93 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
       fail("the third open should be rejected over the cap");
     } catch (ReplyException e) {
       assertEquals(GrpcStatus.RESOURCE_EXHAUSTED.code, e.failureCode());
+    }
+  }
+
+  @Test
+  public void testJsonWireFormatEncodesFramesAsJson() throws Exception {
+    server.callHandler(PIPE_SERVER, request -> {
+      request.handler(req -> request.response().write(Reply.newBuilder().setMessage("echo-" + req.getName()).build()));
+      request.endHandler(v -> request.response().end());
+    });
+
+    List<JsonObject> frames = new CopyOnWriteArrayList<>();
+    vertx.eventBus().addOutboundInterceptor(ctx -> {
+      Object body = ctx.message().body();
+      if (ctx.message().address().startsWith("grpc.eb.") && body instanceof Buffer && ((Buffer) body).length() > 0) {
+        frames.add(new JsonObject((Buffer) body));
+      }
+      ctx.next();
+    });
+
+    List<Reply> replies = client.request(PIPE_CLIENT)
+      .compose(request -> {
+        request.format(WireFormat.JSON);
+        request.write(Request.newBuilder().setName("a").build());
+        request.end(Request.newBuilder().setName("b").build());
+        return request.response();
+      })
+      .compose(EventBusGrpcStreamingTest::collect)
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals(2, replies.size());
+    assertEquals("echo-a", replies.get(0).getMessage());
+    assertFalse("expected JSON transport frames on the bus", frames.isEmpty());
+    assertTrue("a message frame should carry a JSON message object", frames.stream().anyMatch(f -> f.containsKey("message")));
+  }
+
+  @Test
+  public void testClientDefaultWireFormatAppliesWithoutOverride() throws Exception {
+    EventBusGrpcClient jsonClient = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setWireFormat(WireFormat.JSON)).await();
+    server.callHandler(PIPE_SERVER, request -> {
+      request.handler(req -> request.response().write(Reply.newBuilder().setMessage("echo-" + req.getName()).build()));
+      request.endHandler(v -> request.response().end());
+    });
+
+    List<JsonObject> frames = new CopyOnWriteArrayList<>();
+    vertx.eventBus().addOutboundInterceptor(ctx -> {
+      Object body = ctx.message().body();
+      if (ctx.message().address().startsWith("grpc.eb.") && body instanceof Buffer && ((Buffer) body).length() > 0) {
+        frames.add(new JsonObject((Buffer) body));
+      }
+      ctx.next();
+    });
+
+    List<Reply> replies = jsonClient.request(PIPE_CLIENT)
+      .compose(request -> {
+        request.write(Request.newBuilder().setName("a").build());
+        request.end(Request.newBuilder().setName("b").build());
+        return request.response();
+      })
+      .compose(EventBusGrpcStreamingTest::collect)
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals(2, replies.size());
+    assertFalse("the client's default wire format should produce JSON frames without request.format()", frames.isEmpty());
+    assertTrue(frames.stream().anyMatch(f -> f.containsKey("message")));
+  }
+
+  @Test
+  public void testUnsupportedWireFormatRejected() throws Exception {
+    EventBusGrpcServer protobufOnly = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setSupportedWireFormats(EnumSet.of(WireFormat.PROTOBUF))).await();
+    protobufOnly.callHandler(PIPE_SERVER, request -> {
+      request.handler(req -> request.response().write(Reply.newBuilder().setMessage("echo-" + req.getName()).build()));
+      request.endHandler(v -> request.response().end());
+    });
+
+    try {
+      client.request(PIPE_CLIENT)
+        .compose(request -> {
+          request.format(WireFormat.JSON);
+          request.write(Request.newBuilder().setName("a").build());
+          request.end(Request.newBuilder().setName("b").build());
+          return request.response();
+        })
+        .compose(GrpcReadStream::last)
+        .await(10, TimeUnit.SECONDS);
+      fail("a JSON request to a PROTOBUF-only server should be rejected");
+    } catch (InvalidStatusException e) {
+      assertEquals(GrpcStatus.UNIMPLEMENTED, e.actualStatus());
     }
   }
 }

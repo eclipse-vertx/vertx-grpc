@@ -28,11 +28,13 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
 
   private final Vertx vertx;
   private final Map<String, ServiceConsumer> consumers = new HashMap<>();
+  private final Set<WireFormat> supportedWireFormats;
 
   private EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
     super(vertx, eventBus, "grpc.eb.server.");
     this.vertx = vertx;
     this.maxConcurrentStreams = options.getMaxConcurrentStreams();
+    this.supportedWireFormats = EnumSet.copyOf(options.getSupportedWireFormats());
   }
 
   public static Future<EventBusGrpcServer> create(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
@@ -204,6 +206,11 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
         wireFormat = WireFormat.JSON;
       } else {
         message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Unknown wire format: " + wireFormatName);
+        return;
+      }
+
+      if (!supportedWireFormats.contains(wireFormat)) {
+        message.fail(GrpcStatus.UNIMPLEMENTED.code, "Unsupported wire format: " + wireFormat);
         return;
       }
 
