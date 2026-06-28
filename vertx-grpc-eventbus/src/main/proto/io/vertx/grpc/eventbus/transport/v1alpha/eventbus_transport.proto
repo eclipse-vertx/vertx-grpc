@@ -11,8 +11,10 @@ option java_multiple_files = true;
 // client's address and stream id as delivery headers and the reply answers with the
 // server's address, stream id and initial window, both with empty bodies. Once open,
 // each endpoint multiplexes all of its streams over a single private address, and
-// stream_id demuxes the call on that address. Frames are serialized as protobuf binary.
-// The handshake and flow control are described in the module README.
+// stream_id demuxes the call on that address. Frames are serialized in the call's wire
+// format - protobuf binary, or JSON when the call runs in JSON mode, named in the
+// frame's grpc-wire-format header. The handshake and flow control are described in the
+// module README.
 message TransportFrame {
   uint64 stream_id = 1; // the destination endpoint's id for this call, demuxes it on the shared private address
   uint64 stream_sequence = 2; // per-stream, monotonic, advances on Message frames only
