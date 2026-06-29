@@ -30,6 +30,8 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
   private static final ServiceMethod<Reply, Request> UNARY = ServiceMethod.client(
     TestConstants.TEST_SERVICE,
     "Unary",
+    false,
+    false,
     TestConstants.REQUEST_ENC,
     TestConstants.REPLY_DEC
   );

@@ -20,7 +20,7 @@ import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
-class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase implements FrameHandler {
+class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
   private final EventBus eventBus;
   private final EventBusStreamEndpoint.StreamRegistration registration;

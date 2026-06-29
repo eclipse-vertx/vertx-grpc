@@ -9,6 +9,7 @@ import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.JsonWireFormat;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 
@@ -46,7 +47,7 @@ final class EventBusGrpcCodec {
 
   static TransportFrame decodeFrame(Message<Object> message) {
     String header = message.headers().get(EventBusHeaders.WIRE_FORMAT);
-    WireFormat format = header == null ? WireFormat.PROTOBUF : WireFormat.valueOf(header);
+    WireFormat format = JsonWireFormat.NAME.equals(header) ? WireFormat.JSON : WireFormat.PROTOBUF;
     return FRAME_DECODER.decode(GrpcMessage.message("identity", format, decodeBody(message.body())));
   }
 

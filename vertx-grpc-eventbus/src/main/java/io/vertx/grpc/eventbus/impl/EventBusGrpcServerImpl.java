@@ -33,8 +33,7 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
   private EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
     super(vertx, eventBus, "grpc.eb.server.");
     this.vertx = vertx;
-    this.maxConcurrentStreams = options.getMaxConcurrentStreams();
-    this.supportedWireFormats = EnumSet.copyOf(options.getSupportedWireFormats());
+    this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
   }
 
   public static Future<EventBusGrpcServer> create(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
@@ -226,7 +225,7 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
         message.fail(GrpcStatus.UNIMPLEMENTED.code, "Method not found: " + methodName);
         return;
       }
-      if (serviceMethod.type().streaming()) {
+      if (serviceMethod.clientStreaming() || serviceMethod.serverStreaming()) {
         dispatchStreaming(message, serviceMethod, wireFormat);
       } else {
         dispatchUnary(message, serviceMethod, wireFormat);
@@ -285,10 +284,6 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
 
       context().runOnContext(v -> {
-        if (streams.size() >= maxConcurrentStreams) {
-          message.fail(GrpcStatus.RESOURCE_EXHAUSTED.code, "Too many concurrent streams");
-          return;
-        }
         EventBusStreamEndpoint.StreamRegistration registration = createStream();
         EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
           context(),

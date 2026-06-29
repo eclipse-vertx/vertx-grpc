@@ -50,7 +50,7 @@ public class GrpcIoClientChannel extends io.grpc.Channel {
 
     GrpcMessageDecoder<ResponseT> messageDecoder = new BridgeMessageDecoder<>(methodDescriptor.getResponseMarshaller(), null);
     GrpcMessageEncoder<RequestT> messageEncoder = new BridgeMessageEncoder<>(methodDescriptor.getRequestMarshaller(), null);
-    ServiceMethod<ResponseT, RequestT> serviceMethod = ServiceMethod.client(ServiceName.create(methodDescriptor.getServiceName()), methodDescriptor.getBareMethodName(), messageEncoder, messageDecoder);
+    ServiceMethod<ResponseT, RequestT> serviceMethod = ServiceMethod.client(ServiceName.create(methodDescriptor.getServiceName()), methodDescriptor.getBareMethodName(), !methodDescriptor.getType().clientSendsOneMessage(), !methodDescriptor.getType().serverSendsOneMessage(), messageEncoder, messageDecoder);
 
 
     String encoding = callOptions.getCompressor();

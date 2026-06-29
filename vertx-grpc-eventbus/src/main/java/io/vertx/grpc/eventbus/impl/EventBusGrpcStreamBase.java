@@ -1,6 +1,7 @@
 package io.vertx.grpc.eventbus.impl;
 
 import com.google.protobuf.ByteString;
+import io.vertx.core.Closeable;
 import io.vertx.core.Handler;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.GrpcMessage;
@@ -15,7 +16,7 @@ import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-abstract class EventBusGrpcStreamBase implements GrpcStream {
+abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
   static final int DEFAULT_WINDOW = 64;
 
@@ -42,6 +43,8 @@ abstract class EventBusGrpcStreamBase implements GrpcStream {
   }
 
   protected abstract void sendTransportFrame(TransportFrame.Builder frame);
+
+  abstract void handle(TransportFrame frame, io.vertx.core.eventbus.Message<Object> message);
 
   protected void onInboundMessage() {
     granted--;

@@ -24,7 +24,7 @@ import java.util.concurrent.CancellationException;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
-class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase implements FrameHandler {
+class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
   private final EventBusStreamEndpoint endpoint;
   private final EventBus eventBus;

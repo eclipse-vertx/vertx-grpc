@@ -12,11 +12,6 @@ public class EventBusGrpcClientOptionsConverter {
    static void fromJson(Iterable<java.util.Map.Entry<String, Object>> json, EventBusGrpcClientOptions obj) {
     for (java.util.Map.Entry<String, Object> member : json) {
       switch (member.getKey()) {
-        case "wireFormat":
-          if (member.getValue() instanceof String) {
-            obj.setWireFormat(io.vertx.grpc.common.WireFormat.valueOf((String)member.getValue()));
-          }
-          break;
       }
     }
   }
@@ -26,8 +21,5 @@ public class EventBusGrpcClientOptionsConverter {
   }
 
    static void toJson(EventBusGrpcClientOptions obj, java.util.Map<String, Object> json) {
-    if (obj.getWireFormat() != null) {
-      json.put("wireFormat", obj.getWireFormat().name());
-    }
   }
 }
