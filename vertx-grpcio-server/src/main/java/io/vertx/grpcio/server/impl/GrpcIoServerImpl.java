@@ -50,6 +50,8 @@ public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
     ServiceMethod<Req, Resp> serviceMethod = ServiceMethod.server(
       ServiceName.create(methodDesc.getServiceName()),
       methodDesc.getBareMethodName(),
+      !methodDesc.getType().clientSendsOneMessage(),
+      !methodDesc.getType().serverSendsOneMessage(),
       new BridgeMessageEncoder<>(methodDesc.getResponseMarshaller(), null),
       new BridgeMessageDecoder<>(methodDesc.getRequestMarshaller(), null)
     );

@@ -22,7 +22,6 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -39,21 +38,21 @@ import static org.junit.Assert.fail;
 public class EventBusGrpcStreamingTest extends GrpcTestBase {
 
   private static final ServiceMethod<Empty, Reply> SOURCE_SERVER =
-    ServiceMethod.server(TestConstants.TEST_SERVICE, "Source", MethodType.SERVER_STREAMING, TestConstants.REPLY_ENC, TestConstants.EMPTY_DEC);
+    ServiceMethod.server(TestConstants.TEST_SERVICE, "Source", false, true, TestConstants.REPLY_ENC, TestConstants.EMPTY_DEC);
   private static final ServiceMethod<Request, Empty> SINK_SERVER =
-    ServiceMethod.server(TestConstants.TEST_SERVICE, "Sink", MethodType.CLIENT_STREAMING, TestConstants.EMPTY_ENC, TestConstants.REQUEST_DEC);
+    ServiceMethod.server(TestConstants.TEST_SERVICE, "Sink", true, false, TestConstants.EMPTY_ENC, TestConstants.REQUEST_DEC);
   private static final ServiceMethod<Request, Reply> PIPE_SERVER =
-    ServiceMethod.server(TestConstants.TEST_SERVICE, "Pipe", MethodType.BIDI, TestConstants.REPLY_ENC, TestConstants.REQUEST_DEC);
+    ServiceMethod.server(TestConstants.TEST_SERVICE, "Pipe", true, true, TestConstants.REPLY_ENC, TestConstants.REQUEST_DEC);
 
   private static final ServiceMethod<Reply, Empty> SOURCE_CLIENT =
-    ServiceMethod.client(TestConstants.TEST_SERVICE, "Source", MethodType.SERVER_STREAMING, TestConstants.EMPTY_ENC, TestConstants.REPLY_DEC);
+    ServiceMethod.client(TestConstants.TEST_SERVICE, "Source", false, true, TestConstants.EMPTY_ENC, TestConstants.REPLY_DEC);
   private static final ServiceMethod<Empty, Request> SINK_CLIENT =
-    ServiceMethod.client(TestConstants.TEST_SERVICE, "Sink", MethodType.CLIENT_STREAMING, TestConstants.REQUEST_ENC, TestConstants.EMPTY_DEC);
+    ServiceMethod.client(TestConstants.TEST_SERVICE, "Sink", true, false, TestConstants.REQUEST_ENC, TestConstants.EMPTY_DEC);
   private static final ServiceMethod<Reply, Request> PIPE_CLIENT =
-    ServiceMethod.client(TestConstants.TEST_SERVICE, "Pipe", MethodType.BIDI, TestConstants.REQUEST_ENC, TestConstants.REPLY_DEC);
+    ServiceMethod.client(TestConstants.TEST_SERVICE, "Pipe", true, true, TestConstants.REQUEST_ENC, TestConstants.REPLY_DEC);
 
   private static final ServiceMethod<Reply, Empty> UNKNOWN_CLIENT =
-    ServiceMethod.client(TestConstants.TEST_SERVICE, "Unknown", MethodType.SERVER_STREAMING, TestConstants.EMPTY_ENC, TestConstants.REPLY_DEC);
+    ServiceMethod.client(TestConstants.TEST_SERVICE, "Unknown", false, true, TestConstants.EMPTY_ENC, TestConstants.REPLY_DEC);
 
   private EventBusGrpcServer server;
   private EventBusGrpcClient client;
@@ -539,29 +538,6 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   }
 
   @Test
-  public void testMaxConcurrentStreamsRejectsExcess() throws Exception {
-    EventBusGrpcServer capped = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setMaxConcurrentStreams(2)).await();
-    capped.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {}));
-    String fqn = SOURCE_SERVER.serviceName().fullyQualifiedName();
-
-    DeliveryOptions open = new DeliveryOptions()
-      .addHeader(EventBusHeaders.ACTION, "Source")
-      .addHeader(EventBusHeaders.WIRE_FORMAT, "PROTOBUF")
-      .addHeader(EventBusHeaders.CLIENT_ADDRESS, "c.addr")
-      .setSendTimeout(3000);
-
-    vertx.eventBus().request(fqn, Buffer.buffer(), new DeliveryOptions(open).addHeader(EventBusHeaders.CLIENT_STREAM_ID, "1")).await(5, TimeUnit.SECONDS);
-    vertx.eventBus().request(fqn, Buffer.buffer(), new DeliveryOptions(open).addHeader(EventBusHeaders.CLIENT_STREAM_ID, "2")).await(5, TimeUnit.SECONDS);
-
-    try {
-      vertx.eventBus().request(fqn, Buffer.buffer(), new DeliveryOptions(open).addHeader(EventBusHeaders.CLIENT_STREAM_ID, "3")).await(5, TimeUnit.SECONDS);
-      fail("the third open should be rejected over the cap");
-    } catch (ReplyException e) {
-      assertEquals(GrpcStatus.RESOURCE_EXHAUSTED.code, e.failureCode());
-    }
-  }
-
-  @Test
   public void testJsonWireFormatEncodesFramesAsJson() throws Exception {
     server.callHandler(PIPE_SERVER, request -> {
       request.handler(req -> request.response().write(Reply.newBuilder().setMessage("echo-" + req.getName()).build()));
@@ -626,7 +602,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
 
   @Test
   public void testUnsupportedWireFormatRejected() throws Exception {
-    EventBusGrpcServer protobufOnly = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setSupportedWireFormats(EnumSet.of(WireFormat.PROTOBUF))).await();
+    EventBusGrpcServer protobufOnly = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setSupportedWireFormats(Collections.singleton(WireFormat.PROTOBUF))).await();
     protobufOnly.callHandler(PIPE_SERVER, request -> {
       request.handler(req -> request.response().write(Reply.newBuilder().setMessage("echo-" + req.getName()).build()));
       request.endHandler(v -> request.response().end());

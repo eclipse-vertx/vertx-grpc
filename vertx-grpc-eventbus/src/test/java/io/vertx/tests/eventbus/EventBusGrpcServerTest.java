@@ -33,6 +33,8 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
   private static final ServiceMethod<Request, Reply> UNARY = ServiceMethod.server(
     TestConstants.TEST_SERVICE,
     "Unary",
+    false,
+    false,
     TestConstants.REPLY_ENC,
     TestConstants.REQUEST_DEC
   );
@@ -122,7 +124,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
   @Test
   public void testUnimplementedMethod() throws TimeoutException {
-    ServiceMethod<Request, Reply> otherMethod = ServiceMethod.server(TestConstants.TEST_SERVICE, "Other", TestConstants.REPLY_ENC, TestConstants.REQUEST_DEC);
+    ServiceMethod<Request, Reply> otherMethod = ServiceMethod.server(TestConstants.TEST_SERVICE, "Other", false, false, TestConstants.REPLY_ENC, TestConstants.REQUEST_DEC);
     server.callHandler(otherMethod, request -> request.handler(msg -> request.response().end(Reply.getDefaultInstance())));
 
     Buffer payload = Buffer.buffer(Request.newBuilder().setName("Julien").build().toByteArray());

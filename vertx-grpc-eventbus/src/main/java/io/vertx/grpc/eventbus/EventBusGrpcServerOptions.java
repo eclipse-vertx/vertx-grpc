@@ -6,8 +6,9 @@ import io.vertx.codegen.json.annotations.JsonGen;
 import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.common.WireFormat;
 
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 @DataObject
@@ -16,32 +17,24 @@ import java.util.Set;
 public class EventBusGrpcServerOptions {
 
   /**
-   * The default maximum number of streams multiplexed concurrently over the server's private address = {@code 1000}
+   * The default set of wire formats the server accepts = {@code [proto, json]}
    */
-  public static final int DEFAULT_MAX_CONCURRENT_STREAMS = 1000;
+  public static final Set<WireFormat> DEFAULT_SUPPORTED_WIRE_FORMATS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(WireFormat.PROTOBUF, WireFormat.JSON)));
 
-  /**
-   * The default set of wire formats the server accepts = {@code [PROTOBUF, JSON]}
-   */
-  public static final Set<WireFormat> DEFAULT_SUPPORTED_WIRE_FORMATS = Collections.unmodifiableSet(EnumSet.allOf(WireFormat.class));
-
-  private int maxConcurrentStreams;
   private Set<WireFormat> supportedWireFormats;
 
   /**
    * Default options.
    */
   public EventBusGrpcServerOptions() {
-    maxConcurrentStreams = DEFAULT_MAX_CONCURRENT_STREAMS;
-    supportedWireFormats = EnumSet.copyOf(DEFAULT_SUPPORTED_WIRE_FORMATS);
+    supportedWireFormats = new LinkedHashSet<>(DEFAULT_SUPPORTED_WIRE_FORMATS);
   }
 
   /**
    * Copy constructor.
    */
   public EventBusGrpcServerOptions(EventBusGrpcServerOptions other) {
-    maxConcurrentStreams = other.maxConcurrentStreams;
-    supportedWireFormats = EnumSet.copyOf(other.supportedWireFormats);
+    supportedWireFormats = new LinkedHashSet<>(other.supportedWireFormats);
   }
 
   /**
@@ -50,29 +43,6 @@ public class EventBusGrpcServerOptions {
   public EventBusGrpcServerOptions(JsonObject json) {
     this();
     EventBusGrpcServerOptionsConverter.fromJson(json, this);
-  }
-
-  /**
-   * @return the maximum number of streams the server multiplexes concurrently over its private address
-   */
-  public int getMaxConcurrentStreams() {
-    return maxConcurrentStreams;
-  }
-
-  /**
-   * Set the maximum number of streams the server multiplexes concurrently over its private address. Opening requests
-   * beyond this bound are rejected with {@code RESOURCE_EXHAUSTED}, so a flood of opens cannot grow the demux map
-   * without limit.
-   *
-   * @param maxConcurrentStreams the maximum number of concurrent streams, must be {@code > 0}
-   * @return a reference to this, so the API can be used fluently
-   */
-  public EventBusGrpcServerOptions setMaxConcurrentStreams(int maxConcurrentStreams) {
-    if (maxConcurrentStreams <= 0) {
-      throw new IllegalArgumentException("maxConcurrentStreams must be > 0");
-    }
-    this.maxConcurrentStreams = maxConcurrentStreams;
-    return this;
   }
 
   /**
@@ -101,7 +71,7 @@ public class EventBusGrpcServerOptions {
     if (supportedWireFormats == null || supportedWireFormats.isEmpty()) {
       throw new IllegalArgumentException("supportedWireFormats must not be empty");
     }
-    this.supportedWireFormats = EnumSet.copyOf(supportedWireFormats);
+    this.supportedWireFormats = new LinkedHashSet<>(supportedWireFormats);
     return this;
   }
 

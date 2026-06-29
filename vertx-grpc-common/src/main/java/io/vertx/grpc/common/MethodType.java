@@ -26,6 +26,16 @@ public enum MethodType {
   BIDI;
 
   /**
+   * @return the method type for the given cardinality on each side
+   */
+  public static MethodType of(boolean clientStreaming, boolean serverStreaming) {
+    if (clientStreaming) {
+      return serverStreaming ? BIDI : CLIENT_STREAMING;
+    }
+    return serverStreaming ? SERVER_STREAMING : UNARY;
+  }
+
+  /**
    * @return whether the client sends a stream of requests
    */
   public boolean clientStreaming() {

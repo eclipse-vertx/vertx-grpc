@@ -74,7 +74,8 @@ public class {{grpcServiceFqn}} extends {{serviceFqn}} implements Service {
   public static final ServiceMethod<{{inputType}}, {{outputType}}> {{methodName}} = ServiceMethod.server(
     SERVICE_NAME,
     "{{methodName}}",
-    io.vertx.grpc.common.MethodType.{{methodType}},
+    {{isManyInput}},
+    {{isManyOutput}},
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder({{inputType}}.newBuilder()));
 {{/serviceMethods}}
