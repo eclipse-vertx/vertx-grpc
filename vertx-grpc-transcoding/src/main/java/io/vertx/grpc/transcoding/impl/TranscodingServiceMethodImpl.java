@@ -27,19 +27,25 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
   private final GrpcMessageEncoder<O> encoder;
   private final GrpcMessageDecoder<I> decoder;
   private final MethodTranscodingOptions options;
+  private final boolean streaming;
 
   private final PathMatcher pathMatcher;
 
   public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder) {
-    this(serviceName, methodName, encoder, decoder, null);
+    this(serviceName, methodName, encoder, decoder, null, false);
   }
 
   public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder, MethodTranscodingOptions options) {
+    this(serviceName, methodName, encoder, decoder, options, false);
+  }
+
+  public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder, MethodTranscodingOptions options, boolean streaming) {
     this.serviceName = serviceName;
     this.methodName = methodName;
     this.encoder = encoder;
     this.decoder = decoder;
     this.options = options;
+    this.streaming = streaming;
 
     // Init
     if (options != null) {
@@ -96,12 +102,12 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
       TranscodingMessageDecoder<I> messageDecoder = new TranscodingMessageDecoder<>(decoder, format, res.getBodyFieldPath(), bindings);
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer(format);
-      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, options.getResponseBody(), deframer);
+      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, options.getResponseBody(), deframer, streaming);
       return new GrpcInvocation(deframer, protocolHandler, messageDecoder);
     } else if (options == null) {
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer(format);
-      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, null, deframer);
+      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, null, deframer, streaming);
       return new GrpcInvocation(deframer, protocolHandler, decoder);
     }
 
@@ -131,5 +137,10 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
   @Override
   public MethodTranscodingOptions options() {
     return options;
+  }
+
+  @Override
+  public boolean streaming() {
+    return streaming;
   }
 }

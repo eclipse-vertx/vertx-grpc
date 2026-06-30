@@ -89,7 +89,8 @@ public class GreeterGrpcService extends GreeterService implements Service {
     "SayHello",
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.grpc.HelloRequest.newBuilder()),
-    SayHello_OPTIONS
+    SayHello_OPTIONS,
+    false
   );
 
   private final Invoker invoker = new Invoker(this, all());
