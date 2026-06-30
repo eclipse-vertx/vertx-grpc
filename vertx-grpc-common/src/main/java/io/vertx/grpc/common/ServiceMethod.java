@@ -19,6 +19,14 @@ import io.vertx.codegen.annotations.GenIgnore;
 public interface ServiceMethod<I, O> {
 
   static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
+    return client(serviceName, methodName, null, encoder, decoder);
+  }
+
+  static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, boolean clientStreaming, boolean serverStreaming, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
+    return client(serviceName, methodName, MethodType.of(clientStreaming, serverStreaming), encoder, decoder);
+  }
+
+  private static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, MethodType type, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
     return new ServiceMethod<>() {
       @Override
       public ServiceName serviceName() {
@@ -27,6 +35,14 @@ public interface ServiceMethod<I, O> {
       @Override
       public String methodName() {
         return methodName;
+      }
+      @Override
+      public boolean clientStreaming() {
+        return type.clientStreaming();
+      }
+      @Override
+      public boolean serverStreaming() {
+        return type.serverStreaming();
       }
       @Override
       public GrpcMessageDecoder<Resp> decoder() {
@@ -40,6 +56,14 @@ public interface ServiceMethod<I, O> {
   }
 
   static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
+    return server(serviceName, methodName, null, encoder, decoder);
+  }
+
+  static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, boolean clientStreaming, boolean serverStreaming, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
+    return server(serviceName, methodName, MethodType.of(clientStreaming, serverStreaming), encoder, decoder);
+  }
+
+  private static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, MethodType type, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
     return new ServiceMethod<>() {
       @Override
       public ServiceName serviceName() {
@@ -48,6 +72,14 @@ public interface ServiceMethod<I, O> {
       @Override
       public String methodName() {
         return methodName;
+      }
+      @Override
+      public boolean clientStreaming() {
+        return type.clientStreaming();
+      }
+      @Override
+      public boolean serverStreaming() {
+        return type.serverStreaming();
       }
       @Override
       public GrpcMessageDecoder<Req> decoder() {
@@ -70,6 +102,27 @@ public interface ServiceMethod<I, O> {
    */
   String methodName();
 
+  /**
+   * @return whether the client side sends a stream of requests
+   */
+  default boolean clientStreaming() {
+    return false;
+  }
+
+  /**
+   * @return whether the server side sends a stream of responses
+   */
+  default boolean serverStreaming() {
+    return false;
+  }
+
+  /**
+   * Computes the fully qualified method name for a gRPC service method.
+   * The name is constructed by combining the fully qualified service name
+   * and the method name, separated by a slash ('/').
+   *
+   * @return the fully qualified method name in the format "fullyQualifiedServiceName/methodName".
+   */
   default String fullMethodName() {
     return serviceName().fullyQualifiedName() + "/" + methodName();
   }

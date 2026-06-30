@@ -43,14 +43,14 @@ public class GrpcIoClientImpl extends GrpcClientImpl implements GrpcIoClient {
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(MethodDescriptor<Req, Resp> service) {
     GrpcMessageDecoder<Resp> messageDecoder = new BridgeMessageDecoder<>(service.getResponseMarshaller(), null);
     GrpcMessageEncoder<Req> messageEncoder = new BridgeMessageEncoder<>(service.getRequestMarshaller(), null);
-    ServiceMethod<Resp, Req> serviceMethod = ServiceMethod.client(ServiceName.create(service.getServiceName()), service.getBareMethodName(), messageEncoder, messageDecoder);
+    ServiceMethod<Resp, Req> serviceMethod = ServiceMethod.client(ServiceName.create(service.getServiceName()), service.getBareMethodName(), !service.getType().clientSendsOneMessage(), !service.getType().serverSendsOneMessage(), messageEncoder, messageDecoder);
     return request(serviceMethod);
   }
 
   @Override public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(Address server, MethodDescriptor<Req, Resp> service) {
     GrpcMessageDecoder<Resp> messageDecoder = new BridgeMessageDecoder<>(service.getResponseMarshaller(), null);
     GrpcMessageEncoder<Req> messageEncoder = new BridgeMessageEncoder<>(service.getRequestMarshaller(), null);
-    ServiceMethod<Resp, Req> serviceMethod = ServiceMethod.client(ServiceName.create(service.getServiceName()), service.getBareMethodName(), messageEncoder, messageDecoder);
+    ServiceMethod<Resp, Req> serviceMethod = ServiceMethod.client(ServiceName.create(service.getServiceName()), service.getBareMethodName(), !service.getType().clientSendsOneMessage(), !service.getType().serverSendsOneMessage(), messageEncoder, messageDecoder);
     return request(server, serviceMethod);
   }
 }

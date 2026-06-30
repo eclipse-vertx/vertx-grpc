@@ -3,6 +3,7 @@ package examples;
 import examples.grpc.*;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.streams.ReadStream;
 import io.vertx.docgen.Source;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
@@ -13,16 +14,14 @@ import io.vertx.grpc.server.Service;
 public class GrpcEventBusExamples {
 
   public void createServer(Vertx vertx) {
-    EventBusGrpcServer server = EventBusGrpcServer.server(vertx);
+    Future<EventBusGrpcServer> server = EventBusGrpcServer.server(vertx);
   }
 
   public void createClient(Vertx vertx) {
-    EventBusGrpcClient client = EventBusGrpcClient.client(vertx);
+    Future<EventBusGrpcClient> client = EventBusGrpcClient.client(vertx);
   }
 
   public void serverWithService(Vertx vertx) {
-    EventBusGrpcServer server = EventBusGrpcServer.server(vertx);
-
     Service service = GreeterGrpcService.of(new GreeterService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
@@ -32,24 +31,48 @@ public class GrpcEventBusExamples {
       }
     });
 
-    server.addService(service);
+    EventBusGrpcServer.server(vertx).onSuccess(server -> server.addService(service));
   }
 
   public void clientWithService(Vertx vertx) {
-    EventBusGrpcClient client = EventBusGrpcClient.client(vertx);
+    EventBusGrpcClient.client(vertx).onSuccess(client -> {
+      GreeterClient greeter = GreeterGrpcClient.create(client);
 
-    GreeterClient greeter = GreeterGrpcClient.create(client);
-
-    greeter.sayHello(HelloRequest.newBuilder().setName("World").build())
-      .onSuccess(reply -> System.out.println("Received: " + reply.getMessage()));
+      greeter.sayHello(HelloRequest.newBuilder().setName("World").build())
+        .onSuccess(reply -> System.out.println("Received: " + reply.getMessage()));
+    });
   }
 
   public void jsonWireFormat(Vertx vertx) {
-    EventBusGrpcClient client = EventBusGrpcClient.client(vertx);
+    EventBusGrpcClient.client(vertx).onSuccess(client -> {
+      GreeterClient greeter = GreeterGrpcClient.create(client, WireFormat.JSON);
 
-    GreeterClient greeter = GreeterGrpcClient.create(client, WireFormat.JSON);
+      greeter.sayHello(HelloRequest.newBuilder().setName("World").build())
+        .onSuccess(reply -> System.out.println("Received: " + reply.getMessage()));
+    });
+  }
 
-    greeter.sayHello(HelloRequest.newBuilder().setName("World").build())
-      .onSuccess(reply -> System.out.println("Received: " + reply.getMessage()));
+  public void streamingServer(Vertx vertx) {
+    Service service = StreamingGrpcService.of(new StreamingService() {
+      @Override
+      public Future<ReadStream<Item>> pipe(ReadStream<Item> request) {
+        return Future.succeededFuture(request);
+      }
+    });
+
+    EventBusGrpcServer.server(vertx).onSuccess(server -> server.addService(service));
+  }
+
+  public void streamingClient(Vertx vertx) {
+    EventBusGrpcClient.client(vertx).onSuccess(client -> {
+      StreamingClient streaming = StreamingGrpcClient.create(client);
+
+      streaming.pipe((stream, err) -> {
+        stream.write(Item.newBuilder().setValue("a").build());
+        stream.write(Item.newBuilder().setValue("b").build());
+        stream.end();
+      }).onSuccess(response -> response
+        .handler(item -> System.out.println("Received: " + item.getValue())));
+    });
   }
 }

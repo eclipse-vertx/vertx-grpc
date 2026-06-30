@@ -3,15 +3,16 @@ package io.vertx.grpc.eventbus.impl;
 import com.google.protobuf.Descriptors;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.internal.logging.Logger;
-import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
+import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceMethodInvoker;
@@ -23,37 +24,25 @@ import java.util.stream.Collectors;
 
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 
-public class EventBusGrpcServerImpl implements EventBusGrpcServer {
-
-  private static final Logger log = LoggerFactory.getLogger(EventBusGrpcServer.class);
+public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements EventBusGrpcServer {
 
   private final Vertx vertx;
-  private final EventBus eventBus;
   private final Map<String, ServiceConsumer> consumers = new HashMap<>();
+  private final Set<WireFormat> supportedWireFormats;
 
-  public EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus) {
+  private EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
+    super(vertx, eventBus, "grpc.eb.server.");
     this.vertx = vertx;
-    this.eventBus = eventBus;
+    this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
   }
 
-    private static class MethodHandler<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {
-      final ServiceMethod<Req, Resp> serviceMethod;
-      final Handler<GrpcServerRequest<Req, Resp>> handler;
-
-      MethodHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-        this.serviceMethod = serviceMethod;
-        this.handler = handler;
-      }
-
-      @Override
-      public void invoke(GrpcServerRequest<Req, Resp> request) {
-        handler.handle(request);
-      }
-    }
+  public static Future<EventBusGrpcServer> create(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
+    EventBusGrpcServerImpl server = new EventBusGrpcServerImpl(vertx, eventBus, options);
+    return server.bind().map(server);
+  }
 
   @Override
   public <Req, Resp> EventBusGrpcServerImpl callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-
     String serviceFqn = serviceMethod.serviceName().fullyQualifiedName();
 
     ServiceConsumer consumer = consumers.get(serviceFqn);
@@ -94,18 +83,8 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
     }
 
     String serviceFqn = service.name().fullyQualifiedName();
-    Descriptors.ServiceDescriptor descriptor1 = service.descriptor();
-    if (descriptor1 != null) {
-      for (Descriptors.MethodDescriptor descriptor : descriptor1.getMethods()) {
-        if (descriptor.isClientStreaming() || descriptor.isServerStreaming()) {
-//        streaming.add(descriptor.getName());
-          log.warn("Streaming method " + serviceFqn + "/" + descriptor.getName() + " is not supported over the event bus transport, calls will be rejected with UNIMPLEMENTED");
-        }
-      }
-    }
-
     Adapter adapter = new Adapter(serviceFqn, service);
-    MessageConsumer<Object> consumer = eventBus.consumer(serviceFqn, adapter);
+    MessageConsumer<Object> consumer = eventBus().consumer(serviceFqn, adapter);
     consumers.put(serviceFqn, new ServiceConsumer(consumer, service));
 
     return this;
@@ -128,7 +107,23 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
       futures.add(consumer.service.close());
     }
     consumers.clear();
+    futures.add(closeStreams());
     Future.all(futures).<Void> mapEmpty().onComplete(completion);
+  }
+
+  private static class MethodHandler<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {
+    final ServiceMethod<Req, Resp> serviceMethod;
+    final Handler<GrpcServerRequest<Req, Resp>> handler;
+
+    MethodHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+      this.serviceMethod = serviceMethod;
+      this.handler = handler;
+    }
+
+    @Override
+    public void invoke(GrpcServerRequest<Req, Resp> request) {
+      handler.handle(request);
+    }
   }
 
   private static class ServiceConsumer {
@@ -213,77 +208,121 @@ public class EventBusGrpcServerImpl implements EventBusGrpcServer {
         return;
       }
 
-      List<ServiceMethod<?, ?>> methods = service.methods();
+      if (!supportedWireFormats.contains(wireFormat)) {
+        message.fail(GrpcStatus.UNIMPLEMENTED.code, "Unsupported wire format: " + wireFormat);
+        return;
+      }
+
       ServiceMethod<?, ?> serviceMethod = null;
-      for (ServiceMethod<?, ?> candidate : methods) {
+      for (ServiceMethod<?, ?> candidate : service.methods()) {
         if (candidate.methodName().equals(methodName)) {
           serviceMethod = candidate;
           break;
         }
       }
+
       if (serviceMethod == null) {
-        String reason = "Method not found: " + methodName;
-
-        // TODO: support streaming this depends on the event bus transport supporting streaming first
-        // See https://github.com/eclipse-vertx/vert.x/pull/4712
-        for (ServiceConsumer consumer : consumers.values()) {
-          if (consumer.service.name().fullyQualifiedName().equals(serviceFqn)) {
-            Descriptors.ServiceDescriptor desc = consumer.service.descriptor();
-            if (desc != null) {
-              Descriptors.MethodDescriptor methodDesc = desc.findMethodByName(methodName);
-              if (methodDesc != null && (methodDesc.isClientStreaming() || methodDesc.isServerStreaming())) {
-                reason = "Streaming method not supported over event bus transport: " + methodName;
-              }
-            }
-            break;
-          }
-        }
-
-        message.fail(GrpcStatus.UNIMPLEMENTED.code, reason);
+        message.fail(GrpcStatus.UNIMPLEMENTED.code, "Method not found: " + methodName);
         return;
       }
-      dispatch(message, serviceMethod, wireFormat);
+      if (serviceMethod.clientStreaming() || serviceMethod.serverStreaming()) {
+        dispatchStreaming(message, serviceMethod, wireFormat);
+      } else {
+        dispatchUnary(message, serviceMethod, wireFormat);
+      }
     }
 
-      private <Req, Resp> void dispatch(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
-        ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
+    private <Req, Resp> void dispatchUnary(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
+      ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
 
-        Buffer payload = EventBusGrpcBody.asBuffer(message.body());
+      Buffer payload = EventBusGrpcCodec.decodeBody(message.body());
 
-        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-        EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
+      MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+      EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
 
-        EventBusGrpcServerStream stream = new EventBusGrpcServerStream(context, message, wireFormat);
-        GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
-        GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(
-          context,
-          headers,
-          null,
+      EventBusGrpcServerUnaryCall stream = new EventBusGrpcServerUnaryCall(context, message, wireFormat);
+      GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
+      GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context, headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);
+
+      GrpcMessage grpcMessage = GrpcMessage.message("identity", wireFormat, payload);
+      GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, request, stream, null, serviceMethod.encoder());
+
+      response.format(wireFormat);
+      request.init(response, false);
+
+      try {
+        ServiceMethodInvoker<Req, Resp> invoker = service.invoker(serviceMethod);
+        invoker.invoke(request);
+      } catch (Exception e) {
+        response.fail(e);
+        return;
+      }
+
+      request.handleMessage(grpcMessage);
+      request.handleEnd();
+    }
+
+    private <Req, Resp> void dispatchStreaming(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
+      String clientAddress = message.headers().get(EventBusHeaders.CLIENT_ADDRESS);
+      String clientStreamIdHeader = message.headers().get(EventBusHeaders.CLIENT_STREAM_ID);
+      if (clientAddress == null || clientStreamIdHeader == null) {
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' or '" + EventBusHeaders.CLIENT_STREAM_ID + "' header");
+        return;
+      }
+
+      long clientStreamId;
+      try {
+        clientStreamId = Long.parseLong(clientStreamIdHeader);
+      } catch (NumberFormatException e) {
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.CLIENT_STREAM_ID + "' header: " + clientStreamIdHeader);
+        return;
+      }
+
+      int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
+
+      MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+      EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
+
+      context().runOnContext(v -> {
+        EventBusStreamEndpoint.StreamRegistration registration = createStream();
+        EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
+          context(),
+          eventBus(),
+          registration,
+          clientAddress,
+          clientStreamId,
           wireFormat,
-          stream,
-          null,
           "identity",
-          serviceMethod.decoder(),
-          methodCall
+          window
         );
 
-        GrpcMessage grpcMessage = GrpcMessage.message("identity", wireFormat, payload);
-        GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, request, stream, null, serviceMethod.encoder());
+        registration.bind(stream);
+
+        GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
+        GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context(), headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);
+        GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context(), request, stream, null, serviceMethod.encoder());
 
         response.format(wireFormat);
         request.init(response, false);
-        stream.endHandler(v -> request.handleEnd());
+
+        stream.handler(frame -> request.handleMessage(((GrpcMessageFrame) frame).message()));
+        stream.endHandler(x -> request.handleEnd());
+        stream.exceptionHandler(request::handleException);
+
+        DeliveryOptions replyOptions = new DeliveryOptions()
+          .addHeader(EventBusHeaders.SERVER_ADDRESS, address())
+          .addHeader(EventBusHeaders.SERVER_STREAM_ID, Long.toString(registration.id()))
+          .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(window));
+
+        message.reply(Buffer.buffer(), replyOptions);
 
         try {
           ServiceMethodInvoker<Req, Resp> invoker = service.invoker(serviceMethod);
           invoker.invoke(request);
         } catch (Exception e) {
           response.fail(e);
-          return;
         }
-
-        request.handleMessage(grpcMessage);
-        stream.emitEnd();
-      }
+      });
+    }
   }
 }

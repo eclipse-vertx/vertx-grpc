@@ -14,26 +14,27 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
 import io.vertx.grpc.server.GrpcServerResponse;
-import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.StatusException;
 import io.vertx.tests.common.GrpcTestBase;
-import io.vertx.tests.common.grpc.Empty;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
 import io.vertx.tests.common.grpc.TestConstants;
-import io.vertx.tests.common.grpc.Tests;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 public class EventBusGrpcServerTest extends GrpcTestBase {
 
   private static final ServiceMethod<Request, Reply> UNARY = ServiceMethod.server(
     TestConstants.TEST_SERVICE,
     "Unary",
+    false,
+    false,
     TestConstants.REPLY_ENC,
     TestConstants.REQUEST_DEC
   );
@@ -45,7 +46,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
   @Before
   public void setUp(TestContext should) {
     super.setUp(should);
-    server = EventBusGrpcServer.server(vertx);
+    server = EventBusGrpcServer.server(vertx).await();
   }
 
   @Test
@@ -63,7 +64,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
     Buffer body = vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).map(Message::body).await(10, TimeUnit.SECONDS);
 
     Reply reply = Reply.parseFrom(body.getBytes());
-    Assert.assertEquals("Hello Julien", reply.getMessage());
+    assertEquals("Hello Julien", reply.getMessage());
   }
 
   @Test
@@ -80,7 +81,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
     JsonObject payload = new JsonObject().put("name", "Julien");
     JsonObject body = vertx.eventBus().<JsonObject> request(ADDRESS, payload, opts).map(Message::body).await(10, TimeUnit.SECONDS);
 
-    Assert.assertEquals("Hello Julien", body.getString("message"));
+    assertEquals("Hello Julien", body.getString("message"));
   }
 
   @Test
@@ -94,10 +95,10 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
     try {
       vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).await(10, TimeUnit.SECONDS);
-      Assert.fail("Should have thrown");
+      fail("Should have thrown");
     } catch (ReplyException e) {
-      Assert.assertEquals(ReplyFailure.RECIPIENT_FAILURE, e.failureType());
-      Assert.assertEquals(GrpcStatus.PERMISSION_DENIED.code, e.failureCode());
+      assertEquals(ReplyFailure.RECIPIENT_FAILURE, e.failureType());
+      assertEquals(GrpcStatus.PERMISSION_DENIED.code, e.failureCode());
     }
   }
 
@@ -114,16 +115,16 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
     try {
       vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).await(10, TimeUnit.SECONDS);
-      Assert.fail("Should have thrown");
+      fail("Should have thrown");
     } catch (ReplyException e) {
-      Assert.assertEquals(ReplyFailure.RECIPIENT_FAILURE, e.failureType());
-      Assert.assertEquals(GrpcStatus.UNKNOWN.code, e.failureCode());
+      assertEquals(ReplyFailure.RECIPIENT_FAILURE, e.failureType());
+      assertEquals(GrpcStatus.UNKNOWN.code, e.failureCode());
     }
   }
 
   @Test
   public void testUnimplementedMethod() throws TimeoutException {
-    ServiceMethod<Request, Reply> otherMethod = ServiceMethod.server(TestConstants.TEST_SERVICE, "Other", TestConstants.REPLY_ENC, TestConstants.REQUEST_DEC);
+    ServiceMethod<Request, Reply> otherMethod = ServiceMethod.server(TestConstants.TEST_SERVICE, "Other", false, false, TestConstants.REPLY_ENC, TestConstants.REQUEST_DEC);
     server.callHandler(otherMethod, request -> request.handler(msg -> request.response().end(Reply.getDefaultInstance())));
 
     Buffer payload = Buffer.buffer(Request.newBuilder().setName("Julien").build().toByteArray());
@@ -133,33 +134,10 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
     try {
       vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).await(10, TimeUnit.SECONDS);
-      Assert.fail("Should have thrown");
+      fail("Should have thrown");
     } catch (ReplyException e) {
-      Assert.assertEquals(ReplyFailure.RECIPIENT_FAILURE, e.failureType());
-      Assert.assertEquals(GrpcStatus.UNIMPLEMENTED.code, e.failureCode());
-    }
-  }
-
-  @Test
-  public void testStreamingMethodRejected() throws TimeoutException {
-    ServiceMethod<Empty, Reply> sourceMethod = ServiceMethod.server(TestConstants.TEST_SERVICE, "Source", TestConstants.REPLY_ENC, TestConstants.EMPTY_DEC);
-    Service service = Service.service(TestConstants.TEST_SERVICE, Tests.getDescriptor().findServiceByName("TestService"))
-      .bind(sourceMethod, request -> request.handler(msg -> request.response().end(Reply.getDefaultInstance())))
-      .build();
-    server.addService(service);
-
-    Buffer payload = Buffer.buffer(Empty.getDefaultInstance().toByteArray());
-    DeliveryOptions opts = new DeliveryOptions()
-      .addHeader(EventBusHeaders.ACTION, "Source")
-      .addHeader(EventBusHeaders.WIRE_FORMAT, WireFormat.PROTOBUF.name());
-
-    try {
-      vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).await(10, TimeUnit.SECONDS);
-      Assert.fail("Should have thrown");
-    } catch (ReplyException e) {
-      Assert.assertEquals(ReplyFailure.RECIPIENT_FAILURE, e.failureType());
-      Assert.assertEquals(GrpcStatus.UNIMPLEMENTED.code, e.failureCode());
-      Assert.assertTrue(e.getMessage(), e.getMessage().toLowerCase().contains("streaming"));
+      assertEquals(ReplyFailure.RECIPIENT_FAILURE, e.failureType());
+      assertEquals(GrpcStatus.UNIMPLEMENTED.code, e.failureCode());
     }
   }
 
@@ -177,7 +155,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
     Buffer body = vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).map(Message::body).await(10, TimeUnit.SECONDS);
 
-    Assert.assertEquals("Hello Julien", Reply.parseFrom(body.getBytes()).getMessage());
+    assertEquals("Hello Julien", Reply.parseFrom(body.getBytes()).getMessage());
 
     Promise<Void> closePromise = Promise.promise();
     server.close(closePromise);
@@ -185,9 +163,9 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
     try {
       vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).await(10, TimeUnit.SECONDS);
-      Assert.fail("Should have thrown");
+      fail("Should have thrown");
     } catch (ReplyException e) {
-      Assert.assertEquals(ReplyFailure.NO_HANDLERS, e.failureType());
+      assertEquals(ReplyFailure.NO_HANDLERS, e.failureType());
     }
   }
 
@@ -212,8 +190,8 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
     Buffer body = replyMsg.body();
 
     Reply reply = Reply.parseFrom(body.getBytes());
-    Assert.assertEquals("Header: request_header_value", reply.getMessage());
-    Assert.assertEquals("response_header_value", replyMsg.headers().get(EventBusHeaders.HEADER_PREFIX + "x-custom"));
-    Assert.assertEquals("response_trailer_value", replyMsg.headers().get(EventBusHeaders.TRAILER_PREFIX + "x-custom"));
+    assertEquals("Header: request_header_value", reply.getMessage());
+    assertEquals("response_header_value", replyMsg.headers().get(EventBusHeaders.HEADER_PREFIX + "x-custom"));
+    assertEquals("response_trailer_value", replyMsg.headers().get(EventBusHeaders.TRAILER_PREFIX + "x-custom"));
   }
 }
