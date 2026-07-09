@@ -162,10 +162,15 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     if (pause) {
       stream.pause();
     }
-    if (idx < buffer.length()) {
-      buffer = buffer.getBuffer(idx, buffer.length());
-    } else {
+    if (idx == buffer.length()) {
       buffer = null;
+    } else if (idx > 0) {
+      // Only compact after at least one message was consumed. Compacting
+      // unconditionally re-copied the entire accumulated buffer on every
+      // arriving frame while a message larger than one HTTP/2 frame was
+      // still accumulating (idx == 0), making reassembly O(n^2) in the
+      // message size.
+      buffer = buffer.getBuffer(idx, buffer.length());
     }
   }
 
