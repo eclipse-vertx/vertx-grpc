@@ -30,7 +30,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private final EventBus eventBus;
   private final ServiceName serviceName;
   private final String methodName;
-  private final Deque<GrpcMessage> pending = new ArrayDeque<>();
+  private final Deque<GrpcMessage> pending;
 
   private WireFormat wireFormat;
   private String encoding;
@@ -38,7 +38,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private Duration timeout;
 
   private boolean ended;
-  private State state = State.IDLE;
+  private State state;
 
   private String serverAddress;
   private long serverStreamId;
@@ -51,6 +51,8 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     this.eventBus = endpoint.eventBus();
     this.serviceName = serviceName;
     this.methodName = methodName;
+    this.pending = new ArrayDeque<>();
+    this.state = State.IDLE;
   }
 
   @Override
