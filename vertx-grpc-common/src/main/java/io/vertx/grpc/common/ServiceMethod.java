@@ -19,14 +19,10 @@ import io.vertx.codegen.annotations.GenIgnore;
 public interface ServiceMethod<I, O> {
 
   static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
-    return client(serviceName, methodName, null, encoder, decoder);
+    return client(serviceName, methodName, null, null, encoder, decoder);
   }
 
-  static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, boolean clientStreaming, boolean serverStreaming, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
-    return client(serviceName, methodName, MethodType.of(clientStreaming, serverStreaming), encoder, decoder);
-  }
-
-  private static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, MethodType type, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
+  static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, Boolean clientStreaming, Boolean serverStreaming, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
     return new ServiceMethod<>() {
       @Override
       public ServiceName serviceName() {
@@ -37,12 +33,12 @@ public interface ServiceMethod<I, O> {
         return methodName;
       }
       @Override
-      public boolean clientStreaming() {
-        return type.clientStreaming();
+      public Boolean clientStreaming() {
+        return clientStreaming;
       }
       @Override
-      public boolean serverStreaming() {
-        return type.serverStreaming();
+      public Boolean serverStreaming() {
+        return serverStreaming;
       }
       @Override
       public GrpcMessageDecoder<Resp> decoder() {
@@ -56,14 +52,10 @@ public interface ServiceMethod<I, O> {
   }
 
   static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
-    return server(serviceName, methodName, null, encoder, decoder);
+    return server(serviceName, methodName, null, null, encoder, decoder);
   }
 
-  static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, boolean clientStreaming, boolean serverStreaming, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
-    return server(serviceName, methodName, MethodType.of(clientStreaming, serverStreaming), encoder, decoder);
-  }
-
-  private static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, MethodType type, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
+  static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, Boolean clientStreaming, Boolean serverStreaming, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
     return new ServiceMethod<>() {
       @Override
       public ServiceName serviceName() {
@@ -74,12 +66,12 @@ public interface ServiceMethod<I, O> {
         return methodName;
       }
       @Override
-      public boolean clientStreaming() {
-        return type.clientStreaming();
+      public Boolean clientStreaming() {
+        return clientStreaming;
       }
       @Override
-      public boolean serverStreaming() {
-        return type.serverStreaming();
+      public Boolean serverStreaming() {
+        return serverStreaming;
       }
       @Override
       public GrpcMessageDecoder<Req> decoder() {
@@ -103,17 +95,17 @@ public interface ServiceMethod<I, O> {
   String methodName();
 
   /**
-   * @return whether the client side sends a stream of requests
+   * @return whether the client side sends a stream of requests, {@code null} when this is not known
    */
-  default boolean clientStreaming() {
-    return false;
+  default Boolean clientStreaming() {
+    return null;
   }
 
   /**
-   * @return whether the server side sends a stream of responses
+   * @return whether the server side sends a stream of responses, {@code null} when this is not known
    */
-  default boolean serverStreaming() {
-    return false;
+  default Boolean serverStreaming() {
+    return null;
   }
 
   /**
