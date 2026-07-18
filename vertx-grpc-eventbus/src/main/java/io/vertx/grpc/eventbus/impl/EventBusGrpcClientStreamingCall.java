@@ -30,7 +30,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private final EventBus eventBus;
   private final ServiceName serviceName;
   private final String methodName;
-  private final Deque<GrpcMessage> pending;
+  private final Deque<MessageWrite> pending;
 
   private WireFormat wireFormat;
   private String encoding;
@@ -40,8 +40,8 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private boolean ended;
   private State state;
 
-  private String serverAddress;
   private long serverStreamId;
+  private MessageProducer<Object> producer;
 
   private EventBusStreamEndpoint.StreamRegistration registration;
 
@@ -77,11 +77,11 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private Future<Void> onMessageWrite(GrpcMessage message) {
     switch (state) {
       case OPENING:
-        pending.add(message);
-        return context.succeededFuture();
+        MessageWrite write = new MessageWrite(message, context.promise());
+        pending.add(write);
+        return write.promise.future();
       case STREAMING:
-        writeMessage(message);
-        return context.succeededFuture();
+        return writeMessage(message);
       default:
         return context.failedFuture(new IllegalStateException("Stream closed"));
     }
@@ -174,20 +174,20 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
       return new IllegalStateException("Malformed stream handshake reply: non-numeric handshake headers");
     }
 
-    this.serverAddress = serverAddress;
     this.serverStreamId = serverStreamId;
     this.encoding = encoding;
     this.wireFormat = wireFormat;
     this.state = State.STREAMING;
+    this.producer = eventBus.sender(serverAddress, new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name()));
 
     registration.bind(this);
 
     grantSendWindow(initialWindow);
 
     sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(window)));
-    GrpcMessage message;
-    while ((message = pending.poll()) != null) {
-      writeMessage(message);
+    MessageWrite write;
+    while ((write = pending.poll()) != null) {
+      writeMessage(write.message).onComplete(write.promise);
     }
     if (ended) {
       sendHalfClose();
@@ -252,12 +252,12 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   }
 
   @Override
-  protected void sendTransportFrame(TransportFrame.Builder builder) {
-    if (serverAddress == null) {
-      return;
+  protected Future<Void> sendTransportFrame(TransportFrame.Builder builder) {
+    if (producer == null) {
+      return context.succeededFuture();
     }
     builder.setStreamId(serverStreamId);
-    eventBus.send(serverAddress, EventBusGrpcCodec.encodeFrame(builder, wireFormat), new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name()));
+    return producer.write(EventBusGrpcCodec.encodeFrame(builder, wireFormat));
   }
 
   private void terminate() {

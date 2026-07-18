@@ -6,6 +6,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
@@ -28,6 +29,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   private final long clientStreamId;
   private final WireFormat wireFormat;
   private final String encoding;
+  private final MessageProducer<Object> producer;
 
   private boolean clientListening;
   private boolean headersPending;
@@ -51,6 +53,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     this.clientStreamId = clientStreamId;
     this.wireFormat = wireFormat;
     this.encoding = encoding;
+    this.producer = eventBus.sender(clientAddress, new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name()));
   }
 
   @Override
@@ -99,8 +102,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
         }
         return context.succeededFuture();
       case MESSAGE:
-        writeMessage(((GrpcMessageFrame) frame).message());
-        return context.succeededFuture();
+        return writeMessage(((GrpcMessageFrame) frame).message());
       case TRAILERS:
         GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
         sendTerminal(() -> sendTrailers(trailersFrame));
@@ -163,10 +165,9 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   }
 
   @Override
-  protected void sendTransportFrame(TransportFrame.Builder builder) {
+  protected Future<Void> sendTransportFrame(TransportFrame.Builder builder) {
     builder.setStreamId(clientStreamId);
-    eventBus.send(clientAddress, EventBusGrpcCodec.encodeFrame(builder, wireFormat),
-      new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name()));
+    return producer.write(EventBusGrpcCodec.encodeFrame(builder, wireFormat));
   }
 
   private void terminate() {

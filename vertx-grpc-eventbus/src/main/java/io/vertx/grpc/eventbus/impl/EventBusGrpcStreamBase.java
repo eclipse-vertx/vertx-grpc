@@ -2,7 +2,9 @@ package io.vertx.grpc.eventbus.impl;
 
 import com.google.protobuf.ByteString;
 import io.vertx.core.Closeable;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
@@ -23,7 +25,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   protected final ContextInternal context;
   protected final int window;
 
-  private final Deque<GrpcMessage> outboundQueue = new ArrayDeque<>();
+  private final Deque<MessageWrite> outboundQueue = new ArrayDeque<>();
 
   private Handler<GrpcFrame> frameHandler;
   private Handler<Void> endHandler;
@@ -42,7 +44,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     this.granted = window;
   }
 
-  protected abstract void sendTransportFrame(TransportFrame.Builder frame);
+  protected abstract Future<Void> sendTransportFrame(TransportFrame.Builder frame);
 
   abstract void handle(TransportFrame frame, io.vertx.core.eventbus.Message<Object> message);
 
@@ -61,17 +63,18 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     }
   }
 
-  protected void writeMessage(GrpcMessage message) {
+  protected Future<Void> writeMessage(GrpcMessage message) {
     if (sendWindow > 0 && outboundQueue.isEmpty()) {
-      doSendMessage(message);
-    } else {
-      outboundQueue.add(message);
+      return doSendMessage(message);
     }
+    MessageWrite write = new MessageWrite(message, context.promise());
+    outboundQueue.add(write);
+    return write.promise.future();
   }
 
-  private void doSendMessage(GrpcMessage message) {
+  private Future<Void> doSendMessage(GrpcMessage message) {
     sendWindow--;
-    sendTransportFrame(TransportFrame.newBuilder()
+    return sendTransportFrame(TransportFrame.newBuilder()
       .setStreamSequence(++sequence)
       .setMessage(Message.newBuilder().setPayload(ByteString.copyFrom(message.payload().getBytes()))));
   }
@@ -93,7 +96,8 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     sendWindow += delta;
 
     while (sendWindow > 0 && !outboundQueue.isEmpty()) {
-      doSendMessage(outboundQueue.poll());
+      MessageWrite write = outboundQueue.poll();
+      doSendMessage(write.message).onComplete(write.promise);
     }
 
     if (outboundQueue.isEmpty() && pendingTerminal != null) {
@@ -183,6 +187,17 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {
       handler.handle(t);
+    }
+  }
+
+  static class MessageWrite {
+
+    final GrpcMessage message;
+    final Promise<Void> promise;
+
+    MessageWrite(GrpcMessage message, Promise<Void> promise) {
+      this.message = message;
+      this.promise = promise;
     }
   }
 }

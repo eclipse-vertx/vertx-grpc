@@ -296,6 +296,36 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   }
 
   @Test
+  public void testQueuedWriteCompletesOnDrain() throws Exception {
+    AtomicBoolean stalled = new AtomicBoolean();
+    Promise<Void> queued = Promise.promise();
+
+    server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {
+      GrpcServerResponse<Empty, Reply> response = request.response();
+      int i = 0;
+      while (!response.writeQueueFull()) {
+        response.write(Reply.newBuilder().setMessage("m-" + i++).build());
+      }
+      Future<Void> write = response.write(Reply.newBuilder().setMessage("queued").build());
+      stalled.set(!write.isComplete());
+      write.onComplete(queued);
+      response.end();
+    }));
+
+    List<Reply> replies = client.request(SOURCE_CLIENT)
+      .compose(request -> {
+        request.end(Empty.getDefaultInstance());
+        return request.response();
+      })
+      .compose(EventBusGrpcStreamingTest::collect)
+      .await(20, TimeUnit.SECONDS);
+
+    assertTrue("the write must not complete while the message sits behind a closed window", stalled.get());
+    queued.future().await(20, TimeUnit.SECONDS);
+    assertEquals("queued", replies.get(replies.size() - 1).getMessage());
+  }
+
+  @Test
   public void testBidiInterleavedBackpressure() throws Exception {
     int total = 300;
     AtomicInteger serverStalls = new AtomicInteger();
