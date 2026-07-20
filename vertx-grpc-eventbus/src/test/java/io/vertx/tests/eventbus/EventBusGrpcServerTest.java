@@ -157,9 +157,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
     assertEquals("Hello Julien", Reply.parseFrom(body.getBytes()).getMessage());
 
-    Promise<Void> closePromise = Promise.promise();
-    server.close(closePromise);
-    closePromise.future().await(10, TimeUnit.SECONDS);
+    server.close().await(10, TimeUnit.SECONDS);
 
     try {
       vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).await(10, TimeUnit.SECONDS);

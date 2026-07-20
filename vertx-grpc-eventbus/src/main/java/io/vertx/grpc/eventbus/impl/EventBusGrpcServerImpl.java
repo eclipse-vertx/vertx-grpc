@@ -100,7 +100,7 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
   }
 
   @Override
-  public void close(Completable<Void> completion) {
+  public Future<Void> close() {
     List<Future<Void>> futures = new ArrayList<>();
     for (ServiceConsumer consumer : consumers.values()) {
       futures.add(consumer.consumer.unregister());
@@ -108,7 +108,7 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
     }
     consumers.clear();
     futures.add(closeStreams());
-    Future.all(futures).<Void> mapEmpty().onComplete(completion);
+    return Future.all(futures).mapEmpty();
   }
 
   private static class MethodHandler<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {

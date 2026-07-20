@@ -466,14 +466,11 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     // and the client notified, rather than left hanging.
     serverReady.future().await(10, TimeUnit.SECONDS);
 
-    Promise<Void> closed = Promise.promise();
-    server.close(closed);
-    closed.future().await(10, TimeUnit.SECONDS);
+    server.close().await(10, TimeUnit.SECONDS);
 
     Throwable failure = clientFailed.future().await(10, TimeUnit.SECONDS);
     assertNotNull("client should have been notified the stream was terminated", failure);
   }
-
   @Test
   public void testNoHeadOfLineBlocking() throws Exception {
     int count = 200;

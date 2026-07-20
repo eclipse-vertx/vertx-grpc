@@ -129,9 +129,7 @@ public class EventBusTest extends GrpcTestBase {
 
     assertEquals("Hello Julien", reply.getMessage());
 
-    Promise<Void> closePromise = Promise.promise();
-    server.close(closePromise);
-    closePromise.future().await(10, TimeUnit.SECONDS);
+    server.close().await(10, TimeUnit.SECONDS);
 
     try {
       greeter.sayHello(HelloRequest.newBuilder().setName("Julien").build())

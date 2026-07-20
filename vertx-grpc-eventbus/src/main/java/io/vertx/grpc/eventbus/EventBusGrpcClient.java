@@ -81,4 +81,11 @@ public interface EventBusGrpcClient extends ServiceInvoker {
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
   <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method);
+
+  /**
+   * Close the client, unregistering its private event bus consumer and terminating any in-flight streams.
+   *
+   * @return a future completed when the client is closed
+   */
+  Future<Void> close();
 }

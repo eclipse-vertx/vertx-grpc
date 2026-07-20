@@ -2,7 +2,6 @@ package io.vertx.grpc.eventbus;
 
 import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.VertxGen;
-import io.vertx.core.Closeable;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -24,7 +23,7 @@ import io.vertx.grpc.server.Service;
  * as the address, and routes to specific method handlers using the {@code action} header.</p>
  */
 @VertxGen
-public interface EventBusGrpcServer extends ServiceContainer, Closeable {
+public interface EventBusGrpcServer extends ServiceContainer {
 
   /**
    * Create an event bus gRPC server using the event bus from the provided Vert.x instance. The returned future
@@ -80,5 +79,12 @@ public interface EventBusGrpcServer extends ServiceContainer, Closeable {
   @Override
   @Fluent
   EventBusGrpcServer addService(Service service);
+
+  /**
+   * Close the server, unregistering its event bus consumers and terminating any in-flight streams.
+   *
+   * @return a future completed when the server is closed
+   */
+  Future<Void> close();
 
 }

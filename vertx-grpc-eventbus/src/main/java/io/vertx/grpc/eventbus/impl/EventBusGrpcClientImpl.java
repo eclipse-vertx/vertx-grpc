@@ -45,4 +45,9 @@ public class EventBusGrpcClientImpl extends EventBusStreamEndpoint implements Ev
     request.format(wireFormat);
     return context().succeededFuture(request);
   }
+
+  @Override
+  public Future<Void> close() {
+    return closeStreams();
+  }
 }
