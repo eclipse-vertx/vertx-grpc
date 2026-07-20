@@ -24,6 +24,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.ToStringConsumer;
 import org.testcontainers.containers.startupcheck.OneShotStartupCheckStrategy;
 import org.testcontainers.images.builder.ImageFromDockerfile;
+import org.testcontainers.utility.DockerImageName;
 
 import java.io.File;
 import java.time.Duration;
@@ -35,6 +36,11 @@ import static org.junit.Assume.assumeFalse;
 public class InteropITest {
 
   private static final String GRPC_WEB_REPO_PATH = System.getProperty("grpc-web.repo.path");
+
+  // When set, an image built ahead of time (by CI, with BuildKit) is used instead of building it
+  // in-process. Testcontainers' ImageFromDockerfile uses the legacy Docker builder, which fails on
+  // grpc-web's multi-stage Dockerfile with "layer does not exist" (testcontainers/testcontainers-java#2857).
+  private static final String GRPC_WEB_IMAGE = System.getProperty("grpc-web.image");
 
   @Rule
   public Timeout rule = Timeout.millis(Duration.ofMinutes(10).toMillis());
@@ -59,15 +65,20 @@ public class InteropITest {
   public void interopTests() {
     File repoFile = new File(GRPC_WEB_REPO_PATH);
     assertTrue("grpc-web repo path doesn't denote a directory", repoFile.isDirectory());
-    File dockerfile = new File(repoFile, "net/grpc/gateway/docker/prereqs/Dockerfile");
-    assertTrue("Dockerfile doesn't exists or isn't a normal file", dockerfile.isFile());
 
-    ImageFromDockerfile image = new ImageFromDockerfile()
-      .withFileFromFile(".", repoFile)
-      .withFileFromFile("Dockerfile", dockerfile);
+    GenericContainer<?> image;
+    if (GRPC_WEB_IMAGE != null) {
+      image = new GenericContainer<>(DockerImageName.parse(GRPC_WEB_IMAGE));
+    } else {
+      File dockerfile = new File(repoFile, "net/grpc/gateway/docker/prereqs/Dockerfile");
+      assertTrue("Dockerfile doesn't exists or isn't a normal file", dockerfile.isFile());
+      image = new GenericContainer<>(new ImageFromDockerfile()
+        .withFileFromFile(".", repoFile)
+        .withFileFromFile("Dockerfile", dockerfile));
+    }
 
     ToStringConsumer logConsumer = new ToStringConsumer();
-    try (GenericContainer<?> container = new GenericContainer<>(image)) {
+    try (GenericContainer<?> container = image) {
       container
         .withLogConsumer(logConsumer)
         .withNetworkMode("host")

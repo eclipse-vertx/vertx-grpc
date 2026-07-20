@@ -41,8 +41,16 @@ jobs:
         with:
           java-version: 11
           distribution: temurin
+      # Build the interop image with BuildKit (the docker CLI default) rather than
+      # letting Testcontainers build it in-process. Testcontainers' ImageFromDockerfile
+      # uses the legacy Docker Engine API builder, which chokes on grpc-web's multi-stage
+      # prereqs/Dockerfile with "failed to get layer <sha> ... layer does not exist"
+      # (moby/moby#33974). Testcontainers can't drive BuildKit itself
+      # (testcontainers/testcontainers-java#2857), so we prebuild and pass the tag.
+      - name: Build gRPC-Web interop image
+        run: DOCKER_BUILDKIT=1 docker build -t grpcweb-interop:ci -f _grpc-web/net/grpc/gateway/docker/prereqs/Dockerfile _grpc-web
       - name: Run tests
-        run: mvn -s .github/maven-ci-settings.xml -q clean verify -B -pl :vertx-grpc-server -am -Dgrpc-web.repo.path="$GITHUB_WORKSPACE/_grpc-web"
+        run: mvn -s .github/maven-ci-settings.xml -q clean verify -B -pl :vertx-grpc-server -am -Dgrpc-web.repo.path="$GITHUB_WORKSPACE/_grpc-web" -Dgrpc-web.image=grpcweb-interop:ci
   Deploy:
     if: ${{ github.repository_owner == 'eclipse-vertx' && (github.event_name == 'push' || github.event_name == 'schedule') }}
     needs: CI
