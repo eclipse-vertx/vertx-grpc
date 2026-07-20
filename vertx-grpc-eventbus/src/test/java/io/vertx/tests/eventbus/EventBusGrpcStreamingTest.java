@@ -5,9 +5,12 @@ import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.ReplyException;
+import io.vertx.core.eventbus.ReplyFailure;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
@@ -471,6 +474,174 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     Throwable failure = clientFailed.future().await(10, TimeUnit.SECONDS);
     assertNotNull("client should have been notified the stream was terminated", failure);
   }
+
+  @Test
+  public void testClientWriteFailureFailsStream() throws Exception {
+    server.callHandler(SINK_SERVER, request -> {
+      request.handler(req -> {
+      });
+      request.endHandler(v -> request.response().end(Empty.getDefaultInstance()));
+    });
+
+    // Simulate the server node leaving the cluster: drop its consumer as soon as the first client
+    // message is on the wire, so the following writes have no consumer to deliver to.
+    vertx.eventBus().addOutboundInterceptor(dc -> {
+      if (dc.message().address().startsWith("grpc.eb.server.") && dc.message().body() instanceof Buffer) {
+        JsonObject json = ((Buffer) dc.message().body()).toJsonObject();
+        if (json.getJsonObject("message") != null) {
+          server.close().onComplete(ar -> dc.next());
+          return;
+        }
+      }
+      dc.next();
+    });
+
+    GrpcClientRequest<Request, Empty> request = client.request(SINK_CLIENT).await(10, TimeUnit.SECONDS);
+    request.format(WireFormat.JSON);
+    Future<GrpcClientResponse<Request, Empty>> response = request.response();
+
+    try {
+      request.write(Request.newBuilder().setName("a").build()).await(10, TimeUnit.SECONDS);
+      fail("the write must fail once the server address has no consumer");
+    } catch (ReplyException e) {
+      assertEquals(ReplyFailure.NO_HANDLERS, e.failureType());
+    }
+
+    // The stream is given up on rather than left hanging: the response is failed too.
+    try {
+      response.await(10, TimeUnit.SECONDS);
+      fail("the response must be failed when the stream is given up");
+    } catch (Exception expected) {
+    }
+  }
+
+  @Test
+  public void testServerWriteFailureFailsStream() throws Exception {
+    Promise<Throwable> serverFailed = Promise.promise();
+    server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {
+      GrpcServerResponse<Empty, Reply> response = request.response();
+      response.exceptionHandler(serverFailed::tryComplete);
+      for (int i = 0; i < 50; i++) {
+        response.write(Reply.newBuilder().setMessage("x-" + i).build());
+      }
+      response.end();
+    }));
+
+    // Simulate the client node leaving the cluster: drop its consumer as soon as the first server
+    // message is on the wire, so the following writes have no consumer to deliver to.
+    vertx.eventBus().addOutboundInterceptor(dc -> {
+      if (dc.message().address().startsWith("grpc.eb.client.") && dc.message().body() instanceof Buffer) {
+        JsonObject json = ((Buffer) dc.message().body()).toJsonObject();
+        if (json.getJsonObject("message") != null) {
+          client.close().onComplete(ar -> dc.next());
+          return;
+        }
+      }
+      dc.next();
+    });
+
+    client.request(SOURCE_CLIENT).onSuccess(request -> {
+      request.format(WireFormat.JSON);
+      request.end(Empty.getDefaultInstance());
+    });
+
+    Throwable failure = serverFailed.future().await(10, TimeUnit.SECONDS);
+    assertNotNull("the service handler must be notified when the client address has no consumer", failure);
+  }
+
+  @Test
+  public void testClientIdleTimeoutGivesStreamUp() throws Exception {
+    // The server produces but never heartbeats and never ends; the client gives the stream up once its
+    // idle timeout elapses without any frame.
+    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setIdleTimeout(300)).await(10, TimeUnit.SECONDS);
+
+    Promise<Throwable> serverCancelled = Promise.promise();
+    srv.callHandler(SOURCE_SERVER, request -> {
+      request.response().exceptionHandler(serverCancelled::tryComplete);
+      request.handler(empty -> request.response().write(Reply.newBuilder().setMessage("first").build()));
+    });
+
+    Promise<Throwable> failed = Promise.promise();
+    cli.request(SOURCE_CLIENT)
+      .compose(request -> {
+        request.end(Empty.getDefaultInstance());
+        return request.response();
+      })
+      .onSuccess(response -> {
+        response.handler(reply -> {
+        });
+        response.exceptionHandler(failed::tryComplete);
+      })
+      .onFailure(failed::tryFail);
+
+    Throwable failure = failed.future().await(10, TimeUnit.SECONDS);
+    assertNotNull("the client must give the stream up after the idle timeout", failure);
+    // The client proactively cancels the still-alive server so it does not leak the stream either.
+    Throwable serverFailure = serverCancelled.future().await(10, TimeUnit.SECONDS);
+    assertNotNull("the still-alive server must be cancelled by the client's idle-timeout give-up", serverFailure);
+  }
+
+  @Test
+  public void testServerHeartbeatPreventsClientIdleTimeout() throws Exception {
+    // The server heartbeats faster than the client's idle timeout, so an otherwise idle response stream
+    // stays alive instead of being given up.
+    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setHeartbeatInterval(50)).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setIdleTimeout(500)).await(10, TimeUnit.SECONDS);
+
+    srv.callHandler(SOURCE_SERVER, request -> request.handler(empty ->
+      request.response().write(Reply.newBuilder().setMessage("first").build())));
+
+    Promise<Throwable> failed = Promise.promise();
+    AtomicInteger received = new AtomicInteger();
+    cli.request(SOURCE_CLIENT)
+      .compose(request -> {
+        request.end(Empty.getDefaultInstance());
+        return request.response();
+      })
+      .onSuccess(response -> {
+        response.handler(reply -> received.incrementAndGet());
+        response.exceptionHandler(failed::tryComplete);
+      })
+      .onFailure(failed::tryFail);
+
+    try {
+      failed.future().await(800, TimeUnit.MILLISECONDS);
+      fail("the stream must not be given up while the server is heartbeating");
+    } catch (Exception noFailureWithinWindow) {
+      // expected: the await times out because the stream stayed alive
+    }
+    assertEquals(1, received.get());
+  }
+
+  @Test
+  public void testServerIdleTimeoutGivesStreamUp() throws Exception {
+    // The client streams a request then goes silent without heartbeating; the server gives the stream
+    // up once its idle timeout elapses, so the registration does not leak.
+    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setIdleTimeout(300)).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()).await(10, TimeUnit.SECONDS);
+
+    Promise<Throwable> serverFailed = Promise.promise();
+    srv.callHandler(SINK_SERVER, request -> {
+      request.response().exceptionHandler(serverFailed::tryComplete);
+      request.handler(req -> {
+      });
+      request.endHandler(v -> request.response().end(Empty.getDefaultInstance()));
+    });
+
+    Promise<Throwable> clientCancelled = Promise.promise();
+    cli.request(SINK_CLIENT).onSuccess(request -> {
+      request.response().onFailure(clientCancelled::tryComplete);
+      request.write(Request.newBuilder().setName("a").build());
+    });
+
+    Throwable failure = serverFailed.future().await(10, TimeUnit.SECONDS);
+    assertNotNull("the server must give the stream up after the idle timeout", failure);
+    // The server proactively cancels the still-alive client so it learns the stream is gone.
+    Throwable clientFailure = clientCancelled.future().await(10, TimeUnit.SECONDS);
+    assertNotNull("the still-alive client must be cancelled by the server's idle-timeout give-up", clientFailure);
+  }
+
   @Test
   public void testNoHeadOfLineBlocking() throws Exception {
     int count = 200;

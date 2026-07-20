@@ -12,6 +12,16 @@ public class EventBusGrpcClientOptionsConverter {
    static void fromJson(Iterable<java.util.Map.Entry<String, Object>> json, EventBusGrpcClientOptions obj) {
     for (java.util.Map.Entry<String, Object> member : json) {
       switch (member.getKey()) {
+        case "heartbeatInterval":
+          if (member.getValue() instanceof Number) {
+            obj.setHeartbeatInterval(((Number)member.getValue()).longValue());
+          }
+          break;
+        case "idleTimeout":
+          if (member.getValue() instanceof Number) {
+            obj.setIdleTimeout(((Number)member.getValue()).longValue());
+          }
+          break;
       }
     }
   }
@@ -21,5 +31,7 @@ public class EventBusGrpcClientOptionsConverter {
   }
 
    static void toJson(EventBusGrpcClientOptions obj, java.util.Map<String, Object> json) {
+    json.put("heartbeatInterval", obj.getHeartbeatInterval());
+    json.put("idleTimeout", obj.getIdleTimeout());
   }
 }

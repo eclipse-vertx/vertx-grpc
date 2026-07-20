@@ -29,11 +29,15 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
   private final Vertx vertx;
   private final Map<String, ServiceConsumer> consumers = new HashMap<>();
   private final Set<WireFormat> supportedWireFormats;
+  private final long heartbeatInterval;
+  private final long idleTimeout;
 
   private EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
     super(vertx, eventBus, "grpc.eb.server.");
     this.vertx = vertx;
     this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
+    this.heartbeatInterval = options.getHeartbeatInterval();
+    this.idleTimeout = options.getIdleTimeout();
   }
 
   public static Future<EventBusGrpcServer> create(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
@@ -280,6 +284,9 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
 
       int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
 
+      long producerHeartbeat = serviceMethod.serverStreaming() ? heartbeatInterval : 0L;
+      long consumerIdleTimeout = serviceMethod.clientStreaming() ? idleTimeout : 0L;
+
       MultiMap headers = MultiMap.caseInsensitiveMultiMap();
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
 
@@ -293,10 +300,13 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
           clientStreamId,
           wireFormat,
           "identity",
-          window
+          window,
+          producerHeartbeat,
+          consumerIdleTimeout
         );
 
         registration.bind(stream);
+        stream.start();
 
         GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
         GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context(), headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);

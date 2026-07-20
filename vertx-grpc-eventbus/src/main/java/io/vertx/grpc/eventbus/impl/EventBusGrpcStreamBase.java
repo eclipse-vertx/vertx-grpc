@@ -12,6 +12,7 @@ import io.vertx.grpc.common.impl.GrpcFrameType;
 import io.vertx.grpc.common.impl.GrpcInboundStream;
 import io.vertx.grpc.common.impl.GrpcOutboundStream;
 import io.vertx.grpc.common.impl.GrpcStream;
+import io.vertx.grpc.eventbus.transport.v1alpha.Heartbeat;
 import io.vertx.grpc.eventbus.transport.v1alpha.Message;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
@@ -43,10 +44,20 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   private Runnable pendingTerminal;
   private long sequence;
 
+  private long heartbeatInterval;
+  private long idleTimeout;
+  private long heartbeatTimerId = -1L;
+  private long idleTimerId = -1L;
+
   EventBusGrpcStreamBase(ContextInternal context, int window) {
     this.context = context;
     this.window = window;
     this.granted = window;
+  }
+
+  protected void configureLiveness(long heartbeatInterval, long idleTimeout) {
+    this.heartbeatInterval = heartbeatInterval;
+    this.idleTimeout = idleTimeout;
   }
 
   protected abstract Future<Void> sendTransportFrame(TransportFrame.Builder frame);
@@ -118,6 +129,64 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
         context.runOnContext(v -> h.handle(null));
       }
     }
+  }
+
+  protected void failPendingWrites(Throwable cause) {
+    MessageWrite write;
+    while ((write = outboundQueue.poll()) != null) {
+      write.promise.fail(cause);
+    }
+    pendingTerminal = null;
+  }
+
+  protected abstract void handleIdleTimeout();
+
+  protected void startHeartbeat() {
+    if (heartbeatInterval > 0 && heartbeatTimerId < 0) {
+      heartbeatTimerId = context.owner().setPeriodic(heartbeatInterval, id ->
+        sendTransportFrame(TransportFrame.newBuilder().setHeartbeat(Heartbeat.newBuilder())));
+    }
+  }
+
+  protected void stopHeartbeat() {
+    if (heartbeatTimerId >= 0) {
+      context.owner().cancelTimer(heartbeatTimerId);
+      heartbeatTimerId = -1L;
+    }
+  }
+
+  protected void startIdleTimer() {
+    if (idleTimeout > 0) {
+      armIdleTimer();
+    }
+  }
+
+  protected void resetIdleTimer() {
+    if (idleTimerId >= 0) {
+      armIdleTimer();
+    }
+  }
+
+  protected void stopIdleTimer() {
+    if (idleTimerId >= 0) {
+      context.owner().cancelTimer(idleTimerId);
+      idleTimerId = -1L;
+    }
+  }
+
+  private void armIdleTimer() {
+    if (idleTimerId >= 0) {
+      context.owner().cancelTimer(idleTimerId);
+    }
+    idleTimerId = context.owner().setTimer(idleTimeout, id -> {
+      idleTimerId = -1L;
+      handleIdleTimeout();
+    });
+  }
+
+  protected void stopLiveness() {
+    stopHeartbeat();
+    stopIdleTimer();
   }
 
   @Override

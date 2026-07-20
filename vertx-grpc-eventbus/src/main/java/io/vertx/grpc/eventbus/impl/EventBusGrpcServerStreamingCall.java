@@ -44,7 +44,9 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     long clientStreamId,
     WireFormat wireFormat,
     String encoding,
-    int window
+    int window,
+    long producerHeartbeat,
+    long consumerIdleTimeout
   ) {
     super(context, window);
     this.eventBus = eventBus;
@@ -54,10 +56,17 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     this.wireFormat = wireFormat;
     this.encoding = encoding;
     this.producer = eventBus.sender(clientAddress, new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name()));
+    configureLiveness(producerHeartbeat, consumerIdleTimeout);
+  }
+
+  void start() {
+    startHeartbeat();
+    startIdleTimer();
   }
 
   @Override
   public void handle(TransportFrame frame, Message<Object> message) {
+    resetIdleTimer();
     if (!clientListening) {
       clientListening = true;
       if (headersPending) {
@@ -71,6 +80,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
         emit(new DefaultGrpcMessageFrame(EventBusGrpcCodec.message(frame, encoding, wireFormat)));
         break;
       case HALF_CLOSE:
+        stopIdleTimer();
         emitEnd();
         break;
       case WINDOW_UPDATE:
@@ -82,6 +92,8 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
         }
         terminate();
         emitException(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED));
+        break;
+      case HEARTBEAT:
         break;
       default:
         break;
@@ -166,7 +178,24 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   @Override
   protected Future<Void> sendTransportFrame(TransportFrame.Builder builder) {
     builder.setStreamId(clientStreamId);
-    return producer.write(EventBusGrpcCodec.encodeFrame(builder, wireFormat));
+    Future<Void> sent = producer.write(EventBusGrpcCodec.encodeFrame(builder, wireFormat));
+    sent.onFailure(this::handleTransportFailure);
+    return sent;
+  }
+
+  private void handleTransportFailure(Throwable cause) {
+    if (closed) {
+      return;
+    }
+    terminate();
+    failPendingWrites(cause);
+    emitException(new GrpcErrorException(GrpcError.UNAVAILABLE, GrpcStatus.UNAVAILABLE));
+  }
+
+  @Override
+  protected void handleIdleTimeout() {
+    sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Idle timeout")));
+    handleTransportFailure(new java.util.concurrent.TimeoutException("No frames received from the client within the idle timeout"));
   }
 
   private void terminate() {
@@ -174,6 +203,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
       return;
     }
     closed = true;
+    stopLiveness();
     registration.unbind();
   }
 }

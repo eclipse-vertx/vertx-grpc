@@ -1,6 +1,5 @@
 package io.vertx.tests.eventbus;
 
-import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;

@@ -97,10 +97,12 @@ a stream is just a map insert or remove. There is no per-call consumer register 
 unregister, which on a cluster would otherwise broadcast registration churn to every
 node. A stream timeout, once added, would be a plain map removal too.
 
-Ending a stream, by trailers or cancel, removes it from the map. A frame that arrives for
-a `stream_id` no longer in the map, one still in flight when the stream was torn down, is
-dropped. Closing an endpoint terminates its remaining streams rather than dropping them
-silently. Each is sent a `Cancel` so the peer is notified, then removed.
+Ending a stream, by trailers or cancel, removes it from the map. A stream is also given up
+locally when a frame cannot be delivered or its idle timeout elapses, so a peer that left
+the cluster does not leak the registration (see [Liveness](#liveness)). A frame that
+arrives for a `stream_id` no longer in the map, one still in flight when the stream was
+torn down, is dropped. Closing an endpoint terminates its remaining streams rather than
+dropping them silently. Each is sent a `Cancel` so the peer is notified, then removed.
 
 ```mermaid
 sequenceDiagram
@@ -140,7 +142,8 @@ header so the receiver knows how to read it.
 
 A frame is a small header, `stream_id` and `stream_sequence`, plus exactly one variant.
 The variant is a `Message` payload, a `WindowUpdate` flow-control credit, a `HalfClose`
-from the client, a server `Headers` or `Trailers`, or a `Cancel` from either side.
+from the client, a server `Headers` or `Trailers`, a `Cancel` from either side, or a
+`Heartbeat` liveness signal from either side.
 
 `Headers` and `Trailers` are thin. The metadata itself rides as `__header__.` and
 `__trailer__.` delivery headers, and these frames only mark where in the stream that
@@ -168,6 +171,7 @@ message TransportFrame {
     Trailers trailers = 6;          // server to client, terminates the call
     Cancel cancel = 7;              // either direction, abnormal termination
     Headers headers = 8;            // server to client, response metadata, before the first message
+    Heartbeat heartbeat = 9;        // either direction, liveness signal on an otherwise idle stream
   }
 }
 
@@ -204,6 +208,10 @@ message Cancel {
   uint32 status = 1; // typically CANCELLED or DEADLINE_EXCEEDED
   string reason = 2;
 }
+
+// Either direction, a liveness signal keeping an otherwise idle stream alive.
+message Heartbeat {
+}
 ```
 
 The transport never re-encodes messages. The gRPC encoder has already produced the
@@ -226,11 +234,14 @@ Both ends take an options object. Both are optional and default to sensible valu
 
 ```java
 EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()
-  .setMaxConcurrentStreams(500)
-  .setSupportedWireFormats(EnumSet.of(WireFormat.PROTOBUF)));
+  .setSupportedWireFormats(EnumSet.of(WireFormat.PROTOBUF))
+  .setHeartbeatInterval(30_000)
+  .setIdleTimeout(90_000));
 
 EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
-  .setWireFormat(WireFormat.JSON));
+  .setWireFormat(WireFormat.JSON)
+  .setHeartbeatInterval(30_000)
+  .setIdleTimeout(90_000));
 ```
 
 - `maxConcurrentStreams` (server, default `1000`) caps the streams one server
@@ -242,6 +253,12 @@ EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
 - `wireFormat` (client, default `PROTOBUF`) is the default wire format for the client's
   requests. A call can still override it with `request.format(...)`, and the generated
   stubs' `create(client, WireFormat.JSON)` does exactly that. The override wins.
+- `heartbeatInterval` (client and server, milliseconds, default `0` disabled) is how
+  often the endpoint sends `Heartbeat` frames on streams where it produces messages. See
+  [Liveness](#liveness).
+- `idleTimeout` (client and server, milliseconds, default `0` disabled) is how long the
+  endpoint waits without receiving any frame on a stream where it consumes messages before
+  giving the stream up. It should be a small multiple of the peer's `heartbeatInterval`.
 
 ## Flow control
 
@@ -266,6 +283,36 @@ On a local event bus this gives real backpressure, because a paused consumer wou
 otherwise just buffer and eventually drop. On a clustered event bus the window is the
 only thing pushing back at all, since a `send()` is already on the wire the moment it is
 issued.
+
+## Liveness
+
+HTTP/2 leans on TCP to notice a dead peer. The event bus has no such connection, so the
+design detects an unreachable peer two ways, and gives the stream up either way rather
+than retrying, since a retry would race the teardown.
+
+The active way is a delivery failure. Every frame is sent to the peer's private address,
+and on a point-to-point `send()` a missing consumer fails the write with `NO_HANDLERS`.
+When a frame cannot be delivered, the side that sent it gives the stream up: it fails the
+read side and any pending writes so the application is told, and unbinds the stream from
+its map so nothing leaks. This surfaces to the application right away and is easy to
+reproduce with an outbound interceptor that drops the peer's consumer.
+
+The passive way covers a stream where the peer stops sending without a delivery failure,
+for instance a node that vanished while this side was only receiving. Each side that
+consumes a stream arms an idle timer and resets it on every received frame; if nothing
+arrives within the idle timeout it gives the stream up the same way. To keep a genuinely
+idle but healthy stream from tripping that timer, the producing side sends `Heartbeat`
+frames while its outbound half is open. A heartbeat is also a `send()`, so it doubles as
+the producer's own liveness check: if the consumer is gone, the heartbeat fails to
+deliver and the producer gives up.
+
+Which side does which follows the call direction, so a heartbeat only flows where messages
+would. On a server-streaming call the server heartbeats and the client times out; on a
+client-streaming call the client heartbeats and the server times out; a bidi call does
+both; a unary call uses neither, as it is a plain request/reply. Both timers are off by
+default and are enabled per endpoint with `heartbeatInterval` and `idleTimeout`; the
+timeout should be a small multiple of the interval so an occasional late heartbeat does
+not fail a live stream.
 
 Multiplexing makes the per-stream window the only backpressure available. Because every
 stream on an endpoint shares one consumer, that consumer is never paused. Pausing it

@@ -26,6 +26,7 @@ message TransportFrame {
     Trailers trailers = 6; // server to client, terminates the call
     Cancel cancel = 7; // either direction, abnormal termination
     Headers headers = 8; // server to client, response metadata, before the first message
+    Heartbeat heartbeat = 9; // either direction, liveness signal on an otherwise idle stream
   }
 }
 
@@ -61,4 +62,8 @@ message Trailers {
 message Cancel {
   uint32 status = 1; // typically CANCELLED or DEADLINE_EXCEEDED
   string reason = 2;
+}
+
+// Either direction, a liveness signal keeping an otherwise idle stream alive.
+message Heartbeat {
 }
