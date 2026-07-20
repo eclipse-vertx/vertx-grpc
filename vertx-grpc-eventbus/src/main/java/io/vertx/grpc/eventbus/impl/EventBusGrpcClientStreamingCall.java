@@ -205,7 +205,6 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
         emit(new DefaultGrpcHeadersFrame(wireFormat, encoding, headers));
         break;
       case MESSAGE:
-        onInboundMessage();
         emit(new DefaultGrpcMessageFrame(EventBusGrpcCodec.message(frame, encoding, wireFormat)));
         break;
       case WINDOW_UPDATE:

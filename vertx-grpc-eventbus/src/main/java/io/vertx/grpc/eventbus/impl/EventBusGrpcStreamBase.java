@@ -8,6 +8,7 @@ import io.vertx.core.Promise;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
+import io.vertx.grpc.common.impl.GrpcFrameType;
 import io.vertx.grpc.common.impl.GrpcInboundStream;
 import io.vertx.grpc.common.impl.GrpcOutboundStream;
 import io.vertx.grpc.common.impl.GrpcStream;
@@ -26,6 +27,10 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   protected final int window;
 
   private final Deque<MessageWrite> outboundQueue = new ArrayDeque<>();
+
+  private static final Object END_MARKER = new Object();
+  private final Deque<Object> inboundQueue = new ArrayDeque<>();
+  private boolean draining;
 
   private Handler<GrpcFrame> frameHandler;
   private Handler<Void> endHandler;
@@ -48,7 +53,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
   abstract void handle(TransportFrame frame, io.vertx.core.eventbus.Message<Object> message);
 
-  protected void onInboundMessage() {
+  private void onInboundMessage() {
     granted--;
     topUpWindow();
   }
@@ -164,29 +169,61 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   public GrpcInboundStream fetch(long amount) {
     if (amount > 0) {
       flowing = true;
+      drainInbound();
       topUpWindow();
     }
     return this;
   }
 
   protected void emit(GrpcFrame frame) {
-    Handler<GrpcFrame> handler = frameHandler;
-    if (handler != null) {
-      handler.handle(frame);
-    }
+    inboundQueue.add(frame);
+    drainInbound();
   }
 
   protected void emitEnd() {
-    Handler<Void> handler = endHandler;
-    if (handler != null) {
-      handler.handle(null);
-    }
+    inboundQueue.add(END_MARKER);
+    drainInbound();
   }
 
   protected void emitException(Throwable t) {
-    Handler<Throwable> handler = exceptionHandler;
-    if (handler != null) {
-      handler.handle(t);
+    inboundQueue.add(t);
+    drainInbound();
+  }
+
+  private void drainInbound() {
+    if (draining) {
+      return;
+    }
+    draining = true;
+    try {
+      while (flowing && !inboundQueue.isEmpty()) {
+        dispatchInbound(inboundQueue.poll());
+      }
+    } finally {
+      draining = false;
+    }
+  }
+
+  private void dispatchInbound(Object event) {
+    if (event == END_MARKER) {
+      Handler<Void> handler = endHandler;
+      if (handler != null) {
+        handler.handle(null);
+      }
+    } else if (event instanceof Throwable) {
+      Handler<Throwable> handler = exceptionHandler;
+      if (handler != null) {
+        handler.handle((Throwable) event);
+      }
+    } else {
+      GrpcFrame frame = (GrpcFrame) event;
+      Handler<GrpcFrame> handler = frameHandler;
+      if (handler != null) {
+        handler.handle(frame);
+      }
+      if (frame.type() == GrpcFrameType.MESSAGE) {
+        onInboundMessage();
+      }
     }
   }
 

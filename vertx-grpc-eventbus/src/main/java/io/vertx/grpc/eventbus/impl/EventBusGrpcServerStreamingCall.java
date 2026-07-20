@@ -68,7 +68,6 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
     switch (frame.getFrameCase()) {
       case MESSAGE:
-        onInboundMessage();
         emit(new DefaultGrpcMessageFrame(EventBusGrpcCodec.message(frame, encoding, wireFormat)));
         break;
       case HALF_CLOSE:
