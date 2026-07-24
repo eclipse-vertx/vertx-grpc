@@ -115,8 +115,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
       case MESSAGE:
         return writeMessage(((GrpcMessageFrame) frame).message());
       case TRAILERS:
-        GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
-        sendTerminal(() -> sendTrailers(trailersFrame));
+        enqueue(new TrailersWrite((GrpcTrailersFrame) frame));
         return context.succeededFuture();
       default:
         return context.succeededFuture();
@@ -161,11 +160,6 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   }
 
   @Override
-  protected void onTerminalSent() {
-    terminate();
-  }
-
-  @Override
   public void close(Completable<Void> completion) {
     if (!closed) {
       sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.UNAVAILABLE.code).setReason("Server closed")));
@@ -205,5 +199,20 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     closed = true;
     stopLiveness();
     registration.unbind();
+  }
+
+  private final class TrailersWrite implements MessageWrite {
+
+    private final GrpcTrailersFrame frame;
+
+    TrailersWrite(GrpcTrailersFrame frame) {
+      this.frame = frame;
+    }
+
+    @Override
+    public void write() {
+      sendTrailers(frame);
+      terminate();
+    }
   }
 }

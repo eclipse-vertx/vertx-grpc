@@ -5,15 +5,17 @@ import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.*;
+import io.vertx.core.eventbus.DeliveryOptions;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.*;
-import io.vertx.grpc.eventbus.transport.v1alpha.Cancel;
-import io.vertx.grpc.eventbus.transport.v1alpha.HalfClose;
-import io.vertx.grpc.eventbus.transport.v1alpha.Trailers;
-import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
-import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
+import io.vertx.grpc.eventbus.transport.v1alpha.*;
 
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -46,7 +48,8 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
   private EventBusStreamEndpoint.StreamRegistration registration;
 
-  public EventBusGrpcClientStreamingCall(ContextInternal context, EventBusStreamEndpoint endpoint, ServiceName serviceName, String methodName, long producerHeartbeat, long consumerIdleTimeout) {
+  public EventBusGrpcClientStreamingCall(ContextInternal context, EventBusStreamEndpoint endpoint, ServiceName serviceName, String methodName, long producerHeartbeat,
+    long consumerIdleTimeout) {
     super(context, DEFAULT_WINDOW);
     this.endpoint = endpoint;
     this.eventBus = endpoint.eventBus();
@@ -79,9 +82,9 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private Future<Void> onMessageWrite(GrpcMessage message) {
     switch (state) {
       case OPENING:
-        MessageWrite write = new MessageWrite(message, context.promise());
-        pending.add(write);
-        return write.promise.future();
+        Promise<Void> promise = context.promise();
+        pending.add(messageWrite(message, promise));
+        return promise.future();
       case STREAMING:
         return writeMessage(message);
       default:
@@ -105,7 +108,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
   private void sendHalfClose() {
     stopHeartbeat();
-    sendTerminal(() -> sendTransportFrame(TransportFrame.newBuilder().setHalfClose(HalfClose.newBuilder())));
+    enqueue(new HalfCloseWrite());
   }
 
   private Future<Void> open() {
@@ -193,7 +196,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(window)));
     MessageWrite write;
     while ((write = pending.poll()) != null) {
-      writeMessage(write.message).onComplete(write.promise);
+      enqueue(write);
     }
     if (ended) {
       sendHalfClose();
@@ -290,7 +293,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     failPendingWrites(cause);
     MessageWrite write;
     while ((write = pending.poll()) != null) {
-      write.promise.fail(cause);
+      write.fail(cause);
     }
   }
 
@@ -310,5 +313,12 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     OPENING,
     STREAMING,
     CLOSED
+  }
+
+  private final class HalfCloseWrite implements MessageWrite {
+    @Override
+    public void write() {
+      sendTransportFrame(TransportFrame.newBuilder().setHalfClose(HalfClose.newBuilder()));
+    }
   }
 }

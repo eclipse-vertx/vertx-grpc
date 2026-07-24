@@ -41,7 +41,6 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   private boolean flowing = true;
   private int granted;
   private int sendWindow;
-  private Runnable pendingTerminal;
   private long sequence;
 
   private long heartbeatInterval;
@@ -80,12 +79,13 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   }
 
   protected Future<Void> writeMessage(GrpcMessage message) {
-    if (sendWindow > 0 && outboundQueue.isEmpty()) {
-      return doSendMessage(message);
-    }
-    MessageWrite write = new MessageWrite(message, context.promise());
-    outboundQueue.add(write);
-    return write.promise.future();
+    Promise<Void> promise = context.promise();
+    enqueue(messageWrite(message, promise));
+    return promise.future();
+  }
+
+  protected MessageWrite messageWrite(GrpcMessage message, Promise<Void> promise) {
+    return new MessageFrameWrite(this, message, promise);
   }
 
   private Future<Void> doSendMessage(GrpcMessage message) {
@@ -95,34 +95,22 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
       .setMessage(Message.newBuilder().setPayload(ByteString.copyFrom(message.payload().getBytes()))));
   }
 
-  protected void sendTerminal(Runnable send) {
-    if (outboundQueue.isEmpty()) {
-      send.run();
-      onTerminalSent();
-    } else {
-      pendingTerminal = send;
-    }
+  protected void enqueue(MessageWrite write) {
+    outboundQueue.add(write);
+    drainOutbound();
   }
 
-  protected void onTerminalSent() {
+  private void drainOutbound() {
+    MessageWrite head;
+    while ((head = outboundQueue.peek()) != null && !(head.windowed() && sendWindow <= 0)) {
+      outboundQueue.poll().write();
+    }
   }
 
   protected void grantSendWindow(int delta) {
     boolean wasFull = writeQueueFull();
     sendWindow += delta;
-
-    while (sendWindow > 0 && !outboundQueue.isEmpty()) {
-      MessageWrite write = outboundQueue.poll();
-      doSendMessage(write.message).onComplete(write.promise);
-    }
-
-    if (outboundQueue.isEmpty() && pendingTerminal != null) {
-      Runnable terminal = pendingTerminal;
-      pendingTerminal = null;
-      terminal.run();
-      onTerminalSent();
-    }
-
+    drainOutbound();
     if (wasFull && !writeQueueFull()) {
       Handler<Void> h = drainHandler;
       if (h != null) {
@@ -134,9 +122,8 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   protected void failPendingWrites(Throwable cause) {
     MessageWrite write;
     while ((write = outboundQueue.poll()) != null) {
-      write.promise.fail(cause);
+      write.fail(cause);
     }
-    pendingTerminal = null;
   }
 
   protected abstract void handleIdleTimeout();
@@ -296,14 +283,31 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     }
   }
 
-  static class MessageWrite {
+  private static final class MessageFrameWrite implements MessageWrite {
 
-    final GrpcMessage message;
-    final Promise<Void> promise;
+    private final EventBusGrpcStreamBase stream;
+    private final GrpcMessage message;
+    private final Promise<Void> promise;
 
-    MessageWrite(GrpcMessage message, Promise<Void> promise) {
+    MessageFrameWrite(EventBusGrpcStreamBase stream, GrpcMessage message, Promise<Void> promise) {
+      this.stream = stream;
       this.message = message;
       this.promise = promise;
+    }
+
+    @Override
+    public boolean windowed() {
+      return true;
+    }
+
+    @Override
+    public void write() {
+      stream.doSendMessage(message).onComplete(promise);
+    }
+
+    @Override
+    public void fail(Throwable cause) {
+      promise.fail(cause);
     }
   }
 }
