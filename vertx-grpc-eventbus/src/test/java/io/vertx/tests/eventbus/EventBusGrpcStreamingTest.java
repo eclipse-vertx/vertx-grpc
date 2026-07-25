@@ -678,6 +678,57 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   }
 
   @Test
+  public void testConcurrentStreamsAllComplete() throws Exception {
+    // Each response lands as one synchronous burst before the response future installs the handlers, so
+    // a stream must buffer its messages and hold its end rather than drop them.
+    int count = 200;
+    int fanout = 16;
+    int iterations = 300;
+    server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {
+      for (int i = 0; i < count; i++) {
+        request.response().write(Reply.newBuilder().setMessage("x-" + i).build());
+      }
+      request.response().end();
+    }));
+
+    for (int iter = 0; iter < iterations; iter++) {
+      // A paused stream sharing the consumer must not block or perturb the others.
+      GrpcReadStream<Reply> stalled = client.request(SOURCE_CLIENT)
+        .compose(request -> {
+          request.end(Empty.getDefaultInstance());
+          return request.response();
+        })
+        .await(10, TimeUnit.SECONDS);
+
+      stalled.pause();
+
+      List<AtomicInteger> counts = new ArrayList<>();
+      List<Future<Void>> futures = new ArrayList<>();
+      for (int k = 0; k < fanout; k++) {
+        AtomicInteger n = new AtomicInteger();
+        counts.add(n);
+        futures.add(client.request(SOURCE_CLIENT)
+          .compose(request -> {
+            request.end(Empty.getDefaultInstance());
+            return request.response();
+          })
+          .compose(response -> {
+            Promise<Void> promise = Promise.promise();
+            response.handler(r -> n.incrementAndGet());
+            response.endHandler(promise::tryComplete);
+            response.exceptionHandler(promise::tryFail);
+            return promise.future();
+          }));
+      }
+      Future.all(futures).await(10, TimeUnit.SECONDS);
+      for (int k = 0; k < fanout; k++) {
+        assertEquals("iteration " + iter + " stream " + k, count, counts.get(k).get());
+      }
+      stalled.fetch(Long.MAX_VALUE);
+    }
+  }
+
+  @Test
   public void testInitialFailureSurfacesError() throws Exception {
     server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> request.response().end()));
 
