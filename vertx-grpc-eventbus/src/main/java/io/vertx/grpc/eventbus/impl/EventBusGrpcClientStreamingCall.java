@@ -189,7 +189,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     registration.bind(this);
 
     startHeartbeat();
-    startIdleTimer();
+    startIdleTimeout();
 
     grantSendWindow(initialWindow);
 
@@ -207,7 +207,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
   @Override
   public void handle(TransportFrame frame, Message<Object> message) {
-    resetIdleTimer();
+    resetIdleTimeout();
     switch (frame.getFrameCase()) {
       case HEADERS:
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();

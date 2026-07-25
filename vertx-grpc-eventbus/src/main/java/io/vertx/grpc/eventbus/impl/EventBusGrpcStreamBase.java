@@ -46,7 +46,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   private long heartbeatInterval;
   private long idleTimeout;
   private long heartbeatTimerId = -1L;
-  private long idleTimerId = -1L;
+  private long idleExpirationTimestamp = Long.MAX_VALUE;
 
   EventBusGrpcStreamBase(ContextInternal context, int window) {
     this.context = context;
@@ -142,38 +142,29 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     }
   }
 
-  protected void startIdleTimer() {
+  protected void startIdleTimeout() {
     if (idleTimeout > 0) {
-      armIdleTimer();
+      idleExpirationTimestamp = System.currentTimeMillis() + idleTimeout;
     }
   }
 
-  protected void resetIdleTimer() {
-    if (idleTimerId >= 0) {
-      armIdleTimer();
+  protected void resetIdleTimeout() {
+    if (idleExpirationTimestamp != Long.MAX_VALUE) {
+      idleExpirationTimestamp = System.currentTimeMillis() + idleTimeout;
     }
   }
 
-  protected void stopIdleTimer() {
-    if (idleTimerId >= 0) {
-      context.owner().cancelTimer(idleTimerId);
-      idleTimerId = -1L;
-    }
+  protected void cancelIdleTimeout() {
+    idleExpirationTimestamp = Long.MAX_VALUE;
   }
 
-  private void armIdleTimer() {
-    if (idleTimerId >= 0) {
-      context.owner().cancelTimer(idleTimerId);
-    }
-    idleTimerId = context.owner().setTimer(idleTimeout, id -> {
-      idleTimerId = -1L;
-      handleIdleTimeout();
-    });
+  boolean expired(long now) {
+    return now >= idleExpirationTimestamp;
   }
 
   protected void stopLiveness() {
     stopHeartbeat();
-    stopIdleTimer();
+    cancelIdleTimeout();
   }
 
   @Override

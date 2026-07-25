@@ -21,19 +21,26 @@ abstract class EventBusStreamEndpoint {
   private final ContextInternal context;
   private final EventBus eventBus;
   private final String address;
+  private final long idleTimeout;
   private final ConcurrentMap<Long, EventBusGrpcStreamBase> streams = new ConcurrentHashMap<>();
   private final AtomicLong sequence = new AtomicLong();
 
   private MessageConsumer<Object> consumer;
+  private long idleTimerId = -1L;
 
-  EventBusStreamEndpoint(Vertx vertx, EventBus eventBus, String prefix) {
+  EventBusStreamEndpoint(Vertx vertx, EventBus eventBus, String prefix, long idleTimeout) {
     this.context = (ContextInternal) vertx.getOrCreateContext();
     this.eventBus = eventBus;
     this.address = prefix + UUID.randomUUID();
+    this.idleTimeout = idleTimeout;
   }
 
   ContextInternal context() {
     return context;
+  }
+
+  long idleTimeout() {
+    return idleTimeout;
   }
 
   EventBus eventBus() {
@@ -53,8 +60,20 @@ abstract class EventBusStreamEndpoint {
     context.runOnContext(v -> {
       consumer = eventBus.consumer(address, this::dispatch);
       consumer.completion().onComplete(promise);
+      if (idleTimeout > 0) {
+        idleTimerId = context.setPeriodic(idleTimeout, id -> checkExpired());
+      }
     });
     return promise.future();
+  }
+
+  private void checkExpired() {
+    long now = System.currentTimeMillis();
+    for (EventBusGrpcStreamBase stream : streams.values()) {
+      if (stream.expired(now)) {
+        stream.handleIdleTimeout();
+      }
+    }
   }
 
   private void dispatch(Message<Object> message) {
@@ -66,6 +85,10 @@ abstract class EventBusStreamEndpoint {
   }
 
   Future<Void> closeStreams() {
+    if (idleTimerId >= 0) {
+      context.owner().cancelTimer(idleTimerId);
+      idleTimerId = -1L;
+    }
     List<EventBusGrpcStreamBase> active = new ArrayList<>(streams.values());
     streams.clear();
     List<Future<Void>> futures = new ArrayList<>();

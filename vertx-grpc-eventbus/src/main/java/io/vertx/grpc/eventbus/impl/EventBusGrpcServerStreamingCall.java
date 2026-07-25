@@ -61,12 +61,12 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
   void start() {
     startHeartbeat();
-    startIdleTimer();
+    startIdleTimeout();
   }
 
   @Override
   public void handle(TransportFrame frame, Message<Object> message) {
-    resetIdleTimer();
+    resetIdleTimeout();
     if (!clientListening) {
       clientListening = true;
       if (headersPending) {
@@ -80,7 +80,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
         emit(new DefaultGrpcMessageFrame(EventBusGrpcCodec.message(frame, encoding, wireFormat)));
         break;
       case HALF_CLOSE:
-        stopIdleTimer();
+        cancelIdleTimeout();
         emitEnd();
         break;
       case WINDOW_UPDATE:
