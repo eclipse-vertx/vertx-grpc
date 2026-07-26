@@ -45,7 +45,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
   private long heartbeatInterval;
   private long idleTimeout;
-  private long heartbeatTimerId = -1L;
+  private long heartbeatTimestamp = Long.MAX_VALUE;
   private long idleExpirationTimestamp = Long.MAX_VALUE;
 
   EventBusGrpcStreamBase(ContextInternal context, int window) {
@@ -129,16 +129,19 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   protected abstract void handleIdleTimeout();
 
   protected void startHeartbeat() {
-    if (heartbeatInterval > 0 && heartbeatTimerId < 0) {
-      heartbeatTimerId = context.owner().setPeriodic(heartbeatInterval, id ->
-        sendTransportFrame(TransportFrame.newBuilder().setHeartbeat(Heartbeat.newBuilder())));
+    if (heartbeatInterval > 0) {
+      heartbeatTimestamp = System.currentTimeMillis() + heartbeatInterval;
     }
   }
 
   protected void stopHeartbeat() {
-    if (heartbeatTimerId >= 0) {
-      context.owner().cancelTimer(heartbeatTimerId);
-      heartbeatTimerId = -1L;
+    heartbeatTimestamp = Long.MAX_VALUE;
+  }
+
+  void checkHeartbeat(long now) {
+    if (now >= heartbeatTimestamp) {
+      heartbeatTimestamp = now + heartbeatInterval;
+      sendTransportFrame(TransportFrame.newBuilder().setHeartbeat(Heartbeat.newBuilder()));
     }
   }
 

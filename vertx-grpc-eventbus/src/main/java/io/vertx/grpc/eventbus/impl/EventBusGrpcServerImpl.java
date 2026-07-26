@@ -29,13 +29,11 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
   private final Vertx vertx;
   private final Map<String, ServiceConsumer> consumers = new HashMap<>();
   private final Set<WireFormat> supportedWireFormats;
-  private final long heartbeatInterval;
 
   private EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
-    super(vertx, eventBus, "grpc.eb.server.", options.getIdleTimeout());
+    super(vertx, eventBus, "grpc.eb.server.", options.getIdleTimeout(), options.getHeartbeatInterval());
     this.vertx = vertx;
     this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
-    this.heartbeatInterval = options.getHeartbeatInterval();
   }
 
   public static Future<EventBusGrpcServer> create(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
@@ -282,7 +280,7 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
 
       int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
 
-      long producerHeartbeat = serviceMethod.serverStreaming() ? heartbeatInterval : 0L;
+      long producerHeartbeat = serviceMethod.serverStreaming() ? heartbeatInterval() : 0L;
       long consumerIdleTimeout = serviceMethod.clientStreaming() ? idleTimeout() : 0L;
 
       MultiMap headers = MultiMap.caseInsensitiveMultiMap();

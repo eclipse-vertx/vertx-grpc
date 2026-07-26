@@ -22,17 +22,20 @@ abstract class EventBusStreamEndpoint {
   private final EventBus eventBus;
   private final String address;
   private final long idleTimeout;
+  private final long heartbeatInterval;
   private final ConcurrentMap<Long, EventBusGrpcStreamBase> streams = new ConcurrentHashMap<>();
   private final AtomicLong sequence = new AtomicLong();
 
   private MessageConsumer<Object> consumer;
   private long idleTimerId = -1L;
+  private long heartbeatTimerId = -1L;
 
-  EventBusStreamEndpoint(Vertx vertx, EventBus eventBus, String prefix, long idleTimeout) {
+  EventBusStreamEndpoint(Vertx vertx, EventBus eventBus, String prefix, long idleTimeout, long heartbeatInterval) {
     this.context = (ContextInternal) vertx.getOrCreateContext();
     this.eventBus = eventBus;
     this.address = prefix + UUID.randomUUID();
     this.idleTimeout = idleTimeout;
+    this.heartbeatInterval = heartbeatInterval;
   }
 
   ContextInternal context() {
@@ -41,6 +44,10 @@ abstract class EventBusStreamEndpoint {
 
   long idleTimeout() {
     return idleTimeout;
+  }
+
+  long heartbeatInterval() {
+    return heartbeatInterval;
   }
 
   EventBus eventBus() {
@@ -63,6 +70,9 @@ abstract class EventBusStreamEndpoint {
       if (idleTimeout > 0) {
         idleTimerId = context.setPeriodic(idleTimeout, id -> checkExpired());
       }
+      if (heartbeatInterval > 0) {
+        heartbeatTimerId = context.setPeriodic(Math.max(1, heartbeatInterval / 2), id -> sendHeartbeats());
+      }
     });
     return promise.future();
   }
@@ -73,6 +83,13 @@ abstract class EventBusStreamEndpoint {
       if (stream.expired(now)) {
         stream.handleIdleTimeout();
       }
+    }
+  }
+
+  private void sendHeartbeats() {
+    long now = System.currentTimeMillis();
+    for (EventBusGrpcStreamBase stream : streams.values()) {
+      stream.checkHeartbeat(now);
     }
   }
 
@@ -88,6 +105,10 @@ abstract class EventBusStreamEndpoint {
     if (idleTimerId >= 0) {
       context.owner().cancelTimer(idleTimerId);
       idleTimerId = -1L;
+    }
+    if (heartbeatTimerId >= 0) {
+      context.owner().cancelTimer(heartbeatTimerId);
+      heartbeatTimerId = -1L;
     }
     List<EventBusGrpcStreamBase> active = new ArrayList<>(streams.values());
     streams.clear();
