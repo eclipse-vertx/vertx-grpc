@@ -550,6 +550,62 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   }
 
   @Test
+  public void testServerEndCompletesWhenTrailersAreSent() throws Exception {
+    Promise<Void> ended = Promise.promise();
+    server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {
+      GrpcServerResponse<Empty, Reply> response = request.response();
+      response.write(Reply.newBuilder().setMessage("first").build());
+      response.end().onComplete(ended);
+    }));
+
+    List<Reply> replies = client.request(SOURCE_CLIENT)
+      .compose(request -> {
+        request.end(Empty.getDefaultInstance());
+        return request.response();
+      })
+      .compose(EventBusGrpcStreamingTest::collect)
+      .await(10, TimeUnit.SECONDS);
+
+    // end() completes only once the trailers have actually been written to the event bus
+    ended.future().await(10, TimeUnit.SECONDS);
+    assertEquals(1, replies.size());
+    assertEquals("first", replies.get(0).getMessage());
+  }
+
+  @Test
+  public void testServerEndFailsWhenTrailersCannotBeWritten() throws Exception {
+    Promise<Throwable> endFailed = Promise.promise();
+    server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {
+      GrpcServerResponse<Empty, Reply> response = request.response();
+      response.exceptionHandler(err -> {
+      });
+      response.write(Reply.newBuilder().setMessage("first").build());
+      response.end().onFailure(endFailed::tryComplete);
+    }));
+
+    // Simulate the client node leaving the cluster once the first message is on the wire, so the
+    // trailers that follow have no consumer to deliver to.
+    vertx.eventBus().addOutboundInterceptor(dc -> {
+      if (dc.message().address().startsWith("grpc.eb.client.") && dc.message().body() instanceof Buffer) {
+        JsonObject json = ((Buffer) dc.message().body()).toJsonObject();
+        if (json.getJsonObject("message") != null) {
+          client.close().onComplete(ar -> dc.next());
+          return;
+        }
+      }
+      dc.next();
+    });
+
+    client.request(SOURCE_CLIENT).onSuccess(request -> {
+      request.format(WireFormat.JSON);
+      request.end(Empty.getDefaultInstance());
+    });
+
+    Throwable failure = endFailed.future().await(10, TimeUnit.SECONDS);
+    assertNotNull("end() must report the outcome of the trailers write", failure);
+  }
+
+  @Test
   public void testClientIdleTimeoutGivesStreamUp() throws Exception {
     // The server produces but never heartbeats and never ends; the client gives the stream up once its
     // idle timeout elapses without any frame.

@@ -75,7 +75,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
       case CANCEL:
         return sendCancel();
       default:
-        return context.succeededFuture();
+        return context.failedFuture("Invalid message: " + frame.type());
     }
   }
 
