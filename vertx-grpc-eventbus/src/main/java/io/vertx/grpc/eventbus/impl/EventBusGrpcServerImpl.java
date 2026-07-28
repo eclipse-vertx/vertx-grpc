@@ -29,11 +29,26 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
   private final Vertx vertx;
   private final Map<String, ServiceConsumer> consumers = new HashMap<>();
   private final Set<WireFormat> supportedWireFormats;
+  private final long maxPingInterval;
 
   private EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
-    super(vertx, eventBus, "grpc.eb.server.", options.getIdleTimeout(), options.getHeartbeatInterval());
+    super(vertx, eventBus, "grpc.eb.server.", WireFormat.PROTOBUF, 0L, 0L);
     this.vertx = vertx;
     this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
+    this.maxPingInterval = options.getMaxPingInterval();
+  }
+
+  private long peerTimeout(String header) {
+    if (header == null || maxPingInterval <= 0) {
+      return 0L;
+    }
+    long advertised;
+    try {
+      advertised = Long.parseLong(header);
+    } catch (NumberFormatException e) {
+      return 0L;
+    }
+    return advertised > 0 && advertised <= maxPingInterval ? advertised * 2 : 0L;
   }
 
   public static Future<EventBusGrpcServer> create(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
@@ -279,9 +294,7 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
       }
 
       int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
-
-      long producerHeartbeat = serviceMethod.serverStreaming() ? heartbeatInterval() : 0L;
-      long consumerIdleTimeout = serviceMethod.clientStreaming() ? idleTimeout() : 0L;
+      long peerTimeout = peerTimeout(message.headers().get(EventBusHeaders.PING_INTERVAL));
 
       MultiMap headers = MultiMap.caseInsensitiveMultiMap();
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
@@ -296,13 +309,10 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
           clientStreamId,
           wireFormat,
           "identity",
-          window,
-          producerHeartbeat,
-          consumerIdleTimeout
+          window
         );
 
-        registration.bind(stream);
-        stream.start();
+        registration.bind(stream, clientAddress, peerTimeout);
 
         GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
         GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context(), headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);

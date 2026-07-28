@@ -15,8 +15,15 @@ public class EventBusGrpcClientImpl extends EventBusStreamEndpoint implements Ev
   private final WireFormat wireFormat;
 
   private EventBusGrpcClientImpl(Vertx vertx, EventBus eventBus, EventBusGrpcClientOptions options) {
-    super(vertx, eventBus, "grpc.eb.client.", options.getIdleTimeout(), options.getHeartbeatInterval());
+    super(vertx, eventBus, "grpc.eb.client.", options.getWireFormat(), options.getPingInterval(), pingTimeout(options));
     this.wireFormat = options.getWireFormat();
+  }
+
+  private static long pingTimeout(EventBusGrpcClientOptions options) {
+    if (options.getPingInterval() <= 0) {
+      return 0L;
+    }
+    return options.getPingTimeout() > 0 ? options.getPingTimeout() : options.getPingInterval() * 2;
   }
 
   public static Future<EventBusGrpcClient> create(Vertx vertx, EventBus eventBus, EventBusGrpcClientOptions options) {
@@ -31,9 +38,7 @@ public class EventBusGrpcClientImpl extends EventBusStreamEndpoint implements Ev
 
   @Override
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
-    long producerHeartbeat = method.clientStreaming() ? heartbeatInterval() : 0L;
-    long consumerIdleTimeout = method.serverStreaming() ? idleTimeout() : 0L;
-    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(context(), this, method.clientStreaming() || method.serverStreaming(), producerHeartbeat, consumerIdleTimeout);
+    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(context(), this, method.clientStreaming() || method.serverStreaming());
     GrpcClientRequestImpl<Req, Resp> request = new GrpcClientRequestImpl<>(
       context(),
       invoker,

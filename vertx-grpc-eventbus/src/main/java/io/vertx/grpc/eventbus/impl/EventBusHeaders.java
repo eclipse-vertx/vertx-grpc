@@ -45,6 +45,17 @@ public final class EventBusHeaders {
   public static final String INITIAL_WINDOW = "grpc-initial-window";
 
   /**
+   * Streaming handshake, client to server: the interval in milliseconds at which the client pings its peers, so the server can derive how long the client may go unheard before it
+   * is considered gone. Absent when the client does not ping.
+   */
+  public static final String PING_INTERVAL = "grpc-ping-interval";
+
+  /**
+   * Ping frames, either direction: the sender's private address, so the receiver knows where to send the ack and which peer to credit for it.
+   */
+  public static final String PEER_ADDRESS = "grpc-peer-address";
+
+  /**
    * The prefix for grpc headers among delivery options.
    */
   public static final String HEADER_PREFIX = "__header__.";

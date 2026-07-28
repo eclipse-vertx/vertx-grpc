@@ -17,26 +17,26 @@ public class EventBusGrpcClientOptions {
   public static final WireFormat DEFAULT_WIRE_FORMAT = WireFormat.PROTOBUF;
 
   /**
-   * The default heartbeat interval in milliseconds = {@code 0} (disabled)
+   * The default ping interval in milliseconds = {@code 0} (disabled)
    */
-  public static final long DEFAULT_HEARTBEAT_INTERVAL = 0L;
+  public static final long DEFAULT_PING_INTERVAL = 0L;
 
   /**
-   * The default idle timeout in milliseconds = {@code 0} (disabled)
+   * The default ping timeout in milliseconds = {@code 0} (twice the ping interval)
    */
-  public static final long DEFAULT_IDLE_TIMEOUT = 0L;
+  public static final long DEFAULT_PING_TIMEOUT = 0L;
 
   private WireFormat wireFormat;
-  private long heartbeatInterval;
-  private long idleTimeout;
+  private long pingInterval;
+  private long pingTimeout;
 
   /**
    * Default options.
    */
   public EventBusGrpcClientOptions() {
     wireFormat = DEFAULT_WIRE_FORMAT;
-    heartbeatInterval = DEFAULT_HEARTBEAT_INTERVAL;
-    idleTimeout = DEFAULT_IDLE_TIMEOUT;
+    pingInterval = DEFAULT_PING_INTERVAL;
+    pingTimeout = DEFAULT_PING_TIMEOUT;
   }
 
   /**
@@ -44,8 +44,8 @@ public class EventBusGrpcClientOptions {
    */
   public EventBusGrpcClientOptions(EventBusGrpcClientOptions other) {
     wireFormat = other.wireFormat;
-    heartbeatInterval = other.heartbeatInterval;
-    idleTimeout = other.idleTimeout;
+    pingInterval = other.pingInterval;
+    pingTimeout = other.pingTimeout;
   }
 
   /**
@@ -75,38 +75,40 @@ public class EventBusGrpcClientOptions {
   }
 
   /**
-   * @return the heartbeat interval in milliseconds; {@code 0} disables heartbeats
+   * @return the ping interval in milliseconds; {@code 0} disables pings
    */
-  public long getHeartbeatInterval() {
-    return heartbeatInterval;
+  public long getPingInterval() {
+    return pingInterval;
   }
 
   /**
-   * Set the interval at which heartbeat frames are sent on streams the client produces.
+   * Set the interval at which the client pings each server endpoint it holds a stream with. The interval is advertised to the server, which derives from it how long this client
+   * may go unheard before its streams are given up, so it needs no matching setting of its own.
    *
-   * @param heartbeatInterval the interval in milliseconds, {@code 0} to disable
+   * @param pingInterval the interval in milliseconds, {@code 0} to disable
    * @return a reference to this, so the API can be used fluently
    */
-  public EventBusGrpcClientOptions setHeartbeatInterval(long heartbeatInterval) {
-    this.heartbeatInterval = heartbeatInterval;
+  public EventBusGrpcClientOptions setPingInterval(long pingInterval) {
+    this.pingInterval = pingInterval;
     return this;
   }
 
   /**
-   * @return the idle timeout in milliseconds; {@code 0} disables the idle timeout
+   * @return the ping timeout in milliseconds; {@code 0} means twice the ping interval
    */
-  public long getIdleTimeout() {
-    return idleTimeout;
+  public long getPingTimeout() {
+    return pingTimeout;
   }
 
   /**
-   * Set the maximum time the client waits for a frame on a stream it consumes before giving it up.
+   * Set how long a server endpoint may go without acknowledging a ping before it is considered down and every stream with it is given up. Should be a small multiple of the ping
+   * interval, so an occasional late acknowledgment does not cost a live stream.
    *
-   * @param idleTimeout the timeout in milliseconds, {@code 0} to disable
+   * @param pingTimeout the timeout in milliseconds, {@code 0} for twice the ping interval
    * @return a reference to this, so the API can be used fluently
    */
-  public EventBusGrpcClientOptions setIdleTimeout(long idleTimeout) {
-    this.idleTimeout = idleTimeout;
+  public EventBusGrpcClientOptions setPingTimeout(long pingTimeout) {
+    this.pingTimeout = pingTimeout;
     return this;
   }
 

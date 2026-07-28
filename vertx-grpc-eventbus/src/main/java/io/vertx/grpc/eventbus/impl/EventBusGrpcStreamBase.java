@@ -12,7 +12,6 @@ import io.vertx.grpc.common.impl.GrpcFrameType;
 import io.vertx.grpc.common.impl.GrpcInboundStream;
 import io.vertx.grpc.common.impl.GrpcOutboundStream;
 import io.vertx.grpc.common.impl.GrpcStream;
-import io.vertx.grpc.eventbus.transport.v1alpha.Heartbeat;
 import io.vertx.grpc.eventbus.transport.v1alpha.Message;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
@@ -43,25 +42,17 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   private int sendWindow;
   private long sequence;
 
-  private long heartbeatInterval;
-  private long idleTimeout;
-  private long heartbeatTimestamp = Long.MAX_VALUE;
-  private long idleExpirationTimestamp = Long.MAX_VALUE;
-
   EventBusGrpcStreamBase(ContextInternal context, int window) {
     this.context = context;
     this.window = window;
     this.granted = window;
   }
 
-  protected void configureLiveness(long heartbeatInterval, long idleTimeout) {
-    this.heartbeatInterval = heartbeatInterval;
-    this.idleTimeout = idleTimeout;
-  }
-
   protected abstract Future<Void> sendTransportFrame(TransportFrame.Builder frame);
 
   abstract void handle(TransportFrame frame, io.vertx.core.eventbus.Message<Object> message);
+
+  abstract void handlePeerDown(Throwable cause);
 
   private void onInboundMessage() {
     granted--;
@@ -124,50 +115,6 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     while ((write = outboundQueue.poll()) != null) {
       write.fail(cause);
     }
-  }
-
-  protected abstract void handleIdleTimeout();
-
-  protected void startHeartbeat() {
-    if (heartbeatInterval > 0) {
-      heartbeatTimestamp = System.currentTimeMillis() + heartbeatInterval;
-    }
-  }
-
-  protected void stopHeartbeat() {
-    heartbeatTimestamp = Long.MAX_VALUE;
-  }
-
-  void checkHeartbeat(long now) {
-    if (now >= heartbeatTimestamp) {
-      heartbeatTimestamp = now + heartbeatInterval;
-      sendTransportFrame(TransportFrame.newBuilder().setHeartbeat(Heartbeat.newBuilder()));
-    }
-  }
-
-  protected void startIdleTimeout() {
-    if (idleTimeout > 0) {
-      idleExpirationTimestamp = System.currentTimeMillis() + idleTimeout;
-    }
-  }
-
-  protected void resetIdleTimeout() {
-    if (idleExpirationTimestamp != Long.MAX_VALUE) {
-      idleExpirationTimestamp = System.currentTimeMillis() + idleTimeout;
-    }
-  }
-
-  protected void cancelIdleTimeout() {
-    idleExpirationTimestamp = Long.MAX_VALUE;
-  }
-
-  boolean expired(long now) {
-    return now >= idleExpirationTimestamp;
-  }
-
-  protected void stopLiveness() {
-    stopHeartbeat();
-    cancelIdleTimeout();
   }
 
   @Override

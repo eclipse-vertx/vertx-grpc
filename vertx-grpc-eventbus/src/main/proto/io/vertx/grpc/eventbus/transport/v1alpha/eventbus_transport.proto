@@ -16,7 +16,7 @@ option java_multiple_files = true;
 // frame's grpc-wire-format header. The handshake and flow control are described in the
 // module README.
 message TransportFrame {
-  uint64 stream_id = 1; // the destination endpoint's id for this call, demuxes it on the shared private address
+  uint64 stream_id = 1; // the destination endpoint's id for this call, demuxes it on the shared private address, 0 for an endpoint level frame
   uint64 stream_sequence = 2; // per-stream, monotonic, advances on Message frames only
 
   oneof frame {
@@ -26,7 +26,7 @@ message TransportFrame {
     Trailers trailers = 6; // server to client, terminates the call
     Cancel cancel = 7; // either direction, abnormal termination
     Headers headers = 8; // server to client, response metadata, before the first message
-    Heartbeat heartbeat = 9; // either direction, liveness signal on an otherwise idle stream
+    Ping ping = 9; // either direction, peer liveness probe, on stream_id 0
   }
 }
 
@@ -64,6 +64,9 @@ message Cancel {
   string reason = 2;
 }
 
-// Either direction, a liveness signal keeping an otherwise idle stream alive.
-message Heartbeat {
+// A peer liveness probe, carried on stream_id 0 because it belongs to the peer endpoint
+// rather than to any single call.
+message Ping {
+  uint64 data = 1; // opaque, echoed verbatim in the ack
+  bool ack = 2; // set on the echo, clear on the probe
 }

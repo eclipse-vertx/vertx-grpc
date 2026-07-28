@@ -22,26 +22,19 @@ public class EventBusGrpcServerOptions {
   public static final Set<WireFormat> DEFAULT_SUPPORTED_WIRE_FORMATS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(WireFormat.PROTOBUF, WireFormat.JSON)));
 
   /**
-   * The default heartbeat interval in milliseconds = {@code 0} (disabled)
+   * The default maximum ping interval in milliseconds = {@code 120_000} (2 minutes)
    */
-  public static final long DEFAULT_HEARTBEAT_INTERVAL = 0L;
-
-  /**
-   * The default idle timeout in milliseconds = {@code 0} (disabled)
-   */
-  public static final long DEFAULT_IDLE_TIMEOUT = 0L;
+  public static final long DEFAULT_MAX_PING_INTERVAL = 120_000L;
 
   private Set<WireFormat> supportedWireFormats;
-  private long heartbeatInterval;
-  private long idleTimeout;
+  private long maxPingInterval;
 
   /**
    * Default options.
    */
   public EventBusGrpcServerOptions() {
     supportedWireFormats = new LinkedHashSet<>(DEFAULT_SUPPORTED_WIRE_FORMATS);
-    heartbeatInterval = DEFAULT_HEARTBEAT_INTERVAL;
-    idleTimeout = DEFAULT_IDLE_TIMEOUT;
+    maxPingInterval = DEFAULT_MAX_PING_INTERVAL;
   }
 
   /**
@@ -49,8 +42,7 @@ public class EventBusGrpcServerOptions {
    */
   public EventBusGrpcServerOptions(EventBusGrpcServerOptions other) {
     supportedWireFormats = new LinkedHashSet<>(other.supportedWireFormats);
-    heartbeatInterval = other.heartbeatInterval;
-    idleTimeout = other.idleTimeout;
+    maxPingInterval = other.maxPingInterval;
   }
 
   /**
@@ -92,38 +84,22 @@ public class EventBusGrpcServerOptions {
   }
 
   /**
-   * @return the heartbeat interval in milliseconds; {@code 0} disables heartbeats
+   * @return the longest ping interval the server honours, in milliseconds; {@code 0} disables the liveness check
    */
-  public long getHeartbeatInterval() {
-    return heartbeatInterval;
+  public long getMaxPingInterval() {
+    return maxPingInterval;
   }
 
   /**
-   * Set the interval at which heartbeat frames are sent on streams the server produces.
+   * Set the longest ping interval the server honours. A client advertises the interval at which it pings and the server gives its streams up once twice that has elapsed without a
+   * ping, so the client alone sets the pace. This bounds how long a client can ask the server to wait, capping what a client that advertises an implausible interval can hold. A
+   * client that does not ping is never given up on.
    *
-   * @param heartbeatInterval the interval in milliseconds, {@code 0} to disable
+   * @param maxPingInterval the longest interval in milliseconds, {@code 0} to never give a silent client up
    * @return a reference to this, so the API can be used fluently
    */
-  public EventBusGrpcServerOptions setHeartbeatInterval(long heartbeatInterval) {
-    this.heartbeatInterval = heartbeatInterval;
-    return this;
-  }
-
-  /**
-   * @return the idle timeout in milliseconds; {@code 0} disables the idle timeout
-   */
-  public long getIdleTimeout() {
-    return idleTimeout;
-  }
-
-  /**
-   * Set the maximum time the server waits for a frame on a stream it consumes before giving it up.
-   *
-   * @param idleTimeout the timeout in milliseconds, {@code 0} to disable
-   * @return a reference to this, so the API can be used fluently
-   */
-  public EventBusGrpcServerOptions setIdleTimeout(long idleTimeout) {
-    this.idleTimeout = idleTimeout;
+  public EventBusGrpcServerOptions setMaxPingInterval(long maxPingInterval) {
+    this.maxPingInterval = maxPingInterval;
     return this;
   }
 

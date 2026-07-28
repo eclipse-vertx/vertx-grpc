@@ -22,7 +22,6 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.TimeoutException;
 
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
@@ -48,8 +47,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
   private EventBusStreamEndpoint.StreamRegistration registration;
 
-  public EventBusGrpcClientStreamingCall(ContextInternal context, EventBusStreamEndpoint endpoint, ServiceName serviceName, String methodName, long producerHeartbeat,
-    long consumerIdleTimeout) {
+  public EventBusGrpcClientStreamingCall(ContextInternal context, EventBusStreamEndpoint endpoint, ServiceName serviceName, String methodName) {
     super(context, DEFAULT_WINDOW);
     this.endpoint = endpoint;
     this.eventBus = endpoint.eventBus();
@@ -57,7 +55,6 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     this.methodName = methodName;
     this.pending = new ArrayDeque<>();
     this.state = State.IDLE;
-    configureLiveness(producerHeartbeat, consumerIdleTimeout);
   }
 
   @Override
@@ -107,7 +104,6 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   }
 
   private void sendHalfClose() {
-    stopHeartbeat();
     enqueue(new HalfCloseWrite());
   }
 
@@ -124,6 +120,10 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
       .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name())
       .addHeader(EventBusHeaders.CLIENT_ADDRESS, endpoint.address())
       .addHeader(EventBusHeaders.CLIENT_STREAM_ID, Long.toString(registration.id()));
+
+    if (endpoint.pingInterval() > 0) {
+      options.addHeader(EventBusHeaders.PING_INTERVAL, Long.toString(endpoint.pingInterval()));
+    }
 
     if (timeout != null) {
       options.setSendTimeout(timeout.toMillis());
@@ -186,10 +186,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     this.state = State.STREAMING;
     this.producer = eventBus.sender(serverAddress, new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name()));
 
-    registration.bind(this);
-
-    startHeartbeat();
-    startIdleTimeout();
+    registration.bind(this, serverAddress, endpoint.pingTimeout());
 
     grantSendWindow(initialWindow);
 
@@ -207,7 +204,6 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
   @Override
   public void handle(TransportFrame frame, Message<Object> message) {
-    resetIdleTimeout();
     switch (frame.getFrameCase()) {
       case HEADERS:
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
@@ -233,8 +229,6 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
         emitException(new CancellationException(frame.getCancel().getReason()));
         terminate();
         emitEnd();
-        break;
-      case HEARTBEAT:
         break;
       default:
         break;
@@ -269,24 +263,27 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     }
     builder.setStreamId(serverStreamId);
     Future<Void> sent = producer.write(EventBusGrpcCodec.encodeFrame(builder, wireFormat));
-    sent.onFailure(this::handleTransportFailure);
+    sent.onFailure(this::handlePeerDown);
     return sent;
   }
 
-  private void handleTransportFailure(Throwable cause) {
+  @Override
+  void handlePeerDown(Throwable cause) {
     if (state == State.CLOSED) {
       return;
     }
+
+    boolean notifyPeer = state == State.STREAMING;
+
     terminate();
+
+    if (notifyPeer) {
+      sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Peer down")));
+    }
+
     failPending(cause);
     emitException(cause);
     emitEnd();
-  }
-
-  @Override
-  protected void handleIdleTimeout() {
-    sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Idle timeout")));
-    handleTransportFailure(new TimeoutException("No frames received from the server within the idle timeout"));
   }
 
   private void failPending(Throwable cause) {
@@ -302,7 +299,6 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
       return;
     }
     state = State.CLOSED;
-    stopLiveness();
     if (registration != null) {
       registration.unbind();
     }

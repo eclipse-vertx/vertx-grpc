@@ -98,8 +98,8 @@ unregister, which on a cluster would otherwise broadcast registration churn to e
 node. A stream timeout, once added, would be a plain map removal too.
 
 Ending a stream, by trailers or cancel, removes it from the map. A stream is also given up
-locally when a frame cannot be delivered or its idle timeout elapses, so a peer that left
-the cluster does not leak the registration (see [Liveness](#liveness)). A frame that
+locally when a frame cannot be delivered or the peer it is bound to stops answering, so a
+peer that left the cluster does not leak the registration (see [Liveness](#liveness)). A frame that
 arrives for a `stream_id` no longer in the map, one still in flight when the stream was
 torn down, is dropped. Closing an endpoint terminates its remaining streams rather than
 dropping them silently. Each is sent a `Cancel` so the peer is notified, then removed.
@@ -143,7 +143,9 @@ header so the receiver knows how to read it.
 A frame is a small header, `stream_id` and `stream_sequence`, plus exactly one variant.
 The variant is a `Message` payload, a `WindowUpdate` flow-control credit, a `HalfClose`
 from the client, a server `Headers` or `Trailers`, a `Cancel` from either side, or a
-`Heartbeat` liveness signal from either side.
+`Ping` liveness probe from either side. A `Ping` is the one frame that belongs to no call,
+so it rides on `stream_id` 0 and is handled by the endpoint rather than dispatched to a
+stream.
 
 `Headers` and `Trailers` are thin. The metadata itself rides as `__header__.` and
 `__trailer__.` delivery headers, and these frames only mark where in the stream that
@@ -161,7 +163,7 @@ option java_package = "io.vertx.grpc.eventbus.transport.v1alpha";
 option java_multiple_files = true;
 
 message TransportFrame {
-  uint64 stream_id = 1;       // destination endpoint's id for this call, demuxes it on the shared address
+  uint64 stream_id = 1;       // destination endpoint's id for this call, demuxes it on the shared address, 0 for an endpoint level frame
   uint64 stream_sequence = 2; // per-stream, monotonic, advances on Message frames only
 
   oneof frame {
@@ -171,7 +173,7 @@ message TransportFrame {
     Trailers trailers = 6;          // server to client, terminates the call
     Cancel cancel = 7;              // either direction, abnormal termination
     Headers headers = 8;            // server to client, response metadata, before the first message
-    Heartbeat heartbeat = 9;        // either direction, liveness signal on an otherwise idle stream
+    Ping ping = 9;                  // either direction, peer liveness probe, on stream_id 0
   }
 }
 
@@ -209,8 +211,13 @@ message Cancel {
   string reason = 2;
 }
 
-// Either direction, a liveness signal keeping an otherwise idle stream alive.
-message Heartbeat {
+// A peer liveness probe, on stream_id 0 because it belongs to the peer endpoint rather
+// than to any single call. The client sends these regularly and the receiver echoes the
+// frame back with ack set, after HTTP/2's PING. The sender's private address rides as the
+// grpc-peer-address delivery header.
+message Ping {
+  uint64 data = 1; // opaque, echoed verbatim in the ack
+  bool ack = 2;    // set on the echo, clear on the probe
 }
 ```
 
@@ -234,31 +241,28 @@ Both ends take an options object. Both are optional and default to sensible valu
 
 ```java
 EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()
-  .setSupportedWireFormats(EnumSet.of(WireFormat.PROTOBUF))
-  .setHeartbeatInterval(30_000)
-  .setIdleTimeout(90_000));
+  .setSupportedWireFormats(EnumSet.of(WireFormat.PROTOBUF)));
 
 EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
   .setWireFormat(WireFormat.JSON)
-  .setHeartbeatInterval(30_000)
-  .setIdleTimeout(90_000));
+  .setPingInterval(30_000));
 ```
 
-- `maxConcurrentStreams` (server, default `1000`) caps the streams one server
-  multiplexes at once. An open past the cap is rejected with `RESOURCE_EXHAUSTED`, so a
-  flood of opens cannot grow the demux map without bound.
 - `supportedWireFormats` (server, default `[PROTOBUF, JSON]`) limits which wire formats
   the server accepts. A request in an unsupported format is rejected with
   `UNIMPLEMENTED`.
 - `wireFormat` (client, default `PROTOBUF`) is the default wire format for the client's
   requests. A call can still override it with `request.format(...)`, and the generated
   stubs' `create(client, WireFormat.JSON)` does exactly that. The override wins.
-- `heartbeatInterval` (client and server, milliseconds, default `0` disabled) is how
-  often the endpoint sends `Heartbeat` frames on streams where it produces messages. See
-  [Liveness](#liveness).
-- `idleTimeout` (client and server, milliseconds, default `0` disabled) is how long the
-  endpoint waits without receiving any frame on a stream where it consumes messages before
-  giving the stream up. It should be a small multiple of the peer's `heartbeatInterval`.
+- `pingInterval` (client, milliseconds, default `0` disabled) is how often the client
+  probes each server endpoint it holds a stream with. See [Liveness](#liveness).
+- `pingTimeout` (client, milliseconds, default twice `pingInterval`) is how long a server
+  may go without answering a probe before every stream with it is given up.
+- `maxPingInterval` (server, milliseconds, default `120_000`) is the longest ping interval
+  the server honours. The client alone sets the pace, and the server derives its own
+  deadline from what that client advertised, so there is no server side setting that has
+  to agree with the client's. This only bounds how long a client can ask the server to
+  wait.
 
 ## Flow control
 
@@ -297,22 +301,29 @@ read side and any pending writes so the application is told, and unbinds the str
 its map so nothing leaks. This surfaces to the application right away and is easy to
 reproduce with an outbound interceptor that drops the peer's consumer.
 
-The passive way covers a stream where the peer stops sending without a delivery failure,
-for instance a node that vanished while this side was only receiving. Each side that
-consumes a stream arms an idle timer and resets it on every received frame; if nothing
-arrives within the idle timeout it gives the stream up the same way. To keep a genuinely
-idle but healthy stream from tripping that timer, the producing side sends `Heartbeat`
-frames while its outbound half is open. A heartbeat is also a `send()`, so it doubles as
-the producer's own liveness check: if the consumer is gone, the heartbeat fails to
-deliver and the producer gives up.
+That only fires when a side sends, though, and a side that is purely receiving never
+does. So the passive way is a probe: the client sends a `Ping` to each peer on a regular
+interval and the peer echoes it back with `ack` set. A client that hears no ack within
+`pingTimeout` declares that peer down; a server that hears no probe within twice the
+interval the client advertised does the same. Either way every stream bound to that peer
+is given up, and the peer is sent a `Cancel` on each of them, since it may be unreachable
+rather than gone and would otherwise keep holding streams it will never hear about again.
+A probe is itself a `send()`, so it doubles as the client's own delivery check on a peer
+it has nothing to say to.
 
-Which side does which follows the call direction, so a heartbeat only flows where messages
-would. On a server-streaming call the server heartbeats and the client times out; on a
-client-streaming call the client heartbeats and the server times out; a bidi call does
-both; a unary call uses neither, as it is a plain request/reply. Both timers are off by
-default and are enabled per endpoint with `heartbeatInterval` and `idleTimeout`; the
-timeout should be a small multiple of the interval so an occasional late heartbeat does
-not fail a live stream.
+The probe is tracked per peer address, not per stream. What it establishes is that the
+peer endpoint is still there, which is one bit however many streams share it, so opening
+more streams with the same server does not multiply the traffic. Detecting a single call
+that has stalled while its endpoint is healthy is a different question, and the one
+deadlines answer.
+
+Only the client probes, and it advertises its interval on the opening handshake so the
+server derives its own deadline rather than being configured with one that has to agree.
+The client keeps probing after it has half-closed, since liveness outlives the request
+half of the call. Probing is off by default and is enabled on the client with
+`pingInterval`; `pingTimeout` should stay a small multiple of it, so an occasional late
+ack does not cost a live stream. A unary call uses none of this, being a plain
+request/reply.
 
 Multiplexing makes the per-stream window the only backpressure available. Because every
 stream on an endpoint shares one consumer, that consumer is never paused. Pausing it

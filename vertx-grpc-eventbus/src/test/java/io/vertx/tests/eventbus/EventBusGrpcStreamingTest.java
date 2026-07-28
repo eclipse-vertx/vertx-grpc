@@ -606,16 +606,27 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   }
 
   @Test
-  public void testClientIdleTimeoutGivesStreamUp() throws Exception {
-    // The server produces but never heartbeats and never ends; the client gives the stream up once its
-    // idle timeout elapses without any frame.
+  public void testClientGivesStreamUpWhenServerStopsAcking() throws Exception {
     EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
-    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setIdleTimeout(300)).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
+      .setWireFormat(WireFormat.JSON)
+      .setPingInterval(100)
+      .setPingTimeout(400)).await(10, TimeUnit.SECONDS);
 
     Promise<Throwable> serverCancelled = Promise.promise();
     srv.callHandler(SOURCE_SERVER, request -> {
       request.response().exceptionHandler(serverCancelled::tryComplete);
       request.handler(empty -> request.response().write(Reply.newBuilder().setMessage("first").build()));
+    });
+
+    vertx.eventBus().addOutboundInterceptor(dc -> {
+      if (dc.message().address().startsWith("grpc.eb.client.") && dc.message().body() instanceof Buffer) {
+        JsonObject ping = ((Buffer) dc.message().body()).toJsonObject().getJsonObject("ping");
+        if (ping != null && ping.getBoolean("ack", false)) {
+          return;
+        }
+      }
+      dc.next();
     });
 
     Promise<Throwable> failed = Promise.promise();
@@ -632,21 +643,23 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
       .onFailure(failed::tryFail);
 
     Throwable failure = failed.future().await(10, TimeUnit.SECONDS);
-    assertNotNull("the client must give the stream up after the idle timeout", failure);
-    // The client proactively cancels the still-alive server so it does not leak the stream either.
+    assertNotNull("the client must give the stream up once the server stops acking", failure);
+    assertTrue("expected the unanswered ping to be the cause, got " + failure, failure instanceof java.util.concurrent.TimeoutException);
+
     Throwable serverFailure = serverCancelled.future().await(10, TimeUnit.SECONDS);
-    assertNotNull("the still-alive server must be cancelled by the client's idle-timeout give-up", serverFailure);
+    assertNotNull("the still-alive server must be cancelled by the client's give-up", serverFailure);
   }
 
   @Test
-  public void testServerHeartbeatPreventsClientIdleTimeout() throws Exception {
-    // The server heartbeats faster than the client's idle timeout, so an otherwise idle response stream
-    // stays alive instead of being given up.
-    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setHeartbeatInterval(50)).await(10, TimeUnit.SECONDS);
-    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setIdleTimeout(500)).await(10, TimeUnit.SECONDS);
+  public void testPingKeepsIdleStreamAlive() throws Exception {
+    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setPingInterval(100)).await(10, TimeUnit.SECONDS);
 
-    srv.callHandler(SOURCE_SERVER, request -> request.handler(empty ->
-      request.response().write(Reply.newBuilder().setMessage("first").build())));
+    Promise<Throwable> serverFailed = Promise.promise();
+    srv.callHandler(SOURCE_SERVER, request -> {
+      request.response().exceptionHandler(serverFailed::tryComplete);
+      request.handler(empty -> request.response().write(Reply.newBuilder().setMessage("first").build()));
+    });
 
     Promise<Throwable> failed = Promise.promise();
     AtomicInteger received = new AtomicInteger();
@@ -662,20 +675,23 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
       .onFailure(failed::tryFail);
 
     try {
-      failed.future().await(800, TimeUnit.MILLISECONDS);
-      fail("the stream must not be given up while the server is heartbeating");
+      failed.future().await(600, TimeUnit.MILLISECONDS);
+      fail("the stream must not be given up while the peers are exchanging pings");
     } catch (Exception noFailureWithinWindow) {
       // expected: the await times out because the stream stayed alive
     }
+
+    assertFalse("the server must not give the stream up while the client is pinging", serverFailed.future().isComplete());
     assertEquals(1, received.get());
   }
 
   @Test
-  public void testServerIdleTimeoutGivesStreamUp() throws Exception {
-    // The client streams a request then goes silent without heartbeating; the server gives the stream
-    // up once its idle timeout elapses, so the registration does not leak.
-    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setIdleTimeout(300)).await(10, TimeUnit.SECONDS);
-    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()).await(10, TimeUnit.SECONDS);
+  public void testServerGivesStreamUpWhenClientStopsPinging() throws Exception {
+    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
+      .setWireFormat(WireFormat.JSON)
+      .setPingInterval(100)
+      .setPingTimeout(30_000)).await(10, TimeUnit.SECONDS);
 
     Promise<Throwable> serverFailed = Promise.promise();
     srv.callHandler(SINK_SERVER, request -> {
@@ -685,6 +701,15 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
       request.endHandler(v -> request.response().end(Empty.getDefaultInstance()));
     });
 
+    vertx.eventBus().addInboundInterceptor(dc -> {
+      if (dc.message().address().startsWith("grpc.eb.server.") && dc.message().body() instanceof Buffer) {
+        if (((Buffer) dc.message().body()).toJsonObject().getJsonObject("ping") != null) {
+          return;
+        }
+      }
+      dc.next();
+    });
+
     Promise<Throwable> clientCancelled = Promise.promise();
     cli.request(SINK_CLIENT).onSuccess(request -> {
       request.response().onFailure(clientCancelled::tryComplete);
@@ -692,10 +717,53 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     });
 
     Throwable failure = serverFailed.future().await(10, TimeUnit.SECONDS);
-    assertNotNull("the server must give the stream up after the idle timeout", failure);
-    // The server proactively cancels the still-alive client so it learns the stream is gone.
+    assertNotNull("the server must give the stream up once the client stops pinging", failure);
     Throwable clientFailure = clientCancelled.future().await(10, TimeUnit.SECONDS);
-    assertNotNull("the still-alive client must be cancelled by the server's idle-timeout give-up", clientFailure);
+    assertNotNull("the still-alive client must be cancelled by the server's give-up", clientFailure);
+  }
+
+  @Test
+  public void testPingIsSentPerPeerNotPerStream() throws Exception {
+    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
+      .setWireFormat(WireFormat.JSON)
+      .setPingInterval(100)).await(10, TimeUnit.SECONDS);
+
+    srv.callHandler(SOURCE_SERVER, request -> request.handler(empty ->
+      request.response().write(Reply.newBuilder().setMessage("first").build())));
+
+    AtomicInteger probes = new AtomicInteger();
+    vertx.eventBus().addOutboundInterceptor(dc -> {
+      if (dc.message().address().startsWith("grpc.eb.server.") && dc.message().body() instanceof Buffer) {
+        if (((Buffer) dc.message().body()).toJsonObject().getJsonObject("ping") != null) {
+          probes.incrementAndGet();
+        }
+      }
+      dc.next();
+    });
+
+    // The service never ends these, so all four stay open and bound to the same peer.
+    List<Future<?>> opened = new ArrayList<>();
+    for (int i = 0; i < 4; i++) {
+      opened.add(cli.request(SOURCE_CLIENT).compose(request -> {
+        request.end(Empty.getDefaultInstance());
+        return request.response().onSuccess(response -> response.handler(reply -> {
+        }));
+      }));
+    }
+
+    for (Future<?> stream : opened) {
+      stream.await(10, TimeUnit.SECONDS);
+    }
+
+    int before = probes.get();
+    Promise<Void> settled = Promise.promise();
+    vertx.setTimer(450, id -> settled.complete());
+    settled.future().await(10, TimeUnit.SECONDS);
+
+    int sent = probes.get() - before;
+    assertTrue("the peer must actually be probed, got " + sent, sent >= 2);
+    assertTrue("expected about one probe per interval for the whole peer, got " + sent, sent <= 8);
   }
 
   @Test
