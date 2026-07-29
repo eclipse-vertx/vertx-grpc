@@ -19,9 +19,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-
 /**
  * Transforms {@code Buffer} into a stream of {@link GrpcMessage}
  *
@@ -55,10 +52,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private final GrpcMessageDecoder<T> messageDecoder;
   private final Promise<Void> end;
   private Handler<GrpcError> errorHandler;
-  private final Deque<GrpcMessage> pending = new ArrayDeque<>();
-  private boolean ended;
-  private boolean endDispatched;
-  private boolean draining;
 
   protected GrpcReadStreamBase(Context context,
                                String encoding,
@@ -120,9 +113,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   @Override
   public final S messageHandler(Handler<GrpcMessage> handler) {
     messageHandler = handler;
-    if (handler != null) {
-      drain();
-    }
     return (S) this;
   }
 
@@ -138,7 +128,6 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   @Override
   public final S endHandler(Handler<Void> endHandler) {
     this.endHandler = endHandler;
-    drain();
     return (S) this;
   }
 
@@ -166,9 +155,11 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   }
 
   public void handleEnd() {
-    ended = true;
     end.tryComplete();
-    drain();
+    Handler<Void> handler = endHandler;
+    if (handler != null) {
+      context.dispatch(handler);
+    }
   }
 
   public void handleInvalidMessage(InvalidMessageException e) {
@@ -180,29 +171,9 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
 
   public void handleMessage(GrpcMessage msg) {
     last = msg;
-    if (messageHandler != null && pending.isEmpty()) {
+    Handler<GrpcMessage> handler = messageHandler;
+    if (handler != null) {
       context.dispatch(msg, messageHandler);
-    } else {
-      pending.add(msg);
-      drain();
-    }
-  }
-
-  private void drain() {
-    if (draining) {
-      return;
-    }
-    draining = true;
-    try {
-      while (messageHandler != null && !pending.isEmpty()) {
-        context.dispatch(pending.poll(), messageHandler);
-      }
-    } finally {
-      draining = false;
-    }
-    if (ended && !endDispatched && endHandler != null) {
-      endDispatched = true;
-      context.dispatch(endHandler);
     }
   }
 
