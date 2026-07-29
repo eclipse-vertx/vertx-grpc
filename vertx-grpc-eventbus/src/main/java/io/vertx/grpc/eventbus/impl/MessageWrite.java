@@ -9,11 +9,11 @@ package io.vertx.grpc.eventbus.impl;
 interface MessageWrite {
 
   /**
-   * Indicates whether the message exchange uses a windowed flow-control mechanism.
+   * Indicates whether the write is subject to the send window.
    *
-   * @return {@code true} if the message exchange utilizes windowed flow control; {@code false} otherwise.
+   * @return {@code true} if the write consumes a flow-control credit and waits when the window is spent; {@code false} otherwise.
    */
-  default boolean windowed() {
+  default boolean flowControlled() {
     return false;
   }
 

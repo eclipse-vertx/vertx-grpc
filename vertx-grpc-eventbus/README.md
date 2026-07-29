@@ -311,7 +311,7 @@ EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()
 
 EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
   .setWireFormat(WireFormat.JSON)
-  .setPingInterval(30_000));
+  .setPingInterval(Duration.ofSeconds(30)));
 ```
 
 - `supportedWireFormats` (server, default `[PROTOBUF, JSON]`) gives the wire formats that
@@ -321,20 +321,20 @@ EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
   of the client. A call can change this format with the `request.format(...)` method. The
   `create(client, WireFormat.JSON)` method of the generated stub does the same. The value
   of the call has priority.
-- `pingInterval` (client, milliseconds, default `30_000`) gives the interval between the
+- `pingInterval` (client, `Duration`, default 30 seconds) gives the interval between the
   probes. The client sends a probe to each server endpoint that holds one of its streams.
   Refer to [Liveness](#liveness).
-- `pingTimeout` (client, milliseconds, default `60_000`) gives the maximum time that a
+- `pingTimeout` (client, `Duration`, default 60 seconds) gives the maximum time that a
   server can take to answer a probe. After this time, the client stops each stream with
   that server. This value must be more than `pingInterval`. If it is not more, the client
   stops the streams before the server can answer.
-- `maxPingInterval` (server, milliseconds, default `120_000`) gives the maximum ping
+- `maxPingInterval` (server, `Duration`, default 2 minutes) gives the maximum ping
   interval that the server accepts. The client controls the rate. The server calculates
   its own limit from the value that the client sends. Therefore the server has no option
   that must agree with an option of the client. This option only limits the time that a
   client can ask the server to wait.
 
-You cannot set these three options to `0`. The event bus gives no connection, and the
+You cannot set these three options to zero. The event bus gives no connection, and the
 probe replaces the connection. Therefore the probe is always in operation. Refer to
 [Liveness](#liveness).
 

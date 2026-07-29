@@ -2,17 +2,15 @@ package io.vertx.grpc.eventbus;
 
 import io.vertx.codegen.annotations.DataObject;
 import io.vertx.codegen.annotations.Unstable;
-import io.vertx.codegen.json.annotations.JsonGen;
-import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.common.WireFormat;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
 @DataObject
-@JsonGen(publicConverter = false)
 @Unstable
 public class EventBusGrpcServerOptions {
 
@@ -22,12 +20,12 @@ public class EventBusGrpcServerOptions {
   public static final Set<WireFormat> DEFAULT_SUPPORTED_WIRE_FORMATS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(WireFormat.PROTOBUF, WireFormat.JSON)));
 
   /**
-   * The default maximum ping interval in milliseconds = {@code 120_000} (2 minutes)
+   * The default maximum ping interval = {@code 2} minutes
    */
-  public static final long DEFAULT_MAX_PING_INTERVAL = 120_000L;
+  public static final Duration DEFAULT_MAX_PING_INTERVAL = Duration.ofMinutes(2);
 
   private Set<WireFormat> supportedWireFormats;
-  private long maxPingInterval;
+  private Duration maxPingInterval;
 
   /**
    * Default options.
@@ -43,14 +41,6 @@ public class EventBusGrpcServerOptions {
   public EventBusGrpcServerOptions(EventBusGrpcServerOptions other) {
     supportedWireFormats = new LinkedHashSet<>(other.supportedWireFormats);
     maxPingInterval = other.maxPingInterval;
-  }
-
-  /**
-   * Creates options from JSON.
-   */
-  public EventBusGrpcServerOptions(JsonObject json) {
-    this();
-    EventBusGrpcServerOptionsConverter.fromJson(json, this);
   }
 
   /**
@@ -84,9 +74,9 @@ public class EventBusGrpcServerOptions {
   }
 
   /**
-   * @return the longest ping interval the server honours, in milliseconds
+   * @return the longest ping interval the server honours
    */
-  public long getMaxPingInterval() {
+  public Duration getMaxPingInterval() {
     return maxPingInterval;
   }
 
@@ -97,28 +87,14 @@ public class EventBusGrpcServerOptions {
    *
    * The check cannot be turned off, so a client that goes away without a trace never leaves its streams registered here.
    *
-   * @param maxPingInterval the longest interval in milliseconds, must be greater than {@code 0}
+   * @param maxPingInterval the longest interval, must be positive
    * @return a reference to this, so the API can be used fluently
    */
-  public EventBusGrpcServerOptions setMaxPingInterval(long maxPingInterval) {
-    if (maxPingInterval <= 0) {
-      throw new IllegalArgumentException("maxPingInterval must be greater than 0");
+  public EventBusGrpcServerOptions setMaxPingInterval(Duration maxPingInterval) {
+    if (maxPingInterval == null || maxPingInterval.isNegative() || maxPingInterval.isZero()) {
+      throw new IllegalArgumentException("maxPingInterval must be positive");
     }
     this.maxPingInterval = maxPingInterval;
     return this;
-  }
-
-  /**
-   * @return a JSON representation of options
-   */
-  public JsonObject toJson() {
-    JsonObject json = new JsonObject();
-    EventBusGrpcServerOptionsConverter.toJson(this, json);
-    return json;
-  }
-
-  @Override
-  public String toString() {
-    return toJson().encode();
   }
 }

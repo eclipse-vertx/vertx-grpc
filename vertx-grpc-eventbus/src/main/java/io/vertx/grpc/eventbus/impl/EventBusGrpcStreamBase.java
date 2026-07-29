@@ -93,7 +93,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
   private void drainOutbound() {
     MessageWrite head;
-    while ((head = outboundQueue.peek()) != null && !(head.windowed() && sendWindow <= 0)) {
+    while ((head = outboundQueue.peek()) != null && !(head.flowControlled() && sendWindow <= 0)) {
       outboundQueue.poll().write();
     }
   }
@@ -237,7 +237,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     }
 
     @Override
-    public boolean windowed() {
+    public boolean flowControlled() {
       return true;
     }
 

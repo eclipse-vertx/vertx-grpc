@@ -23,6 +23,7 @@ import io.vertx.tests.common.grpc.*;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -607,11 +608,11 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
 
   @Test
   public void testLivenessIsOnByDefault() throws Exception {
-    assertTrue(new EventBusGrpcClientOptions().getPingInterval() > 0);
-    assertTrue(new EventBusGrpcClientOptions().getPingTimeout() > new EventBusGrpcClientOptions().getPingInterval());
-    assertTrue(new EventBusGrpcServerOptions().getMaxPingInterval() > 0);
+    assertFalse(new EventBusGrpcClientOptions().getPingInterval().isZero());
+    assertTrue(new EventBusGrpcClientOptions().getPingTimeout().compareTo(new EventBusGrpcClientOptions().getPingInterval()) > 0);
+    assertFalse(new EventBusGrpcServerOptions().getMaxPingInterval().isZero());
 
-    for (long disabled : new long[]{0L, -1L}) {
+    for (Duration disabled : new Duration[]{Duration.ZERO, Duration.ofMillis(-1)}) {
       try {
         new EventBusGrpcClientOptions().setPingInterval(disabled);
         fail("pingInterval " + disabled + " must be rejected");
@@ -631,7 +632,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
 
     // A timeout that expires before the next ping is due would declare every peer down on the first check.
     try {
-      EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setPingInterval(1_000).setPingTimeout(1_000));
+      EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setPingInterval(Duration.ofSeconds(1)).setPingTimeout(Duration.ofSeconds(1)));
       fail("a ping timeout that is not greater than the interval must be rejected");
     } catch (IllegalArgumentException expected) {
     }
@@ -639,7 +640,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
 
   @Test
   public void testServerGivesUpPeerThatNeverAdvertisedAPingInterval() throws Exception {
-    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setMaxPingInterval(150)).await(10, TimeUnit.SECONDS);
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setMaxPingInterval(Duration.ofMillis(150))).await(10, TimeUnit.SECONDS);
 
     Promise<Throwable> serverFailed = Promise.promise();
     server.callHandler(SINK_SERVER, request -> {
@@ -668,8 +669,8 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
     EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
       .setWireFormat(WireFormat.JSON)
-      .setPingInterval(100)
-      .setPingTimeout(400)).await(10, TimeUnit.SECONDS);
+      .setPingInterval(Duration.ofMillis(100))
+      .setPingTimeout(Duration.ofMillis(400))).await(10, TimeUnit.SECONDS);
 
     Promise<Throwable> serverCancelled = Promise.promise();
     server.callHandler(SOURCE_SERVER, request -> {
@@ -711,7 +712,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   @Test
   public void testPingKeepsIdleStreamAlive() throws Exception {
     EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
-    EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setPingInterval(100)).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setPingInterval(Duration.ofMillis(100))).await(10, TimeUnit.SECONDS);
 
     Promise<Throwable> serverFailed = Promise.promise();
     server.callHandler(SOURCE_SERVER, request -> {
@@ -748,8 +749,8 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
     EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
       .setWireFormat(WireFormat.JSON)
-      .setPingInterval(100)
-      .setPingTimeout(30_000)).await(10, TimeUnit.SECONDS);
+      .setPingInterval(Duration.ofMillis(100))
+      .setPingTimeout(Duration.ofSeconds(30))).await(10, TimeUnit.SECONDS);
 
     Promise<Throwable> serverFailed = Promise.promise();
     server.callHandler(SINK_SERVER, request -> {
@@ -785,7 +786,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
     EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
       .setWireFormat(WireFormat.JSON)
-      .setPingInterval(100)).await(10, TimeUnit.SECONDS);
+      .setPingInterval(Duration.ofMillis(100))).await(10, TimeUnit.SECONDS);
 
     server.callHandler(SOURCE_SERVER, request -> request.handler(empty ->
       request.response().write(Reply.newBuilder().setMessage("first").build())));

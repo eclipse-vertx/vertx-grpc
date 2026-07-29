@@ -2,12 +2,11 @@ package io.vertx.grpc.eventbus;
 
 import io.vertx.codegen.annotations.DataObject;
 import io.vertx.codegen.annotations.Unstable;
-import io.vertx.codegen.json.annotations.JsonGen;
-import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.common.WireFormat;
 
+import java.time.Duration;
+
 @DataObject
-@JsonGen(publicConverter = false)
 @Unstable
 public class EventBusGrpcClientOptions {
 
@@ -17,18 +16,18 @@ public class EventBusGrpcClientOptions {
   public static final WireFormat DEFAULT_WIRE_FORMAT = WireFormat.PROTOBUF;
 
   /**
-   * The default ping interval in milliseconds = {@code 30_000} (30 seconds)
+   * The default ping interval = {@code 30} seconds
    */
-  public static final long DEFAULT_PING_INTERVAL = 30_000L;
+  public static final Duration DEFAULT_PING_INTERVAL = Duration.ofSeconds(30);
 
   /**
-   * The default ping timeout in milliseconds = {@code 60_000} (60 seconds), twice the default ping interval
+   * The default ping timeout = {@code 60} seconds, twice the default ping interval
    */
-  public static final long DEFAULT_PING_TIMEOUT = 60_000L;
+  public static final Duration DEFAULT_PING_TIMEOUT = Duration.ofSeconds(60);
 
   private WireFormat wireFormat;
-  private long pingInterval;
-  private long pingTimeout;
+  private Duration pingInterval;
+  private Duration pingTimeout;
 
   /**
    * Default options.
@@ -46,14 +45,6 @@ public class EventBusGrpcClientOptions {
     wireFormat = other.wireFormat;
     pingInterval = other.pingInterval;
     pingTimeout = other.pingTimeout;
-  }
-
-  /**
-   * Creates options from JSON.
-   */
-  public EventBusGrpcClientOptions(JsonObject json) {
-    this();
-    EventBusGrpcClientOptionsConverter.fromJson(json, this);
   }
 
   /**
@@ -75,9 +66,9 @@ public class EventBusGrpcClientOptions {
   }
 
   /**
-   * @return the ping interval in milliseconds
+   * @return the ping interval
    */
-  public long getPingInterval() {
+  public Duration getPingInterval() {
     return pingInterval;
   }
 
@@ -88,21 +79,21 @@ public class EventBusGrpcClientOptions {
    * Pinging cannot be turned off. The event bus is not connection oriented, so it is the only thing that tells a side receiving nothing apart from a side whose peer is gone, and
    * without it such a stream would hang and leak its registration.
    *
-   * @param pingInterval the interval in milliseconds, must be greater than {@code 0}
+   * @param pingInterval the interval, must be positive
    * @return a reference to this, so the API can be used fluently
    */
-  public EventBusGrpcClientOptions setPingInterval(long pingInterval) {
-    if (pingInterval <= 0) {
-      throw new IllegalArgumentException("pingInterval must be greater than 0");
+  public EventBusGrpcClientOptions setPingInterval(Duration pingInterval) {
+    if (pingInterval == null || pingInterval.isNegative() || pingInterval.isZero()) {
+      throw new IllegalArgumentException("pingInterval must be positive");
     }
     this.pingInterval = pingInterval;
     return this;
   }
 
   /**
-   * @return the ping timeout in milliseconds
+   * @return the ping timeout
    */
-  public long getPingTimeout() {
+  public Duration getPingTimeout() {
     return pingTimeout;
   }
 
@@ -110,28 +101,14 @@ public class EventBusGrpcClientOptions {
    * Set how long a server endpoint may go without acknowledging a ping before it is considered down and every stream with it is given up. Must be greater than the ping interval,
    * and should be a small multiple of it so an occasional late acknowledgment does not cost a live stream.
    *
-   * @param pingTimeout the timeout in milliseconds, must be greater than {@code 0}
+   * @param pingTimeout the timeout, must be positive
    * @return a reference to this, so the API can be used fluently
    */
-  public EventBusGrpcClientOptions setPingTimeout(long pingTimeout) {
-    if (pingTimeout <= 0) {
-      throw new IllegalArgumentException("pingTimeout must be greater than 0");
+  public EventBusGrpcClientOptions setPingTimeout(Duration pingTimeout) {
+    if (pingTimeout == null || pingTimeout.isNegative() || pingTimeout.isZero()) {
+      throw new IllegalArgumentException("pingTimeout must be positive");
     }
     this.pingTimeout = pingTimeout;
     return this;
-  }
-
-  /**
-   * @return a JSON representation of options
-   */
-  public JsonObject toJson() {
-    JsonObject json = new JsonObject();
-    EventBusGrpcClientOptionsConverter.toJson(this, json);
-    return json;
-  }
-
-  @Override
-  public String toString() {
-    return toJson().encode();
   }
 }

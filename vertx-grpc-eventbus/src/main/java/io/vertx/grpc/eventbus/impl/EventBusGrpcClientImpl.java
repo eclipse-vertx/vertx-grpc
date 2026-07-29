@@ -15,15 +15,17 @@ public class EventBusGrpcClientImpl extends EventBusStreamEndpoint implements Ev
   private final WireFormat wireFormat;
 
   private EventBusGrpcClientImpl(Vertx vertx, EventBus eventBus, EventBusGrpcClientOptions options) {
-    super(vertx, eventBus, "grpc.eb.client.", options.getWireFormat(), options.getPingInterval(), pingTimeout(options));
+    super(vertx, eventBus, "grpc.eb.client.", options.getWireFormat(), options.getPingInterval().toMillis(), pingTimeout(options));
     this.wireFormat = options.getWireFormat();
   }
 
   private static long pingTimeout(EventBusGrpcClientOptions options) {
-    if (options.getPingTimeout() <= options.getPingInterval()) {
-      throw new IllegalArgumentException("pingTimeout (" + options.getPingTimeout() + " ms) must be greater than pingInterval (" + options.getPingInterval() + " ms)");
+    if (options.getPingTimeout().compareTo(options.getPingInterval()) <= 0) {
+      // Otherwise the timeout expires before the next ping is even due, and every peer is declared
+      // down on the first check.
+      throw new IllegalArgumentException("pingTimeout (" + options.getPingTimeout() + ") must be greater than pingInterval (" + options.getPingInterval() + ")");
     }
-    return options.getPingTimeout();
+    return options.getPingTimeout().toMillis();
   }
 
   public static Future<EventBusGrpcClient> create(Vertx vertx, EventBus eventBus, EventBusGrpcClientOptions options) {

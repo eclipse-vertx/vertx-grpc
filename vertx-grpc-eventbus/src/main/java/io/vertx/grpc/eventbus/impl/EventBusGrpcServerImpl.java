@@ -35,7 +35,7 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
     super(vertx, eventBus, "grpc.eb.server.", WireFormat.PROTOBUF, 0L, 0L);
     this.vertx = vertx;
     this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
-    this.maxPingInterval = options.getMaxPingInterval();
+    this.maxPingInterval = options.getMaxPingInterval().toMillis();
   }
 
   /**
