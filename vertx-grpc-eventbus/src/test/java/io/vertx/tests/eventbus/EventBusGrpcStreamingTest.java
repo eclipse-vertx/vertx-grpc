@@ -606,15 +606,73 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   }
 
   @Test
+  public void testLivenessIsOnByDefault() throws Exception {
+    assertTrue(new EventBusGrpcClientOptions().getPingInterval() > 0);
+    assertTrue(new EventBusGrpcClientOptions().getPingTimeout() > new EventBusGrpcClientOptions().getPingInterval());
+    assertTrue(new EventBusGrpcServerOptions().getMaxPingInterval() > 0);
+
+    for (long disabled : new long[]{0L, -1L}) {
+      try {
+        new EventBusGrpcClientOptions().setPingInterval(disabled);
+        fail("pingInterval " + disabled + " must be rejected");
+      } catch (IllegalArgumentException expected) {
+      }
+      try {
+        new EventBusGrpcClientOptions().setPingTimeout(disabled);
+        fail("pingTimeout " + disabled + " must be rejected");
+      } catch (IllegalArgumentException expected) {
+      }
+      try {
+        new EventBusGrpcServerOptions().setMaxPingInterval(disabled);
+        fail("maxPingInterval " + disabled + " must be rejected");
+      } catch (IllegalArgumentException expected) {
+      }
+    }
+
+    // A timeout that expires before the next ping is due would declare every peer down on the first check.
+    try {
+      EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setPingInterval(1_000).setPingTimeout(1_000));
+      fail("a ping timeout that is not greater than the interval must be rejected");
+    } catch (IllegalArgumentException expected) {
+    }
+  }
+
+  @Test
+  public void testServerGivesUpPeerThatNeverAdvertisedAPingInterval() throws Exception {
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setMaxPingInterval(150)).await(10, TimeUnit.SECONDS);
+
+    Promise<Throwable> serverFailed = Promise.promise();
+    server.callHandler(SINK_SERVER, request -> {
+      request.response().exceptionHandler(serverFailed::tryComplete);
+      request.handler(req -> {
+      });
+      request.endHandler(v -> request.response().end(Empty.getDefaultInstance()));
+    });
+
+    // Open the stream by hand, omitting the advertisement a real client would send.
+    DeliveryOptions handshake = new DeliveryOptions()
+      .addHeader(EventBusHeaders.ACTION, "Sink")
+      .addHeader(EventBusHeaders.WIRE_FORMAT, WireFormat.PROTOBUF.name())
+      .addHeader(EventBusHeaders.CLIENT_ADDRESS, "grpc.eb.client.silent")
+      .addHeader(EventBusHeaders.CLIENT_STREAM_ID, "1");
+    vertx.eventBus().consumer("grpc.eb.client.silent", msg -> {
+    }).completion().await(10, TimeUnit.SECONDS);
+    vertx.eventBus().request(TestConstants.TEST_SERVICE.fullyQualifiedName(), Buffer.buffer(), handshake).await(10, TimeUnit.SECONDS);
+
+    Throwable failure = serverFailed.future().await(10, TimeUnit.SECONDS);
+    assertNotNull("a peer that never advertised must still be given up on", failure);
+  }
+
+  @Test
   public void testClientGivesStreamUpWhenServerStopsAcking() throws Exception {
-    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
-    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
       .setWireFormat(WireFormat.JSON)
       .setPingInterval(100)
       .setPingTimeout(400)).await(10, TimeUnit.SECONDS);
 
     Promise<Throwable> serverCancelled = Promise.promise();
-    srv.callHandler(SOURCE_SERVER, request -> {
+    server.callHandler(SOURCE_SERVER, request -> {
       request.response().exceptionHandler(serverCancelled::tryComplete);
       request.handler(empty -> request.response().write(Reply.newBuilder().setMessage("first").build()));
     });
@@ -630,7 +688,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     });
 
     Promise<Throwable> failed = Promise.promise();
-    cli.request(SOURCE_CLIENT)
+    client.request(SOURCE_CLIENT)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
         return request.response();
@@ -652,18 +710,18 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
 
   @Test
   public void testPingKeepsIdleStreamAlive() throws Exception {
-    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
-    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setPingInterval(100)).await(10, TimeUnit.SECONDS);
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions().setPingInterval(100)).await(10, TimeUnit.SECONDS);
 
     Promise<Throwable> serverFailed = Promise.promise();
-    srv.callHandler(SOURCE_SERVER, request -> {
+    server.callHandler(SOURCE_SERVER, request -> {
       request.response().exceptionHandler(serverFailed::tryComplete);
       request.handler(empty -> request.response().write(Reply.newBuilder().setMessage("first").build()));
     });
 
     Promise<Throwable> failed = Promise.promise();
     AtomicInteger received = new AtomicInteger();
-    cli.request(SOURCE_CLIENT)
+    client.request(SOURCE_CLIENT)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
         return request.response();
@@ -687,14 +745,14 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
 
   @Test
   public void testServerGivesStreamUpWhenClientStopsPinging() throws Exception {
-    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
-    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
       .setWireFormat(WireFormat.JSON)
       .setPingInterval(100)
       .setPingTimeout(30_000)).await(10, TimeUnit.SECONDS);
 
     Promise<Throwable> serverFailed = Promise.promise();
-    srv.callHandler(SINK_SERVER, request -> {
+    server.callHandler(SINK_SERVER, request -> {
       request.response().exceptionHandler(serverFailed::tryComplete);
       request.handler(req -> {
       });
@@ -711,7 +769,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     });
 
     Promise<Throwable> clientCancelled = Promise.promise();
-    cli.request(SINK_CLIENT).onSuccess(request -> {
+    client.request(SINK_CLIENT).onSuccess(request -> {
       request.response().onFailure(clientCancelled::tryComplete);
       request.write(Request.newBuilder().setName("a").build());
     });
@@ -724,12 +782,12 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
 
   @Test
   public void testPingIsSentPerPeerNotPerStream() throws Exception {
-    EventBusGrpcServer srv = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
-    EventBusGrpcClient cli = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
       .setWireFormat(WireFormat.JSON)
       .setPingInterval(100)).await(10, TimeUnit.SECONDS);
 
-    srv.callHandler(SOURCE_SERVER, request -> request.handler(empty ->
+    server.callHandler(SOURCE_SERVER, request -> request.handler(empty ->
       request.response().write(Reply.newBuilder().setMessage("first").build())));
 
     AtomicInteger probes = new AtomicInteger();
@@ -745,7 +803,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     // The service never ends these, so all four stay open and bound to the same peer.
     List<Future<?>> opened = new ArrayList<>();
     for (int i = 0; i < 4; i++) {
-      opened.add(cli.request(SOURCE_CLIENT).compose(request -> {
+      opened.add(client.request(SOURCE_CLIENT).compose(request -> {
         request.end(Empty.getDefaultInstance());
         return request.response().onSuccess(response -> response.handler(reply -> {
         }));

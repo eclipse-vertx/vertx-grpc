@@ -17,14 +17,14 @@ public class EventBusGrpcClientOptions {
   public static final WireFormat DEFAULT_WIRE_FORMAT = WireFormat.PROTOBUF;
 
   /**
-   * The default ping interval in milliseconds = {@code 0} (disabled)
+   * The default ping interval in milliseconds = {@code 30_000} (30 seconds)
    */
-  public static final long DEFAULT_PING_INTERVAL = 0L;
+  public static final long DEFAULT_PING_INTERVAL = 30_000L;
 
   /**
-   * The default ping timeout in milliseconds = {@code 0} (twice the ping interval)
+   * The default ping timeout in milliseconds = {@code 60_000} (60 seconds), twice the default ping interval
    */
-  public static final long DEFAULT_PING_TIMEOUT = 0L;
+  public static final long DEFAULT_PING_TIMEOUT = 60_000L;
 
   private WireFormat wireFormat;
   private long pingInterval;
@@ -75,7 +75,7 @@ public class EventBusGrpcClientOptions {
   }
 
   /**
-   * @return the ping interval in milliseconds; {@code 0} disables pings
+   * @return the ping interval in milliseconds
    */
   public long getPingInterval() {
     return pingInterval;
@@ -85,29 +85,38 @@ public class EventBusGrpcClientOptions {
    * Set the interval at which the client pings each server endpoint it holds a stream with. The interval is advertised to the server, which derives from it how long this client
    * may go unheard before its streams are given up, so it needs no matching setting of its own.
    *
-   * @param pingInterval the interval in milliseconds, {@code 0} to disable
+   * Pinging cannot be turned off. The event bus is not connection oriented, so it is the only thing that tells a side receiving nothing apart from a side whose peer is gone, and
+   * without it such a stream would hang and leak its registration.
+   *
+   * @param pingInterval the interval in milliseconds, must be greater than {@code 0}
    * @return a reference to this, so the API can be used fluently
    */
   public EventBusGrpcClientOptions setPingInterval(long pingInterval) {
+    if (pingInterval <= 0) {
+      throw new IllegalArgumentException("pingInterval must be greater than 0");
+    }
     this.pingInterval = pingInterval;
     return this;
   }
 
   /**
-   * @return the ping timeout in milliseconds; {@code 0} means twice the ping interval
+   * @return the ping timeout in milliseconds
    */
   public long getPingTimeout() {
     return pingTimeout;
   }
 
   /**
-   * Set how long a server endpoint may go without acknowledging a ping before it is considered down and every stream with it is given up. Should be a small multiple of the ping
-   * interval, so an occasional late acknowledgment does not cost a live stream.
+   * Set how long a server endpoint may go without acknowledging a ping before it is considered down and every stream with it is given up. Must be greater than the ping interval,
+   * and should be a small multiple of it so an occasional late acknowledgment does not cost a live stream.
    *
-   * @param pingTimeout the timeout in milliseconds, {@code 0} for twice the ping interval
+   * @param pingTimeout the timeout in milliseconds, must be greater than {@code 0}
    * @return a reference to this, so the API can be used fluently
    */
   public EventBusGrpcClientOptions setPingTimeout(long pingTimeout) {
+    if (pingTimeout <= 0) {
+      throw new IllegalArgumentException("pingTimeout must be greater than 0");
+    }
     this.pingTimeout = pingTimeout;
     return this;
   }

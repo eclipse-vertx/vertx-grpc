@@ -1,20 +1,22 @@
 # vertx-grpc-eventbus (experimental)
 
-This module is an experiment in carrying gRPC over the Vert.x event bus instead of
-HTTP/2. It is early work. The protocol below is a proposal we are trying out, not a
-settled format, and the prototype will not always match every detail. Read it as a
-design in progress, not a specification to build against.
+This module is an experiment. It sends gRPC on the Vert.x event bus and not on HTTP/2.
+The work is at an early stage.
 
-Why try it? When a client and server already live in the same Vert.x application or
-cluster, it is convenient to make gRPC calls with the generated stubs over the event
-bus that is already there, without standing up an HTTP server. The calls can then
-travel across a clustered event bus and sit alongside the rest of the verticles.
+The protocol in this document is a proposal. It is not an agreed format. The prototype
+does not always agree with each detail. Read this document as a design in progress. Do
+not read it as a specification.
 
-## What we are aiming for
+The reason for this experiment is as follows. A client and a server can be in the same
+Vert.x application or cluster. Then you can use the generated stubs to make gRPC calls on
+the event bus that is already there. You do not have to start an HTTP server. The calls
+can also move on a clustered event bus, with the other verticles.
 
-Application code should not have to change. The generated stubs and the
-`GrpcServerRequest`, `GrpcServerResponse` and `GrpcClientRequest` types are shared with
-the HTTP/2 transport, so ideally only the factory differs.
+## The objective
+
+The application code must stay the same. The generated stubs and the `GrpcServerRequest`,
+`GrpcServerResponse` and `GrpcClientRequest` types are the same as for the HTTP/2
+transport. Only the factory is different.
 
 ```java
 // server
@@ -29,130 +31,186 @@ EventBusGrpcClient.client(vertx).onSuccess(client -> {
 });
 ```
 
-The rest of this document is about what the wire looks like. The event bus is a
-message bus rather than a byte stream, so gRPC streaming needs a little protocol on top
-to bridge the gap.
+The remainder of this document gives the format of the data on the wire. The event bus is
+a message bus and not a byte stream. Therefore gRPC streams need a small protocol on top
+of the event bus.
 
-## Two shapes of call
+## The two types of call
 
-The design splits in two, chosen by the method's call type.
+The design has two parts. The type of the method selects the part.
 
-### Unary: plain request/reply
+### Unary calls: a request and a reply
 
-A unary call is a single event bus `request()` and its reply. The method name goes in
-the `action` header, the wire format in `grpc-wire-format`, request metadata as
-`__header__.` prefixed headers, and the body is the encoded message. The reply carries
-the response message, with response metadata and trailers as `__header__.` and
-`__trailer__.` headers.
+A unary call is one event bus `request()` call and its reply. The request contains these
+items:
 
-This is the same shape a Vert.x service proxy uses, which is the point. Keeping unary
-identical to a service-proxy call lets the two stay interchangeable on the bus. So
-unary is left as it is, and only streaming adds anything new.
+- The `action` header, which contains the name of the method.
+- The `grpc-wire-format` header, which contains the wire format.
+- The headers with the `__header__.` prefix, which contain the request metadata.
+- The body, which contains the encoded message.
 
-### Streaming: an upgrade handshake
+The reply contains the response message. The headers with the `__header__.` and
+`__trailer__.` prefixes contain the response metadata and the trailers.
 
-The event bus has no notion of a stream, so server-streaming, client-streaming and
-bidirectional calls need more than a single request/reply. The client always knows
-which kind it is making. The `ServiceMethod` carries the call `type()`, filled in by
-the generated stub, so it opens in the right shape without guessing, and the server
-reads the same `type()` and agrees. There is no negotiation or marker on the wire.
+A Vert.x service proxy uses the same format. This is intentional. A unary call and a
+service proxy call stay interchangeable on the bus. Therefore unary calls do not change,
+and only streams add new items.
 
-Opening a stream is an HTTP upgrade style request/reply, carried in delivery headers the
-same way unary is, with an empty body on each side.
+### Streams: an upgrade handshake
 
-The client sends the opening `request()` to the service address. The headers carry
-`action` (the method), `grpc-wire-format`, the client's private `grpc-client-address`,
-and the `grpc-client-stream-id` it has assigned this call, plus any request metadata as
-`__header__.` headers. Triggering the open on the request headers, rather than waiting
-for the first message, lets a call that only sends headers, or one that wants to receive
-before it sends, still open.
+The event bus has no stream function. Therefore server streams, client streams and
+bidirectional calls need more than one request and one reply.
 
-The server replies. It looks the method up, sets the call up, registers it, and answers
-with its own `grpc-server-address`, the `grpc-server-stream-id` it has assigned, and a
-`grpc-initial-window`. The reply is the "go" signal and nothing more. It is sent before
-the handler runs, so it carries no response metadata.
+The client always knows the type of the call that it makes. The `ServiceMethod` object
+contains the call `type()` value, and the generated stub sets this value. Therefore the
+client opens the call in the correct format. The server reads the same `type()` value and
+agrees. There is no negotiation and no marker on the wire.
 
-From there the call is full duplex, and everything travels as a `TransportFrame` over
-the two private addresses. The first request message follows as an ordinary `Message`
-frame, the same as every later one. Response leading metadata follows as a `Headers`
-frame ahead of the first response message, so it reflects whatever the handler set.
+To open a stream, the client sends a request and receives a reply. This procedure is
+equivalent to an HTTP upgrade. The delivery headers contain the data, as for a unary
+call. The body of the request and the body of the reply are empty.
 
-A unary method skips all of this and takes the request/reply path above, so it stays
-interchangeable with a service proxy.
+#### The request of the client
 
-Once open, frames flow over each endpoint's private address, not a per-call one. Every
-endpoint, client or server, mints one private address at startup, registers a single
-long-lived consumer on it, and multiplexes all of its streams through that one consumer.
-Each frame carries the destination's `stream_id`, and the receiver demuxes it back to
-the right call through a map. Each endpoint assigns the ids for its own inbound
-direction, so two endpoints can never pick colliding ids on a shared address. The
-handshake is where they swap the ids they have each chosen. Both sides push frames with
-fire-and-forget `send()`.
+The client sends the first `request()` call to the service address. The headers contain
+these items:
 
-This matters most on a clustered bus. The service address is registered by every server
-node, so the opening `request()` round-robins and lands on some node. The private
-address in its reply is unique to that node, so every subsequent frame for the stream
-pins to it. And because the consumer is long-lived and per-endpoint, opening or closing
-a stream is just a map insert or remove. There is no per-call consumer register and
-unregister, which on a cluster would otherwise broadcast registration churn to every
-node. A stream timeout, once added, would be a plain map removal too.
+- `action`, the name of the method.
+- `grpc-wire-format`, the wire format.
+- `grpc-client-address`, the private address of the client.
+- `grpc-client-stream-id`, the identifier that the client gives to this call.
+- The request metadata, with the `__header__.` prefix.
 
-Ending a stream, by trailers or cancel, removes it from the map. A stream is also given up
-locally when a frame cannot be delivered or the peer it is bound to stops answering, so a
-peer that left the cluster does not leak the registration (see [Liveness](#liveness)). A frame that
-arrives for a `stream_id` no longer in the map, one still in flight when the stream was
-torn down, is dropped. Closing an endpoint terminates its remaining streams rather than
-dropping them silently. Each is sent a `Cancel` so the peer is notified, then removed.
+The request headers open the stream. The first message does not open the stream.
+Therefore a call that sends only headers can open. A call that receives data before it
+sends data can also open.
+
+#### The reply of the server
+
+The server does these steps:
+
+1. Find the method.
+2. Prepare the call.
+3. Register the call.
+4. Reply with `grpc-server-address`, `grpc-server-stream-id` and `grpc-initial-window`.
+
+The reply is only the signal to start. The server sends the reply before the handler
+operates. Therefore the reply contains no response metadata.
+
+The call is then full duplex. All subsequent data moves as a `TransportFrame` on the two
+private addresses. The first request message moves as a usual `Message` frame, the same
+as each subsequent message. The response metadata moves as a `Headers` frame before the
+first response message. Therefore that frame contains the values that the handler sets.
+
+A unary method does not use this procedure. It uses the procedure in the previous
+section. Therefore it stays interchangeable with a service proxy.
+
+#### Private addresses and multiplex operation
+
+After the stream opens, the frames move on the private address of each endpoint. There is
+no address for each call.
+
+Each endpoint creates one private address at start. Each endpoint registers one consumer
+on this address, and this consumer stays registered. All the streams of the endpoint use
+this one consumer.
+
+Each frame contains the `stream_id` value of the destination. The receiver uses a map to
+demultiplex the frame to the correct call. Each endpoint gives the identifiers for its
+own inbound direction. Therefore two endpoints cannot select the same identifier on a
+shared address. The two endpoints exchange their identifiers in the handshake. Both
+endpoints send frames with `send()`, which does not wait for a reply.
+
+This behaviour is important on a clustered bus. Each server node registers the service
+address. Therefore the first `request()` call goes to one node of the group. The reply
+contains the private address of that node. Therefore all subsequent frames of the stream
+go to the same node.
+
+The consumer stays registered and is not related to one call. Therefore the endpoint only
+adds an entry to a map, or removes an entry from a map, when a stream opens or closes.
+There is no register operation and no unregister operation for each call. Such operations
+send registration data to each node of the cluster. A stream timeout, when added, will
+also be an operation on a map.
+
+#### The end of a stream
+
+The endpoint removes a stream from the map when the stream ends with trailers or with a
+`Cancel` frame. The endpoint also stops a stream in these conditions:
+
+- The endpoint cannot deliver a frame.
+- The peer of the stream does not answer. Refer to [Liveness](#liveness).
+
+Therefore a peer that leaves the cluster does not cause a registration to stay in the
+map.
+
+The endpoint discards a frame that has a `stream_id` value that is not in the map. This
+condition occurs when a frame is still in transit and the endpoint stops the stream.
+
+When you close an endpoint, the endpoint stops the streams that stay open. The endpoint
+does not discard these streams without a signal. The endpoint sends a `Cancel` frame for
+each stream, and then removes each stream.
 
 ```mermaid
 sequenceDiagram
     participant C as Client
     participant S as Server
 
-    Note over C,S: Open, an upgrade request/reply on the service address, empty bodies
+    Note over C,S: Open the stream. A request and a reply on the<br/>service address. The bodies are empty.
     C->>S: request, headers action, grpc-wire-format,<br/>grpc-client-address, grpc-client-stream-id
-    Note right of S: method type is streaming,<br/>assign grpc-server-stream-id, register in the stream map
+    Note right of S: The method type is a stream.<br/>Assign grpc-server-stream-id.<br/>Register the call in the stream map.
     S-->>C: reply, headers grpc-server-address,<br/>grpc-server-stream-id, grpc-initial-window
 
-    Note over C,S: Full duplex from here. Each frame is tagged with the<br/>destination stream_id. The two directions number<br/>their messages independently.
-    C->>S: WindowUpdate, grant the server its window
+    Note over C,S: The call is now full duplex. Each frame contains<br/>the stream_id of the destination. Each direction<br/>counts its messages separately.
+    C->>S: WindowUpdate, give the server its window
     C->>S: Message, stream_sequence 1, the first request message
-    S->>C: Headers, response leading metadata
+    S->>C: Headers, the response metadata
     S->>C: Message, stream_sequence 1
     C->>S: Message, stream_sequence 2
-    C->>S: HalfClose, client done sending
+    C->>S: HalfClose, the client sends no more messages
     S->>C: Message, stream_sequence 2
-    S->>C: Trailers, status
-    Note over C,S: both ends drop the stream from their map, call done
+    S->>C: Trailers, the status
+    Note over C,S: The two endpoints remove the stream from their<br/>maps. The call is complete.
 ```
 
-The handshake is careful about ordering. Neither side starts sending data until the
-receiving consumer is actually registered, so the design waits for that registration to
-complete first. The server's send window also starts at zero, so it cannot send a
-response before the client has registered and granted it a window. Together these close
-a race where, on a local event bus, the whole round trip could otherwise run
-synchronously before the application has even attached its response handler.
+#### The sequence of the handshake
+
+An endpoint does not send data before the consumer of the receiver is registered.
+Therefore the design waits for that registration.
+
+The send window of the server starts at zero. Therefore the server cannot send a response
+before the client registers its consumer and gives a window.
+
+These two rules together prevent an error condition. On a local event bus, the full
+sequence can operate synchronously. Then the sequence can be complete before the
+application attaches its response handler.
 
 ## Frames
 
-Everything after the handshake is a `TransportFrame`. The envelope is encoded in the
-call's wire format, protobuf binary by default or JSON when the call runs in JSON mode,
-and travels as the event bus body. The format is named in the frame's `grpc-wire-format`
-header so the receiver knows how to read it.
+Each item of data after the handshake is a `TransportFrame` object. The wire format of the
+call gives the format of the frame. The default format is protobuf binary. In JSON mode,
+the format is JSON. The frame is the body of the event bus message. The
+`grpc-wire-format` header of the frame gives the format. Therefore the receiver knows how
+to read the frame.
 
-A frame is a small header, `stream_id` and `stream_sequence`, plus exactly one variant.
-The variant is a `Message` payload, a `WindowUpdate` flow-control credit, a `HalfClose`
-from the client, a server `Headers` or `Trailers`, a `Cancel` from either side, or a
-`Ping` liveness probe from either side. A `Ping` is the one frame that belongs to no call,
-so it rides on `stream_id` 0 and is handled by the endpoint rather than dispatched to a
-stream.
+A frame contains a small header and one variant. The header contains the `stream_id` and
+`stream_sequence` values. The variant is one of these items:
 
-`Headers` and `Trailers` are thin. The metadata itself rides as `__header__.` and
-`__trailer__.` delivery headers, and these frames only mark where in the stream that
-metadata belongs. `Trailers` also carries the gRPC `status`, because the response stream
-must end with one. The full schema lives in
-[`eventbus_transport.proto`](src/main/proto/io/vertx/grpc/eventbus/transport/v1alpha/eventbus_transport.proto)
-and reads:
+- `Message`, a payload.
+- `WindowUpdate`, a flow control credit.
+- `HalfClose`, from the client.
+- `Headers` or `Trailers`, from the server.
+- `Cancel`, from the client or from the server.
+- `Ping`, a liveness probe, from the client or from the server.
+
+A `Ping` frame is not related to a call. Therefore it has the `stream_id` value 0. The
+endpoint processes this frame and does not send it to a stream.
+
+The `Headers` and `Trailers` frames contain almost no data. The delivery headers with the
+`__header__.` and `__trailer__.` prefixes contain the metadata. These two frames give
+only the position of the metadata in the stream. The `Trailers` frame also contains the
+gRPC `status` value, because a response stream must end with a status.
+
+The full schema is in
+[`eventbus_transport.proto`](src/main/proto/io/vertx/grpc/eventbus/transport/v1alpha/eventbus_transport.proto):
 
 ```proto
 syntax = "proto3";
@@ -221,23 +279,31 @@ message Ping {
 }
 ```
 
-The transport never re-encodes messages. The gRPC encoder has already produced the
-bytes, so `Message.payload` carries them verbatim and the receiver hands them straight
-back to the decoder. There is no second codec in the middle. The envelope does follow
-the call's wire format. In protobuf mode it is binary. In JSON mode the frame is a JSON
-object, so its shape is readable on the bus, which is handy with an event bus
-interceptor, for example to watch frames or drop one and test how the call reacts. The
-payload inside a JSON frame is still the opaque message bytes, carried as base64 rather
-than re-encoded.
+The transport does not encode the messages again. The gRPC encoder makes the bytes. The
+`Message.payload` field contains these bytes without a change. The receiver sends the
+bytes to the decoder. There is no second codec.
 
-gRPC semantics that the encoder and decoder do not own ride as event bus delivery
-headers, mapped the same way for unary and streaming. The method is `action`, metadata
-is `__header__.` and `__trailer__.` prefixed, and the wire format is `grpc-wire-format`.
-The frame protobuf only carries what streaming genuinely adds on top.
+The frame itself uses the wire format of the call. In protobuf mode, the frame is binary.
+In JSON mode, the frame is a JSON object. Therefore you can read the frame on the bus.
+This behaviour is useful with an event bus interceptor. For example, you can examine the
+frames. You can also discard one frame and examine the result.
+
+The payload in a JSON frame stays as the message bytes. The frame contains these bytes as
+base64 data. The transport does not encode them again.
+
+The encoder and the decoder do not control all of the gRPC data. The delivery headers of
+the event bus contain this data. The map is the same for unary calls and for streams:
+
+- `action` contains the method.
+- The headers with the `__header__.` and `__trailer__.` prefixes contain the metadata.
+- `grpc-wire-format` contains the wire format.
+
+The frame protobuf contains only the data that streams add.
 
 ## Configuration
 
-Both ends take an options object. Both are optional and default to sensible values.
+The server and the client accept an options object. These objects are not necessary. The
+default values are satisfactory.
 
 ```java
 EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()
@@ -248,125 +314,197 @@ EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
   .setPingInterval(30_000));
 ```
 
-- `supportedWireFormats` (server, default `[PROTOBUF, JSON]`) limits which wire formats
-  the server accepts. A request in an unsupported format is rejected with
-  `UNIMPLEMENTED`.
-- `wireFormat` (client, default `PROTOBUF`) is the default wire format for the client's
-  requests. A call can still override it with `request.format(...)`, and the generated
-  stubs' `create(client, WireFormat.JSON)` does exactly that. The override wins.
-- `pingInterval` (client, milliseconds, default `0` disabled) is how often the client
-  probes each server endpoint it holds a stream with. See [Liveness](#liveness).
-- `pingTimeout` (client, milliseconds, default twice `pingInterval`) is how long a server
-  may go without answering a probe before every stream with it is given up.
-- `maxPingInterval` (server, milliseconds, default `120_000`) is the longest ping interval
-  the server honours. The client alone sets the pace, and the server derives its own
-  deadline from what that client advertised, so there is no server side setting that has
-  to agree with the client's. This only bounds how long a client can ask the server to
-  wait.
+- `supportedWireFormats` (server, default `[PROTOBUF, JSON]`) gives the wire formats that
+  the server accepts. The server rejects a request that has a different format. The status
+  is `UNIMPLEMENTED`.
+- `wireFormat` (client, default `PROTOBUF`) gives the default wire format for the requests
+  of the client. A call can change this format with the `request.format(...)` method. The
+  `create(client, WireFormat.JSON)` method of the generated stub does the same. The value
+  of the call has priority.
+- `pingInterval` (client, milliseconds, default `30_000`) gives the interval between the
+  probes. The client sends a probe to each server endpoint that holds one of its streams.
+  Refer to [Liveness](#liveness).
+- `pingTimeout` (client, milliseconds, default `60_000`) gives the maximum time that a
+  server can take to answer a probe. After this time, the client stops each stream with
+  that server. This value must be more than `pingInterval`. If it is not more, the client
+  stops the streams before the server can answer.
+- `maxPingInterval` (server, milliseconds, default `120_000`) gives the maximum ping
+  interval that the server accepts. The client controls the rate. The server calculates
+  its own limit from the value that the client sends. Therefore the server has no option
+  that must agree with an option of the client. This option only limits the time that a
+  client can ask the server to wait.
+
+You cannot set these three options to `0`. The event bus gives no connection, and the
+probe replaces the connection. Therefore the probe is always in operation. Refer to
+[Liveness](#liveness).
 
 ## Flow control
 
-`send()` is fire-and-forget. It returns immediately whether or not the other side is
-keeping up, so there is no built-in backpressure to lean on. The design carries a window
-of its own, counted in messages rather than bytes.
+The `send()` method does not wait for a reply. It returns immediately. It does not tell
+you if the other endpoint can receive more data. Therefore there is no automatic
+backpressure. The design has its own window, and this window counts messages and not
+bytes.
 
-The idea is borrowed from HTTP/2's `WINDOW_UPDATE` (RFC 7540, section 6.9), applied at
-the message level. Each side starts with the window its peer granted in the handshake
-and spends one credit per `Message` it sends, stopping at zero. As the receiving
-application consumes messages, the receiver sends a `WindowUpdate` back with a delta, and
-the sender adds it to its window. This is expressed through the Vert.x `WriteStream`
-contract. A zero window makes `writeQueueFull()` return true, and an arriving
-`WindowUpdate` fires the `drainHandler`, so a generated `Pipe` or any well-behaved
-producer behaves the way it does over HTTP/2.
+The window is equivalent to the HTTP/2 `WINDOW_UPDATE` mechanism (RFC 7540, section 6.9),
+but at message level. Each endpoint starts with the window that its peer gives in the
+handshake. The endpoint uses one credit for each `Message` frame that it sends. At zero
+credits, the endpoint stops.
 
-A producer that ignores `writeQueueFull()`, such as a tight loop of `response.write(...)`,
-still has to be safe. The stream buffers the extra messages once the window is spent and
-holds back the terminating frame until they drain, so nothing is lost or reordered.
+The application of the receiver reads the messages. Then the receiver sends a
+`WindowUpdate` frame with a delta value. The sender adds this delta to its window.
 
-On a local event bus this gives real backpressure, because a paused consumer would
-otherwise just buffer and eventually drop. On a clustered event bus the window is the
-only thing pushing back at all, since a `send()` is already on the wire the moment it is
-issued.
+The Vert.x `WriteStream` interface shows this behaviour:
+
+- A window of zero makes the `writeQueueFull()` method return true.
+- A `WindowUpdate` frame starts the `drainHandler` handler.
+
+Therefore a generated `Pipe` object, or a different correct producer, operates as on
+HTTP/2.
+
+A producer can ignore the `writeQueueFull()` method. A loop of `response.write(...)` calls
+is an example. This condition must be safe. At zero credits, the stream keeps the
+additional messages in a buffer. The stream holds the last frame until the buffer is
+empty. Therefore no message is lost, and the sequence of the messages does not change.
+
+On a local event bus, the window gives correct backpressure. Without the window, a
+consumer in the pause condition keeps the messages in a buffer and can then discard them.
+On a clustered event bus, the window is the only backpressure. A `send()` call puts the
+message on the wire immediately.
 
 ## Liveness
 
-HTTP/2 leans on TCP to notice a dead peer. The event bus has no such connection, so the
-design detects an unreachable peer two ways, and gives the stream up either way rather
-than retrying, since a retry would race the teardown.
+HTTP/2 uses TCP to find a peer that stopped. The event bus has no equivalent connection.
+Therefore the design finds an unavailable peer in two ways. In both conditions, the
+endpoint stops the stream. The endpoint does not try again, because a second attempt can
+conflict with the stop procedure.
 
-The active way is a delivery failure. Every frame is sent to the peer's private address,
-and on a point-to-point `send()` a missing consumer fails the write with `NO_HANDLERS`.
-When a frame cannot be delivered, the side that sent it gives the stream up: it fails the
-read side and any pending writes so the application is told, and unbinds the stream from
-its map so nothing leaks. This surfaces to the application right away and is easy to
-reproduce with an outbound interceptor that drops the peer's consumer.
+### Method 1: a delivery failure
 
-That only fires when a side sends, though, and a side that is purely receiving never
-does. So the passive way is a probe: the client sends a `Ping` to each peer on a regular
-interval and the peer echoes it back with `ack` set. A client that hears no ack within
-`pingTimeout` declares that peer down; a server that hears no probe within twice the
-interval the client advertised does the same. Either way every stream bound to that peer
-is given up, and the peer is sent a `Cancel` on each of them, since it may be unreachable
-rather than gone and would otherwise keep holding streams it will never hear about again.
-A probe is itself a `send()`, so it doubles as the client's own delivery check on a peer
-it has nothing to say to.
+Each endpoint sends the frames to the private address of the peer. A point-to-point
+`send()` call fails with `NO_HANDLERS` when that address has no consumer.
 
-The probe is tracked per peer address, not per stream. What it establishes is that the
-peer endpoint is still there, which is one bit however many streams share it, so opening
-more streams with the same server does not multiply the traffic. Detecting a single call
-that has stalled while its endpoint is healthy is a different question, and the one
-deadlines answer.
+When a frame does not go to the peer, the sender stops the stream. The sender does these
+steps:
 
-Only the client probes, and it advertises its interval on the opening handshake so the
-server derives its own deadline rather than being configured with one that has to agree.
-The client keeps probing after it has half-closed, since liveness outlives the request
-half of the call. Probing is off by default and is enabled on the client with
-`pingInterval`; `pingTimeout` should stay a small multiple of it, so an occasional late
-ack does not cost a live stream. A unary call uses none of this, being a plain
-request/reply.
+1. Fail the read side and the writes that are in the queue. The application then knows
+   the condition.
+2. Remove the stream from the map. No data then stays in the map.
 
-Multiplexing makes the per-stream window the only backpressure available. Because every
-stream on an endpoint shares one consumer, that consumer is never paused. Pausing it
-would stall every stream behind a slow one, which is head-of-line blocking. A slow reader
-pushes back only by withholding `WindowUpdate` credit on its own stream, while the shared
-consumer keeps draining the others.
+The application receives this failure immediately. To examine this behaviour, use an
+outbound interceptor that removes the consumer of the peer.
+
+### Method 2: a ping probe
+
+Method 1 operates only when an endpoint sends a frame. An endpoint that only receives
+data does not send a frame. Therefore the design also uses a probe.
+
+The client sends a `Ping` frame to each peer at a regular interval. The peer sends the
+same frame back with the `ack` flag set.
+
+The two endpoints use the probe as follows:
+
+- The client receives no ack in the `pingTimeout` period. The client then declares that
+  the peer stopped.
+- The server receives no probe in two times the interval that the client sent in the
+  handshake. The server then declares that the peer stopped.
+
+In both conditions, the endpoint stops each stream of that peer. The endpoint also sends
+a `Cancel` frame on each of these streams. The peer can be unavailable but not stopped.
+Then the peer keeps the streams, because it receives no other data about them.
+
+A probe is also a `send()` call. Therefore the probe is also a delivery check on a peer to
+which the client sends no data.
+
+### The scope of a probe
+
+The endpoint keeps the probe data for each peer address. The endpoint does not keep probe
+data for each stream.
+
+A probe shows that the peer endpoint is available. This is one item of data for all the
+streams of that peer. Therefore more streams to the same server do not increase the
+quantity of probes.
+
+A probe does not find one call that stopped when its endpoint is available. The deadline
+of the call finds this condition.
+
+### Configuration of the probe
+
+Only the client sends probes. The client sends its interval in the handshake that opens the stream. The
+server then calculates its own limit. The server needs no option that must agree with
+the client.
+
+A client can send no interval, or an interval that is more than the server accepts. The
+server then uses the `maxPingInterval` value. Therefore each peer has a limit, and no peer
+can stop without an indication.
+
+The client continues to send probes after it closes the request side of the call.
+Liveness is not related to the request side.
+
+The probe is always in operation. You cannot set it to `0` on the client or on the
+server. Without the probe, an endpoint that receives no data cannot find the difference
+between these two conditions:
+
+- The peer is available but sends no data.
+- The peer stopped.
+
+The stream then stays open, and its registration stays in the map. The stream does not
+fail.
+
+You can change the rate of the probes. Keep the `pingTimeout` value at a small multiple of
+the `pingInterval` value. One late ack then does not stop a stream that is in operation.
+
+A unary call does not use the probe. A unary call is only a request and a reply.
+
+### Backpressure and the shared consumer
+
+All the streams of an endpoint use one consumer. Therefore the window of each stream is
+the only backpressure.
+
+The endpoint never puts this consumer in the pause condition. A pause stops all the
+streams behind one slow stream. This condition is head-of-line blocking.
+
+A slow reader keeps the `WindowUpdate` credit of its own stream. At the same time, the
+shared consumer continues to read the data of the other streams.
 
 ## Open questions and future work
 
-This is an experiment, and several pieces are deliberately out of scope for now. These
-are the directions they would take.
+This module is an experiment. Some functions are not in the current scope. This is the
+direction for each function.
 
-- Session identity and resumption. Streams are already multiplexed over one long-lived
-  private consumer per endpoint and told apart by `stream_id`, so there is no per-call
-  registration churn. The private address doubles as the endpoint's session token. It is
-  minted per process and dies with it, so a restarted endpoint has a new address and
-  stale frames hit a dead one. A distinct, stable `session_id` would only be needed to
-  tie streams across a reconnect, or for session-level flow control, and is deferred
-  until then.
-- Session-level flow control. HTTP/2 has a second, connection-wide window on top of the
-  per-stream one, so a connection can cap total buffering across its streams. The analog
-  would be a session-wide window across all streams sharing an endpoint's private
-  address, which pairs with the `session_id` above.
-- Resumption. The `stream_sequence` on each `Message` is there to leave room for a
-  dropped client to reconnect and ask the server to replay everything after the last
-  sequence it saw, in the spirit of MCP's `Last-Event-ID` resumption. The reconnect
-  handshake and a bounded replay buffer would be the missing pieces. Surviving a node
-  failure rather than just a dropped connection would additionally want the session state
-  in a shared or durable store, which could be an SPI with a local default and, for
-  example, a Redis backend.
+- **Session identity and resumption.** The endpoint multiplexes the streams on one
+  consumer that stays registered, and the `stream_id` value identifies each stream.
+  Therefore there is no registration data for each call. The private address is also the
+  session token of the endpoint. The endpoint creates this address for each process, and
+  the address stops with the process. Therefore an endpoint that starts again has a new
+  address, and old frames go to an address that has no consumer. A different, permanent
+  `session_id` value is necessary only for two functions: to connect the streams after a
+  new connection, and for flow control at session level. This work is deferred.
+- **Flow control at session level.** HTTP/2 has a second window for the full connection,
+  in addition to the window of each stream. Therefore a connection can limit the total
+  quantity of data in its buffers. The equivalent function is a window for all the streams
+  that use one private address. This function needs the `session_id` value above.
+- **Resumption.** Each `Message` frame contains a `stream_sequence` value. This value
+  permits a future function. A client that loses its connection can connect again. The
+  client can then ask the server to send again all the messages after the last sequence
+  value that it received. The MCP `Last-Event-ID` function has the same purpose. Two items
+  are necessary: a handshake for the new connection, and a replay buffer with a limit. To
+  continue after a node failure, and not only after a lost connection, the session data
+  must be in a shared or permanent store. This store can be an SPI with a local default
+  and, for example, a Redis backend.
 
 ## References
 
-- RFC 7540, Hypertext Transfer Protocol Version 2 (HTTP/2), sections 5.2 and 6.9,
-  covering flow control and `WINDOW_UPDATE`. This is the model for the message-counted
-  window used here. It was obsoleted by RFC 9113, which keeps the same flow control.
-- gRPC over HTTP/2, the gRPC wire protocol this design mirrors at the call level:
+- RFC 7540, Hypertext Transfer Protocol Version 2 (HTTP/2), sections 5.2 and 6.9. These
+  sections give flow control and the `WINDOW_UPDATE` frame. This is the model for the
+  window in this design, which counts messages. RFC 9113 replaces RFC 7540 and keeps the
+  same flow control.
+- gRPC on HTTP/2, the gRPC wire protocol. This design follows that protocol at call level:
   <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md>
-- Model Context Protocol, Streamable HTTP transport, the source of the session and
-  `Last-Event-ID` resumption ideas in the future work above:
+- Model Context Protocol, Streamable HTTP transport. This is the source of the session and
+  `Last-Event-ID` ideas in the section above:
   <https://modelcontextprotocol.io/specification>
-- Reactive Streams, the demand-signalling model (`request(n)`) that Vert.x's own
-  `ReadStream.fetch` and this window scheme both follow:
+- Reactive Streams, the model that uses `request(n)` to signal demand. The Vert.x
+  `ReadStream.fetch` method and this window both follow that model:
   <https://www.reactive-streams.org/>
-- RSocket, a message-oriented protocol whose `REQUEST_N` frame is close prior art for
-  message-counted flow control: <https://rsocket.io/about/protocol>
+- RSocket, a protocol for messages. Its `REQUEST_N` frame is comparable prior art for flow
+  control that counts messages: <https://rsocket.io/about/protocol>

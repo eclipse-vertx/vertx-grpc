@@ -84,7 +84,7 @@ public class EventBusGrpcServerOptions {
   }
 
   /**
-   * @return the longest ping interval the server honours, in milliseconds; {@code 0} disables the liveness check
+   * @return the longest ping interval the server honours, in milliseconds
    */
   public long getMaxPingInterval() {
     return maxPingInterval;
@@ -92,13 +92,18 @@ public class EventBusGrpcServerOptions {
 
   /**
    * Set the longest ping interval the server honours. A client advertises the interval at which it pings and the server gives its streams up once twice that has elapsed without a
-   * ping, so the client alone sets the pace. This bounds how long a client can ask the server to wait, capping what a client that advertises an implausible interval can hold. A
-   * client that does not ping is never given up on.
+   * ping, so the client alone sets the pace. This bounds how long a client can ask the server to wait: a client that advertises more than this, or advertises nothing at all, is
+   * held to this interval rather than to the one it asked for.
    *
-   * @param maxPingInterval the longest interval in milliseconds, {@code 0} to never give a silent client up
+   * The check cannot be turned off, so a client that goes away without a trace never leaves its streams registered here.
+   *
+   * @param maxPingInterval the longest interval in milliseconds, must be greater than {@code 0}
    * @return a reference to this, so the API can be used fluently
    */
   public EventBusGrpcServerOptions setMaxPingInterval(long maxPingInterval) {
+    if (maxPingInterval <= 0) {
+      throw new IllegalArgumentException("maxPingInterval must be greater than 0");
+    }
     this.maxPingInterval = maxPingInterval;
     return this;
   }

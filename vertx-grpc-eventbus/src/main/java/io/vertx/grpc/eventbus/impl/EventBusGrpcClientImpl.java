@@ -20,10 +20,10 @@ public class EventBusGrpcClientImpl extends EventBusStreamEndpoint implements Ev
   }
 
   private static long pingTimeout(EventBusGrpcClientOptions options) {
-    if (options.getPingInterval() <= 0) {
-      return 0L;
+    if (options.getPingTimeout() <= options.getPingInterval()) {
+      throw new IllegalArgumentException("pingTimeout (" + options.getPingTimeout() + " ms) must be greater than pingInterval (" + options.getPingInterval() + " ms)");
     }
-    return options.getPingTimeout() > 0 ? options.getPingTimeout() : options.getPingInterval() * 2;
+    return options.getPingTimeout();
   }
 
   public static Future<EventBusGrpcClient> create(Vertx vertx, EventBus eventBus, EventBusGrpcClientOptions options) {
