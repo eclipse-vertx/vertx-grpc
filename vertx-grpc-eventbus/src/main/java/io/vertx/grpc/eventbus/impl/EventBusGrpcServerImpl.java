@@ -52,7 +52,6 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
           interval = Math.min(advertised, maxPingInterval);
         }
       } catch (NumberFormatException ignored) {
-        // an unreadable advertisement is treated as none at all
       }
     }
     return interval * 2;

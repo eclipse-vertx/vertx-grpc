@@ -21,8 +21,6 @@ public class EventBusGrpcClientImpl extends EventBusStreamEndpoint implements Ev
 
   private static long pingTimeout(EventBusGrpcClientOptions options) {
     if (options.getPingTimeout().compareTo(options.getPingInterval()) <= 0) {
-      // Otherwise the timeout expires before the next ping is even due, and every peer is declared
-      // down on the first check.
       throw new IllegalArgumentException("pingTimeout (" + options.getPingTimeout() + ") must be greater than pingInterval (" + options.getPingInterval() + ")");
     }
     return options.getPingTimeout().toMillis();
