@@ -50,7 +50,9 @@ items:
 - The body, which contains the encoded message.
 
 The reply contains the response message. The headers with the `__header__.` and
-`__trailer__.` prefixes contain the response metadata and the trailers.
+`__trailer__.` prefixes contain the response metadata and the trailers. A status that is
+not `OK` gives no reply. The server fails the event bus message with the gRPC status as
+the failure code and the status message as the failure message.
 
 A Vert.x service proxy uses the same format. This is intentional. A unary call and a
 service proxy call stay interchangeable on the bus. Therefore unary calls do not change,
@@ -62,9 +64,10 @@ The event bus has no stream function. Therefore server streams, client streams a
 bidirectional calls need more than one request and one reply.
 
 The client always knows the type of the call that it makes. The `ServiceMethod` object
-contains the call `type()` value, and the generated stub sets this value. Therefore the
-client opens the call in the correct format. The server reads the same `type()` value and
-agrees. There is no negotiation and no marker on the wire.
+contains the `clientStreaming()` and `serverStreaming()` flags, and the generated stub
+sets them. Therefore the client opens the call in the correct format. The server reads the
+same flags on its own `ServiceMethod` object and agrees. There is no negotiation and no
+marker on the wire.
 
 To open a stream, the client sends a request and receives a reply. This procedure is
 equivalent to an HTTP upgrade. The delivery headers contain the data, as for a unary
@@ -79,6 +82,8 @@ these items:
 - `grpc-wire-format`, the wire format.
 - `grpc-client-address`, the private address of the client.
 - `grpc-client-stream-id`, the identifier that the client gives to this call.
+- `grpc-ping-interval`, the interval in milliseconds between the probes of the client.
+  Refer to [Liveness](#liveness).
 - The request metadata, with the `__header__.` prefix.
 
 The request headers open the stream. The first message does not open the stream.
@@ -173,15 +178,19 @@ sequenceDiagram
 
 #### The sequence of the handshake
 
-An endpoint does not send data before the consumer of the receiver is registered.
-Therefore the design waits for that registration.
+Each endpoint registers its consumer when it starts. The factory gives the client or the
+server only after this registration is complete. Therefore the private address of an
+endpoint always has a consumer when the handshake begins.
 
-The send window of the server starts at zero. Therefore the server cannot send a response
-before the client registers its consumer and gives a window.
+Two rules then keep the response behind the reply. The send window of the server starts at
+zero, and the client sends its first `WindowUpdate` frame after it reads the reply.
+Therefore the server cannot send a response message before that frame. The server also
+holds the `Headers` frame until the first frame of the client arrives on the private
+address of the server.
 
-These two rules together prevent an error condition. On a local event bus, the full
-sequence can operate synchronously. Then the sequence can be complete before the
-application attaches its response handler.
+These rules prevent an error condition. On a local event bus, the full sequence can operate
+synchronously. Then the sequence can be complete before the application attaches its
+response handler.
 
 ## Frames
 
@@ -202,7 +211,9 @@ A frame contains a small header and one variant. The header contains the `stream
 - `Ping`, a liveness probe, from the client or from the server.
 
 A `Ping` frame is not related to a call. Therefore it has the `stream_id` value 0. The
-endpoint processes this frame and does not send it to a stream.
+endpoint processes this frame and does not send it to a stream. The `grpc-peer-address`
+header of the frame contains the private address of the sender. The receiver uses this
+address to send the ack, and to give the credit to the correct peer.
 
 The `Headers` and `Trailers` frames contain almost no data. The delivery headers with the
 `__header__.` and `__trailer__.` prefixes contain the metadata. These two frames give
@@ -220,18 +231,28 @@ package io.vertx.grpc.eventbus.transport.v1alpha;
 option java_package = "io.vertx.grpc.eventbus.transport.v1alpha";
 option java_multiple_files = true;
 
+// A frame exchanged over the event bus during a streaming gRPC call, on the private
+// address only. Unary calls do not use these frames; they map to a plain request/reply.
+// The opening handshake is an upgrade-style request/reply too: the request carries the
+// client's address and stream id as delivery headers and the reply answers with the
+// server's address, stream id and initial window, both with empty bodies. Once open,
+// each endpoint multiplexes all of its streams over a single private address, and
+// stream_id demuxes the call on that address. Frames are serialized in the call's wire
+// format - protobuf binary, or JSON when the call runs in JSON mode, named in the
+// frame's grpc-wire-format header. The handshake and flow control are described in the
+// module README.
 message TransportFrame {
-  uint64 stream_id = 1;       // destination endpoint's id for this call, demuxes it on the shared address, 0 for an endpoint level frame
+  uint64 stream_id = 1; // the destination endpoint's id for this call, demuxes it on the shared private address, 0 for an endpoint level frame
   uint64 stream_sequence = 2; // per-stream, monotonic, advances on Message frames only
 
   oneof frame {
-    Message message = 3;            // a message payload, either direction
+    Message message = 3; // a message payload, either direction
     WindowUpdate window_update = 4; // flow-control credit, either direction
-    HalfClose half_close = 5;       // client to server, end of the request stream
-    Trailers trailers = 6;          // server to client, terminates the call
-    Cancel cancel = 7;              // either direction, abnormal termination
-    Headers headers = 8;            // server to client, response metadata, before the first message
-    Ping ping = 9;                  // either direction, peer liveness probe, on stream_id 0
+    HalfClose half_close = 5; // client to server, end of the request stream
+    Trailers trailers = 6; // server to client, terminates the call
+    Cancel cancel = 7; // either direction, abnormal termination
+    Headers headers = 8; // server to client, response metadata, before the first message
+    Ping ping = 9; // either direction, peer liveness probe, on stream_id 0
   }
 }
 
@@ -269,13 +290,11 @@ message Cancel {
   string reason = 2;
 }
 
-// A peer liveness probe, on stream_id 0 because it belongs to the peer endpoint rather
-// than to any single call. The client sends these regularly and the receiver echoes the
-// frame back with ack set, after HTTP/2's PING. The sender's private address rides as the
-// grpc-peer-address delivery header.
+// A peer liveness probe, carried on stream_id 0 because it belongs to the peer endpoint
+// rather than to any single call.
 message Ping {
   uint64 data = 1; // opaque, echoed verbatim in the ack
-  bool ack = 2;    // set on the echo, clear on the probe
+  bool ack = 2; // set on the echo, clear on the probe
 }
 ```
 
@@ -284,7 +303,7 @@ The transport does not encode the messages again. The gRPC encoder makes the byt
 bytes to the decoder. There is no second codec.
 
 The frame itself uses the wire format of the call. In protobuf mode, the frame is binary.
-In JSON mode, the frame is a JSON object. Therefore you can read the frame on the bus.
+In JSON mode, the frame is JSON text. Therefore you can read the frame on the bus.
 This behaviour is useful with an event bus interceptor. For example, you can examine the
 frames. You can also discard one frame and examine the result.
 
@@ -307,7 +326,7 @@ default values are satisfactory.
 
 ```java
 EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()
-  .setSupportedWireFormats(EnumSet.of(WireFormat.PROTOBUF)));
+  .setSupportedWireFormats(Collections.singleton(WireFormat.PROTOBUF)));
 
 EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
   .setWireFormat(WireFormat.JSON)
@@ -326,8 +345,9 @@ EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
   Refer to [Liveness](#liveness).
 - `pingTimeout` (client, `Duration`, default 60 seconds) gives the maximum time that a
   server can take to answer a probe. After this time, the client stops each stream with
-  that server. This value must be more than `pingInterval`. If it is not more, the client
-  stops the streams before the server can answer.
+  that server. This value must be more than `pingInterval`. The factory of the client
+  rejects a value that is not more, because the client would then stop the streams before
+  the server can answer.
 - `maxPingInterval` (server, `Duration`, default 2 minutes) gives the maximum ping
   interval that the server accepts. The client controls the rate. The server calculates
   its own limit from the value that the client sends. Therefore the server has no option
@@ -346,9 +366,10 @@ backpressure. The design has its own window, and this window counts messages and
 bytes.
 
 The window is equivalent to the HTTP/2 `WINDOW_UPDATE` mechanism (RFC 7540, section 6.9),
-but at message level. Each endpoint starts with the window that its peer gives in the
-handshake. The endpoint uses one credit for each `Message` frame that it sends. At zero
-credits, the endpoint stops.
+but at message level. The client starts with the window that the reply of the server
+gives in the `grpc-initial-window` header. The server starts at zero and receives its
+window in the first `WindowUpdate` frame of the client. The endpoint uses one credit for
+each `Message` frame that it sends. At zero credits, the endpoint stops.
 
 The application of the receiver reads the messages. Then the receiver sends a
 `WindowUpdate` frame with a delta value. The sender adds this delta to its window.
@@ -406,7 +427,8 @@ The two endpoints use the probe as follows:
 - The client receives no ack in the `pingTimeout` period. The client then declares that
   the peer stopped.
 - The server receives no probe in two times the interval that the client sent in the
-  handshake. The server then declares that the peer stopped.
+  handshake, or in two times `maxPingInterval` when the client sends a larger interval or
+  sends none. The server then declares that the peer stopped.
 
 In both conditions, the endpoint stops each stream of that peer. The endpoint also sends
 a `Cancel` frame on each of these streams. The peer can be unavailable but not stopped.
