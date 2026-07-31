@@ -20,19 +20,19 @@ public class EventBusGrpcServerOptions {
   public static final Set<WireFormat> DEFAULT_SUPPORTED_WIRE_FORMATS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(WireFormat.PROTOBUF, WireFormat.JSON)));
 
   /**
-   * The default maximum ping interval = {@code 2} minutes
+   * The default maximum ping timeout = {@code 2} minutes
    */
-  public static final Duration DEFAULT_MAX_PING_INTERVAL = Duration.ofMinutes(2);
+  public static final Duration DEFAULT_MAX_PING_TIMEOUT = Duration.ofMinutes(2);
 
   private Set<WireFormat> supportedWireFormats;
-  private Duration maxPingInterval;
+  private Duration maxPingTimeout;
 
   /**
    * Default options.
    */
   public EventBusGrpcServerOptions() {
     supportedWireFormats = new LinkedHashSet<>(DEFAULT_SUPPORTED_WIRE_FORMATS);
-    maxPingInterval = DEFAULT_MAX_PING_INTERVAL;
+    maxPingTimeout = DEFAULT_MAX_PING_TIMEOUT;
   }
 
   /**
@@ -40,7 +40,7 @@ public class EventBusGrpcServerOptions {
    */
   public EventBusGrpcServerOptions(EventBusGrpcServerOptions other) {
     supportedWireFormats = new LinkedHashSet<>(other.supportedWireFormats);
-    maxPingInterval = other.maxPingInterval;
+    maxPingTimeout = other.maxPingTimeout;
   }
 
   /**
@@ -74,27 +74,27 @@ public class EventBusGrpcServerOptions {
   }
 
   /**
-   * @return the longest ping interval the server honours
+   * @return the longest ping timeout the server honours
    */
-  public Duration getMaxPingInterval() {
-    return maxPingInterval;
+  public Duration getMaxPingTimeout() {
+    return maxPingTimeout;
   }
 
   /**
-   * Set the longest ping interval the server honours. A client advertises the interval at which it pings and the server gives its streams up once twice that has elapsed without a
-   * ping, so the client alone sets the pace. This bounds how long a client can ask the server to wait: a client that advertises more than this, or advertises nothing at all, is
-   * held to this interval rather than to the one it asked for.
+   * Set the longest ping timeout the server honours. A client advertises how long it may go unheard and the server holds it to that very deadline, the same one the client applies
+   * to this server, so a delay that one side rides out does not cost the stream on the other. This bounds how long a client can ask the server to wait: a client that advertises
+   * more than this, or advertises nothing at all, is held to this timeout rather than to the one it asked for.
    *
    * The check cannot be turned off, so a client that goes away without a trace never leaves its streams registered here.
    *
-   * @param maxPingInterval the longest interval, must be positive
+   * @param maxPingTimeout the longest timeout, must be positive
    * @return a reference to this, so the API can be used fluently
    */
-  public EventBusGrpcServerOptions setMaxPingInterval(Duration maxPingInterval) {
-    if (maxPingInterval == null || maxPingInterval.isNegative() || maxPingInterval.isZero()) {
-      throw new IllegalArgumentException("maxPingInterval must be positive");
+  public EventBusGrpcServerOptions setMaxPingTimeout(Duration maxPingTimeout) {
+    if (maxPingTimeout == null || maxPingTimeout.isNegative() || maxPingTimeout.isZero()) {
+      throw new IllegalArgumentException("maxPingTimeout must be positive");
     }
-    this.maxPingInterval = maxPingInterval;
+    this.maxPingTimeout = maxPingTimeout;
     return this;
   }
 }

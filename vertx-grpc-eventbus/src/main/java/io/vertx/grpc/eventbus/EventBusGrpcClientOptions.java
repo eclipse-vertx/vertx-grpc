@@ -73,8 +73,8 @@ public class EventBusGrpcClientOptions {
   }
 
   /**
-   * Set the interval at which the client pings each server endpoint it holds a stream with. The interval is advertised to the server, which derives from it how long this client
-   * may go unheard before its streams are given up, so it needs no matching setting of its own.
+   * Set the interval at which the client pings each server endpoint it holds a stream with. The interval paces the probes; how long a silence has to last before a stream is given
+   * up is the ping timeout.
    *
    * Pinging cannot be turned off. The event bus is not connection oriented, so it is the only thing that tells a side receiving nothing apart from a side whose peer is gone, and
    * without it such a stream would hang and leak its registration.
@@ -100,6 +100,8 @@ public class EventBusGrpcClientOptions {
   /**
    * Set how long a server endpoint may go without acknowledging a ping before it is considered down and every stream with it is given up. Must be greater than the ping interval,
    * and should be a small multiple of it so an occasional late acknowledgment does not cost a live stream.
+   *
+   * The timeout is advertised to the server, which holds this client to the same deadline, so both sides give a stream up at the same time rather than one outliving the other.
    *
    * @param pingTimeout the timeout, must be positive
    * @return a reference to this, so the API can be used fluently

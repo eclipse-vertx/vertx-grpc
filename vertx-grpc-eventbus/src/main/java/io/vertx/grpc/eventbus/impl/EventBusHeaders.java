@@ -45,10 +45,10 @@ public final class EventBusHeaders {
   public static final String INITIAL_WINDOW = "grpc-initial-window";
 
   /**
-   * Streaming handshake, client to server: the interval in milliseconds at which the client pings its peers, so the server can derive how long the client may go unheard before it
-   * is considered gone. Absent when the client does not ping.
+   * Streaming handshake, client to server: how long in milliseconds the client may go unheard before it is considered gone, the same deadline the client applies to this server, so
+   * both sides give the stream up at the same time. Absent when the client does not ping.
    */
-  public static final String PING_INTERVAL = "grpc-ping-interval";
+  public static final String PING_TIMEOUT = "grpc-ping-timeout";
 
   /**
    * Ping frames, either direction: the sender's private address, so the receiver knows where to send the ack and which peer to credit for it.

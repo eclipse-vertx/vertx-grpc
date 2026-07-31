@@ -29,32 +29,31 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
   private final Vertx vertx;
   private final Map<String, ServiceConsumer> consumers = new HashMap<>();
   private final Set<WireFormat> supportedWireFormats;
-  private final long maxPingInterval;
+  private final long maxPingTimeout;
 
   private EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
     super(vertx, eventBus, "grpc.eb.server.", WireFormat.PROTOBUF, 0L, 0L);
     this.vertx = vertx;
     this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
-    this.maxPingInterval = options.getMaxPingInterval().toMillis();
+    this.maxPingTimeout = options.getMaxPingTimeout().toMillis();
   }
 
   /**
-   * How long a client that advertised {@code header} as its ping interval may go unheard, twice the interval it advertised so an occasional late ping does not cost it its
-   * streams. A client that advertises nothing, or more than this server honours, is held to {@code maxPingInterval} instead: every peer gets a deadline, so a client that goes
-   * away without a trace cannot leave its streams registered here.
+   * How long a client that advertised {@code header} as its ping timeout may go unheard, the very deadline the client applies to this server, so a hiccup that one side rides out
+   * does not cost the stream on the other. A client that advertises nothing, or more than this server honours, is held to {@code maxPingTimeout} instead: every peer gets a
+   * deadline, so a client that goes away without a trace cannot leave its streams registered here.
    */
   private long peerTimeout(String header) {
-    long interval = maxPingInterval;
     if (header != null) {
       try {
         long advertised = Long.parseLong(header);
         if (advertised > 0) {
-          interval = Math.min(advertised, maxPingInterval);
+          return Math.min(advertised, maxPingTimeout);
         }
       } catch (NumberFormatException ignored) {
       }
     }
-    return interval * 2;
+    return maxPingTimeout;
   }
 
   public static Future<EventBusGrpcServer> create(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
@@ -300,7 +299,7 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
       }
 
       int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
-      long peerTimeout = peerTimeout(message.headers().get(EventBusHeaders.PING_INTERVAL));
+      long peerTimeout = peerTimeout(message.headers().get(EventBusHeaders.PING_TIMEOUT));
 
       MultiMap headers = MultiMap.caseInsensitiveMultiMap();
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);

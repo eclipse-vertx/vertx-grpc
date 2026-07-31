@@ -121,8 +121,8 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
       .addHeader(EventBusHeaders.CLIENT_ADDRESS, endpoint.address())
       .addHeader(EventBusHeaders.CLIENT_STREAM_ID, Long.toString(registration.id()));
 
-    if (endpoint.pingInterval() > 0) {
-      options.addHeader(EventBusHeaders.PING_INTERVAL, Long.toString(endpoint.pingInterval()));
+    if (endpoint.pingTimeout() > 0) {
+      options.addHeader(EventBusHeaders.PING_TIMEOUT, Long.toString(endpoint.pingTimeout()));
     }
 
     if (timeout != null) {

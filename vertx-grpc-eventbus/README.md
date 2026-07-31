@@ -82,8 +82,8 @@ these items:
 - `grpc-wire-format`, the wire format.
 - `grpc-client-address`, the private address of the client.
 - `grpc-client-stream-id`, the identifier that the client gives to this call.
-- `grpc-ping-interval`, the interval in milliseconds between the probes of the client.
-  Refer to [Liveness](#liveness).
+- `grpc-ping-timeout`, the time in milliseconds that the client waits before it declares a
+  peer down. Refer to [Liveness](#liveness).
 - The request metadata, with the `__header__.` prefix.
 
 The request headers open the stream. The first message does not open the stream.
@@ -348,11 +348,11 @@ EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
   that server. This value must be more than `pingInterval`. The factory of the client
   rejects a value that is not more, because the client would then stop the streams before
   the server can answer.
-- `maxPingInterval` (server, `Duration`, default 2 minutes) gives the maximum ping
-  interval that the server accepts. The client controls the rate. The server calculates
-  its own limit from the value that the client sends. Therefore the server has no option
-  that must agree with an option of the client. This option only limits the time that a
-  client can ask the server to wait.
+- `maxPingTimeout` (server, `Duration`, default 2 minutes) gives the maximum ping timeout
+  that the server accepts. The client sends its own timeout, and the server holds the
+  client to that same value. Both sides then stop a stream at the same time. Therefore the
+  server has no option that must agree with an option of the client. This option only
+  limits the time that a client can ask the server to wait.
 
 You cannot set these three options to zero. The event bus gives no connection, and the
 probe replaces the connection. Therefore the probe is always in operation. Refer to
@@ -426,9 +426,12 @@ The two endpoints use the probe as follows:
 
 - The client receives no ack in the `pingTimeout` period. The client then declares that
   the peer stopped.
-- The server receives no probe in two times the interval that the client sent in the
-  handshake, or in two times `maxPingInterval` when the client sends a larger interval or
-  sends none. The server then declares that the peer stopped.
+- The server receives no probe in the timeout that the client sent in the handshake, or in
+  `maxPingTimeout` when the client sends a larger timeout or sends none. The server then
+  declares that the peer stopped.
+
+The two sides use the same period. A delay that one side accepts therefore does not stop
+the stream on the other side.
 
 In both conditions, the endpoint stops each stream of that peer. The endpoint also sends
 a `Cancel` frame on each of these streams. The peer can be unavailable but not stopped.
@@ -451,12 +454,12 @@ of the call finds this condition.
 
 ### Configuration of the probe
 
-Only the client sends probes. The client sends its interval in the handshake that opens the stream. The
-server then calculates its own limit. The server needs no option that must agree with
-the client.
+Only the client sends probes. The client sends its timeout in the handshake that opens the
+stream, and the server holds the client to that same timeout. The server needs no option
+that must agree with the client.
 
-A client can send no interval, or an interval that is more than the server accepts. The
-server then uses the `maxPingInterval` value. Therefore each peer has a limit, and no peer
+A client can send no timeout, or a timeout that is more than the server accepts. The
+server then uses the `maxPingTimeout` value. Therefore each peer has a limit, and no peer
 can stop without an indication.
 
 The client continues to send probes after it closes the request side of the call.

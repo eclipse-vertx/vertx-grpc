@@ -31,6 +31,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
@@ -610,7 +611,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   public void testLivenessIsOnByDefault() throws Exception {
     assertFalse(new EventBusGrpcClientOptions().getPingInterval().isZero());
     assertTrue(new EventBusGrpcClientOptions().getPingTimeout().compareTo(new EventBusGrpcClientOptions().getPingInterval()) > 0);
-    assertFalse(new EventBusGrpcServerOptions().getMaxPingInterval().isZero());
+    assertFalse(new EventBusGrpcServerOptions().getMaxPingTimeout().isZero());
 
     for (Duration disabled : new Duration[]{Duration.ZERO, Duration.ofMillis(-1)}) {
       try {
@@ -624,8 +625,8 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
       } catch (IllegalArgumentException expected) {
       }
       try {
-        new EventBusGrpcServerOptions().setMaxPingInterval(disabled);
-        fail("maxPingInterval " + disabled + " must be rejected");
+        new EventBusGrpcServerOptions().setMaxPingTimeout(disabled);
+        fail("maxPingTimeout " + disabled + " must be rejected");
       } catch (IllegalArgumentException expected) {
       }
     }
@@ -639,8 +640,8 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   }
 
   @Test
-  public void testServerGivesUpPeerThatNeverAdvertisedAPingInterval() throws Exception {
-    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setMaxPingInterval(Duration.ofMillis(150))).await(10, TimeUnit.SECONDS);
+  public void testServerGivesUpPeerThatNeverAdvertisedAPingTimeout() throws Exception {
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setMaxPingTimeout(Duration.ofMillis(150))).await(10, TimeUnit.SECONDS);
 
     Promise<Throwable> serverFailed = Promise.promise();
     server.callHandler(SINK_SERVER, request -> {
@@ -746,7 +747,10 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
 
   @Test
   public void testServerGivesStreamUpWhenClientStopsPinging() throws Exception {
-    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
+    // The client asks for far longer than the server honours, so the server holds it to maxPingTimeout and
+    // gives the stream up while the client is still waiting on its own deadline.
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()
+      .setMaxPingTimeout(Duration.ofMillis(500))).await(10, TimeUnit.SECONDS);
     EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
       .setWireFormat(WireFormat.JSON)
       .setPingInterval(Duration.ofMillis(100))
@@ -779,6 +783,142 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     assertNotNull("the server must give the stream up once the client stops pinging", failure);
     Throwable clientFailure = clientCancelled.future().await(10, TimeUnit.SECONDS);
     assertNotNull("the still-alive client must be cancelled by the server's give-up", clientFailure);
+  }
+
+  @Test
+  public void testBothSidesGiveTheStreamUpAtTheSameDeadline() throws Exception {
+    Duration pingInterval = Duration.ofMillis(200);
+    Duration pingTimeout = Duration.ofSeconds(2);
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
+      .setWireFormat(WireFormat.JSON)
+      .setPingInterval(pingInterval)
+      .setPingTimeout(pingTimeout)).await(10, TimeUnit.SECONDS);
+
+    AtomicLong serverFailedAt = new AtomicLong();
+    Promise<Throwable> serverFailed = Promise.promise();
+    server.callHandler(SINK_SERVER, request -> {
+      request.response().exceptionHandler(err -> {
+        serverFailedAt.compareAndSet(0, System.currentTimeMillis());
+        serverFailed.tryComplete(err);
+      });
+      request.handler(req -> {
+      });
+      request.endHandler(v -> request.response().end(Empty.getDefaultInstance()));
+    });
+
+    // Let the peers ping, then partition them: every frame between the two private addresses is dropped,
+    // so neither side hears the other and neither can be told by the other that the stream is gone. Each
+    // side starts its countdown at the last ping it saw, and the cut can land between a ping and its ack,
+    // so the two references are taken apart.
+    AtomicLong lastPingToServer = new AtomicLong();
+    AtomicLong lastAckToClient = new AtomicLong();
+    AtomicBoolean partitioned = new AtomicBoolean();
+    Promise<Void> pinged = Promise.promise();
+    vertx.eventBus().addInboundInterceptor(dc -> {
+      String address = dc.message().address();
+      boolean toServer = address.startsWith("grpc.eb.server.");
+      if (toServer || address.startsWith("grpc.eb.client.")) {
+        if (partitioned.get()) {
+          return;
+        }
+        if (dc.message().body() instanceof Buffer && ((Buffer) dc.message().body()).toJsonObject().getJsonObject("ping") != null) {
+          if (toServer) {
+            lastPingToServer.set(System.currentTimeMillis());
+          } else {
+            lastAckToClient.set(System.currentTimeMillis());
+            pinged.tryComplete();
+          }
+        }
+      }
+      dc.next();
+    });
+
+    AtomicLong clientFailedAt = new AtomicLong();
+    Promise<Throwable> clientFailed = Promise.promise();
+    client.request(SINK_CLIENT).onSuccess(request -> {
+      request.response().onFailure(err -> {
+        clientFailedAt.compareAndSet(0, System.currentTimeMillis());
+        clientFailed.tryComplete(err);
+      });
+      request.write(Request.newBuilder().setName("a").build());
+    });
+
+    pinged.future().await(10, TimeUnit.SECONDS);
+    partitioned.set(true);
+
+    assertNotNull("the server must give the stream up once it stops hearing the client", serverFailed.future().await(10, TimeUnit.SECONDS));
+    assertNotNull("the client must give the stream up once it stops hearing the server", clientFailed.future().await(10, TimeUnit.SECONDS));
+
+    // Both sides hold the stream for the timeout the client advertised, rather than one of them deriving
+    // a shorter deadline of its own and killing a stream the other is still riding out. Detection lands
+    // on a liveness check, so the upper bound carries that period: the client checks every ping interval,
+    // the server every half timeout.
+    long floor = pingTimeout.toMillis();
+    long ceiling = pingTimeout.toMillis() + pingTimeout.toMillis() / 2 + pingInterval.toMillis() * 5;
+    long serverElapsed = serverFailedAt.get() - lastPingToServer.get();
+    long clientElapsed = clientFailedAt.get() - lastAckToClient.get();
+    assertTrue("the server gave the stream up after " + serverElapsed + " ms, before the " + floor + " ms deadline", serverElapsed >= floor);
+    assertTrue("the client gave the stream up after " + clientElapsed + " ms, before the " + floor + " ms deadline", clientElapsed >= floor);
+    assertTrue("the server took " + serverElapsed + " ms to give the stream up, more than " + ceiling + " ms", serverElapsed <= ceiling);
+    assertTrue("the client took " + clientElapsed + " ms to give the stream up, more than " + ceiling + " ms", clientElapsed <= ceiling);
+  }
+
+  @Test
+  public void testCongestionShorterThanTheTimeoutKeepsTheStream() throws Exception {
+    Duration pingInterval = Duration.ofMillis(200);
+    Duration pingTimeout = Duration.ofSeconds(2);
+    EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
+    EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
+      .setWireFormat(WireFormat.JSON)
+      .setPingInterval(pingInterval)
+      .setPingTimeout(pingTimeout)).await(10, TimeUnit.SECONDS);
+
+    Promise<Throwable> serverFailed = Promise.promise();
+    server.callHandler(SINK_SERVER, request -> {
+      request.response().exceptionHandler(serverFailed::tryComplete);
+      request.handler(req -> {
+      });
+      request.endHandler(v -> request.response().end(Empty.getDefaultInstance()));
+    });
+
+    AtomicBoolean congested = new AtomicBoolean();
+    Promise<Void> acked = Promise.promise();
+    vertx.eventBus().addInboundInterceptor(dc -> {
+      String address = dc.message().address();
+      if (address.startsWith("grpc.eb.server.") || address.startsWith("grpc.eb.client.")) {
+        if (congested.get()) {
+          return;
+        }
+        if (address.startsWith("grpc.eb.client.") && dc.message().body() instanceof Buffer
+          && ((Buffer) dc.message().body()).toJsonObject().getJsonObject("ping") != null) {
+          acked.tryComplete();
+        }
+      }
+      dc.next();
+    });
+
+    Promise<Throwable> clientFailed = Promise.promise();
+    GrpcClientRequest<Request, Empty> request = client.request(SINK_CLIENT).await(10, TimeUnit.SECONDS);
+    request.response().onFailure(clientFailed::tryComplete);
+    request.write(Request.newBuilder().setName("a").build());
+    acked.future().await(10, TimeUnit.SECONDS);
+
+    // Nothing gets through for less than the ping timeout. Neither side may take that for a peer that is
+    // gone, however many pings it costs, and the stream must still work once the traffic flows again.
+    congested.set(true);
+    Promise<Void> healed = Promise.promise();
+    vertx.setTimer(pingTimeout.toMillis() / 2, id -> {
+      congested.set(false);
+      healed.complete();
+    });
+    healed.future().await(10, TimeUnit.SECONDS);
+
+    assertFalse("the server must ride the congestion out", serverFailed.future().isComplete());
+    assertFalse("the client must ride the congestion out", clientFailed.future().isComplete());
+
+    request.end();
+    request.response().compose(GrpcReadStream::last).await(10, TimeUnit.SECONDS);
   }
 
   @Test
