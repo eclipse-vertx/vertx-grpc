@@ -52,7 +52,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
   abstract void handle(TransportFrame frame, io.vertx.core.eventbus.Message<Object> message);
 
-  abstract void handlePeerDown(Throwable cause);
+  abstract void handleRemoteEndpointDown(Throwable cause);
 
   private void onInboundMessage() {
     granted--;

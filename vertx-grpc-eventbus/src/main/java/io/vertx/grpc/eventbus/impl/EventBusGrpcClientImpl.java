@@ -10,7 +10,7 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 
-public class EventBusGrpcClientImpl extends EventBusStreamEndpoint implements EventBusGrpcClient {
+public class EventBusGrpcClientImpl extends EventBusGrpcEndpoint implements EventBusGrpcClient {
 
   private final WireFormat wireFormat;
 

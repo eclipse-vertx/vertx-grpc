@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 
-public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements EventBusGrpcServer {
+public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements EventBusGrpcServer {
 
   private final Vertx vertx;
   private final Map<String, ServiceConsumer> consumers = new HashMap<>();
@@ -40,10 +40,10 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
 
   /**
    * How long a client that advertised {@code header} as its ping timeout may go unheard, the very deadline the client applies to this server, so a hiccup that one side rides out
-   * does not cost the stream on the other. A client that advertises nothing, or more than this server honours, is held to {@code maxPingTimeout} instead: every peer gets a
+   * does not cost the stream on the other. A client that advertises nothing, or more than this server honours, is held to {@code maxPingTimeout} instead: every remote endpoint gets a
    * deadline, so a client that goes away without a trace cannot leave its streams registered here.
    */
-  private long peerTimeout(String header) {
+  private long remoteTimeout(String header) {
     if (header != null) {
       try {
         long advertised = Long.parseLong(header);
@@ -299,13 +299,13 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
       }
 
       int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
-      long peerTimeout = peerTimeout(message.headers().get(EventBusHeaders.PING_TIMEOUT));
+      long remoteTimeout = remoteTimeout(message.headers().get(EventBusHeaders.PING_TIMEOUT));
 
       MultiMap headers = MultiMap.caseInsensitiveMultiMap();
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
 
       context().runOnContext(v -> {
-        EventBusStreamEndpoint.StreamRegistration registration = createStream();
+        EventBusGrpcEndpoint.StreamRegistration registration = createStream();
         EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
           context(),
           eventBus(),
@@ -317,7 +317,7 @@ public class EventBusGrpcServerImpl extends EventBusStreamEndpoint implements Ev
           window
         );
 
-        registration.bind(stream, clientAddress, peerTimeout);
+        registration.bind(stream, clientAddress, remoteTimeout);
 
         GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
         GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context(), headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);

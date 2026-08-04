@@ -24,7 +24,7 @@ import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
 class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
-  private final EventBusStreamEndpoint.StreamRegistration registration;
+  private final EventBusGrpcEndpoint.StreamRegistration registration;
   private final long clientStreamId;
   private final WireFormat wireFormat;
   private final String encoding;
@@ -39,7 +39,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   public EventBusGrpcServerStreamingCall(
     ContextInternal context,
     EventBus eventBus,
-    EventBusStreamEndpoint.StreamRegistration registration,
+    EventBusGrpcEndpoint.StreamRegistration registration,
     String clientAddress,
     long clientStreamId,
     WireFormat wireFormat,
@@ -180,17 +180,17 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     builder.setStreamId(clientStreamId);
     Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
     Future<Void> sent = options != null ? producer.write(payload, options) : producer.write(payload);
-    sent.onFailure(this::handlePeerDown);
+    sent.onFailure(this::handleRemoteEndpointDown);
     return sent;
   }
 
   @Override
-  void handlePeerDown(Throwable cause) {
+  void handleRemoteEndpointDown(Throwable cause) {
     if (closed) {
       return;
     }
     terminate();
-    sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.UNAVAILABLE.code).setReason("Peer down")));
+    sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.UNAVAILABLE.code).setReason("Remote endpoint down")));
     failPending(cause);
     emitException(new GrpcErrorException(GrpcError.UNAVAILABLE, GrpcStatus.UNAVAILABLE));
   }

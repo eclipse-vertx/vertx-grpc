@@ -51,9 +51,9 @@ public final class EventBusHeaders {
   public static final String PING_TIMEOUT = "grpc-ping-timeout";
 
   /**
-   * Ping frames, either direction: the sender's private address, so the receiver knows where to send the ack and which peer to credit for it.
+   * Ping frames, either direction: the sender's private address, so the receiver knows where to send the ack and which remote endpoint to credit for it.
    */
-  public static final String PEER_ADDRESS = "grpc-peer-address";
+  public static final String REMOTE_ENDPOINT_ADDRESS = "grpc-remote-endpoint-address";
 
   /**
    * The prefix for grpc headers among delivery options.

@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
-abstract class EventBusStreamEndpoint {
+abstract class EventBusGrpcEndpoint {
 
   private final ContextInternal context;
   private final EventBus eventBus;
@@ -32,7 +32,7 @@ abstract class EventBusStreamEndpoint {
   private final long pingInterval;
   private final long pingTimeout;
   private final ConcurrentMap<Long, EventBusGrpcStreamBase> streams = new ConcurrentHashMap<>();
-  private final ConcurrentMap<String, Peer> peers = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, RemoteEndpoint> remoteEndpoints = new ConcurrentHashMap<>();
   private final AtomicLong sequence = new AtomicLong();
   private final AtomicLong pingData = new AtomicLong();
 
@@ -40,7 +40,7 @@ abstract class EventBusStreamEndpoint {
   private long livenessTimerId = -1L;
   private boolean stopped;
 
-  EventBusStreamEndpoint(Vertx vertx, EventBus eventBus, String prefix, WireFormat pingWireFormat, long pingInterval, long pingTimeout) {
+  EventBusGrpcEndpoint(Vertx vertx, EventBus eventBus, String prefix, WireFormat pingWireFormat, long pingInterval, long pingTimeout) {
     this.context = (ContextInternal) vertx.getOrCreateContext();
     this.eventBus = eventBus;
     this.address = prefix + UUID.randomUUID();
@@ -92,8 +92,8 @@ abstract class EventBusStreamEndpoint {
       livenessTimerId = context.setTimer(period, id -> {
         livenessTimerId = -1L;
         long now = System.currentTimeMillis();
-        pingPeers();
-        reapSilentPeers(now);
+        pingRemoteEndpoints();
+        reapSilentRemoteEndpoints(now);
         scheduleLivenessCheck();
       });
     }
@@ -101,47 +101,47 @@ abstract class EventBusStreamEndpoint {
 
   private long checkPeriod() {
     long period = pingInterval > 0 ? pingInterval : Long.MAX_VALUE;
-    for (Peer peer : peers.values()) {
-      if (peer.timeout > 0) {
-        period = Math.min(period, Math.max(1, peer.timeout / 2));
+    for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
+      if (remoteEndpoint.timeout > 0) {
+        period = Math.min(period, Math.max(1, remoteEndpoint.timeout / 2));
       }
     }
     return period == Long.MAX_VALUE ? -1L : period;
   }
 
-  private void pingPeers() {
+  private void pingRemoteEndpoints() {
     if (pingInterval <= 0) {
       return;
     }
     long data = pingData.incrementAndGet();
-    for (Peer peer : peers.values()) {
+    for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
       Ping.Builder ping = Ping.newBuilder().setData(data);
       DeliveryOptions options = new DeliveryOptions()
         .addHeader(EventBusHeaders.WIRE_FORMAT, pingWireFormat.name())
-        .addHeader(EventBusHeaders.PEER_ADDRESS, address);
-      peer.producer
+        .addHeader(EventBusHeaders.REMOTE_ENDPOINT_ADDRESS, address);
+      remoteEndpoint.producer
         .write(EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ping), pingWireFormat), options)
-        .onFailure(cause -> peerDown(peer, cause));
+        .onFailure(cause -> remoteEndpointDown(remoteEndpoint, cause));
     }
   }
 
-  private void reapSilentPeers(long now) {
-    for (Peer peer : peers.values()) {
-      if (peer.timeout > 0 && now - peer.lastSeen > peer.timeout) {
-        peerDown(peer, new TimeoutException("No ping from peer " + peer.address + " within " + peer.timeout + " ms"));
+  private void reapSilentRemoteEndpoints(long now) {
+    for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
+      if (remoteEndpoint.timeout > 0 && now - remoteEndpoint.lastSeen > remoteEndpoint.timeout) {
+        remoteEndpointDown(remoteEndpoint, new TimeoutException("No ping from remote endpoint " + remoteEndpoint.address + " within " + remoteEndpoint.timeout + " ms"));
       }
     }
   }
 
-  private void peerDown(Peer peer, Throwable cause) {
-    if (!peers.remove(peer.address, peer)) {
+  private void remoteEndpointDown(RemoteEndpoint remoteEndpoint, Throwable cause) {
+    if (!remoteEndpoints.remove(remoteEndpoint.address, remoteEndpoint)) {
       return;
     }
-    peer.producer.close();
-    for (Long id : peer.streams) {
+    remoteEndpoint.producer.close();
+    for (Long id : remoteEndpoint.streams) {
       EventBusGrpcStreamBase stream = streams.get(id);
       if (stream != null) {
-        stream.handlePeerDown(cause);
+        stream.handleRemoteEndpointDown(cause);
       }
     }
   }
@@ -159,13 +159,13 @@ abstract class EventBusStreamEndpoint {
   }
 
   private void handlePing(Ping ping, Message<Object> message) {
-    String peerAddress = message.headers().get(EventBusHeaders.PEER_ADDRESS);
-    if (peerAddress == null) {
+    String remoteAddress = message.headers().get(EventBusHeaders.REMOTE_ENDPOINT_ADDRESS);
+    if (remoteAddress == null) {
       return;
     }
-    Peer peer = peers.get(peerAddress);
-    if (peer != null) {
-      peer.lastSeen = System.currentTimeMillis();
+    RemoteEndpoint remoteEndpoint = remoteEndpoints.get(remoteAddress);
+    if (remoteEndpoint != null) {
+      remoteEndpoint.lastSeen = System.currentTimeMillis();
     }
     if (ping.getAck()) {
       return;
@@ -175,9 +175,9 @@ abstract class EventBusStreamEndpoint {
     WireFormat wireFormat = JsonWireFormat.NAME.equals(wireFormatName) ? WireFormat.JSON : WireFormat.PROTOBUF;
     DeliveryOptions options = new DeliveryOptions()
       .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name())
-      .addHeader(EventBusHeaders.PEER_ADDRESS, address);
+      .addHeader(EventBusHeaders.REMOTE_ENDPOINT_ADDRESS, address);
     Ping.Builder ack = Ping.newBuilder().setData(ping.getData()).setAck(true);
-    eventBus.send(peerAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ack), wireFormat), options);
+    eventBus.send(remoteAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ack), wireFormat), options);
   }
 
   Future<Void> closeStreams() {
@@ -186,10 +186,10 @@ abstract class EventBusStreamEndpoint {
       context.owner().cancelTimer(livenessTimerId);
       livenessTimerId = -1L;
     }
-    for (Peer peer : peers.values()) {
-      peer.producer.close();
+    for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
+      remoteEndpoint.producer.close();
     }
-    peers.clear();
+    remoteEndpoints.clear();
     List<EventBusGrpcStreamBase> active = new ArrayList<>(streams.values());
     streams.clear();
     List<Future<Void>> futures = new ArrayList<>();
@@ -205,7 +205,7 @@ abstract class EventBusStreamEndpoint {
     return Future.all(futures).mapEmpty();
   }
 
-  private static final class Peer {
+  private static final class RemoteEndpoint {
 
     private final String address;
     private final long timeout;
@@ -214,7 +214,7 @@ abstract class EventBusStreamEndpoint {
 
     private volatile long lastSeen;
 
-    private Peer(String address, long timeout, MessageProducer<Object> producer, long now) {
+    private RemoteEndpoint(String address, long timeout, MessageProducer<Object> producer, long now) {
       this.address = address;
       this.timeout = timeout;
       this.producer = producer;
@@ -226,7 +226,7 @@ abstract class EventBusStreamEndpoint {
 
     private final long id;
 
-    private Peer peer;
+    private RemoteEndpoint remoteEndpoint;
 
     private StreamRegistration(long id) {
       this.id = id;
@@ -236,21 +236,21 @@ abstract class EventBusStreamEndpoint {
       return id;
     }
 
-    void bind(EventBusGrpcStreamBase stream, String peerAddress, long peerTimeout) {
+    void bind(EventBusGrpcStreamBase stream, String remoteAddress, long remoteTimeout) {
       streams.put(id, stream);
-      Peer bound = peers.computeIfAbsent(peerAddress, addr -> new Peer(addr, peerTimeout, eventBus.sender(addr), System.currentTimeMillis()));
+      RemoteEndpoint bound = remoteEndpoints.computeIfAbsent(remoteAddress, addr -> new RemoteEndpoint(addr, remoteTimeout, eventBus.sender(addr), System.currentTimeMillis()));
       bound.streams.add(id);
-      peer = bound;
+      remoteEndpoint = bound;
       scheduleLivenessCheck();
     }
 
     void unbind() {
       streams.remove(id);
-      Peer bound = peer;
+      RemoteEndpoint bound = remoteEndpoint;
       if (bound != null) {
-        peer = null;
+        remoteEndpoint = null;
         bound.streams.remove(id);
-        if (bound.streams.isEmpty() && peers.remove(bound.address, bound)) {
+        if (bound.streams.isEmpty() && remoteEndpoints.remove(bound.address, bound)) {
           bound.producer.close();
         }
       }

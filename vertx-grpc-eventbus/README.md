@@ -211,7 +211,7 @@ A frame contains a small header and one variant. The header contains the `stream
 - `Ping`, a liveness probe, from the client or from the server.
 
 A `Ping` frame is not related to a call. Therefore it has the `stream_id` value 0. The
-endpoint processes this frame and does not send it to a stream. The `grpc-peer-address`
+endpoint processes this frame and does not send it to a stream. The `grpc-remote-endpoint-address`
 header of the frame contains the private address of the sender. The receiver uses this
 address to send the ack, and to give the credit to the correct peer.
 

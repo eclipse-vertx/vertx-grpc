@@ -28,7 +28,7 @@ import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
 class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
-  private final EventBusStreamEndpoint endpoint;
+  private final EventBusGrpcEndpoint endpoint;
   private final EventBus eventBus;
   private final ServiceName serviceName;
   private final String methodName;
@@ -45,9 +45,9 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private long serverStreamId;
   private MessageProducer<Object> producer;
 
-  private EventBusStreamEndpoint.StreamRegistration registration;
+  private EventBusGrpcEndpoint.StreamRegistration registration;
 
-  public EventBusGrpcClientStreamingCall(ContextInternal context, EventBusStreamEndpoint endpoint, ServiceName serviceName, String methodName) {
+  public EventBusGrpcClientStreamingCall(ContextInternal context, EventBusGrpcEndpoint endpoint, ServiceName serviceName, String methodName) {
     super(context, DEFAULT_WINDOW);
     this.endpoint = endpoint;
     this.eventBus = endpoint.eventBus();
@@ -263,22 +263,22 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     }
     builder.setStreamId(serverStreamId);
     Future<Void> sent = producer.write(EventBusGrpcCodec.encodeFrame(builder, wireFormat));
-    sent.onFailure(this::handlePeerDown);
+    sent.onFailure(this::handleRemoteEndpointDown);
     return sent;
   }
 
   @Override
-  void handlePeerDown(Throwable cause) {
+  void handleRemoteEndpointDown(Throwable cause) {
     if (state == State.CLOSED) {
       return;
     }
 
-    boolean notifyPeer = state == State.STREAMING;
+    boolean notifyRemoteEndpoint = state == State.STREAMING;
 
     terminate();
 
-    if (notifyPeer) {
-      sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Peer down")));
+    if (notifyRemoteEndpoint) {
+      sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Remote endpoint down")));
     }
 
     failPending(cause);
