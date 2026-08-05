@@ -6,6 +6,9 @@ import io.vertx.grpc.common.WireFormat;
 
 import java.time.Duration;
 
+/**
+ * Options for configuring an {@link EventBusGrpcClient}.
+ */
 @DataObject
 @Unstable
 public class EventBusGrpcClientOptions {

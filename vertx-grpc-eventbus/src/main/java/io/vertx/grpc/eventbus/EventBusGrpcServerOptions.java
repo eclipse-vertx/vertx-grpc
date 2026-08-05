@@ -10,6 +10,9 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+/**
+ * Options for configuring an {@link EventBusGrpcServer}.
+ */
 @DataObject
 @Unstable
 public class EventBusGrpcServerOptions {

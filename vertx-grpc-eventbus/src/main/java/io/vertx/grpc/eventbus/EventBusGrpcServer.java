@@ -33,7 +33,7 @@ public interface EventBusGrpcServer extends ServiceContainer {
    * @return a future of the created server
    */
   static Future<EventBusGrpcServer> server(Vertx vertx) {
-    return EventBusGrpcServerImpl.create(vertx, vertx.eventBus(), new EventBusGrpcServerOptions());
+    return EventBusGrpcServerImpl.create(vertx, new EventBusGrpcServerOptions());
   }
 
   /**
@@ -45,36 +45,11 @@ public interface EventBusGrpcServer extends ServiceContainer {
    * @return a future of the created server
    */
   static Future<EventBusGrpcServer> server(Vertx vertx, EventBusGrpcServerOptions options) {
-    return EventBusGrpcServerImpl.create(vertx, vertx.eventBus(), options);
+    return EventBusGrpcServerImpl.create(vertx, options);
   }
 
   @Fluent
   <Req, Resp> EventBusGrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
-
-  /**
-   * Create an event bus gRPC server using the provided event bus. The returned future completes once the server's
-   * private address is bound.
-   *
-   * @param vertx the vertx instance
-   * @param eventBus the event bus to use as transport
-   * @return a future of the created server
-   */
-  static Future<EventBusGrpcServer> server(Vertx vertx, EventBus eventBus) {
-    return EventBusGrpcServerImpl.create(vertx, eventBus, new EventBusGrpcServerOptions());
-  }
-
-  /**
-   * Create an event bus gRPC server using the provided event bus and options. The returned future completes once the
-   * server's private address is bound.
-   *
-   * @param vertx the vertx instance
-   * @param eventBus the event bus to use as transport
-   * @param options the server options
-   * @return a future of the created server
-   */
-  static Future<EventBusGrpcServer> server(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
-    return EventBusGrpcServerImpl.create(vertx, eventBus, options);
-  }
 
   @Override
   @Fluent

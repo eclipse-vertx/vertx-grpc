@@ -33,7 +33,7 @@ public interface EventBusGrpcClient extends ServiceInvoker {
    * @return a future of the created client
    */
   static Future<EventBusGrpcClient> client(Vertx vertx) {
-    return EventBusGrpcClientImpl.create(vertx, vertx.eventBus(), new EventBusGrpcClientOptions());
+    return EventBusGrpcClientImpl.create(vertx, new EventBusGrpcClientOptions());
   }
 
   /**
@@ -45,32 +45,7 @@ public interface EventBusGrpcClient extends ServiceInvoker {
    * @return a future of the created client
    */
   static Future<EventBusGrpcClient> client(Vertx vertx, EventBusGrpcClientOptions options) {
-    return EventBusGrpcClientImpl.create(vertx, vertx.eventBus(), options);
-  }
-
-  /**
-   * Create an event bus gRPC client using the provided event bus. The returned future completes once the client's
-   * private address is bound.
-   *
-   * @param vertx the vertx instance
-   * @param eventBus the event bus to use as transport
-   * @return a future of the created client
-   */
-  static Future<EventBusGrpcClient> client(Vertx vertx, EventBus eventBus) {
-    return EventBusGrpcClientImpl.create(vertx, eventBus, new EventBusGrpcClientOptions());
-  }
-
-  /**
-   * Create an event bus gRPC client using the provided event bus and options. The returned future completes once the
-   * client's private address is bound.
-   *
-   * @param vertx the vertx instance
-   * @param eventBus the event bus to use as transport
-   * @param options the client options
-   * @return a future of the created client
-   */
-  static Future<EventBusGrpcClient> client(Vertx vertx, EventBus eventBus, EventBusGrpcClientOptions options) {
-    return EventBusGrpcClientImpl.create(vertx, eventBus, options);
+    return EventBusGrpcClientImpl.create(vertx, options);
   }
 
   /**

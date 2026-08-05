@@ -4,7 +4,6 @@ import com.google.protobuf.Descriptors;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
-import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.internal.ContextInternal;
@@ -31,8 +30,8 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
   private final Set<WireFormat> supportedWireFormats;
   private final long maxPingTimeout;
 
-  private EventBusGrpcServerImpl(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
-    super(vertx, eventBus, "grpc.eb.server.", WireFormat.PROTOBUF, 0L, 0L);
+  private EventBusGrpcServerImpl(Vertx vertx, EventBusGrpcServerOptions options) {
+    super(vertx, vertx.eventBus(), "grpc.eb.server.", WireFormat.PROTOBUF, 0L, 0L);
     this.vertx = vertx;
     this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
     this.maxPingTimeout = options.getMaxPingTimeout().toMillis();
@@ -56,8 +55,8 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
     return maxPingTimeout;
   }
 
-  public static Future<EventBusGrpcServer> create(Vertx vertx, EventBus eventBus, EventBusGrpcServerOptions options) {
-    EventBusGrpcServerImpl server = new EventBusGrpcServerImpl(vertx, eventBus, options);
+  public static Future<EventBusGrpcServer> create(Vertx vertx, EventBusGrpcServerOptions options) {
+    EventBusGrpcServerImpl server = new EventBusGrpcServerImpl(vertx, options);
     return server.bind().map(server);
   }
 
