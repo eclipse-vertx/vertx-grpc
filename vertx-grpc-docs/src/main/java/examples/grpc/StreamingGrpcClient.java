@@ -25,6 +25,8 @@ public interface StreamingGrpcClient extends StreamingClient {
   ServiceMethod<examples.grpc.Item, examples.grpc.Empty> Source = ServiceMethod.client(
     ServiceName.create("examples.grpc", "Streaming"),
     "Source",
+    false,
+    true,
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.grpc.Item.newBuilder()));
 
@@ -34,6 +36,8 @@ public interface StreamingGrpcClient extends StreamingClient {
   ServiceMethod<examples.grpc.Empty, examples.grpc.Item> Sink = ServiceMethod.client(
     ServiceName.create("examples.grpc", "Streaming"),
     "Sink",
+    true,
+    false,
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.grpc.Empty.newBuilder()));
 
@@ -43,6 +47,8 @@ public interface StreamingGrpcClient extends StreamingClient {
   ServiceMethod<examples.grpc.Item, examples.grpc.Item> Pipe = ServiceMethod.client(
     ServiceName.create("examples.grpc", "Streaming"),
     "Pipe",
+    true,
+    true,
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.grpc.Item.newBuilder()));
 

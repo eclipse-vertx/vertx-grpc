@@ -87,6 +87,8 @@ public class GreeterGrpcService extends GreeterService implements Service {
   public static final io.vertx.grpc.transcoding.TranscodingServiceMethod<examples.grpc.HelloRequest, examples.grpc.HelloReply> SayHello = io.vertx.grpc.transcoding.TranscodingServiceMethod.server(
     SERVICE_NAME,
     "SayHello",
+    false,
+    false,
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.grpc.HelloRequest.newBuilder()),
     SayHello_OPTIONS

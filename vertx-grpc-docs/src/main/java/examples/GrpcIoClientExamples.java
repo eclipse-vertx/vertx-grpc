@@ -49,12 +49,11 @@ public class GrpcIoClientExamples {
   }
 
   public void eventBusExample(Vertx vertx) {
+    EventBusGrpcClient.client(vertx).onSuccess(client -> {
+      GrpcIoClientChannel channel = new GrpcIoClientChannel(client);
 
-    EventBusGrpcClient client = EventBusGrpcClient.client(vertx);
-
-    GrpcIoClientChannel channel = new GrpcIoClientChannel(client);
-
-    GreeterGrpc.GreeterStub greeter = GreeterGrpc.newStub(channel);
+      GreeterGrpc.GreeterStub greeter = GreeterGrpc.newStub(channel);
+    });
   }
 
   public void stubWithDeadline(GrpcIoClientChannel channel, StreamObserver<HelloReply> observer) {

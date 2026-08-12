@@ -20,6 +20,42 @@ public final class EventBusHeaders {
   public static final String WIRE_FORMAT = "grpc-wire-format";
 
   /**
+   * Streaming handshake, client to server: the client's private address for server to client frames.
+   */
+  public static final String CLIENT_ADDRESS = "grpc-client-address";
+
+  /**
+   * Streaming handshake, client to server: the client's id for this call, used to demux server to client frames.
+   */
+  public static final String CLIENT_STREAM_ID = "grpc-client-stream-id";
+
+  /**
+   * Streaming handshake, server to client: the server's private address for client to server frames.
+   */
+  public static final String SERVER_ADDRESS = "grpc-server-address";
+
+  /**
+   * Streaming handshake, server to client: the server's id for this call, used to demux client to server frames.
+   */
+  public static final String SERVER_STREAM_ID = "grpc-server-stream-id";
+
+  /**
+   * Streaming handshake, server to client: the number of messages the server grants the client to send.
+   */
+  public static final String INITIAL_WINDOW = "grpc-initial-window";
+
+  /**
+   * Streaming handshake, client to server: how long in milliseconds the client may go unheard before it is considered gone, the same deadline the client applies to this server, so
+   * both sides give the stream up at the same time. Absent when the client does not ping.
+   */
+  public static final String PING_TIMEOUT = "grpc-ping-timeout";
+
+  /**
+   * Ping frames, either direction: the sender's private address, so the receiver knows where to send the ack and which remote endpoint to credit for it.
+   */
+  public static final String REMOTE_ENDPOINT_ADDRESS = "grpc-remote-endpoint-address";
+
+  /**
    * The prefix for grpc headers among delivery options.
    */
   public static final String HEADER_PREFIX = "__header__.";

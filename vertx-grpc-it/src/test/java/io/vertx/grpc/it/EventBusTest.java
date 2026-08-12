@@ -2,9 +2,16 @@ package io.vertx.grpc.it;
 
 import io.grpc.*;
 import io.grpc.examples.helloworld.*;
+import io.grpc.examples.streamingtranscoding.StreamingHelloReply;
+import io.grpc.examples.streamingtranscoding.StreamingHelloRequest;
+import io.grpc.examples.streamingtranscoding.StreamingTranscodingGreeterClient;
+import io.grpc.examples.streamingtranscoding.StreamingTranscodingGreeterGrpcClient;
+import io.grpc.examples.streamingtranscoding.StreamingTranscodingGreeterGrpcService;
+import io.grpc.examples.streamingtranscoding.StreamingTranscodingGreeterService;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
+import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.GrpcStatus;
@@ -18,6 +25,9 @@ import io.vertx.tests.common.GrpcTestBase;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,8 +52,8 @@ public class EventBusTest extends GrpcTestBase {
   public void setUp(TestContext should) {
     super.setUp(should);
 
-    client = EventBusGrpcClient.client(vertx);
-    server = EventBusGrpcServer.server(vertx);
+    client = EventBusGrpcClient.client(vertx).await();
+    server = EventBusGrpcServer.server(vertx).await();
   }
 
   @Test
@@ -74,7 +84,7 @@ public class EventBusTest extends GrpcTestBase {
 
   @Test
   public void testUnaryErrorHandling() throws Exception {
-    EventBusGrpcServer errorServer = EventBusGrpcServer.server(vertx);
+    EventBusGrpcServer errorServer = EventBusGrpcServer.server(vertx).await();
     errorServer.addService(GreeterGrpcService.of(new GreeterService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
@@ -94,7 +104,7 @@ public class EventBusTest extends GrpcTestBase {
 
   @Test
   public void testUnaryStatusException() throws Exception {
-    EventBusGrpcServer errorServer = EventBusGrpcServer.server(vertx);
+    EventBusGrpcServer errorServer = EventBusGrpcServer.server(vertx).await();
     errorServer.addService(GreeterGrpcService.of(new GreeterService() {
       @Override
       public Future<HelloReply> sayHello(HelloRequest request) {
@@ -112,7 +122,6 @@ public class EventBusTest extends GrpcTestBase {
 
   @Test
   public void testServerClose() throws Exception {
-
     server.addService(greeterService);
     GreeterClient greeter = GreeterGrpcClient.create(client);
 
@@ -120,9 +129,7 @@ public class EventBusTest extends GrpcTestBase {
 
     assertEquals("Hello Julien", reply.getMessage());
 
-    Promise<Void> closePromise = Promise.promise();
-    server.close(closePromise);
-    closePromise.future().await(10, TimeUnit.SECONDS);
+    server.close().await(10, TimeUnit.SECONDS);
 
     try {
       greeter.sayHello(HelloRequest.newBuilder().setName("Julien").build())
@@ -133,8 +140,36 @@ public class EventBusTest extends GrpcTestBase {
   }
 
   @Test
-  public void testGrpcIO() throws Exception {
+  public void testServerStreamingWithTranscodingOptions() throws Exception {
+    server.addService(StreamingTranscodingGreeterGrpcService.of(new StreamingTranscodingGreeterService() {
+      @Override
+      protected void sayHelloStreaming(StreamingHelloRequest request, WriteStream<StreamingHelloReply> response) {
+        response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 1").build());
+        response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 2").build());
+        response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 3").build());
+        response.end();
+      }
+    }));
 
+    StreamingTranscodingGreeterClient greeter = StreamingTranscodingGreeterGrpcClient.create(client);
+
+    List<String> received = greeter
+      .sayHelloStreaming(StreamingHelloRequest.newBuilder().setName("Julien").build())
+      .compose(stream -> {
+        Promise<List<String>> promise = Promise.promise();
+        List<String> replies = new ArrayList<>();
+        stream.handler(reply -> replies.add(reply.getMessage()));
+        stream.endHandler(v -> promise.tryComplete(replies));
+        stream.exceptionHandler(promise::tryFail);
+        return promise.future();
+      })
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals(Arrays.asList("Hello Julien 1", "Hello Julien 2", "Hello Julien 3"), received);
+  }
+
+  @Test
+  public void testGrpcIO() throws Exception {
     GreeterGrpc.GreeterImplBase service = new GreeterGrpc.GreeterImplBase() {
       @Override
       public void sayHello(HelloRequest request, StreamObserver<HelloReply> responseObserver) {

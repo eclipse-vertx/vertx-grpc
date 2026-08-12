@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+import "google/api/annotations.proto";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.streamingtranscoding";
+option java_outer_classname = "HelloStreamingTranscodingProto";
+
+package streamingtranscoding;
+
+// A greeter whose streaming methods also carry HTTP transcoding rules, so that
+// the generated service methods are TranscodingServiceMethod instances that
+// report a streaming cardinality.
+service StreamingTranscodingGreeter {
+  rpc SayHelloStreaming (StreamingHelloRequest) returns (stream StreamingHelloReply) {
+    option (google.api.http) = {
+      get: "/v1/hello/stream/{name}"
+    };
+  }
+}
+
+// The request message containing the user's name.
+message StreamingHelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings
+message StreamingHelloReply {
+  string message = 1;
+}

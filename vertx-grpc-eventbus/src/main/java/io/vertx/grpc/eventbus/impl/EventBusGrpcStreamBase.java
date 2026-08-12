@@ -1,18 +1,136 @@
 package io.vertx.grpc.eventbus.impl;
 
+import com.google.protobuf.ByteString;
+import io.vertx.core.Closeable;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.impl.*;
+import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.impl.GrpcFrame;
+import io.vertx.grpc.common.impl.GrpcFrameType;
+import io.vertx.grpc.common.impl.GrpcInboundStream;
+import io.vertx.grpc.common.impl.GrpcOutboundStream;
+import io.vertx.grpc.common.impl.GrpcStream;
+import io.vertx.grpc.eventbus.transport.v1alpha.Message;
+import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
+import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
 
-abstract class EventBusGrpcStreamBase implements GrpcStream {
+import java.util.ArrayDeque;
+import java.util.Deque;
+
+abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
+
+  static final int DEFAULT_WINDOW = 64;
 
   protected final ContextInternal context;
+  protected final int window;
+
+  private final Deque<MessageWrite> outboundQueue = new ArrayDeque<>();
+
+  private static final Object END_MARKER = new Object();
+  private final Deque<Object> inboundQueue = new ArrayDeque<>();
+  private boolean draining;
 
   private Handler<GrpcFrame> frameHandler;
   private Handler<Void> endHandler;
+  private Handler<Throwable> exceptionHandler;
+  private Handler<Void> drainHandler;
 
-  EventBusGrpcStreamBase(ContextInternal context) {
+  private boolean flowing = true;
+  private int granted;
+  private int sendWindow;
+  private long sequence;
+
+  EventBusGrpcStreamBase(ContextInternal context, int window) {
     this.context = context;
+    this.window = window;
+    this.granted = window;
+  }
+
+  protected abstract Future<Void> sendTransportFrame(TransportFrame.Builder frame);
+
+  abstract void handle(TransportFrame frame, io.vertx.core.eventbus.Message<Object> message);
+
+  abstract void handleRemoteEndpointDown(Throwable cause);
+
+  private void onInboundMessage() {
+    granted--;
+    topUpWindow();
+  }
+
+  private void topUpWindow() {
+    if (flowing && granted <= window / 2) {
+      int delta = window - granted;
+      if (delta > 0) {
+        granted += delta;
+        sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(delta)));
+      }
+    }
+  }
+
+  protected Future<Void> writeMessage(GrpcMessage message) {
+    Promise<Void> promise = context.promise();
+    enqueue(messageWrite(message, promise));
+    return promise.future();
+  }
+
+  protected MessageWrite messageWrite(GrpcMessage message, Promise<Void> promise) {
+    return new MessageFrameWrite(this, message, promise);
+  }
+
+  private Future<Void> doSendMessage(GrpcMessage message) {
+    sendWindow--;
+    return sendTransportFrame(TransportFrame.newBuilder()
+      .setStreamSequence(++sequence)
+      .setMessage(Message.newBuilder().setPayload(ByteString.copyFrom(message.payload().getBytes()))));
+  }
+
+  protected void enqueue(MessageWrite write) {
+    outboundQueue.add(write);
+    drainOutbound();
+  }
+
+  private void drainOutbound() {
+    MessageWrite head;
+    while ((head = outboundQueue.peek()) != null && !(head.flowControlled() && sendWindow <= 0)) {
+      outboundQueue.poll().write();
+    }
+  }
+
+  protected void grantSendWindow(int delta) {
+    boolean wasFull = writeQueueFull();
+    sendWindow += delta;
+    drainOutbound();
+    if (wasFull && !writeQueueFull()) {
+      Handler<Void> h = drainHandler;
+      if (h != null) {
+        context.runOnContext(v -> h.handle(null));
+      }
+    }
+  }
+
+  protected void failPendingWrites(Throwable cause) {
+    MessageWrite write;
+    while ((write = outboundQueue.poll()) != null) {
+      write.fail(cause);
+    }
+  }
+
+  @Override
+  public boolean writeQueueFull() {
+    return sendWindow <= 0 || !outboundQueue.isEmpty();
+  }
+
+  @Override
+  public GrpcOutboundStream setWriteQueueMaxSize(int maxSize) {
+    return this;
+  }
+
+  @Override
+  public GrpcOutboundStream drainHandler(Handler<Void> handler) {
+    this.drainHandler = handler;
+    return this;
   }
 
   @Override
@@ -29,50 +147,108 @@ abstract class EventBusGrpcStreamBase implements GrpcStream {
 
   @Override
   public GrpcStream exceptionHandler(Handler<Throwable> handler) {
+    this.exceptionHandler = handler;
     return this;
   }
 
   @Override
   public GrpcInboundStream pause() {
+    flowing = false;
     return this;
   }
 
   @Override
   public GrpcInboundStream resume() {
-    return this;
+    return fetch(Long.MAX_VALUE);
   }
 
   @Override
   public GrpcInboundStream fetch(long amount) {
+    if (amount > 0) {
+      flowing = true;
+      drainInbound();
+      topUpWindow();
+    }
     return this;
   }
 
   protected void emit(GrpcFrame frame) {
-    Handler<GrpcFrame> handler = frameHandler;
-    if (handler != null) {
-      handler.handle(frame);
-    }
+    inboundQueue.add(frame);
+    drainInbound();
   }
 
   protected void emitEnd() {
-    Handler<Void> handler = endHandler;
-    if (handler != null) {
-      handler.handle(null);
+    inboundQueue.add(END_MARKER);
+    drainInbound();
+  }
+
+  protected void emitException(Throwable t) {
+    inboundQueue.add(t);
+    drainInbound();
+  }
+
+  private void drainInbound() {
+    if (draining) {
+      return;
+    }
+    draining = true;
+    try {
+      while (flowing && !inboundQueue.isEmpty()) {
+        dispatchInbound(inboundQueue.poll());
+      }
+    } finally {
+      draining = false;
     }
   }
 
-  @Override
-  public GrpcOutboundStream setWriteQueueMaxSize(int maxSize) {
-    return this;
+  private void dispatchInbound(Object event) {
+    if (event == END_MARKER) {
+      Handler<Void> handler = endHandler;
+      if (handler != null) {
+        handler.handle(null);
+      }
+    } else if (event instanceof Throwable) {
+      Handler<Throwable> handler = exceptionHandler;
+      if (handler != null) {
+        handler.handle((Throwable) event);
+      }
+    } else {
+      GrpcFrame frame = (GrpcFrame) event;
+      Handler<GrpcFrame> handler = frameHandler;
+      if (handler != null) {
+        handler.handle(frame);
+      }
+      if (frame.type() == GrpcFrameType.MESSAGE) {
+        onInboundMessage();
+      }
+    }
   }
 
-  @Override
-  public boolean writeQueueFull() {
-    return false;
-  }
+  private static final class MessageFrameWrite implements MessageWrite {
 
-  @Override
-  public GrpcOutboundStream drainHandler(Handler<Void> handler) {
-    return this;
+    private final EventBusGrpcStreamBase stream;
+    private final GrpcMessage message;
+    private final Promise<Void> promise;
+
+    MessageFrameWrite(EventBusGrpcStreamBase stream, GrpcMessage message, Promise<Void> promise) {
+      this.stream = stream;
+      this.message = message;
+      this.promise = promise;
+    }
+
+    @Override
+    public boolean flowControlled() {
+      return true;
+    }
+
+    @Override
+    public void write() {
+      stream.doSendMessage(message).onComplete(promise);
+    }
+
+    @Override
+    public void fail(Throwable cause) {
+      promise.fail(cause);
+    }
   }
 }
