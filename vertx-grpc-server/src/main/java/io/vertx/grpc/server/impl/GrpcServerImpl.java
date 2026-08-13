@@ -336,11 +336,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
     @Override
     public void handle(GrpcServerRequest<Req, Resp> grpcRequest) {
-      try {
-        invoker.invoke(grpcRequest);
-      } catch (Exception e) {
-        grpcRequest.response().fail(e);
-      }
+      invoker.invoke(grpcRequest);
     }
   }
 }

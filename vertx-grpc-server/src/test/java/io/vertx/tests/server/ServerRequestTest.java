@@ -146,6 +146,30 @@ public class ServerRequestTest extends ServerTest {
   }
 
   @Test
+  public void testStatusUnary5(TestContext should) {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      throw new RuntimeException("Unexpected error");
+    }));
+
+    super.testStatusUnary(should, Status.UNKNOWN, null);
+  }
+
+  @Test
+  public void testCallHandlerThrowsAfterResponseEnded(TestContext should) {
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      call.response().end(Reply.newBuilder().setMessage("Hello Julien").build());
+      throw new RuntimeException("Unexpected error");
+    }));
+
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+    Reply res = stub.unary(Request.newBuilder().setName("Julien").build());
+    should.assertEquals("Hello Julien", res.getMessage());
+  }
+
+  @Test
   public void testStatusStreaming(TestContext should) {
     startServer(GrpcServer.server(vertx).callHandler(SOURCE, call -> {
       call.response().write(Reply.newBuilder().setMessage("msg1").build());
