@@ -220,6 +220,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       protocol,
       format,
       messageDecoder,
+      method.messageEncoder,
       methodCall,
       httpRequest.connection(),
       method,
