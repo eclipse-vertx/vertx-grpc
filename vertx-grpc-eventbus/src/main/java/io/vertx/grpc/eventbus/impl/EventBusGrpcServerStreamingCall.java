@@ -132,6 +132,11 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     return last;
   }
 
+  void init(MultiMap headers) {
+    GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(wireFormat, "identity, ", headers);
+    emit(frame);
+  }
+
   private Future<Void> sendResponseHeaders(MultiMap headers) {
     DeliveryOptions options = new DeliveryOptions();
     if (headers != null && !headers.isEmpty()) {

@@ -13,7 +13,7 @@ import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
 
-class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
+public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
 
   private final GrpcStream stream;
   private final ContextInternal context;
@@ -29,17 +29,17 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
   private GrpcServerRequestImpl<Req, Resp> grpcRequest;
   private GrpcServerResponseImpl<Req, Resp> grpcResponse;
 
-  GrpcDispatcher(GrpcStream stream,
-                 ContextInternal context,
-                 GrpcProtocol protocol,
-                 WireFormat format,
-                 GrpcMessageDecoder<Req> messageDecoder,
-                 GrpcMessageEncoder<Resp> messageEncoder,
-                 GrpcMethodCall methodCall,
-                 HttpConnection httpConnection,
-                 Handler<GrpcServerRequest<Req, Resp>> method,
-                 boolean propagateDeadline,
-                 boolean scheduleDeadline) {
+  public GrpcDispatcher(GrpcStream stream,
+                        ContextInternal context,
+                        GrpcProtocol protocol,
+                        WireFormat format,
+                        GrpcMessageDecoder<Req> messageDecoder,
+                        GrpcMessageEncoder<Resp> messageEncoder,
+                        GrpcMethodCall methodCall,
+                        HttpConnection httpConnection,
+                        Handler<GrpcServerRequest<Req, Resp>> method,
+                        boolean propagateDeadline,
+                        boolean scheduleDeadline) {
     this.stream = stream;
     this.context = context;
     this.protocol = protocol;
@@ -126,13 +126,13 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
     }
   }
 
-  void handleException(Throwable exception) {
+  public void handleException(Throwable exception) {
     if (grpcRequest != null) {
       grpcRequest.handleException(exception);
     }
   }
 
-  void handleEnd() {
+  public void handleEnd() {
     if (grpcRequest != null) {
       grpcRequest.handleEnd();
     }

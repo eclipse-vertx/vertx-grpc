@@ -8,13 +8,13 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceMethodInvoker;
+import io.vertx.grpc.server.impl.GrpcDispatcher;
 import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 
@@ -318,16 +318,32 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
         registration.bind(stream, clientAddress, remoteTimeout);
 
+        ServiceMethodInvoker<Req, Resp> invoker;
+        try {
+          invoker = service.invoker(serviceMethod);
+        } catch (Exception e) {
+          throw new UnsupportedOperationException("Handle me");
+        }
+
         GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
-        GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context(), headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);
-        GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context(), request, stream, null, serviceMethod.encoder());
 
-        response.format(wireFormat);
-        request.init(response, false);
+        GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
+          stream,
+          context(),
+          null,
+          wireFormat,
+          serviceMethod.decoder(),
+          serviceMethod.encoder(),
+          methodCall,
+          null,
+          invoker::invoke,
+          false,
+          false);
 
-        stream.handler(frame -> request.handleMessage(((GrpcMessageFrame) frame).message()));
-        stream.endHandler(x -> request.handleEnd());
-        stream.exceptionHandler(request::handleException);
+
+        stream.handler(dispatcher);
+        stream.exceptionHandler(dispatcher::handleException);
+        stream.endHandler(v2 -> dispatcher.handleEnd());
 
         DeliveryOptions replyOptions = new DeliveryOptions()
           .addHeader(EventBusHeaders.SERVER_ADDRESS, address())
@@ -336,12 +352,7 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
         message.reply(Buffer.buffer(), replyOptions);
 
-        try {
-          ServiceMethodInvoker<Req, Resp> invoker = service.invoker(serviceMethod);
-          invoker.invoke(request);
-        } catch (Exception e) {
-          response.fail(e);
-        }
+        stream.init(headers);
       });
     }
   }
