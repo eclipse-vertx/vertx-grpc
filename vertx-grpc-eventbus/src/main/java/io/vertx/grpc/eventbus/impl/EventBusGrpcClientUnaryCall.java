@@ -1,7 +1,6 @@
 package io.vertx.grpc.eventbus.impl;
 
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
@@ -19,9 +18,8 @@ import java.time.Duration;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
-public class EventBusGrpcClientUnaryCall implements GrpcStream {
+public class EventBusGrpcClientUnaryCall extends EventBusGrpcCallBase {
 
-  private final ContextInternal context;
   private final EventBus eventBus;
   private final ServiceName serviceName;
   private final String methodName;
@@ -32,11 +30,8 @@ public class EventBusGrpcClientUnaryCall implements GrpcStream {
   private Duration timeout;
   private boolean sent;
 
-  private Handler<GrpcFrame> frameHandler;
-  private Handler<Void> endHandler;
-
   public EventBusGrpcClientUnaryCall(ContextInternal context, EventBus eventBus, ServiceName serviceName, String methodName) {
-    this.context = context;
+    super(context);
     this.eventBus = eventBus;
     this.serviceName = serviceName;
     this.methodName = methodName;
@@ -127,64 +122,4 @@ public class EventBusGrpcClientUnaryCall implements GrpcStream {
     emitEnd();
   }
 
-  private void emit(GrpcFrame frame) {
-    Handler<GrpcFrame> handler = frameHandler;
-    if (handler != null) {
-      handler.handle(frame);
-    }
-  }
-
-  private void emitEnd() {
-    Handler<Void> handler = endHandler;
-    if (handler != null) {
-      handler.handle(null);
-    }
-  }
-
-  @Override
-  public GrpcStream handler(Handler<GrpcFrame> handler) {
-    this.frameHandler = handler;
-    return this;
-  }
-
-  @Override
-  public GrpcStream endHandler(Handler<Void> handler) {
-    this.endHandler = handler;
-    return this;
-  }
-
-  @Override
-  public GrpcStream exceptionHandler(Handler<Throwable> handler) {
-    return this;
-  }
-
-  @Override
-  public GrpcInboundStream pause() {
-    return this;
-  }
-
-  @Override
-  public GrpcInboundStream resume() {
-    return this;
-  }
-
-  @Override
-  public GrpcInboundStream fetch(long amount) {
-    return this;
-  }
-
-  @Override
-  public GrpcOutboundStream setWriteQueueMaxSize(int maxSize) {
-    return this;
-  }
-
-  @Override
-  public boolean writeQueueFull() {
-    return false;
-  }
-
-  @Override
-  public GrpcOutboundStream drainHandler(Handler<Void> handler) {
-    return this;
-  }
 }

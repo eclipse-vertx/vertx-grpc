@@ -15,8 +15,6 @@ import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.impl.GrpcDispatcher;
-import io.vertx.grpc.server.impl.GrpcServerRequestImpl;
-import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -254,31 +252,38 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
     private <Req, Resp> void dispatchUnary(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
 
-      Buffer payload = EventBusGrpcCodec.decodeBody(message.body());
+      ServiceMethodInvoker<Req, Resp> invoker;
+      try {
+        invoker = service.invoker(serviceMethod);
+      } catch (Exception e) {
+        message.fail(GrpcStatus.INTERNAL.code, GrpcStatus.INTERNAL.name());
+        return;
+      }
 
       MultiMap headers = MultiMap.caseInsensitiveMultiMap();
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
 
       EventBusGrpcServerUnaryCall stream = new EventBusGrpcServerUnaryCall(context, message, wireFormat);
+
       GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
-      GrpcServerRequestImpl<Req, Resp> request = new GrpcServerRequestImpl<>(context, headers, null, wireFormat, stream, null, "identity", serviceMethod.decoder(), methodCall);
 
-      GrpcMessage grpcMessage = GrpcMessage.message("identity", wireFormat, payload);
-      GrpcServerResponseImpl<Req, Resp> response = new GrpcServerResponseImpl<>(context, request, stream, null, serviceMethod.encoder());
+      GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
+        stream,
+        context,
+        null,
+        wireFormat,
+        serviceMethod.decoder(),
+        serviceMethod.encoder(),
+        methodCall,
+        null,
+        invoker::invoke,
+        false,
+        false);
 
-      response.format(wireFormat);
-      request.init(response, false);
+      stream.handler(dispatcher);
+      stream.exceptionHandler(dispatcher::handleException);
 
-      try {
-        ServiceMethodInvoker<Req, Resp> invoker = service.invoker(serviceMethod);
-        invoker.invoke(request);
-      } catch (Exception e) {
-        response.fail(e);
-        return;
-      }
-
-      request.handleMessage(grpcMessage);
-      request.handleEnd();
+      stream.init(headers, EventBusGrpcCodec.decodeBody(message.body()));
     }
 
     private <Req, Resp> void dispatchStreaming(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
@@ -343,7 +348,6 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
         stream.handler(dispatcher);
         stream.exceptionHandler(dispatcher::handleException);
-        stream.endHandler(v2 -> dispatcher.handleEnd());
 
         DeliveryOptions replyOptions = new DeliveryOptions()
           .addHeader(EventBusHeaders.SERVER_ADDRESS, address())
