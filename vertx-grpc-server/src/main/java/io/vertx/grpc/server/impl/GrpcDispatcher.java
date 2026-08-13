@@ -109,7 +109,21 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
         grpcResponse.cancel();
       }
     });
-    grpcRequest.context().dispatch(grpcRequest, method);
+    grpcRequest.context().dispatch(grpcRequest, req -> {
+      try {
+        method.handle(req);
+      } catch (Exception e) {
+        handleInvocationFailure(e);
+      }
+    });
+  }
+
+  private void handleInvocationFailure(Exception e) {
+    if (grpcResponse.isCancelled() || grpcResponse.isTrailersSent()) {
+      context.reportException(e);
+    } else {
+      grpcResponse.fail(e);
+    }
   }
 
   private void handleMessage(GrpcMessageFrame frame) {
