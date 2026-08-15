@@ -13,8 +13,8 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   protected final ContextInternal context;
   private final GrpcMessageEncoder<T> messageEncoder;
 
-  protected String encoding;
-  protected WireFormat format;
+  private String encoding;
+  private WireFormat format;
   private boolean headersWritten;
   private boolean endWritten;
   private GrpcError error;
@@ -74,6 +74,10 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return (S) this;
   }
 
+  public final String encoding() {
+    return encoding;
+  }
+
   @Override
   public final S format(WireFormat format) {
     if (headersWritten) {
@@ -81,6 +85,10 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     }
     this.format = Objects.requireNonNull(format);
     return (S) this;
+  }
+
+  public final WireFormat format() {
+    return format;
   }
 
   public final ContextInternal context() {
@@ -144,23 +152,17 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return writeMessage(null, true);
   }
 
-  protected abstract Future<Void> sendHeaders(WireFormat wireFormat, String encoding, MultiMap headers);
+  protected abstract Future<Void> sendHead();
   protected abstract Future<Void> sendMessage(GrpcMessage message);
+  protected abstract Future<Void> sendEnd(GrpcMessage message);
   protected abstract Future<Void> sendEnd();
   protected abstract boolean sendCancel();
 
-  private Future<Void> sendHeaders(boolean writeHeaders) {
+  private Future<Void> sendHead(boolean writeHeaders) {
     if (!writeHeaders) {
       throw new IllegalArgumentException();
     }
-    return sendHeaders(format, encoding, headers);
-  }
-
-  private Future<Void> sendMessage(boolean writeHeaders, GrpcMessage message) {
-    if (writeHeaders) {
-      sendHeaders(format, encoding, headers);
-    }
-    return sendMessage(message);
+    return sendHead();
   }
 
   public final Future<Void> writeHead() {
@@ -217,7 +219,6 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
     boolean writeHeaders;
     if (!headersWritten) {
-      headersWritten = true;
       writeHeaders = true;
     } else {
       writeHeaders = false;
@@ -226,17 +227,24 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
         throw new IllegalStateException();
       }
     }
-    if (end) {
-      endWritten = true;
-      if (payload != null) {
-        sendMessage(writeHeaders, payload);
-      }
-      return sendEnd();
-    } else {
-      if (payload != null) {
-        return sendMessage(writeHeaders, payload);
+    try {
+      if (end) {
+        endWritten = true;
+        if (payload != null) {
+          return sendEnd(payload);
+        } else {
+          return sendEnd();
+        }
       } else {
-        return sendHeaders(writeHeaders);
+        if (payload != null) {
+          return sendMessage(payload);
+        } else {
+          return sendHead(writeHeaders);
+        }
+      }
+    } finally {
+      if (writeHeaders) {
+        headersWritten = true;
       }
     }
   }
