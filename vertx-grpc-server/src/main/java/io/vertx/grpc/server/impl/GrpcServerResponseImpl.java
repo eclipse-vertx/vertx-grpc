@@ -44,6 +44,7 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
   private Set<String> acceptedEncodings;
+  private MultiMap trailers;
 
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
@@ -73,7 +74,7 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   }
 
   public GrpcServerResponse<Req, Resp> status(GrpcStatus status) {
-    if (isTrailersSent()) {
+    if (isEndWritten()) {
       throw new IllegalStateException("Trailers have already been sent");
     }
     this.status = Objects.requireNonNull(status);
@@ -82,7 +83,7 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
 
   @Override
   public GrpcServerResponse<Req, Resp> statusMessage(String msg) {
-    if (isTrailersSent()) {
+    if (isEndWritten()) {
       throw new IllegalStateException("Trailers have already been sent");
     }
     this.statusMessage = msg;
@@ -91,7 +92,7 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
 
   public void handleTimeout() {
     if (!isCancelled()) {
-      if (!isTrailersSent()) {
+      if (!isEndWritten()) {
         status(GrpcStatus.DEADLINE_EXCEEDED);
         end();
       } else {
@@ -113,6 +114,16 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
 
   public GrpcStatus status() {
     return status;
+  }
+
+  public MultiMap trailers() {
+    if (isEndWritten()) {
+      throw new IllegalStateException("Trailers already sent");
+    }
+    if (trailers == null) {
+      trailers = MultiMap.caseInsensitiveMultiMap();
+    }
+    return trailers;
   }
 
   @Override
@@ -137,7 +148,7 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   }
 
   protected boolean sendCancel() {
-    if (!isTrailersSent()) {
+    if (!isEndWritten()) {
       status(GrpcStatus.CANCELLED);
       end();
       return true;
@@ -156,6 +167,11 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   @Override
   protected Future<Void> sendMessage(GrpcMessage message) {
     return outbound.write(new DefaultGrpcMessageFrame(message));
+  }
+
+  @Override
+  protected Future<Void> sendEnd() {
+    return sendTrailers(trailers);
   }
 
   @Override

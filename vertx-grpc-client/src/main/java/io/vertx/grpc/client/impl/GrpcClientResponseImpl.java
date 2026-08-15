@@ -91,7 +91,7 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
     request.cancelTimeout();
     super.handleEnd();
     request.handleStatus(status);
-    if (!request.isTrailersSent()) {
+    if (!request.isEndWritten()) {
       request.cancel();
     }
   }

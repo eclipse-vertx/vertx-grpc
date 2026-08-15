@@ -15,12 +15,11 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
   protected String encoding;
   protected WireFormat format;
-  private boolean headersSent;
-  private boolean trailersSent;
+  private boolean headersWritten;
+  private boolean endWritten;
   private GrpcError error;
   private boolean cancelled;
   private MultiMap headers;
-  private MultiMap trailers;
   private Handler<Throwable> exceptionHandler;
 
   public GrpcWriteStreamBase(ContextInternal context, GrpcMessageEncoder<T> messageEncoder) {
@@ -68,7 +67,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
   @Override
   public final S encoding(String encoding) {
-    if (headersSent) {
+    if (headersWritten) {
       throw new IllegalStateException("Cannot set encoding when headers have been sent");
     }
     this.encoding = Objects.requireNonNull(encoding);
@@ -77,7 +76,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
   @Override
   public final S format(WireFormat format) {
-    if (headersSent) {
+    if (headersWritten) {
       throw new IllegalStateException("Cannot set format when headers have been sent");
     }
     this.format = Objects.requireNonNull(format);
@@ -88,33 +87,23 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return context;
   }
 
-  public boolean isHeadersSent() {
-    return headersSent;
+  public boolean isHeadersWritten() {
+    return headersWritten;
   }
 
-  public boolean isTrailersSent() {
-    return trailersSent;
+  public boolean isEndWritten() {
+    return endWritten;
   }
 
   @Override
   public final MultiMap headers() {
-    if (headersSent) {
+    if (headersWritten) {
       throw new IllegalStateException("Headers already sent");
     }
     if (headers == null) {
       headers = MultiMap.caseInsensitiveMultiMap();
     }
     return headers;
-  }
-
-  public final MultiMap trailers() {
-    if (trailersSent) {
-      throw new IllegalStateException("Trailers already sent");
-    }
-    if (trailers == null) {
-      trailers = MultiMap.caseInsensitiveMultiMap();
-    }
-    return trailers;
   }
 
   @Override
@@ -155,9 +144,9 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return writeMessage(null, true);
   }
 
-  protected abstract Future<Void> sendTrailers(MultiMap trailers);
   protected abstract Future<Void> sendHeaders(WireFormat wireFormat, String encoding, MultiMap headers);
   protected abstract Future<Void> sendMessage(GrpcMessage message);
+  protected abstract Future<Void> sendEnd();
   protected abstract boolean sendCancel();
 
   private Future<Void> sendHeaders(boolean writeHeaders) {
@@ -174,20 +163,16 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return sendMessage(message);
   }
 
-  private Future<Void> sendEnd() {
-    return sendTrailers(trailers);
-  }
-
   public final Future<Void> writeHead() {
     return writeMessage(null, false);
   }
 
-  protected Future<Void> writeMessage(GrpcMessage message, boolean end) {
+  private Future<Void> writeMessage(GrpcMessage message, boolean end) {
     if (error != null) {
       throw new IllegalStateException("The stream is failed: " + error);
     }
-    if (trailersSent) {
-      throw new IllegalStateException("The stream has been closed");
+    if (end && endWritten) {
+      throw new IllegalStateException("The stream is ended");
     }
     if (message != null) {
       if (format == null) {
@@ -231,8 +216,8 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     }
 
     boolean writeHeaders;
-    if (!headersSent) {
-      headersSent = true;
+    if (!headersWritten) {
+      headersWritten = true;
       writeHeaders = true;
     } else {
       writeHeaders = false;
@@ -242,7 +227,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
       }
     }
     if (end) {
-      trailersSent = true;
+      endWritten = true;
       if (payload != null) {
         sendMessage(writeHeaders, payload);
       }

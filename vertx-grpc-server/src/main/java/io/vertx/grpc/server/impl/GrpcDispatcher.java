@@ -119,7 +119,7 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
   }
 
   private void handleInvocationFailure(Exception e) {
-    if (grpcResponse.isCancelled() || grpcResponse.isTrailersSent()) {
+    if (grpcResponse.isCancelled() || grpcResponse.isEndWritten()) {
       context.reportException(e);
     } else {
       grpcResponse.fail(e);
