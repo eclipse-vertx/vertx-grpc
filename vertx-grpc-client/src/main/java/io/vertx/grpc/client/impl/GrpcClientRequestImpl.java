@@ -54,6 +54,8 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private Timer deadline;
   private GrpcClientResponseImpl<Req, Resp> response;
   private Handler<Void> drainHandler;
+  private boolean ended;
+  private boolean headWritten;
 
   public GrpcClientRequestImpl(ContextInternal context,
                                GrpcClientInvoker invoker,
@@ -102,7 +104,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   @Override
   public GrpcClientRequest<Req, Resp> fullMethodName(String fullMethodName) {
-    if (isHeadersSent()) {
+    if (isHeadersWritten()) {
       throw new IllegalStateException("Request already sent");
     }
     int idx = fullMethodName.lastIndexOf('/');
@@ -125,7 +127,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     if (timeout < 0L) {
       throw new IllegalArgumentException("Timeout must be positive");
     }
-    if (isHeadersSent()) {
+    if (isHeadersWritten()) {
       throw new IllegalStateException("Timeout must be set before sending request headers");
     }
     String headerValue = toTimeoutHeader(timeout, unit);
@@ -149,8 +151,12 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected Future<Void> sendHeaders(WireFormat format, String encoding, MultiMap headers) {
-    return sendHeaders(format, encoding, headers, false);
+  protected Future<Void> sendHead() {
+    if (headWritten) {
+      throw new IllegalStateException();
+    }
+    headWritten = true;
+    return sendHeaders(format(), encoding(), headers(), false);
   }
 
   private Future<Void> sendHeaders(WireFormat format, String encoding, MultiMap headers, boolean end) {
@@ -189,21 +195,32 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected Future<Void> sendTrailers(MultiMap trailers) {
+  protected Future<Void> sendEnd() {
     if (stream == null) {
-      WireFormat wireFormat = format;
+      WireFormat wireFormat = format();
       if (wireFormat == null) {
         wireFormat = WireFormat.PROTOBUF;
-        format = WireFormat.PROTOBUF;
+        format(WireFormat.PROTOBUF);
       }
-      return sendHeaders(wireFormat, encoding, trailers, true);
+      return sendHeaders(wireFormat, encoding(), null, true);
     } else {
       return stream.end();
     }
   }
 
   @Override
+  protected Future<Void> sendEnd(GrpcMessage message) {
+    if (!headWritten) {
+      sendHead();
+    }
+    return stream.end(new DefaultGrpcMessageFrame(message));
+  }
+
+  @Override
   protected Future<Void> sendMessage(GrpcMessage message) {
+    if (!headWritten) {
+      sendHead();
+    }
     return stream.write(new DefaultGrpcMessageFrame(message));
   }
 
