@@ -22,7 +22,6 @@ import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
 class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
-  private final EventBusGrpcEndpoint.StreamRegistration registration;
   private final WireFormat wireFormat;
   private final String encoding;
 
@@ -38,7 +37,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     WireFormat wireFormat,
     String encoding,
     int window) {
-    super(context, window);
+    super(context, registration, window);
     this.registration = registration;
     this.wireFormat = wireFormat;
     this.encoding = encoding;

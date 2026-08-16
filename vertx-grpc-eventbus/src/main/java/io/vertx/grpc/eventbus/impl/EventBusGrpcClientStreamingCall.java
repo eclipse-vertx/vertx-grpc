@@ -8,7 +8,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
@@ -42,10 +41,8 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private boolean ended;
   private State state;
 
-  private EventBusGrpcEndpoint.StreamRegistration registration;
-
-  public EventBusGrpcClientStreamingCall(ContextInternal context, EventBusGrpcEndpoint endpoint, ServiceName serviceName, String methodName) {
-    super(context, DEFAULT_WINDOW);
+  public EventBusGrpcClientStreamingCall(ContextInternal context, EventBusGrpcEndpoint.StreamRegistration registration, EventBusGrpcEndpoint endpoint, ServiceName serviceName, String methodName) {
+    super(context, registration, DEFAULT_WINDOW);
     this.endpoint = endpoint;
     this.eventBus = endpoint.eventBus();
     this.serviceName = serviceName;
@@ -109,8 +106,6 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
     WireFormat wireFormat = Optional.ofNullable(this.wireFormat).orElse(WireFormat.PROTOBUF);
     String encoding = Optional.ofNullable(this.encoding).orElse("identity");
-
-    registration = ((EventBusGrpcClientImpl)endpoint).createStream();
 
     DeliveryOptions options = new DeliveryOptions()
       .addHeader(EventBusHeaders.ACTION, methodName)

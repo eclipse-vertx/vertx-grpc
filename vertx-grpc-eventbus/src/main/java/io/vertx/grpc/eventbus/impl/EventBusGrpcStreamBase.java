@@ -17,6 +17,8 @@ abstract class EventBusGrpcStreamBase extends EventBusGrpcCallBase implements Cl
 
   static final int DEFAULT_WINDOW = 64;
 
+  protected EventBusGrpcEndpoint.StreamRegistration registration;
+
   protected final int window;
 
   private final Deque<MessageWrite> outboundQueue = new ArrayDeque<>();
@@ -25,10 +27,11 @@ abstract class EventBusGrpcStreamBase extends EventBusGrpcCallBase implements Cl
   private int sendWindow;
   private long sequence;
 
-  EventBusGrpcStreamBase(ContextInternal context, int window) {
+  EventBusGrpcStreamBase(ContextInternal context, EventBusGrpcEndpoint.StreamRegistration registration, int window) {
     super(context);
     this.window = window;
     this.granted = window;
+    this.registration = registration;
   }
 
   protected abstract Future<Void> sendTransportFrame(TransportFrame.Builder frame);
