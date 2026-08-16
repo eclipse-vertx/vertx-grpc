@@ -212,6 +212,40 @@ message HelloResponse {
 }
 ----
 
+=== Server-streaming responses
+
+Server-streaming RPCs (`rpc Foo (Req) returns (stream Resp)`) are transcoded by emitting the response over chunked transfer encoding. The wire format is selected per-request from the HTTP `Accept` header so clients can pick the encoding that fits their consumption pattern without any server configuration:
+
+|===
+| `Accept` value | Response `Content-Type` | Framing
+
+| `application/json` (default) | `application/json` | Top-level JSON array: `[m1, m2, m3]`. Envoy-compatible. The body is not valid JSON until the final `]` arrives, so `JSON.parse(body)` only works after the stream completes.
+| `application/x-ndjson` | `application/x-ndjson` | One JSON object per line, `\n`-separated. Each line is independently parseable as it arrives.
+| `text/event-stream` | `text/event-stream` | Server-Sent Events: `data: <json>\n\n` per message. Consumable by the browser `EventSource` API.
+|===
+
+[source]
+----
+# JSON array (default)
+curl -X POST -H "Content-Type: application/json" -d '...' http://localhost:8080/stream
+# [{"payload":"first"},{"payload":"second"}]
+
+# NDJSON
+curl -X POST -H "Accept: application/x-ndjson" -H "Content-Type: application/json" -d '...' http://localhost:8080/stream
+# {"payload":"first"}
+# {"payload":"second"}
+
+# Server-Sent Events
+curl -X POST -H "Accept: text/event-stream" -H "Content-Type: application/json" -d '...' http://localhost:8080/stream
+# data: {"payload":"first"}
+#
+# data: {"payload":"second"}
+----
+
+If the RPC terminates with a non-OK gRPC status before any message has been written, the response is finished with the corresponding HTTP status code and no body. If messages have already been written, the stream ends (with the closing `]` for JSON array mode). Mid-stream errors cannot be signalled on the body since the HTTP status was already sent.
+
+Client-streaming and bidirectional-streaming RPCs are not supported by transcoding.
+
 === Transcoding error handling
 
 If an error occurs during transcoding, the server will return an HTTP error response with the appropriate status code.
