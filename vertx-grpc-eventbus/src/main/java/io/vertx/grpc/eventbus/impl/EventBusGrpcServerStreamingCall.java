@@ -5,9 +5,7 @@ import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
 import io.vertx.core.eventbus.DeliveryOptions;
-import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
@@ -36,13 +34,10 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
   public EventBusGrpcServerStreamingCall(
     ContextInternal context,
-    EventBus eventBus,
     EventBusGrpcEndpoint.StreamRegistration registration,
-    String clientAddress,
     WireFormat wireFormat,
     String encoding,
-    int window
-  ) {
+    int window) {
     super(context, window);
     this.registration = registration;
     this.wireFormat = wireFormat;
