@@ -213,11 +213,11 @@ abstract class EventBusGrpcEndpoint {
     return Future.all(futures).mapEmpty();
   }
 
-  private static final class RemoteEndpoint {
+  public static final class RemoteEndpoint {
 
     private final String address;
     private final long timeout;
-    private final MessageProducer<Object> producer;
+    public final MessageProducer<Object> producer;
     private final Set<Long> streams = ConcurrentHashMap.newKeySet();
 
     private volatile long lastSeen;
@@ -234,7 +234,9 @@ abstract class EventBusGrpcEndpoint {
 
     private final long id;
 
-    private RemoteEndpoint remoteEndpoint;
+    RemoteEndpoint remoteEndpoint;
+
+    boolean closed;
 
     private StreamRegistration(long id) {
       this.id = id;
@@ -255,11 +257,13 @@ abstract class EventBusGrpcEndpoint {
     void unbind() {
       streams.remove(id);
       RemoteEndpoint bound = remoteEndpoint;
-      if (bound != null) {
-        remoteEndpoint = null;
-        bound.streams.remove(id);
-        if (bound.streams.isEmpty() && remoteEndpoints.remove(bound.address, bound)) {
-          bound.producer.close();
+      if (!closed) {
+        closed = true;
+        if (bound != null) {
+          bound.streams.remove(id);
+          if (bound.streams.isEmpty() && remoteEndpoints.remove(bound.address, bound)) {
+            bound.producer.close();
+          }
         }
       }
     }

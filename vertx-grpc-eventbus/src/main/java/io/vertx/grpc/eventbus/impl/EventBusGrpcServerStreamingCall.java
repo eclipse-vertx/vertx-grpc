@@ -27,7 +27,6 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   private final EventBusGrpcEndpoint.StreamRegistration registration;
   private final WireFormat wireFormat;
   private final String encoding;
-  private final MessageProducer<Object> producer;
 
   private boolean clientListening;
   private MultiMap pendingHeaders;
@@ -48,7 +47,6 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     this.registration = registration;
     this.wireFormat = wireFormat;
     this.encoding = encoding;
-    this.producer = eventBus.sender(clientAddress, new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name()));
   }
 
   @Override
@@ -181,7 +179,11 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   private Future<Void> sendTransportFrame(TransportFrame.Builder builder, DeliveryOptions options) {
     builder.setStreamId(registration.id());
     Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
-    Future<Void> sent = options != null ? producer.write(payload, options) : producer.write(payload);
+    if (options == null) {
+      options = new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+    }
+    MessageProducer<Object> producer = registration.remoteEndpoint.producer;
+    Future<Void> sent = producer.write(payload, options);
     sent.onFailure(this::handleRemoteEndpointDown);
     return sent;
   }
