@@ -5,6 +5,7 @@ import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.core.json.DecodeException;
+import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.GrpcInvocation;
@@ -95,6 +96,8 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
       return null;
     }
 
+    boolean streaming = cardinality == MethodCardinality.SERVER_STREAMING || cardinality == MethodCardinality.BIDI_STREAMING;
+
     PathMatcherLookupResult res = pathMatcher == null ? null : pathMatcher.lookup(httpRequest.method().name(), httpRequest.path(), httpRequest.query());
     if (res != null) {
       List<HttpVariableBinding> bindings = new ArrayList<>(res.getVariableBindings());
@@ -102,21 +105,21 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer(format) {
         @Override
         protected Buffer decode(Buffer buffer) throws InvalidMessageException {
-          Buffer transcoded;
+          JsonObject transcoded;
           try {
             transcoded = MessageWeaver.weaveRequestMessage(buffer, bindings, res.getBodyFieldPath(), decoder.messageDescriptor());
           } catch (DecodeException e) {
             throw new TranscodingInvalidMessageException(e);
           }
-          return transcoded;
+          return transcoded.toBuffer();
         }
       };
-      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, options.getResponseBody(), deframer);
+      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, options.getResponseBody(), deframer, streaming);
       return new GrpcInvocation(deframer, protocolHandler);
     } else if (options == null) {
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer(format);
-      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, null, deframer);
+      HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, null, deframer, streaming);
       return new GrpcInvocation(deframer, protocolHandler);
     }
 
