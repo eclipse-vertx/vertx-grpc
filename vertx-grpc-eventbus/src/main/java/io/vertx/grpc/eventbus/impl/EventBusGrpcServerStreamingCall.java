@@ -177,13 +177,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   }
 
   private Future<Void> sendTransportFrame(TransportFrame.Builder builder, DeliveryOptions options) {
-    builder.setStreamId(registration.id());
-    Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
-    if (options == null) {
-      options = new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
-    }
-    MessageProducer<Object> producer = registration.remoteEndpoint.producer;
-    Future<Void> sent = producer.write(payload, options);
+    Future<Void> sent = registration.sendTransportFrame(builder, wireFormat, options);
     sent.onFailure(this::handleRemoteEndpointDown);
     return sent;
   }

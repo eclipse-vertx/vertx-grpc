@@ -254,6 +254,16 @@ abstract class EventBusGrpcEndpoint {
       scheduleLivenessCheck();
     }
 
+    public Future<Void> sendTransportFrame(TransportFrame.Builder builder, WireFormat wireFormat, DeliveryOptions options) {
+      builder.setStreamId(id);
+      Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
+      if (options == null) {
+        options = new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+      }
+      MessageProducer<Object> producer = remoteEndpoint.producer;
+      return producer.write(payload, options);
+    }
+
     void unbind() {
       streams.remove(id);
       RemoteEndpoint bound = remoteEndpoint;

@@ -250,9 +250,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
   @Override
   protected Future<Void> sendTransportFrame(TransportFrame.Builder builder) {
-    builder.setStreamId(registration.id());
-    DeliveryOptions deliveryOptions = new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
-    Future<Void> sent = registration.remoteEndpoint.producer.write(EventBusGrpcCodec.encodeFrame(builder, wireFormat), deliveryOptions);
+    Future<Void> sent = registration.sendTransportFrame(builder, wireFormat, null);
     sent.onFailure(this::handleRemoteEndpointDown);
     return sent;
   }
