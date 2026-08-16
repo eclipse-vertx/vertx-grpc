@@ -28,12 +28,12 @@ abstract class EventBusGrpcEndpoint {
   private final ContextInternal context;
   private final EventBus eventBus;
   private final String address;
+  private final int id;
   private final WireFormat pingWireFormat;
   private final long pingInterval;
   private final long pingTimeout;
   private final ConcurrentMap<Long, EventBusGrpcStreamBase> streams = new ConcurrentHashMap<>();
   private final ConcurrentMap<String, RemoteEndpoint> remoteEndpoints = new ConcurrentHashMap<>();
-  private final AtomicLong sequence = new AtomicLong();
   private final AtomicLong pingData = new AtomicLong();
 
   private MessageConsumer<Object> consumer;
@@ -41,12 +41,20 @@ abstract class EventBusGrpcEndpoint {
   private boolean stopped;
 
   EventBusGrpcEndpoint(Vertx vertx, EventBus eventBus, String prefix, WireFormat pingWireFormat, long pingInterval, long pingTimeout) {
+
+    UUID uuid = UUID.randomUUID();
+
     this.context = (ContextInternal) vertx.getOrCreateContext();
     this.eventBus = eventBus;
-    this.address = prefix + UUID.randomUUID();
+    this.id = uuid.hashCode();
+    this.address = prefix + uuid;
     this.pingWireFormat = pingWireFormat;
     this.pingInterval = pingInterval;
     this.pingTimeout = pingTimeout;
+  }
+
+  int id() {
+    return id;
   }
 
   ContextInternal context() {
@@ -69,8 +77,8 @@ abstract class EventBusGrpcEndpoint {
     return pingTimeout;
   }
 
-  StreamRegistration createStream() {
-    return new StreamRegistration(sequence.incrementAndGet());
+  StreamRegistration createStream(long id) {
+    return new StreamRegistration(id);
   }
 
   Future<Void> bind() {

@@ -288,17 +288,17 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
     private <Req, Resp> void dispatchStreaming(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
       String clientAddress = message.headers().get(EventBusHeaders.CLIENT_ADDRESS);
-      String clientStreamIdHeader = message.headers().get(EventBusHeaders.CLIENT_STREAM_ID);
+      String clientStreamIdHeader = message.headers().get(EventBusHeaders.STREAM_ID);
       if (clientAddress == null || clientStreamIdHeader == null) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' or '" + EventBusHeaders.CLIENT_STREAM_ID + "' header");
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' or '" + EventBusHeaders.STREAM_ID + "' header");
         return;
       }
 
-      long clientStreamId;
+      long streamId;
       try {
-        clientStreamId = Long.parseLong(clientStreamIdHeader);
+        streamId = Long.parseLong(clientStreamIdHeader);
       } catch (NumberFormatException e) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.CLIENT_STREAM_ID + "' header: " + clientStreamIdHeader);
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.STREAM_ID + "' header: " + clientStreamIdHeader);
         return;
       }
 
@@ -309,13 +309,12 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
 
       context().runOnContext(v -> {
-        EventBusGrpcEndpoint.StreamRegistration registration = createStream();
+        EventBusGrpcEndpoint.StreamRegistration registration = createStream(streamId);
         EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
           context(),
           eventBus(),
           registration,
           clientAddress,
-          clientStreamId,
           wireFormat,
           "identity",
           window
@@ -351,7 +350,6 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
         DeliveryOptions replyOptions = new DeliveryOptions()
           .addHeader(EventBusHeaders.SERVER_ADDRESS, address())
-          .addHeader(EventBusHeaders.SERVER_STREAM_ID, Long.toString(registration.id()))
           .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(window));
 
         message.reply(Buffer.buffer(), replyOptions);

@@ -656,7 +656,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
       .addHeader(EventBusHeaders.ACTION, "Sink")
       .addHeader(EventBusHeaders.WIRE_FORMAT, WireFormat.PROTOBUF.name())
       .addHeader(EventBusHeaders.CLIENT_ADDRESS, "grpc.eb.client.silent")
-      .addHeader(EventBusHeaders.CLIENT_STREAM_ID, "1");
+      .addHeader(EventBusHeaders.STREAM_ID, "1");
     vertx.eventBus().consumer("grpc.eb.client.silent", msg -> {
     }).completion().await(10, TimeUnit.SECONDS);
     vertx.eventBus().request(TestConstants.TEST_SERVICE.fullyQualifiedName(), Buffer.buffer(), handshake).await(10, TimeUnit.SECONDS);
@@ -1022,8 +1022,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   public void testMalformedHandshakeReplyFailsFast() throws Exception {
     String fqn = SOURCE_SERVER.serviceName().fullyQualifiedName();
     vertx.eventBus().<Buffer>consumer(fqn, msg -> msg.reply(Buffer.buffer(), new DeliveryOptions()
-      .addHeader(EventBusHeaders.SERVER_ADDRESS, "s.addr")
-      .addHeader(EventBusHeaders.INITIAL_WINDOW, "64"))).completion().await(5, TimeUnit.SECONDS);
+      .addHeader(EventBusHeaders.SERVER_ADDRESS, "s.addr"))).completion().await(5, TimeUnit.SECONDS);
 
     try {
       client.request(SOURCE_CLIENT)
@@ -1047,7 +1046,7 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
       .addHeader(EventBusHeaders.ACTION, "Source")
       .addHeader(EventBusHeaders.WIRE_FORMAT, "NOT_A_FORMAT")
       .addHeader(EventBusHeaders.CLIENT_ADDRESS, "c.addr")
-      .addHeader(EventBusHeaders.CLIENT_STREAM_ID, "1")
+      .addHeader(EventBusHeaders.STREAM_ID, "1")
       .setSendTimeout(3000);
     try {
       vertx.eventBus().request(SOURCE_SERVER.serviceName().fullyQualifiedName(), Buffer.buffer(), options)

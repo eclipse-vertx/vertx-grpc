@@ -42,7 +42,6 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private boolean ended;
   private State state;
 
-  private long serverStreamId;
   private MessageProducer<Object> producer;
 
   private EventBusGrpcEndpoint.StreamRegistration registration;
@@ -113,13 +112,13 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     WireFormat wireFormat = Optional.ofNullable(this.wireFormat).orElse(WireFormat.PROTOBUF);
     String encoding = Optional.ofNullable(this.encoding).orElse("identity");
 
-    registration = endpoint.createStream();
+    registration = ((EventBusGrpcClientImpl)endpoint).createStream();
 
     DeliveryOptions options = new DeliveryOptions()
       .addHeader(EventBusHeaders.ACTION, methodName)
       .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name())
       .addHeader(EventBusHeaders.CLIENT_ADDRESS, endpoint.address())
-      .addHeader(EventBusHeaders.CLIENT_STREAM_ID, Long.toString(registration.id()));
+      .addHeader(EventBusHeaders.STREAM_ID, Long.toString(registration.id()));
 
     if (endpoint.pingTimeout() > 0) {
       options.addHeader(EventBusHeaders.PING_TIMEOUT, Long.toString(endpoint.pingTimeout()));
@@ -163,24 +162,20 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private Throwable handleInitialized(Message<Object> reply, String encoding, WireFormat wireFormat) {
     MultiMap replyHeaders = reply.headers();
     String serverAddress = replyHeaders.get(EventBusHeaders.SERVER_ADDRESS);
-    String serverStreamIdHeader = replyHeaders.get(EventBusHeaders.SERVER_STREAM_ID);
     String initialWindowHeader = replyHeaders.get(EventBusHeaders.INITIAL_WINDOW);
 
-    if (serverAddress == null || serverStreamIdHeader == null || initialWindowHeader == null) {
+    if (serverAddress == null || initialWindowHeader == null) {
       return new IllegalStateException("Malformed stream handshake reply: missing handshake headers");
     }
 
-    long serverStreamId;
     int initialWindow;
 
     try {
-      serverStreamId = Long.parseLong(serverStreamIdHeader);
       initialWindow = Integer.parseInt(initialWindowHeader);
     } catch (NumberFormatException e) {
       return new IllegalStateException("Malformed stream handshake reply: non-numeric handshake headers");
     }
 
-    this.serverStreamId = serverStreamId;
     this.encoding = encoding;
     this.wireFormat = wireFormat;
     this.state = State.STREAMING;
@@ -261,7 +256,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     if (producer == null) {
       return context.succeededFuture();
     }
-    builder.setStreamId(serverStreamId);
+    builder.setStreamId(registration.id());
     Future<Void> sent = producer.write(EventBusGrpcCodec.encodeFrame(builder, wireFormat));
     sent.onFailure(this::handleRemoteEndpointDown);
     return sent;

@@ -25,7 +25,6 @@ import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
   private final EventBusGrpcEndpoint.StreamRegistration registration;
-  private final long clientStreamId;
   private final WireFormat wireFormat;
   private final String encoding;
   private final MessageProducer<Object> producer;
@@ -41,14 +40,12 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     EventBus eventBus,
     EventBusGrpcEndpoint.StreamRegistration registration,
     String clientAddress,
-    long clientStreamId,
     WireFormat wireFormat,
     String encoding,
     int window
   ) {
     super(context, window);
     this.registration = registration;
-    this.clientStreamId = clientStreamId;
     this.wireFormat = wireFormat;
     this.encoding = encoding;
     this.producer = eventBus.sender(clientAddress, new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name()));
@@ -182,7 +179,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   }
 
   private Future<Void> sendTransportFrame(TransportFrame.Builder builder, DeliveryOptions options) {
-    builder.setStreamId(clientStreamId);
+    builder.setStreamId(registration.id());
     Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
     Future<Void> sent = options != null ? producer.write(payload, options) : producer.write(payload);
     sent.onFailure(this::handleRemoteEndpointDown);

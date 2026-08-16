@@ -81,7 +81,7 @@ these items:
 - `action`, the name of the method.
 - `grpc-wire-format`, the wire format.
 - `grpc-client-address`, the private address of the client.
-- `grpc-client-stream-id`, the identifier that the client gives to this call.
+- `grpc-stream-id`, the identifier that the client gives to this call.
 - `grpc-ping-timeout`, the time in milliseconds that the client waits before it declares a
   peer down. Refer to [Liveness](#liveness).
 - The request metadata, with the `__header__.` prefix.
@@ -97,7 +97,7 @@ The server does these steps:
 1. Find the method.
 2. Prepare the call.
 3. Register the call.
-4. Reply with `grpc-server-address`, `grpc-server-stream-id` and `grpc-initial-window`.
+4. Reply with `grpc-server-address` and `grpc-initial-window`.
 
 The reply is only the signal to start. The server sends the reply before the handler
 operates. Therefore the reply contains no response metadata.
@@ -119,11 +119,10 @@ Each endpoint creates one private address at start. Each endpoint registers one 
 on this address, and this consumer stays registered. All the streams of the endpoint use
 this one consumer.
 
-Each frame contains the `stream_id` value of the destination. The receiver uses a map to
-demultiplex the frame to the correct call. Each endpoint gives the identifiers for its
-own inbound direction. Therefore two endpoints cannot select the same identifier on a
-shared address. The two endpoints exchange their identifiers in the handshake. Both
-endpoints send frames with `send()`, which does not wait for a reply.
+Each frame contains the `stream_id` value of the destination. The identifier is a 64 long
+value that uniquely identifies a stream. The receiver uses a map to demultiplex the frame
+to the correct call. The client chooses a stream id for every stream and sent it to the
+server.
 
 This behaviour is important on a clustered bus. Each server node registers the service
 address. Therefore the first `request()` call goes to one node of the group. The reply
@@ -160,9 +159,9 @@ sequenceDiagram
     participant S as Server
 
     Note over C,S: Open the stream. A request and a reply on the<br/>service address. The bodies are empty.
-    C->>S: request, headers action, grpc-wire-format,<br/>grpc-client-address, grpc-client-stream-id
-    Note right of S: The method type is a stream.<br/>Assign grpc-server-stream-id.<br/>Register the call in the stream map.
-    S-->>C: reply, headers grpc-server-address,<br/>grpc-server-stream-id, grpc-initial-window
+    C->>S: request, headers action, grpc-wire-format,<br/>grpc-client-address, grpc-stream-id
+    Note right of S: The method type is a stream.<br/>Register the call in the stream map.
+    S-->>C: reply, headers grpc-server-address,<br/> grpc-initial-window
 
     Note over C,S: The call is now full duplex. Each frame contains<br/>the stream_id of the destination. Each direction<br/>counts its messages separately.
     C->>S: WindowUpdate, give the server its window
@@ -210,7 +209,7 @@ A frame contains a small header and one variant. The header contains the `stream
 - `Cancel`, from the client or from the server.
 - `Ping`, a liveness probe, from the client or from the server.
 
-A `Ping` frame is not related to a call. Therefore it has the `stream_id` value 0. The
+A `Ping` frame is not related to a call. Therefore, it has the `stream_id` value 0. The
 endpoint processes this frame and does not send it to a stream. The `grpc-remote-endpoint-address`
 header of the frame contains the private address of the sender. The receiver uses this
 address to send the ack, and to give the credit to the correct peer.
