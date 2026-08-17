@@ -56,17 +56,17 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
     this.inbound = remoteUnary && localUnary ? new UnaryInbound() : new StreamingInbound();
   }
 
-  abstract class Outbound {
-    abstract Future<Void> write(GrpcFrame frame);
-    abstract Future<Void> end();
+  private interface Outbound {
+    Future<Void> write(GrpcFrame frame);
+    Future<Void> end();
   }
 
-  class UnaryOutbound extends Outbound {
+  private class UnaryOutbound implements Outbound {
 
     private GrpcMessage message;
 
     @Override
-    Future<Void> write(GrpcFrame frame) {
+    public Future<Void> write(GrpcFrame frame) {
       switch (frame.type()) {
         case HEADERS:
           GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
@@ -138,9 +138,9 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
     }
   }
 
-  class StreamingOutbound extends Outbound {
+  private class StreamingOutbound implements Outbound {
     @Override
-    Future<Void> write(GrpcFrame frame) {
+    public Future<Void> write(GrpcFrame frame) {
       switch (frame.type()) {
         case HEADERS:
           GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
@@ -228,16 +228,14 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
     }
   }
 
-  abstract class Inbound {
-
-    abstract Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat);
-
+  private interface Inbound {
+    Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat);
   }
 
-  class StreamingInbound extends Inbound {
+  class StreamingInbound implements Inbound {
 
     @Override
-    Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
+    public Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
       MultiMap replyHeaders = reply.headers();
       String serverAddress = replyHeaders.get(EventBusHeaders.SERVER_ADDRESS);
       String initialWindowHeader = replyHeaders.get(EventBusHeaders.INITIAL_WINDOW);
@@ -265,10 +263,10 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
     }
   }
 
-  class UnaryInbound extends Inbound {
+  class UnaryInbound implements Inbound {
 
     @Override
-    Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
+    public Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
       MultiMap headers = MultiMap.caseInsensitiveMultiMap();
       MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
       EventBusHeaders.decodeMultimap(HEADER_PREFIX, reply.headers(), headers);
@@ -335,9 +333,6 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
         break;
       case MESSAGE:
         emitFrameInbound(new DefaultGrpcMessageFrame(EventBusGrpcCodec.message(frame, encoding, wireFormat)));
-        break;
-      case WINDOW_UPDATE:
-        grantSendWindow(frame.getWindowUpdate().getDelta());
         break;
       case TRAILERS:
         Trailers t = frame.getTrailers();
