@@ -29,7 +29,8 @@ public class EventBusGrpcClientUnaryCall extends EventBusGrpcCallBase {
   private String encoding = "identity";
   private MultiMap requestHeaders;
   private Duration timeout;
-  private boolean sent;
+  private boolean ended;
+  private GrpcMessage message;
 
   public EventBusGrpcClientUnaryCall(ContextInternal context, EventBus eventBus, ServiceName serviceName, String methodName) {
     super(context);
@@ -53,9 +54,10 @@ public class EventBusGrpcClientUnaryCall extends EventBusGrpcCallBase {
         timeout = headersFrame.timeout();
         return context.succeededFuture();
       case MESSAGE:
-        return send(((GrpcMessageFrame) frame).message());
-      default:
+        message = ((GrpcMessageFrame) frame).message();
         return context.succeededFuture();
+      default:
+        return context.failedFuture("Frame not handled");
     }
   }
 
@@ -66,17 +68,19 @@ public class EventBusGrpcClientUnaryCall extends EventBusGrpcCallBase {
 
   @Override
   public Future<Void> end() {
-    if (!sent) {
-      return context.failedFuture("No message sent");
+    if (ended) {
+      return context.failedFuture("Already sent");
     }
-    return context.succeededFuture();
+    GrpcMessage msg = message;
+    if (msg == null) {
+      return context.failedFuture("No message to send");
+    }
+    ended = true;
+    message = null;
+    return send(msg);
   }
 
   private Future<Void> send(GrpcMessage message) {
-    if (sent) {
-      return context.failedFuture("Should not be possible");
-    }
-    sent = true;
 
     DeliveryOptions options = new DeliveryOptions()
       .addHeader(EventBusHeaders.ACTION, methodName)
