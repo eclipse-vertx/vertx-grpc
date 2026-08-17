@@ -242,64 +242,31 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
         message.fail(GrpcStatus.UNIMPLEMENTED.code, "Method not found: " + methodName);
         return;
       }
-      if (serviceMethod.clientStreaming() || serviceMethod.serverStreaming()) {
-        dispatchStreaming(message, serviceMethod, wireFormat);
-      } else {
-        dispatchUnary(message, serviceMethod, wireFormat);
-      }
-    }
-
-    private <Req, Resp> void dispatchUnary(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
-      ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
-
-      ServiceMethodInvoker<Req, Resp> invoker;
-      try {
-        invoker = service.invoker(serviceMethod);
-      } catch (Exception e) {
-        message.fail(GrpcStatus.INTERNAL.code, GrpcStatus.INTERNAL.name());
-        return;
-      }
-
-      MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-      EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
-
-      EventBusGrpcServerUnaryCall stream = new EventBusGrpcServerUnaryCall(context, message, wireFormat);
-
-      GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
-
-      GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
-        stream,
-        context,
-        null,
-        wireFormat,
-        serviceMethod.decoder(),
-        serviceMethod.encoder(),
-        methodCall,
-        null,
-        invoker::invoke,
-        false,
-        false);
-
-      stream.handler(dispatcher);
-      stream.exceptionHandler(dispatcher::handleException);
-
-      stream.init(headers, EventBusGrpcCodec.decodeBody(message.body()));
+      dispatchStreaming(message, serviceMethod, wireFormat);
     }
 
     private <Req, Resp> void dispatchStreaming(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
       String clientAddress = message.headers().get(EventBusHeaders.CLIENT_ADDRESS);
-      String clientStreamIdHeader = message.headers().get(EventBusHeaders.STREAM_ID);
-      if (clientAddress == null || clientStreamIdHeader == null) {
+      if (clientAddress == null && (serviceMethod.serverStreaming() || serviceMethod.clientStreaming())) {
         message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' or '" + EventBusHeaders.STREAM_ID + "' header");
         return;
       }
 
+      String clientStreamIdHeader = message.headers().get(EventBusHeaders.STREAM_ID);
       long streamId;
-      try {
-        streamId = Long.parseLong(clientStreamIdHeader);
-      } catch (NumberFormatException e) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.STREAM_ID + "' header: " + clientStreamIdHeader);
-        return;
+      if (clientStreamIdHeader == null) {
+        if (serviceMethod.serverStreaming() || serviceMethod.clientStreaming()) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' or '" + EventBusHeaders.STREAM_ID + "' header");
+          return;
+        }
+        streamId = 0L;
+      } else {
+        try {
+          streamId = Long.parseLong(clientStreamIdHeader);
+        } catch (NumberFormatException e) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.STREAM_ID + "' header: " + clientStreamIdHeader);
+          return;
+        }
       }
 
       int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
@@ -317,7 +284,9 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
           window
         );
 
-        registration.bind(stream, clientAddress, remoteTimeout);
+        if (stream.registration.id() != 0) {
+          registration.bind(stream, clientAddress, remoteTimeout);
+        }
 
         ServiceMethodInvoker<Req, Resp> invoker;
         try {
@@ -340,7 +309,6 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
           invoker::invoke,
           false,
           false);
-
 
         stream.handler(dispatcher);
         stream.exceptionHandler(dispatcher::handleException);

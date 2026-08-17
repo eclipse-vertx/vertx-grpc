@@ -43,7 +43,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     this.wireFormat = wireFormat;
     this.encoding = encoding;
     this.inbound = remoteUnary ? new UnaryInbound() : new StreamingInbound();
-    this.outbound = new StreamingOutbound();
+    this.outbound = localUnary && remoteUnary ? new UnaryOutbound() : new StreamingOutbound();
   }
 
   abstract class Inbound {
@@ -77,6 +77,63 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     abstract Future<Void> write(GrpcFrame frame);
     abstract Future<Void> end();
 
+  }
+
+  class UnaryOutbound extends Outbound {
+
+    private Message<Object> message;
+    private MultiMap headers;
+    private GrpcMessage encodedMessage;
+    private boolean replied;
+
+    @Override
+    void init(String address, Message<Object> msg) {
+      this.message = msg;
+    }
+
+    @Override
+    Future<Void> write(GrpcFrame frame) {
+      switch (frame.type()) {
+        case HEADERS:
+          headers = ((GrpcHeadersFrame) frame).headers();
+          return context.succeededFuture();
+        case MESSAGE:
+          encodedMessage = ((GrpcMessageFrame) frame).message();
+          return context.succeededFuture();
+        case TRAILERS:
+          assert !replied;
+          replied = true;
+          GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
+          return handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), encodedMessage, headers, trailersFrame.trailers());
+        default:
+          return context.succeededFuture();
+      }
+    }
+
+    @Override
+    Future<Void> end() {
+      return context.succeededFuture();
+    }
+
+    private Future<Void> handleTrailers(GrpcStatus status, String statusMessage, GrpcMessage grpcMsg, MultiMap headers, MultiMap trailers) {
+      if (status != GrpcStatus.OK) {
+        String msg = statusMessage != null ? statusMessage : status.name();
+        message.fail(status.code, msg);
+      } else {
+        DeliveryOptions options = new DeliveryOptions();
+        MultiMap multiMap = MultiMap.caseInsensitiveMultiMap();
+        if (headers != null) {
+          EventBusHeaders.encodeMultiMap(HEADER_PREFIX, headers, multiMap);
+        }
+        if (trailers != null) {
+          EventBusHeaders.encodeMultiMap(TRAILER_PREFIX, trailers, multiMap);
+        }
+        Buffer payload = grpcMsg != null ? grpcMsg.payload() : Buffer.buffer();
+        options.setHeaders(multiMap);
+        message.reply(EventBusGrpcCodec.encodeBody(payload, wireFormat), options);
+      }
+      return context.succeededFuture();
+    }
   }
 
   class StreamingOutbound extends Outbound {
@@ -183,8 +240,8 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   void init(String address, Message<Object> message) {
     MultiMap headers = MultiMap.caseInsensitiveMultiMap();
     EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
-    inbound.init(headers, message);
     outbound.init(address, message);
+    inbound.init(headers, message);
   }
 
   private Future<Void> sendResponseHeaders(MultiMap headers) {
