@@ -4,6 +4,8 @@ import com.google.protobuf.Descriptors;
 import io.vertx.core.*;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.PromiseInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
@@ -18,14 +20,14 @@ import java.util.stream.Collectors;
 
 public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements EventBusGrpcServer {
 
-  private final Vertx vertx;
   private final Map<String, ServiceConsumer> consumers = new HashMap<>();
   private final Set<WireFormat> supportedWireFormats;
   private final long maxPingTimeout;
+  protected final ContextInternal consumerContext;
 
-  private EventBusGrpcServerImpl(Vertx vertx, EventBusGrpcServerOptions options) {
-    super(vertx, vertx.eventBus(), "grpc.eb.server.", WireFormat.PROTOBUF, 0L, 0L);
-    this.vertx = vertx;
+  private EventBusGrpcServerImpl(ContextInternal consumerContext, EventBusGrpcServerOptions options) {
+    super(Utils.eventLoopCtx(consumerContext),  "grpc.eb.server.", WireFormat.PROTOBUF, 0L, 0L);
+    this.consumerContext = consumerContext;
     this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
     this.maxPingTimeout = options.getMaxPingTimeout().toMillis();
   }
@@ -49,8 +51,13 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
   }
 
   public static Future<EventBusGrpcServer> create(Vertx vertx, EventBusGrpcServerOptions options) {
-    EventBusGrpcServerImpl server = new EventBusGrpcServerImpl(vertx, options);
-    return server.bind().map(server);
+    ContextInternal consumerContext = (ContextInternal) vertx.getOrCreateContext();
+    EventBusGrpcServerImpl server = new EventBusGrpcServerImpl(consumerContext, options);
+    PromiseInternal<Void> promise = consumerContext.promise();
+    server.bind(promise);
+    return promise
+      .future()
+      .map(server);
   }
 
   @Override
@@ -96,7 +103,7 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
     String serviceFqn = service.name().fullyQualifiedName();
     Adapter adapter = new Adapter(serviceFqn, service);
-    MessageConsumer<Object> consumer = eventBus().consumer(serviceFqn, adapter);
+    MessageConsumer<Object> consumer = consumer(serviceFqn, adapter);
     consumers.put(serviceFqn, new ServiceConsumer(consumer, service));
 
     return this;
@@ -113,17 +120,31 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
   @Override
   public Future<Void> close() {
-    List<Future<Void>> futures = new ArrayList<>();
-    for (ServiceConsumer consumer : consumers.values()) {
-      futures.add(consumer.consumer.unregister());
-      futures.add(consumer.service.close());
-    }
-    consumers.clear();
-    futures.add(closeStreams());
-    return Future.all(futures).mapEmpty();
+    PromiseInternal<Void> result = consumerContext.owner().promise();
+    close(result);
+    return result;
   }
 
-  private static class MethodHandler<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {
+  private void close(Promise<Void> result) {
+    if (consumerContext.inThread()) {
+      List<Future<Void>> futures = new ArrayList<>();
+      for (ServiceConsumer consumer : consumers.values()) {
+        futures.add(consumer.consumer.unregister());
+        futures.add(consumer.service.close());
+      }
+      consumers.clear();
+      futures.add(closeStreams());
+      Future.all(futures).<Void>mapEmpty().onComplete(result);
+    } else {
+      consumerContext.runOnContext(v -> {
+        close(result);
+      });
+    }
+  }
+
+  private class MethodHandler<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {
+
+
     final ServiceMethod<Req, Resp> serviceMethod;
     final Handler<GrpcServerRequest<Req, Resp>> handler;
 
@@ -134,7 +155,13 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
     @Override
     public void invoke(GrpcServerRequest<Req, Resp> request) {
-      handler.handle(request);
+      assert consumerContext.inThread();
+      ContextInternal prev = consumerContext.beginDispatch();
+      try {
+        handler.handle(request);
+      } finally {
+        consumerContext.endDispatch(prev);
+      }
     }
   }
 
@@ -267,49 +294,47 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
       int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
       long remoteTimeout = remoteTimeout(message.headers().get(EventBusHeaders.PING_TIMEOUT));
 
-      context().runOnContext(v -> {
-        EventBusGrpcEndpoint.StreamRegistration registration = createStream(streamId);
-        EventBusGrpcServerCall stream = new EventBusGrpcServerCall(
-          context(),
-          !serviceMethod.serverStreaming(),
-          !serviceMethod.clientStreaming(),
-          registration,
-          wireFormat,
-          "identity",
-          window
-        );
+      EventBusGrpcEndpoint.StreamRegistration registration = createStream(streamId);
+      EventBusGrpcServerCall stream = new EventBusGrpcServerCall(
+        consumerContext,
+        !serviceMethod.serverStreaming(),
+        !serviceMethod.clientStreaming(),
+        registration,
+        wireFormat,
+        "identity",
+        window
+      );
 
-        if (stream.registration.id() != 0) {
-          registration.bind(stream, clientAddress, remoteTimeout);
-        }
+      if (stream.registration.id() != 0) {
+        registration.bind(stream, clientAddress, remoteTimeout);
+      }
 
-        ServiceMethodInvoker<Req, Resp> invoker;
-        try {
-          invoker = service.invoker(serviceMethod);
-        } catch (Exception e) {
-          throw new UnsupportedOperationException("Handle me");
-        }
+      ServiceMethodInvoker<Req, Resp> invoker;
+      try {
+        invoker = service.invoker(serviceMethod);
+      } catch (Exception e) {
+        throw new UnsupportedOperationException("Handle me");
+      }
 
-        GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
+      GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
 
-        GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
-          stream,
-          context(),
-          null,
-          wireFormat,
-          serviceMethod.decoder(),
-          serviceMethod.encoder(),
-          methodCall,
-          null,
-          invoker::invoke,
-          false,
-          false);
+      GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
+        stream,
+        consumerContext,
+        null,
+        wireFormat,
+        serviceMethod.decoder(),
+        serviceMethod.encoder(),
+        methodCall,
+        null,
+        invoker::invoke,
+        false,
+        false);
 
-        stream.handler(dispatcher);
-        stream.exceptionHandler(dispatcher::handleException);
+      stream.handler(dispatcher);
+      stream.exceptionHandler(dispatcher::handleException);
 
-        stream.init(address(), message);
-      });
+      stream.init(address(), message);
     }
   }
 }

@@ -1,33 +1,60 @@
 package io.vertx.grpc.eventbus.impl;
 
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.impl.GrpcFrame;
-import io.vertx.grpc.common.impl.GrpcFrameType;
-import io.vertx.grpc.common.impl.GrpcInboundStream;
-import io.vertx.grpc.common.impl.GrpcOutboundStream;
-import io.vertx.grpc.common.impl.GrpcStream;
-
-import java.util.ArrayDeque;
-import java.util.Deque;
+import io.vertx.core.internal.concurrent.InboundMessageQueue;
+import io.vertx.grpc.common.impl.*;
+import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
+import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
 
 abstract class EventBusGrpcCallBase implements GrpcStream {
 
-  private static final Object END_MARKER = new Object();
+  static final int DEFAULT_WINDOW = 64;
 
-  protected final ContextInternal context;
+  static final Object END_MARKER = new Object();
 
-  private final Deque<Object> inboundQueue = new ArrayDeque<>();
-  private boolean draining;
-  private boolean flowing = true;
+  protected final EventBusGrpcEndpoint.StreamRegistration registration;
+  protected final ContextInternal consumerContext;
+  protected final ContextInternal producerContext;
+
+  private final InboundMessageQueue<Object> inboundQueue;
 
   private Handler<GrpcFrame> frameHandler;
   private Handler<Void> endHandler;
   private Handler<Throwable> exceptionHandler;
-  private Handler<Void> drainHandler;
+  private int window = DEFAULT_WINDOW;
 
-  EventBusGrpcCallBase(ContextInternal context) {
-    this.context = context;
+  EventBusGrpcCallBase(EventBusGrpcEndpoint.StreamRegistration registration, ContextInternal consumerContext) {
+    InboundMessageQueue<Object> queue = new InboundMessageQueue<>(registration.localEndpoint().producerContext.executor(), consumerContext.executor()) {
+      @Override
+      protected void handleResume() {
+      }
+
+      @Override
+      protected void handlePause() {
+      }
+
+      @Override
+      protected void handleMessage(Object msg) {
+        if (--window == 0) {
+          // Replenish
+          window = DEFAULT_WINDOW;
+          sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(DEFAULT_WINDOW)));
+        }
+        dispatchInbound(msg);
+      }
+
+      @Override
+      protected void handleDispose(Object msg) {
+        //
+      }
+    };
+
+    this.registration = registration;
+    this.consumerContext = consumerContext;
+    this.producerContext = registration.localEndpoint().producerContext;
+    this.inboundQueue = queue;
   }
 
   @Override
@@ -49,24 +76,13 @@ abstract class EventBusGrpcCallBase implements GrpcStream {
   }
 
   @Override
-  public GrpcOutboundStream drainHandler(Handler<Void> handler) {
-    this.drainHandler = handler;
-    return this;
-  }
-
-  @Override
   public GrpcOutboundStream setWriteQueueMaxSize(int maxSize) {
     return this;
   }
 
   @Override
-  public boolean writeQueueFull() {
-    return false;
-  }
-
-  @Override
   public GrpcInboundStream pause() {
-    flowing = false;
+    inboundQueue.pause();
     return this;
   }
 
@@ -77,48 +93,37 @@ abstract class EventBusGrpcCallBase implements GrpcStream {
 
   @Override
   public GrpcInboundStream fetch(long amount) {
-    if (amount > 0) {
-      flowing = true;
-      drainInbound();
-      handleInboundFlowing();
-    }
+    inboundQueue.fetch(amount);
     return this;
   }
 
-  protected final boolean flowing() {
-    return flowing;
+  private void emitInbound(Object o) {
+    assert producerContext.inThread();
+    inboundQueue.write(o);
   }
 
-  protected void emit(GrpcFrame frame) {
-    inboundQueue.add(frame);
-    drainInbound();
+  protected void emitFrameInbound(GrpcFrame frame) {
+    emitInbound(frame);
   }
 
-  protected void emitEnd() {
-    inboundQueue.add(END_MARKER);
-    drainInbound();
+  protected void emitEndInbound() {
+    emitInbound(END_MARKER);
   }
 
-  protected void emitException(Throwable t) {
-    inboundQueue.add(t);
-    drainInbound();
+  protected void emitExceptionInbound(Throwable t) {
+    emitInbound(t);
   }
 
-  private void drainInbound() {
-    if (draining) {
-      return;
-    }
-    draining = true;
-    try {
-      while (flowing && !inboundQueue.isEmpty()) {
-        dispatchInbound(inboundQueue.poll());
-      }
-    } finally {
-      draining = false;
-    }
+  protected void dispatchFrameInbound(GrpcFrame frame) {
+    dispatchInbound(frame);
+  }
+
+  protected void dispatchEndInbound() {
+    dispatchInbound(END_MARKER);
   }
 
   private void dispatchInbound(Object event) {
+    assert consumerContext.inThread();
     if (event == END_MARKER) {
       Handler<Void> handler = endHandler;
       if (handler != null) {
@@ -135,31 +140,9 @@ abstract class EventBusGrpcCallBase implements GrpcStream {
       if (handler != null) {
         handler.handle(frame);
       }
-      if (frame.type() == GrpcFrameType.MESSAGE) {
-        handleInboundMessage();
-      }
     }
   }
 
-  /**
-   * Notify the drain handler, to be called by subclasses when the write queue drained.
-   */
-  protected void handleDrain() {
-    Handler<Void> handler = drainHandler;
-    if (handler != null) {
-      context.runOnContext(v -> handler.handle(null));
-    }
-  }
+  protected abstract Future<Void> sendTransportFrame(TransportFrame.Builder frame);
 
-  /**
-   * Called after a message frame has been dispatched to the frame handler.
-   */
-  protected void handleInboundMessage() {
-  }
-
-  /**
-   * Called when the inbound stream resumes, after the queued events have been dispatched.
-   */
-  protected void handleInboundFlowing() {
-  }
 }

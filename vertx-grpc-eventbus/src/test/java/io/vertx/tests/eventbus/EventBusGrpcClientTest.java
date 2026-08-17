@@ -8,14 +8,11 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.GrpcReadStream;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
-import io.vertx.tests.common.GrpcTestBase;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
-import io.vertx.tests.common.grpc.TestConstants;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -25,16 +22,7 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-public class EventBusGrpcClientTest extends GrpcTestBase {
-
-  private static final ServiceMethod<Reply, Request> UNARY = ServiceMethod.client(
-    TestConstants.TEST_SERVICE,
-    "Unary",
-    false,
-    false,
-    TestConstants.REQUEST_ENC,
-    TestConstants.REPLY_DEC
-  );
+public class EventBusGrpcClientTest extends EventBusGrpcTestBase {
 
   private EventBusGrpcClient client;
 
@@ -46,7 +34,7 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
 
   @Test
   public void testRequestReplyProtobuf(TestContext testContext) throws Exception {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
+    vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> {
       testContext.assertEquals("Unary", msg.headers().get("action"));
       testContext.assertEquals(WireFormat.PROTOBUF.name(), msg.headers().get("grpc-wire-format"));
       try {
@@ -58,7 +46,7 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
       }
     });
 
-    Reply reply = client.request(UNARY)
+    Reply reply = client.request(UNARY_CLIENT)
       .compose(request -> {
         request.end(Request.newBuilder().setName("Julien").build());
         return request.response();
@@ -71,14 +59,14 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
 
   @Test
   public void testRequestReplyJson(TestContext testContext) throws TimeoutException {
-    vertx.eventBus().<JsonObject> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
+    vertx.eventBus().<JsonObject> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> {
       testContext.assertEquals("Unary", msg.headers().get("action"));
       testContext.assertEquals(WireFormat.JSON.name(), msg.headers().get("grpc-wire-format"));
       String name = msg.body().getString("name");
       msg.reply(new JsonObject().put("message", "Hello " + name));
     });
 
-    Reply reply = client.request(UNARY)
+    Reply reply = client.request(UNARY_CLIENT)
       .compose(request -> {
         request.format(WireFormat.JSON);
         request.end(Request.newBuilder().setName("Julien").build());
@@ -92,7 +80,7 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
 
   @Test
   public void testRequestReplyWithDelay() throws Exception {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> vertx.setTimer(50, id -> {
+    vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> vertx.setTimer(50, id -> {
       try {
         Request request = Request.parseFrom(msg.body().getBytes());
         Reply reply = Reply.newBuilder().setMessage("Delayed " + request.getName()).build();
@@ -102,7 +90,7 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
       }
     }));
 
-    Reply reply = client.request(UNARY)
+    Reply reply = client.request(UNARY_CLIENT)
       .compose(request -> {
         request.end(Request.newBuilder().setName("Julien").build());
         return request.response();
@@ -116,7 +104,7 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
   @Test
   public void testNoHandler() throws TimeoutException {
     try {
-      client.request(UNARY)
+      client.request(UNARY_CLIENT)
         .compose(request -> {
           request.end(Request.newBuilder().setName("Julien").build());
           return request.response();
@@ -131,10 +119,10 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
 
   @Test
   public void testConsumerFailureUnmappedCode() throws TimeoutException {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> msg.fail(500, "Service error"));
+    vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> msg.fail(500, "Service error"));
 
     try {
-      client.request(UNARY)
+      client.request(UNARY_CLIENT)
         .compose(request -> {
           request.end(Request.newBuilder().setName("Julien").build());
           return request.response();
@@ -154,12 +142,12 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
         continue;
       }
 
-      MessageConsumer<Buffer> consumer = vertx.eventBus().consumer(UNARY.serviceName().fullyQualifiedName(), msg -> msg.fail(status.code, status.name()));
+      MessageConsumer<Buffer> consumer = vertx.eventBus().consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> msg.fail(status.code, status.name()));
 
       consumer.completion().await(10, TimeUnit.SECONDS);
 
       try {
-        client.request(UNARY)
+        client.request(UNARY_CLIENT)
           .compose(request -> {
             request.end(Request.newBuilder().setName("Julien").build());
             return request.response();
@@ -177,7 +165,7 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
 
   @Test
   public void testRequestHeaders(TestContext testContext) throws Exception {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
+    vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> {
       String customHeader = msg.headers().get(EventBusHeaders.HEADER_PREFIX + "x-custom");
       Reply reply = Reply.newBuilder().setMessage("Header: " + customHeader).build();
       msg.reply(Buffer.buffer(reply.toByteArray()), new DeliveryOptions()
@@ -186,7 +174,7 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
       );
     });
 
-    Reply reply = client.request(UNARY)
+    Reply reply = client.request(UNARY_CLIENT)
       .compose(request -> {
         request.headers().add("x-custom", "request_header_value");
         request.end(Request.newBuilder().setName("Julien").build());
@@ -208,12 +196,12 @@ public class EventBusGrpcClientTest extends GrpcTestBase {
 
   @Test
   public void testDeadlineExceeded() throws TimeoutException {
-    vertx.eventBus().<Buffer> consumer(UNARY.serviceName().fullyQualifiedName(), msg -> {
+    vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> {
       // do nothing
     });
 
     try {
-      client.request(UNARY)
+      client.request(UNARY_CLIENT)
         .compose(request -> {
           request.timeout(1, TimeUnit.SECONDS);
           request.end(Request.newBuilder().setName("Julien").build());

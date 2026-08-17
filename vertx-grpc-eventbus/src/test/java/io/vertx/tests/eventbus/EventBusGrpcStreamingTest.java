@@ -18,7 +18,6 @@ import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
 import io.vertx.grpc.server.GrpcServerResponse;
-import io.vertx.tests.common.GrpcTestBase;
 import io.vertx.tests.common.grpc.*;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,24 +39,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class EventBusGrpcStreamingTest extends GrpcTestBase {
-
-  private static final ServiceMethod<Empty, Reply> SOURCE_SERVER =
-    ServiceMethod.server(TestConstants.TEST_SERVICE, "Source", false, true, TestConstants.REPLY_ENC, TestConstants.EMPTY_DEC);
-  private static final ServiceMethod<Request, Empty> SINK_SERVER =
-    ServiceMethod.server(TestConstants.TEST_SERVICE, "Sink", true, false, TestConstants.EMPTY_ENC, TestConstants.REQUEST_DEC);
-  private static final ServiceMethod<Request, Reply> PIPE_SERVER =
-    ServiceMethod.server(TestConstants.TEST_SERVICE, "Pipe", true, true, TestConstants.REPLY_ENC, TestConstants.REQUEST_DEC);
-
-  private static final ServiceMethod<Reply, Empty> SOURCE_CLIENT =
-    ServiceMethod.client(TestConstants.TEST_SERVICE, "Source", false, true, TestConstants.EMPTY_ENC, TestConstants.REPLY_DEC);
-  private static final ServiceMethod<Empty, Request> SINK_CLIENT =
-    ServiceMethod.client(TestConstants.TEST_SERVICE, "Sink", true, false, TestConstants.REQUEST_ENC, TestConstants.EMPTY_DEC);
-  private static final ServiceMethod<Reply, Request> PIPE_CLIENT =
-    ServiceMethod.client(TestConstants.TEST_SERVICE, "Pipe", true, true, TestConstants.REQUEST_ENC, TestConstants.REPLY_DEC);
-
-  private static final ServiceMethod<Reply, Empty> UNKNOWN_CLIENT =
-    ServiceMethod.client(TestConstants.TEST_SERVICE, "Unknown", false, true, TestConstants.EMPTY_ENC, TestConstants.REPLY_DEC);
+public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
 
   private EventBusGrpcServer server;
   private EventBusGrpcClient client;
@@ -303,31 +285,39 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
   @Test
   public void testQueuedWriteCompletesOnDrain() throws Exception {
     AtomicBoolean stalled = new AtomicBoolean();
+    AtomicInteger written = new AtomicInteger();
+    AtomicInteger drains = new AtomicInteger();
     Promise<Void> queued = Promise.promise();
 
     server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {
       GrpcServerResponse<Empty, Reply> response = request.response();
-      int i = 0;
+      int cnt = 0;
       while (!response.writeQueueFull()) {
-        response.write(Reply.newBuilder().setMessage("m-" + i++).build());
+        response.write(Reply.newBuilder().setMessage("m-" + cnt++).build());
       }
+      response.drainHandler(v -> drains.incrementAndGet());
       Future<Void> write = response.write(Reply.newBuilder().setMessage("queued").build());
       stalled.set(!write.isComplete());
+      written.set(1 + cnt);
       write.onComplete(queued);
       response.end();
     }));
 
+
     List<Reply> replies = client.request(SOURCE_CLIENT)
       .compose(request -> {
+        Future<List<Reply>> res = request.response().compose(EventBusGrpcStreamingTest::collect);
         request.end(Empty.getDefaultInstance());
-        return request.response();
+        return res;
       })
-      .compose(EventBusGrpcStreamingTest::collect)
       .await(20, TimeUnit.SECONDS);
 
+    assertTrue("Expected to have more than one message: " + written.get(), written.get() > 1);
+    assertEquals(written.get(), replies.size());
     assertTrue("the write must not complete while the message sits behind a closed window", stalled.get());
     queued.future().await(20, TimeUnit.SECONDS);
     assertEquals("queued", replies.get(replies.size() - 1).getMessage());
+    assertEquals(1, drains.get());
   }
 
   @Test

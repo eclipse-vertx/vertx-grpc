@@ -1,14 +1,12 @@
 package io.vertx.grpc.eventbus.impl;
 
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
-import io.vertx.core.eventbus.DeliveryOptions;
-import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.eventbus.Message;
-import io.vertx.core.eventbus.MessageConsumer;
-import io.vertx.core.eventbus.MessageProducer;
+import io.vertx.core.eventbus.*;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.VertxInternal;
+import io.vertx.core.internal.eventbus.EventBusInternal;
 import io.vertx.grpc.common.JsonWireFormat;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.transport.v1alpha.Ping;
@@ -25,8 +23,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 abstract class EventBusGrpcEndpoint {
 
-  private final ContextInternal context;
-  private final EventBus eventBus;
+  protected final ContextInternal producerContext;
+  protected final VertxInternal vertx;
+  private final EventBusInternal eventBus;
   private final String address;
   private final int id;
   private final WireFormat pingWireFormat;
@@ -40,12 +39,13 @@ abstract class EventBusGrpcEndpoint {
   private long livenessTimerId = -1L;
   private boolean stopped;
 
-  EventBusGrpcEndpoint(Vertx vertx, EventBus eventBus, String prefix, WireFormat pingWireFormat, long pingInterval, long pingTimeout) {
+  EventBusGrpcEndpoint(ContextInternal producerContext, String prefix, WireFormat pingWireFormat, long pingInterval, long pingTimeout) {
 
     UUID uuid = UUID.randomUUID();
 
-    this.context = (ContextInternal) vertx.getOrCreateContext();
-    this.eventBus = eventBus;
+    this.vertx = producerContext.owner();
+    this.producerContext = producerContext;
+    this.eventBus = vertx.eventBus();
     this.id = uuid.hashCode();
     this.address = prefix + uuid;
     this.pingWireFormat = pingWireFormat;
@@ -55,14 +55,6 @@ abstract class EventBusGrpcEndpoint {
 
   int id() {
     return id;
-  }
-
-  ContextInternal context() {
-    return context;
-  }
-
-  EventBus eventBus() {
-    return eventBus;
   }
 
   String address() {
@@ -81,14 +73,15 @@ abstract class EventBusGrpcEndpoint {
     return new StreamRegistration(id);
   }
 
-  Future<Void> bind() {
-    Promise<Void> promise = context.promise();
-    context.runOnContext(v -> {
-      consumer = eventBus.consumer(address, this::dispatch);
-      consumer.completion().onComplete(promise);
-      scheduleLivenessCheck();
-    });
-    return promise.future();
+  void bind(Promise<Void> promise) {
+    consumer = consumer(address, this::dispatch);
+    consumer
+      .completion()
+      .andThen(ar -> {
+        if (ar.succeeded()) {
+          scheduleLivenessCheck();
+        }
+      }).onComplete(promise);
   }
 
   private void scheduleLivenessCheck() {
@@ -97,7 +90,7 @@ abstract class EventBusGrpcEndpoint {
     }
     long period = checkPeriod();
     if (period > 0) {
-      livenessTimerId = context.setTimer(period, id -> {
+      livenessTimerId = producerContext.setTimer(period, id -> {
         livenessTimerId = -1L;
         long now = System.currentTimeMillis();
         pingRemoteEndpoints();
@@ -115,6 +108,16 @@ abstract class EventBusGrpcEndpoint {
       }
     }
     return period == Long.MAX_VALUE ? -1L : period;
+  }
+
+  Future<Message<Object>> request(ContextInternal context, String address, Object body, DeliveryOptions options) {
+    return eventBus.request(context, address, body, options);
+  }
+
+  MessageConsumer<Object> consumer(String address, Handler<Message<Object>> handler) {
+    MessageConsumer<Object> consumer = eventBus.consumer(producerContext, new MessageConsumerOptions().setAddress(address));
+    consumer.handler(handler);
+    return consumer;
   }
 
   private void pingRemoteEndpoints() {
@@ -191,7 +194,7 @@ abstract class EventBusGrpcEndpoint {
   Future<Void> closeStreams() {
     stopped = true;
     if (livenessTimerId >= 0) {
-      context.owner().cancelTimer(livenessTimerId);
+      vertx.cancelTimer(livenessTimerId);
       livenessTimerId = -1L;
     }
     for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
@@ -240,6 +243,14 @@ abstract class EventBusGrpcEndpoint {
 
     private StreamRegistration(long id) {
       this.id = id;
+    }
+
+    EventBusGrpcEndpoint localEndpoint() {
+      return EventBusGrpcEndpoint.this;
+    }
+
+    RemoteEndpoint remoteEndpoint() {
+      return remoteEndpoint;
     }
 
     long id() {

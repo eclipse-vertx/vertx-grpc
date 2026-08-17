@@ -14,7 +14,6 @@ import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.StatusException;
-import io.vertx.tests.common.GrpcTestBase;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
 import io.vertx.tests.common.grpc.TestConstants;
@@ -27,16 +26,7 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-public class EventBusGrpcServerTest extends GrpcTestBase {
-
-  private static final ServiceMethod<Request, Reply> UNARY = ServiceMethod.server(
-    TestConstants.TEST_SERVICE,
-    "Unary",
-    false,
-    false,
-    TestConstants.REPLY_ENC,
-    TestConstants.REQUEST_DEC
-  );
+public class EventBusGrpcServerTest extends EventBusGrpcTestBase {
 
   private static final String ADDRESS = TestConstants.TEST_SERVICE.fullyQualifiedName();
 
@@ -50,7 +40,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
   @Test
   public void testRequestReplyProtobuf() throws Exception {
-    server.callHandler(UNARY, request -> request.handler(msg -> {
+    server.callHandler(UNARY_SERVER, request -> request.handler(msg -> {
       Reply reply = Reply.newBuilder().setMessage("Hello " + msg.getName()).build();
       request.response().end(reply);
     }));
@@ -68,7 +58,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
   @Test
   public void testRequestReplyJson() throws Exception {
-    server.callHandler(UNARY, request -> request.handler(msg -> {
+    server.callHandler(UNARY_SERVER, request -> request.handler(msg -> {
       Reply reply = Reply.newBuilder().setMessage("Hello " + msg.getName()).build();
       request.response().end(reply);
     }));
@@ -85,7 +75,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
   @Test
   public void testHandlerFailure() throws TimeoutException {
-    server.callHandler(UNARY, request -> request.handler(msg -> request.response().fail(new StatusException(GrpcStatus.PERMISSION_DENIED, "Not allowed"))));
+    server.callHandler(UNARY_SERVER, request -> request.handler(msg -> request.response().fail(new StatusException(GrpcStatus.PERMISSION_DENIED, "Not allowed"))));
 
     Buffer payload = Buffer.buffer(Request.newBuilder().setName("Julien").build().toByteArray());
     DeliveryOptions opts = new DeliveryOptions()
@@ -103,7 +93,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
   @Test
   public void testHandlerThrows() throws TimeoutException {
-    server.callHandler(UNARY, request -> request.handler(msg -> {
+    server.callHandler(UNARY_SERVER, request -> request.handler(msg -> {
       throw new RuntimeException("Unexpected error");
     }));
 
@@ -142,7 +132,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
   @Test
   public void testServerClose() throws Exception {
-    server.callHandler(UNARY, request -> request.handler(msg -> {
+    server.callHandler(UNARY_SERVER, request -> request.handler(msg -> {
       Reply reply = Reply.newBuilder().setMessage("Hello " + msg.getName()).build();
       request.response().end(reply);
     }));
@@ -168,7 +158,7 @@ public class EventBusGrpcServerTest extends GrpcTestBase {
 
   @Test
   public void testHeaders() throws Exception {
-    server.callHandler(UNARY, request -> request.handler(msg -> {
+    server.callHandler(UNARY_SERVER, request -> request.handler(msg -> {
       String customHeader = request.headers().get("x-custom");
       Reply reply = Reply.newBuilder().setMessage("Header: " + customHeader).build();
       GrpcServerResponse<Request, Reply> response = request.response();

@@ -23,9 +23,6 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
   private final WireFormat wireFormat;
   private final String encoding;
 
-  private boolean clientListening;
-  private MultiMap pendingHeaders;
-  private Promise<Void> pendingHeadersPromise;
   private boolean closed;
 
   private final Inbound inbound;
@@ -56,9 +53,9 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     @Override
     void init(MultiMap headers, Message<Object> message) {
       Buffer payload = EventBusGrpcCodec.decodeBody(message.body());
-      emit(new DefaultGrpcHeadersFrame(wireFormat, "identity", headers));
-      emit(new DefaultGrpcMessageFrame(GrpcMessage.message("identity", wireFormat, payload)));
-      emitEnd();
+      emitFrameInbound(new DefaultGrpcHeadersFrame(wireFormat, "identity", headers));
+      emitFrameInbound(new DefaultGrpcMessageFrame(GrpcMessage.message("identity", wireFormat, payload)));
+      emitEndInbound();
     }
   }
 
@@ -66,7 +63,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     @Override
     void init(MultiMap headers, Message<Object> message) {
       GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(wireFormat, "identity, ", headers);
-      emit(frame);
+      emitFrameInbound(frame);
     }
   }
 
@@ -96,23 +93,23 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
       switch (frame.type()) {
         case HEADERS:
           headers = ((GrpcHeadersFrame) frame).headers();
-          return context.succeededFuture();
+          return consumerContext.succeededFuture();
         case MESSAGE:
           encodedMessage = ((GrpcMessageFrame) frame).message();
-          return context.succeededFuture();
+          return consumerContext.succeededFuture();
         case TRAILERS:
           assert !replied;
           replied = true;
           GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
           return handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), encodedMessage, headers, trailersFrame.trailers());
         default:
-          return context.succeededFuture();
+          return consumerContext.succeededFuture();
       }
     }
 
     @Override
     Future<Void> end() {
-      return context.succeededFuture();
+      return consumerContext.succeededFuture();
     }
 
     private Future<Void> handleTrailers(GrpcStatus status, String statusMessage, GrpcMessage grpcMsg, MultiMap headers, MultiMap trailers) {
@@ -132,7 +129,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
         options.setHeaders(multiMap);
         message.reply(EventBusGrpcCodec.encodeBody(payload, wireFormat), options);
       }
-      return context.succeededFuture();
+      return consumerContext.succeededFuture();
     }
   }
 
@@ -144,7 +141,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     void init(String address, Message<Object> msg) {
       DeliveryOptions replyOptions = new DeliveryOptions()
         .addHeader(EventBusHeaders.SERVER_ADDRESS, address)
-        .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(window));
+        .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(DEFAULT_WINDOW));
 
       msg.reply(Buffer.buffer(), replyOptions);
     }
@@ -155,24 +152,18 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
       switch (frame.type()) {
         case HEADERS:
           MultiMap responseHeaders = ((GrpcHeadersFrame) frame).headers();
-          if (clientListening) {
-            written = sendResponseHeaders(responseHeaders);
-          } else {
-            pendingHeaders = responseHeaders;
-            pendingHeadersPromise = context.promise();
-            written = pendingHeadersPromise.future();
-          }
+          written = sendResponseHeaders(responseHeaders);
           break;
         case MESSAGE:
           written = writeMessage(((GrpcMessageFrame) frame).message());
           break;
         case TRAILERS:
-          Promise<Void> promise = context.promise();
+          Promise<Void> promise = consumerContext.promise();
           enqueue(new TrailersWrite((GrpcTrailersFrame) frame, promise));
           written = promise.future();
           break;
         default:
-          return context.failedFuture("Invalid message: " + frame.type());
+          return consumerContext.failedFuture("Invalid message: " + frame.type());
       }
       lastWrite = written;
       return written;
@@ -181,7 +172,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     public Future<Void> end() {
       Future<Void> last = lastWrite;
       if (last == null) {
-        return context.failedFuture(new IllegalStateException("Cannot end a stream that did not write any frame"));
+        return consumerContext.failedFuture(new IllegalStateException("Cannot end a stream that did not write any frame"));
       }
       return last;
     }
@@ -189,23 +180,12 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
 
   @Override
   public void handle(TransportFrame frame, Message<Object> message) {
-    if (!clientListening) {
-      clientListening = true;
-      Promise<Void> promise = pendingHeadersPromise;
-      if (promise != null) {
-        MultiMap headers = pendingHeaders;
-        pendingHeaders = null;
-        pendingHeadersPromise = null;
-        sendResponseHeaders(headers).onComplete(promise);
-      }
-    }
-
     switch (frame.getFrameCase()) {
       case MESSAGE:
-        emit(new DefaultGrpcMessageFrame(EventBusGrpcCodec.message(frame, encoding, wireFormat)));
+        emitFrameInbound(new DefaultGrpcMessageFrame(EventBusGrpcCodec.message(frame, encoding, wireFormat)));
         break;
       case HALF_CLOSE:
-        emitEnd();
+        emitEndInbound();
         break;
       case WINDOW_UPDATE:
         grantSendWindow(frame.getWindowUpdate().getDelta());
@@ -215,7 +195,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
           break;
         }
         terminate();
-        emitException(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED));
+        emitExceptionInbound(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED));
         break;
       default:
         break;
@@ -278,7 +258,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
       terminate();
       GrpcErrorException failure = new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED);
       failPending(failure);
-      emitException(failure);
+      emitExceptionInbound(failure);
     }
     completion.succeed();
   }
@@ -302,16 +282,10 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     terminate();
     sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.UNAVAILABLE.code).setReason("Remote endpoint down")));
     failPending(cause);
-    emitException(new GrpcErrorException(GrpcError.UNAVAILABLE, GrpcStatus.UNAVAILABLE));
+    emitExceptionInbound(new GrpcErrorException(GrpcError.UNAVAILABLE, GrpcStatus.UNAVAILABLE));
   }
 
   private void failPending(Throwable cause) {
-    Promise<Void> promise = pendingHeadersPromise;
-    if (promise != null) {
-      pendingHeaders = null;
-      pendingHeadersPromise = null;
-      promise.fail(cause);
-    }
     failPendingWrites(cause);
   }
 
