@@ -17,7 +17,7 @@ abstract class EventBusGrpcStreamBase extends EventBusGrpcCallBase implements Cl
 
   static final int DEFAULT_WINDOW = 64;
 
-  protected EventBusGrpcEndpoint.StreamRegistration registration;
+  protected final EventBusGrpcEndpoint.StreamRegistration registration;
 
   protected final int window;
 

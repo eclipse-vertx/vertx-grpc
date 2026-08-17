@@ -38,7 +38,6 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     String encoding,
     int window) {
     super(context, registration, window);
-    this.registration = registration;
     this.wireFormat = wireFormat;
     this.encoding = encoding;
   }
