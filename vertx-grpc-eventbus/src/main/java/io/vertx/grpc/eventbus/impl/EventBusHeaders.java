@@ -25,19 +25,14 @@ public final class EventBusHeaders {
   public static final String CLIENT_ADDRESS = "grpc-client-address";
 
   /**
-   * Streaming handshake, client to server: the client's id for this call, used to demux server to client frames.
+   * Streaming handshake, client to server: the stream's id for this call, used to demux server to identify frames.
    */
-  public static final String CLIENT_STREAM_ID = "grpc-client-stream-id";
+  public static final String STREAM_ID = "grpc-stream-id";
 
   /**
    * Streaming handshake, server to client: the server's private address for client to server frames.
    */
   public static final String SERVER_ADDRESS = "grpc-server-address";
-
-  /**
-   * Streaming handshake, server to client: the server's id for this call, used to demux client to server frames.
-   */
-  public static final String SERVER_STREAM_ID = "grpc-server-stream-id";
 
   /**
    * Streaming handshake, server to client: the number of messages the server grants the client to send.

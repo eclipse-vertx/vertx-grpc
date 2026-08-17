@@ -2,11 +2,8 @@ package io.vertx.grpc.eventbus.impl;
 
 import com.google.protobuf.Descriptors;
 import io.vertx.core.*;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
-import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
@@ -18,8 +15,6 @@ import io.vertx.grpc.server.impl.GrpcDispatcher;
 
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 
 public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements EventBusGrpcServer {
 
@@ -242,86 +237,51 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
         message.fail(GrpcStatus.UNIMPLEMENTED.code, "Method not found: " + methodName);
         return;
       }
-      if (serviceMethod.clientStreaming() || serviceMethod.serverStreaming()) {
-        dispatchStreaming(message, serviceMethod, wireFormat);
-      } else {
-        dispatchUnary(message, serviceMethod, wireFormat);
-      }
-    }
-
-    private <Req, Resp> void dispatchUnary(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
-      ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
-
-      ServiceMethodInvoker<Req, Resp> invoker;
-      try {
-        invoker = service.invoker(serviceMethod);
-      } catch (Exception e) {
-        message.fail(GrpcStatus.INTERNAL.code, GrpcStatus.INTERNAL.name());
-        return;
-      }
-
-      MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-      EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
-
-      EventBusGrpcServerUnaryCall stream = new EventBusGrpcServerUnaryCall(context, message, wireFormat);
-
-      GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
-
-      GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
-        stream,
-        context,
-        null,
-        wireFormat,
-        serviceMethod.decoder(),
-        serviceMethod.encoder(),
-        methodCall,
-        null,
-        invoker::invoke,
-        false,
-        false);
-
-      stream.handler(dispatcher);
-      stream.exceptionHandler(dispatcher::handleException);
-
-      stream.init(headers, EventBusGrpcCodec.decodeBody(message.body()));
+      dispatchStreaming(message, serviceMethod, wireFormat);
     }
 
     private <Req, Resp> void dispatchStreaming(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
       String clientAddress = message.headers().get(EventBusHeaders.CLIENT_ADDRESS);
-      String clientStreamIdHeader = message.headers().get(EventBusHeaders.CLIENT_STREAM_ID);
-      if (clientAddress == null || clientStreamIdHeader == null) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' or '" + EventBusHeaders.CLIENT_STREAM_ID + "' header");
+      if (clientAddress == null && (serviceMethod.serverStreaming() || serviceMethod.clientStreaming())) {
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' or '" + EventBusHeaders.STREAM_ID + "' header");
         return;
       }
 
-      long clientStreamId;
-      try {
-        clientStreamId = Long.parseLong(clientStreamIdHeader);
-      } catch (NumberFormatException e) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.CLIENT_STREAM_ID + "' header: " + clientStreamIdHeader);
-        return;
+      String clientStreamIdHeader = message.headers().get(EventBusHeaders.STREAM_ID);
+      long streamId;
+      if (clientStreamIdHeader == null) {
+        if (serviceMethod.serverStreaming() || serviceMethod.clientStreaming()) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' or '" + EventBusHeaders.STREAM_ID + "' header");
+          return;
+        }
+        streamId = 0L;
+      } else {
+        try {
+          streamId = Long.parseLong(clientStreamIdHeader);
+        } catch (NumberFormatException e) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.STREAM_ID + "' header: " + clientStreamIdHeader);
+          return;
+        }
       }
 
       int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
       long remoteTimeout = remoteTimeout(message.headers().get(EventBusHeaders.PING_TIMEOUT));
 
-      MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-      EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
-
       context().runOnContext(v -> {
-        EventBusGrpcEndpoint.StreamRegistration registration = createStream();
-        EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
+        EventBusGrpcEndpoint.StreamRegistration registration = createStream(streamId);
+        EventBusGrpcServerCall stream = new EventBusGrpcServerCall(
           context(),
-          eventBus(),
+          !serviceMethod.serverStreaming(),
+          !serviceMethod.clientStreaming(),
           registration,
-          clientAddress,
-          clientStreamId,
           wireFormat,
           "identity",
           window
         );
 
-        registration.bind(stream, clientAddress, remoteTimeout);
+        if (stream.registration.id() != 0) {
+          registration.bind(stream, clientAddress, remoteTimeout);
+        }
 
         ServiceMethodInvoker<Req, Resp> invoker;
         try {
@@ -345,18 +305,10 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
           false,
           false);
 
-
         stream.handler(dispatcher);
         stream.exceptionHandler(dispatcher::handleException);
 
-        DeliveryOptions replyOptions = new DeliveryOptions()
-          .addHeader(EventBusHeaders.SERVER_ADDRESS, address())
-          .addHeader(EventBusHeaders.SERVER_STREAM_ID, Long.toString(registration.id()))
-          .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(window));
-
-        message.reply(Buffer.buffer(), replyOptions);
-
-        stream.init(headers);
+        stream.init(address(), message);
       });
     }
   }

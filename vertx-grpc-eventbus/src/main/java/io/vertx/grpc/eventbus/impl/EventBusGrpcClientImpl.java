@@ -9,9 +9,12 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class EventBusGrpcClientImpl extends EventBusGrpcEndpoint implements EventBusGrpcClient {
 
   private final WireFormat wireFormat;
+  private final AtomicInteger sequence = new AtomicInteger();
 
   private EventBusGrpcClientImpl(Vertx vertx, EventBusGrpcClientOptions options) {
     super(vertx, vertx.eventBus(), "grpc.eb.client.", options.getWireFormat(), options.getPingInterval().toMillis(), pingTimeout(options));
@@ -23,6 +26,11 @@ public class EventBusGrpcClientImpl extends EventBusGrpcEndpoint implements Even
       throw new IllegalArgumentException("pingTimeout (" + options.getPingTimeout() + ") must be greater than pingInterval (" + options.getPingInterval() + ")");
     }
     return options.getPingTimeout().toMillis();
+  }
+
+  StreamRegistration createStream() {
+    long id = ((long)id()) << 32 | sequence.getAndIncrement();
+    return createStream(id);
   }
 
   public static Future<EventBusGrpcClient> create(Vertx vertx, EventBusGrpcClientOptions options) {
@@ -37,7 +45,7 @@ public class EventBusGrpcClientImpl extends EventBusGrpcEndpoint implements Even
 
   @Override
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
-    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(context(), this, method.clientStreaming() || method.serverStreaming());
+    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(context(), this, !method.clientStreaming(), !method.serverStreaming());
     GrpcClientRequestImpl<Req, Resp> request = new GrpcClientRequestImpl<>(
       context(),
       invoker,

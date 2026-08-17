@@ -28,12 +28,12 @@ abstract class EventBusGrpcEndpoint {
   private final ContextInternal context;
   private final EventBus eventBus;
   private final String address;
+  private final int id;
   private final WireFormat pingWireFormat;
   private final long pingInterval;
   private final long pingTimeout;
   private final ConcurrentMap<Long, EventBusGrpcStreamBase> streams = new ConcurrentHashMap<>();
   private final ConcurrentMap<String, RemoteEndpoint> remoteEndpoints = new ConcurrentHashMap<>();
-  private final AtomicLong sequence = new AtomicLong();
   private final AtomicLong pingData = new AtomicLong();
 
   private MessageConsumer<Object> consumer;
@@ -41,12 +41,20 @@ abstract class EventBusGrpcEndpoint {
   private boolean stopped;
 
   EventBusGrpcEndpoint(Vertx vertx, EventBus eventBus, String prefix, WireFormat pingWireFormat, long pingInterval, long pingTimeout) {
+
+    UUID uuid = UUID.randomUUID();
+
     this.context = (ContextInternal) vertx.getOrCreateContext();
     this.eventBus = eventBus;
-    this.address = prefix + UUID.randomUUID();
+    this.id = uuid.hashCode();
+    this.address = prefix + uuid;
     this.pingWireFormat = pingWireFormat;
     this.pingInterval = pingInterval;
     this.pingTimeout = pingTimeout;
+  }
+
+  int id() {
+    return id;
   }
 
   ContextInternal context() {
@@ -69,8 +77,8 @@ abstract class EventBusGrpcEndpoint {
     return pingTimeout;
   }
 
-  StreamRegistration createStream() {
-    return new StreamRegistration(sequence.incrementAndGet());
+  StreamRegistration createStream(long id) {
+    return new StreamRegistration(id);
   }
 
   Future<Void> bind() {
@@ -205,11 +213,11 @@ abstract class EventBusGrpcEndpoint {
     return Future.all(futures).mapEmpty();
   }
 
-  private static final class RemoteEndpoint {
+  public static final class RemoteEndpoint {
 
     private final String address;
     private final long timeout;
-    private final MessageProducer<Object> producer;
+    public final MessageProducer<Object> producer;
     private final Set<Long> streams = ConcurrentHashMap.newKeySet();
 
     private volatile long lastSeen;
@@ -226,7 +234,9 @@ abstract class EventBusGrpcEndpoint {
 
     private final long id;
 
-    private RemoteEndpoint remoteEndpoint;
+    RemoteEndpoint remoteEndpoint;
+
+    boolean closed;
 
     private StreamRegistration(long id) {
       this.id = id;
@@ -244,14 +254,26 @@ abstract class EventBusGrpcEndpoint {
       scheduleLivenessCheck();
     }
 
+    public Future<Void> sendTransportFrame(TransportFrame.Builder builder, WireFormat wireFormat, DeliveryOptions options) {
+      builder.setStreamId(id);
+      Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
+      if (options == null) {
+        options = new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+      }
+      MessageProducer<Object> producer = remoteEndpoint.producer;
+      return producer.write(payload, options);
+    }
+
     void unbind() {
       streams.remove(id);
       RemoteEndpoint bound = remoteEndpoint;
-      if (bound != null) {
-        remoteEndpoint = null;
-        bound.streams.remove(id);
-        if (bound.streams.isEmpty() && remoteEndpoints.remove(bound.address, bound)) {
-          bound.producer.close();
+      if (!closed) {
+        closed = true;
+        if (bound != null) {
+          bound.streams.remove(id);
+          if (bound.streams.isEmpty() && remoteEndpoints.remove(bound.address, bound)) {
+            bound.producer.close();
+          }
         }
       }
     }
