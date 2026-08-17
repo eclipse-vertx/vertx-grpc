@@ -2,6 +2,7 @@ package io.vertx.grpc.eventbus.impl;
 
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
@@ -92,15 +93,19 @@ public class EventBusGrpcClientUnaryCall extends EventBusGrpcCallBase {
     Buffer payload = message != null ? message.payload() : Buffer.buffer();
     Object body = EventBusGrpcCodec.encodeBody(payload, wireFormat);
 
+    Promise<Void> promise = context.promise();
+
     eventBus.request(serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
       if (ar.succeeded()) {
         handleReply(ar.result());
+        promise.succeed();
       } else {
         handleFailure(ar.cause());
+        promise.fail(ar.cause());
       }
     });
 
-    return context.succeededFuture();
+    return promise.future();
   }
 
   private void handleReply(Message<Object> reply) {
