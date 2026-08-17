@@ -26,10 +26,10 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   private boolean clientListening;
   private MultiMap pendingHeaders;
   private Promise<Void> pendingHeadersPromise;
-  private Future<Void> lastWrite;
   private boolean closed;
 
   private final Inbound inbound;
+  private final Outbound outbound;
 
   public EventBusGrpcServerStreamingCall(
     ContextInternal context,
@@ -43,6 +43,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     this.wireFormat = wireFormat;
     this.encoding = encoding;
     this.inbound = remoteUnary ? new UnaryInbound() : new StreamingInbound();
+    this.outbound = new StreamingOutbound();
   }
 
   abstract class Inbound {
@@ -66,6 +67,66 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     void init(MultiMap headers, Message<Object> message) {
       GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(wireFormat, "identity, ", headers);
       emit(frame);
+    }
+  }
+
+  abstract class Outbound {
+
+    abstract void init(String address, Message<Object> msg);
+
+    abstract Future<Void> write(GrpcFrame frame);
+    abstract Future<Void> end();
+
+  }
+
+  class StreamingOutbound extends Outbound {
+
+    private Future<Void> lastWrite;
+
+    @Override
+    void init(String address, Message<Object> msg) {
+      DeliveryOptions replyOptions = new DeliveryOptions()
+        .addHeader(EventBusHeaders.SERVER_ADDRESS, address)
+        .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(window));
+
+      msg.reply(Buffer.buffer(), replyOptions);
+    }
+
+    @Override
+    Future<Void> write(GrpcFrame frame) {
+      Future<Void> written;
+      switch (frame.type()) {
+        case HEADERS:
+          MultiMap responseHeaders = ((GrpcHeadersFrame) frame).headers();
+          if (clientListening) {
+            written = sendResponseHeaders(responseHeaders);
+          } else {
+            pendingHeaders = responseHeaders;
+            pendingHeadersPromise = context.promise();
+            written = pendingHeadersPromise.future();
+          }
+          break;
+        case MESSAGE:
+          written = writeMessage(((GrpcMessageFrame) frame).message());
+          break;
+        case TRAILERS:
+          Promise<Void> promise = context.promise();
+          enqueue(new TrailersWrite((GrpcTrailersFrame) frame, promise));
+          written = promise.future();
+          break;
+        default:
+          return context.failedFuture("Invalid message: " + frame.type());
+      }
+      lastWrite = written;
+      return written;
+    }
+
+    public Future<Void> end() {
+      Future<Void> last = lastWrite;
+      if (last == null) {
+        return context.failedFuture(new IllegalStateException("Cannot end a stream that did not write any frame"));
+      }
+      return last;
     }
   }
 
@@ -106,31 +167,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
   @Override
   public Future<Void> write(GrpcFrame frame) {
-    Future<Void> written;
-    switch (frame.type()) {
-      case HEADERS:
-        MultiMap responseHeaders = ((GrpcHeadersFrame) frame).headers();
-        if (clientListening) {
-          written = sendResponseHeaders(responseHeaders);
-        } else {
-          pendingHeaders = responseHeaders;
-          pendingHeadersPromise = context.promise();
-          written = pendingHeadersPromise.future();
-        }
-        break;
-      case MESSAGE:
-        written = writeMessage(((GrpcMessageFrame) frame).message());
-        break;
-      case TRAILERS:
-        Promise<Void> promise = context.promise();
-        enqueue(new TrailersWrite((GrpcTrailersFrame) frame, promise));
-        written = promise.future();
-        break;
-      default:
-        return context.failedFuture("Invalid message: " + frame.type());
-    }
-    lastWrite = written;
-    return written;
+    return outbound.write(frame);
   }
 
   @Override
@@ -140,25 +177,14 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
   @Override
   public Future<Void> end() {
-    Future<Void> last = lastWrite;
-    if (last == null) {
-      return context.failedFuture(new IllegalStateException("Cannot end a stream that did not write any frame"));
-    }
-    return last;
+    return outbound.end();
   }
 
   void init(String address, Message<Object> message) {
-
     MultiMap headers = MultiMap.caseInsensitiveMultiMap();
     EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
-
-    DeliveryOptions replyOptions = new DeliveryOptions()
-      .addHeader(EventBusHeaders.SERVER_ADDRESS, address)
-      .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(window));
-
-    message.reply(Buffer.buffer(), replyOptions);
-
     inbound.init(headers, message);
+    outbound.init(address, message);
   }
 
   private Future<Void> sendResponseHeaders(MultiMap headers) {
