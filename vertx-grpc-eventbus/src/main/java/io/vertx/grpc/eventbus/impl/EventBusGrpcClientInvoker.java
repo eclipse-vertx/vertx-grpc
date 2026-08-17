@@ -22,6 +22,6 @@ public class EventBusGrpcClientInvoker implements GrpcClientInvoker {
   @Override
   public GrpcStream invoke(ServiceName serviceName, String methodName) {
     EventBusGrpcEndpoint.StreamRegistration registration = client.createStream();
-    return new EventBusGrpcClientStreamingCall(context, localUnary, remoteUnary, registration, client, serviceName, methodName);
+    return new EventBusGrpcClientCall(context, localUnary, remoteUnary, registration, client, serviceName, methodName);
   }
 }

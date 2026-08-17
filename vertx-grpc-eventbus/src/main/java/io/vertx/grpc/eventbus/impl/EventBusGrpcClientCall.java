@@ -26,7 +26,7 @@ import java.util.concurrent.CancellationException;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
-class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
+class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
 
   private final EventBusGrpcEndpoint endpoint;
   private final EventBus eventBus;
@@ -45,7 +45,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private final Outbound outbound;
   private final Inbound inbound;
 
-  public EventBusGrpcClientStreamingCall(ContextInternal context, boolean localUnary, boolean remoteUnary, EventBusGrpcEndpoint.StreamRegistration registration, EventBusGrpcEndpoint endpoint, ServiceName serviceName, String methodName) {
+  public EventBusGrpcClientCall(ContextInternal context, boolean localUnary, boolean remoteUnary, EventBusGrpcEndpoint.StreamRegistration registration, EventBusGrpcEndpoint endpoint, ServiceName serviceName, String methodName) {
     super(context, localUnary, remoteUnary, registration, DEFAULT_WINDOW);
     this.endpoint = endpoint;
     this.eventBus = endpoint.eventBus();
@@ -132,7 +132,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
           }
           promise.succeed();
         } else {
-          InvalidStatusException err = handleFailure(ar.cause(), EventBusGrpcClientStreamingCall.this.encoding, EventBusGrpcClientStreamingCall.this.wireFormat);
+          InvalidStatusException err = handleFailure(ar.cause(), EventBusGrpcClientCall.this.encoding, EventBusGrpcClientCall.this.wireFormat);
           promise.fail(err);
         }
       });
@@ -257,11 +257,11 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
         return new IllegalStateException("Malformed stream handshake reply: non-numeric handshake headers");
       }
 
-      EventBusGrpcClientStreamingCall.this.encoding = encoding;
-      EventBusGrpcClientStreamingCall.this.wireFormat = wireFormat;
-      EventBusGrpcClientStreamingCall.this.state = State.STREAMING;
+      EventBusGrpcClientCall.this.encoding = encoding;
+      EventBusGrpcClientCall.this.wireFormat = wireFormat;
+      EventBusGrpcClientCall.this.state = State.STREAMING;
 
-      registration.bind(EventBusGrpcClientStreamingCall.this, serverAddress, endpoint.pingTimeout());
+      registration.bind(EventBusGrpcClientCall.this, serverAddress, endpoint.pingTimeout());
 
       grantSendWindow(initialWindow);
 

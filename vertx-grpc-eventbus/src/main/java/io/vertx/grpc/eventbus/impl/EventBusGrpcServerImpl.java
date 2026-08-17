@@ -2,11 +2,8 @@ package io.vertx.grpc.eventbus.impl;
 
 import com.google.protobuf.Descriptors;
 import io.vertx.core.*;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
-import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
@@ -18,8 +15,6 @@ import io.vertx.grpc.server.impl.GrpcDispatcher;
 
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 
 public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements EventBusGrpcServer {
 
@@ -274,7 +269,7 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
       context().runOnContext(v -> {
         EventBusGrpcEndpoint.StreamRegistration registration = createStream(streamId);
-        EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
+        EventBusGrpcServerCall stream = new EventBusGrpcServerCall(
           context(),
           !serviceMethod.serverStreaming(),
           !serviceMethod.clientStreaming(),

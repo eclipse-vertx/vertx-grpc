@@ -18,7 +18,7 @@ import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
-class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
+class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
 
   private final WireFormat wireFormat;
   private final String encoding;
@@ -31,7 +31,7 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   private final Inbound inbound;
   private final Outbound outbound;
 
-  public EventBusGrpcServerStreamingCall(
+  public EventBusGrpcServerCall(
     ContextInternal context,
     boolean localUnary,
     boolean remoteUnary,
