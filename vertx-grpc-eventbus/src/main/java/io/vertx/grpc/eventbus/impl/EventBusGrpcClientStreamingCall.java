@@ -41,6 +41,8 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private boolean ended;
   private State state;
 
+  private Outbound outbound;
+
   public EventBusGrpcClientStreamingCall(ContextInternal context, boolean localUnary, boolean remoteUnary, EventBusGrpcEndpoint.StreamRegistration registration, EventBusGrpcEndpoint endpoint, ServiceName serviceName, String methodName) {
     super(context, localUnary, remoteUnary, registration, DEFAULT_WINDOW);
     this.endpoint = endpoint;
@@ -49,25 +51,109 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     this.methodName = methodName;
     this.pending = new ArrayDeque<>();
     this.state = State.IDLE;
+    this.outbound = new StreamingOutbound();
+  }
+
+  abstract class Outbound {
+    abstract Future<Void> write(GrpcFrame frame);
+    abstract Future<Void> end();
+  }
+
+  class StreamingOutbound extends Outbound {
+    @Override
+    Future<Void> write(GrpcFrame frame) {
+      switch (frame.type()) {
+        case HEADERS:
+          GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
+          wireFormat = headersFrame.format();
+          encoding = headersFrame.encoding();
+          requestHeaders = headersFrame.headers();
+          timeout = headersFrame.timeout();
+          return open();
+        case MESSAGE:
+          return onMessageWrite(((GrpcMessageFrame) frame).message());
+        case CANCEL:
+          return sendCancel();
+        default:
+          return context.failedFuture("Invalid message: " + frame.type());
+      }
+    }
+
+    @Override
+    public Future<Void> end() {
+      if (state == State.STREAMING) {
+        sendHalfClose();
+      }
+      return context.succeededFuture();
+    }
+
+    private Future<Void> open() {
+      state = State.OPENING;
+
+      WireFormat wireFormat = Optional.ofNullable(EventBusGrpcClientStreamingCall.this.wireFormat).orElse(WireFormat.PROTOBUF);
+      String encoding = Optional.ofNullable(EventBusGrpcClientStreamingCall.this.encoding).orElse("identity");
+
+      DeliveryOptions options = new DeliveryOptions()
+        .addHeader(EventBusHeaders.ACTION, methodName)
+        .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name())
+        .addHeader(EventBusHeaders.CLIENT_ADDRESS, endpoint.address())
+        .addHeader(EventBusHeaders.STREAM_ID, Long.toString(registration.id()));
+
+      if (endpoint.pingTimeout() > 0) {
+        options.addHeader(EventBusHeaders.PING_TIMEOUT, Long.toString(endpoint.pingTimeout()));
+      }
+
+      if (timeout != null) {
+        options.setSendTimeout(timeout.toMillis());
+      }
+
+      if (requestHeaders != null) {
+        EventBusHeaders.encodeMultiMap(HEADER_PREFIX, requestHeaders, options.getHeaders());
+      }
+
+      Promise<Void> promise = context.promise();
+      eventBus.request(serviceName.fullyQualifiedName(), Buffer.buffer(), options).onComplete(ar -> {
+        if (ar.failed()) {
+          handleFailure(ar.cause(), encoding, wireFormat);
+          promise.fail(ar.cause());
+          return;
+        }
+
+        Throwable malformed = handleInitialized(ar.result(), encoding, wireFormat);
+        if (malformed == null) {
+
+          MessageWrite write;
+          while ((write = pending.poll()) != null) {
+            enqueue(write);
+          }
+          if (ended) {
+            sendHalfClose();
+          }
+
+          promise.complete();
+        } else {
+          handleFailure(malformed, encoding, wireFormat);
+          promise.fail(malformed);
+        }
+      });
+      return promise.future();
+    }
+
+    private void sendHalfClose() {
+      enqueue(new HalfCloseWrite());
+    }
+
+    private final class HalfCloseWrite implements MessageWrite {
+      @Override
+      public void write() {
+        sendTransportFrame(TransportFrame.newBuilder().setHalfClose(HalfClose.newBuilder()));
+      }
+    }
   }
 
   @Override
   public Future<Void> write(GrpcFrame frame) {
-    switch (frame.type()) {
-      case HEADERS:
-        GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
-        wireFormat = headersFrame.format();
-        encoding = headersFrame.encoding();
-        requestHeaders = headersFrame.headers();
-        timeout = headersFrame.timeout();
-        return open();
-      case MESSAGE:
-        return onMessageWrite(((GrpcMessageFrame) frame).message());
-      case CANCEL:
-        return sendCancel();
-      default:
-        return context.failedFuture("Invalid message: " + frame.type());
-    }
+    return outbound.write(frame);
   }
 
   private Future<Void> onMessageWrite(GrpcMessage message) {
@@ -91,57 +177,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   @Override
   public Future<Void> end() {
     ended = true;
-    if (state == State.STREAMING) {
-      sendHalfClose();
-    }
-    return context.succeededFuture();
-  }
-
-  private void sendHalfClose() {
-    enqueue(new HalfCloseWrite());
-  }
-
-  private Future<Void> open() {
-    state = State.OPENING;
-
-    WireFormat wireFormat = Optional.ofNullable(this.wireFormat).orElse(WireFormat.PROTOBUF);
-    String encoding = Optional.ofNullable(this.encoding).orElse("identity");
-
-    DeliveryOptions options = new DeliveryOptions()
-      .addHeader(EventBusHeaders.ACTION, methodName)
-      .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name())
-      .addHeader(EventBusHeaders.CLIENT_ADDRESS, endpoint.address())
-      .addHeader(EventBusHeaders.STREAM_ID, Long.toString(registration.id()));
-
-    if (endpoint.pingTimeout() > 0) {
-      options.addHeader(EventBusHeaders.PING_TIMEOUT, Long.toString(endpoint.pingTimeout()));
-    }
-
-    if (timeout != null) {
-      options.setSendTimeout(timeout.toMillis());
-    }
-
-    if (requestHeaders != null) {
-      EventBusHeaders.encodeMultiMap(HEADER_PREFIX, requestHeaders, options.getHeaders());
-    }
-
-    Promise<Void> promise = context.promise();
-    eventBus.request(serviceName.fullyQualifiedName(), Buffer.buffer(), options).onComplete(ar -> {
-      if (ar.failed()) {
-        handleFailure(ar.cause(), encoding, wireFormat);
-        promise.fail(ar.cause());
-        return;
-      }
-
-      Throwable malformed = handleInitialized(ar.result(), encoding, wireFormat);
-      if (malformed == null) {
-        promise.complete();
-      } else {
-        handleFailure(malformed, encoding, wireFormat);
-        promise.fail(malformed);
-      }
-    });
-    return promise.future();
+    return outbound.end();
   }
 
   private void handleFailure(Throwable cause, String encoding, WireFormat wireFormat) {
@@ -178,13 +214,6 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     grantSendWindow(initialWindow);
 
     sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(window)));
-    MessageWrite write;
-    while ((write = pending.poll()) != null) {
-      enqueue(write);
-    }
-    if (ended) {
-      sendHalfClose();
-    }
 
     return null;
   }
@@ -292,12 +321,5 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     OPENING,
     STREAMING,
     CLOSED
-  }
-
-  private final class HalfCloseWrite implements MessageWrite {
-    @Override
-    public void write() {
-      sendTransportFrame(TransportFrame.newBuilder().setHalfClose(HalfClose.newBuilder()));
-    }
   }
 }
