@@ -45,7 +45,7 @@ public class EventBusGrpcClientImpl extends EventBusGrpcEndpoint implements Even
 
   @Override
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
-    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(context(), this, method.clientStreaming() || method.serverStreaming());
+    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(context(), this, !method.clientStreaming(), !method.serverStreaming());
     GrpcClientRequestImpl<Req, Resp> request = new GrpcClientRequestImpl<>(
       context(),
       invoker,

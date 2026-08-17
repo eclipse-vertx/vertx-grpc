@@ -33,11 +33,13 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
 
   public EventBusGrpcServerStreamingCall(
     ContextInternal context,
+    boolean localUnary,
+    boolean remoteUnary,
     EventBusGrpcEndpoint.StreamRegistration registration,
     WireFormat wireFormat,
     String encoding,
     int window) {
-    super(context, registration, window);
+    super(context, localUnary, remoteUnary, registration, window);
     this.wireFormat = wireFormat;
     this.encoding = encoding;
   }

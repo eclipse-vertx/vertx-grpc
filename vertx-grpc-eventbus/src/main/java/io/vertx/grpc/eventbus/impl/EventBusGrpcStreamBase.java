@@ -17,6 +17,8 @@ abstract class EventBusGrpcStreamBase extends EventBusGrpcCallBase implements Cl
 
   static final int DEFAULT_WINDOW = 64;
 
+  protected final boolean localUnary;
+  protected final boolean remoteUnary;
   protected final EventBusGrpcEndpoint.StreamRegistration registration;
 
   protected final int window;
@@ -27,8 +29,10 @@ abstract class EventBusGrpcStreamBase extends EventBusGrpcCallBase implements Cl
   private int sendWindow;
   private long sequence;
 
-  EventBusGrpcStreamBase(ContextInternal context, EventBusGrpcEndpoint.StreamRegistration registration, int window) {
+  EventBusGrpcStreamBase(ContextInternal context, boolean localUnary, boolean remoteUnary, EventBusGrpcEndpoint.StreamRegistration registration, int window) {
     super(context);
+    this.localUnary = localUnary;
+    this.remoteUnary = remoteUnary;
     this.window = window;
     this.granted = window;
     this.registration = registration;

@@ -312,6 +312,8 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
         EventBusGrpcEndpoint.StreamRegistration registration = createStream(streamId);
         EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
           context(),
+          !serviceMethod.serverStreaming(),
+          !serviceMethod.clientStreaming(),
           registration,
           wireFormat,
           "identity",

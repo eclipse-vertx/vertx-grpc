@@ -41,8 +41,8 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private boolean ended;
   private State state;
 
-  public EventBusGrpcClientStreamingCall(ContextInternal context, EventBusGrpcEndpoint.StreamRegistration registration, EventBusGrpcEndpoint endpoint, ServiceName serviceName, String methodName) {
-    super(context, registration, DEFAULT_WINDOW);
+  public EventBusGrpcClientStreamingCall(ContextInternal context, boolean localUnary, boolean remoteUnary, EventBusGrpcEndpoint.StreamRegistration registration, EventBusGrpcEndpoint endpoint, ServiceName serviceName, String methodName) {
+    super(context, localUnary, remoteUnary, registration, DEFAULT_WINDOW);
     this.endpoint = endpoint;
     this.eventBus = endpoint.eventBus();
     this.serviceName = serviceName;
