@@ -43,15 +43,15 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     this.outbound = localUnary && remoteUnary ? new UnaryOutbound() : new StreamingOutbound();
   }
 
-  abstract class Inbound {
+  private interface Inbound {
 
-    abstract void init(MultiMap headers, Message<Object> message);
+    void init(MultiMap headers, Message<Object> message);
 
   }
 
-  class UnaryInbound extends Inbound {
+  private class UnaryInbound implements Inbound {
     @Override
-    void init(MultiMap headers, Message<Object> message) {
+    public void init(MultiMap headers, Message<Object> message) {
       Buffer payload = EventBusGrpcCodec.decodeBody(message.body());
       emitFrameInbound(new DefaultGrpcHeadersFrame(wireFormat, "identity", headers));
       emitFrameInbound(new DefaultGrpcMessageFrame(GrpcMessage.message("identity", wireFormat, payload)));
@@ -59,24 +59,21 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     }
   }
 
-  class StreamingInbound extends Inbound {
+  private class StreamingInbound implements Inbound {
     @Override
-    void init(MultiMap headers, Message<Object> message) {
+    public void init(MultiMap headers, Message<Object> message) {
       GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(wireFormat, "identity, ", headers);
       emitFrameInbound(frame);
     }
   }
 
-  abstract class Outbound {
-
-    abstract void init(String address, Message<Object> msg);
-
-    abstract Future<Void> write(GrpcFrame frame);
-    abstract Future<Void> end();
-
+  private interface Outbound {
+    void init(String address, Message<Object> msg);
+    Future<Void> write(GrpcFrame frame);
+    Future<Void> end();
   }
 
-  class UnaryOutbound extends Outbound {
+  private class UnaryOutbound implements Outbound {
 
     private Message<Object> message;
     private MultiMap headers;
@@ -84,12 +81,12 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     private boolean replied;
 
     @Override
-    void init(String address, Message<Object> msg) {
+    public void init(String address, Message<Object> msg) {
       this.message = msg;
     }
 
     @Override
-    Future<Void> write(GrpcFrame frame) {
+    public Future<Void> write(GrpcFrame frame) {
       switch (frame.type()) {
         case HEADERS:
           headers = ((GrpcHeadersFrame) frame).headers();
@@ -108,7 +105,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     }
 
     @Override
-    Future<Void> end() {
+    public Future<Void> end() {
       return consumerContext.succeededFuture();
     }
 
@@ -133,12 +130,12 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     }
   }
 
-  class StreamingOutbound extends Outbound {
+  private class StreamingOutbound implements Outbound {
 
     private Future<Void> lastWrite;
 
     @Override
-    void init(String address, Message<Object> msg) {
+    public void init(String address, Message<Object> msg) {
       DeliveryOptions replyOptions = new DeliveryOptions()
         .addHeader(EventBusHeaders.SERVER_ADDRESS, address)
         .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(DEFAULT_WINDOW));
@@ -147,7 +144,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     }
 
     @Override
-    Future<Void> write(GrpcFrame frame) {
+    public Future<Void> write(GrpcFrame frame) {
       Future<Void> written;
       switch (frame.type()) {
         case HEADERS:
@@ -186,9 +183,6 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
         break;
       case HALF_CLOSE:
         emitEndInbound();
-        break;
-      case WINDOW_UPDATE:
-        grantSendWindow(frame.getWindowUpdate().getDelta());
         break;
       case CANCEL:
         if (closed) {

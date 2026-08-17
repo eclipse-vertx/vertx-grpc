@@ -165,7 +165,11 @@ abstract class EventBusGrpcEndpoint {
     }
     EventBusGrpcStreamBase stream = streams.get(frame.getStreamId());
     if (stream != null) {
-      stream.handle(frame, message);
+      if (frame.getFrameCase() == TransportFrame.FrameCase.WINDOW_UPDATE) {
+        stream.updateOutboundWindow(frame.getWindowUpdate().getDelta());
+      } else {
+        stream.handle(frame, message);
+      }
     }
   }
 

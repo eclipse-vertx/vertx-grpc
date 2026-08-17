@@ -9,15 +9,6 @@ package io.vertx.grpc.eventbus.impl;
 interface MessageWrite {
 
   /**
-   * Indicates whether the write is subject to the send window.
-   *
-   * @return {@code true} if the write consumes a flow-control credit and waits when the window is spent; {@code false} otherwise.
-   */
-  default boolean flowControlled() {
-    return false;
-  }
-
-  /**
    * Writes data to an appropriate destination. The specific implementation of how the data is written is determined by the implementing class.
    *
    * This method is typically invoked to perform an output operation as part of a process or pipeline which handles streaming or message exchange. The behavior may depend on the
