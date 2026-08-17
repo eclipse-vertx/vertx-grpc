@@ -7,14 +7,14 @@ import io.vertx.grpc.common.impl.GrpcStream;
 
 public class EventBusGrpcClientInvoker implements GrpcClientInvoker {
 
-  private final boolean remoteUnary;
   private final ContextInternal context;
+  private final boolean remoteUnary;
   private final EventBusGrpcClientImpl client;
   private final boolean localUnary;
 
   public EventBusGrpcClientInvoker(ContextInternal context, EventBusGrpcClientImpl client, boolean localUnary, boolean remoteUnary) {
-    this.context = context;
     this.client = client;
+    this.context = context;
     this.localUnary = localUnary;
     this.remoteUnary = remoteUnary;
   }

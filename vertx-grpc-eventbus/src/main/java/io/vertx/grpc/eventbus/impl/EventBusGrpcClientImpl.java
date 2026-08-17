@@ -2,6 +2,8 @@ package io.vertx.grpc.eventbus.impl;
 
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.PromiseInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
 import io.vertx.grpc.common.ServiceMethod;
@@ -16,8 +18,8 @@ public class EventBusGrpcClientImpl extends EventBusGrpcEndpoint implements Even
   private final WireFormat wireFormat;
   private final AtomicInteger sequence = new AtomicInteger();
 
-  private EventBusGrpcClientImpl(Vertx vertx, EventBusGrpcClientOptions options) {
-    super(vertx, vertx.eventBus(), "grpc.eb.client.", options.getWireFormat(), options.getPingInterval().toMillis(), pingTimeout(options));
+  private EventBusGrpcClientImpl(ContextInternal producerContext, EventBusGrpcClientOptions options) {
+    super(producerContext, "grpc.eb.client.", options.getWireFormat(), options.getPingInterval().toMillis(), pingTimeout(options));
     this.wireFormat = options.getWireFormat();
   }
 
@@ -34,8 +36,14 @@ public class EventBusGrpcClientImpl extends EventBusGrpcEndpoint implements Even
   }
 
   public static Future<EventBusGrpcClient> create(Vertx vertx, EventBusGrpcClientOptions options) {
-    EventBusGrpcClientImpl client = new EventBusGrpcClientImpl(vertx, options);
-    return client.bind().map(client);
+    ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
+    ContextInternal producerContext = Utils.eventLoopCtx(context);
+    EventBusGrpcClientImpl client = new EventBusGrpcClientImpl(producerContext, options);
+    PromiseInternal<Void> promise = context.promise();
+    client.bind(promise);
+    return promise
+      .future()
+      .map(client);
   }
 
   @Override
@@ -45,19 +53,19 @@ public class EventBusGrpcClientImpl extends EventBusGrpcEndpoint implements Even
 
   @Override
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
-    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(context(), this, !method.clientStreaming(), !method.serverStreaming());
+    ContextInternal consumerContext = vertx.getOrCreateContext();
+    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(consumerContext, this, !method.clientStreaming(), !method.serverStreaming());
     GrpcClientRequestImpl<Req, Resp> request = new GrpcClientRequestImpl<>(
-      context(),
+      consumerContext,
       invoker,
       false,
       method.encoder(),
       method.decoder()
     );
-
     request.serviceName(method.serviceName());
     request.methodName(method.methodName());
     request.format(wireFormat);
-    return context().succeededFuture(request);
+    return consumerContext.succeededFuture(request);
   }
 
   @Override
