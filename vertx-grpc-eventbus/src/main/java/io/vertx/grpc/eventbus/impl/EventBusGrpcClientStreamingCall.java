@@ -130,11 +130,10 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
             sendHalfClose();
           }
 
-          promise.complete();
         } else {
           handleFailure(malformed, encoding, wireFormat);
-          promise.fail(malformed);
         }
+        promise.complete();
       });
       return promise.future();
     }
