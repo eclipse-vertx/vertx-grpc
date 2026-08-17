@@ -35,11 +35,11 @@ The remainder of this document gives the format of the data on the wire. The eve
 a message bus and not a byte stream. Therefore gRPC streams need a small protocol on top
 of the event bus.
 
-## The two types of call
+## Types of call
 
-The design has two parts. The type of the method selects the part.
+The type of the method selects the part.
 
-### Unary calls: a request and a reply
+### Client Unary calls: a request and a reply
 
 A unary call is one event bus `request()` call and its reply. The request contains these
 items:
@@ -60,18 +60,9 @@ and only streams add new items.
 
 ### Streams: an upgrade handshake
 
-The event bus has no stream function. Therefore server streams, client streams and
-bidirectional calls need more than one request and one reply.
+The event bus does not natively support streaming, instead any kind of streaming requires more than one request and one reply.
 
-The client always knows the type of the call that it makes. The `ServiceMethod` object
-contains the `clientStreaming()` and `serverStreaming()` flags, and the generated stub
-sets them. Therefore the client opens the call in the correct format. The server reads the
-same flags on its own `ServiceMethod` object and agrees. There is no negotiation and no
-marker on the wire.
-
-To open a stream, the client sends a request and receives a reply. This procedure is
-equivalent to an HTTP upgrade. The delivery headers contain the data, as for a unary
-call. The body of the request and the body of the reply are empty.
+To open a stream, the client sends a request and receives a reply, this procedure is very much like an HTTP upgrade.
 
 #### The request of the client
 
@@ -86,9 +77,10 @@ these items:
   peer down. Refer to [Liveness](#liveness).
 - The request metadata, with the `__header__.` prefix.
 
-The request headers open the stream. The first message does not open the stream.
-Therefore a call that sends only headers can open. A call that receives data before it
-sends data can also open.
+Depending on the client method type, the request body will differ, when the client
+
+- sends a unique message, the request body is this unique message
+- sends a stream of messages, the request body is empty
 
 #### The reply of the server
 
@@ -100,15 +92,12 @@ The server does these steps:
 4. Reply with `grpc-server-address` and `grpc-initial-window`.
 
 The reply is only the signal to start. The server sends the reply before the handler
-operates. Therefore the reply contains no response metadata.
+operates. Therefore, the reply contains no response metadata.
 
-The call is then full duplex. All subsequent data moves as a `TransportFrame` on the two
-private addresses. The first request message moves as a usual `Message` frame, the same
-as each subsequent message. The response metadata moves as a `Headers` frame before the
-first response message. Therefore that frame contains the values that the handler sets.
+When the client sends a unique message as part of the event-bus request, this message is delivered to the
+service.
 
-A unary method does not use this procedure. It uses the procedure in the previous
-section. Therefore it stays interchangeable with a service proxy.
+Otherwise, the call is full duplex: all subsequent data are carried as `TransportFrame` on the  private addresses.
 
 #### Private addresses and multiplex operation
 
@@ -143,7 +132,7 @@ The endpoint removes a stream from the map when the stream ends with trailers or
 - The endpoint cannot deliver a frame.
 - The peer of the stream does not answer. Refer to [Liveness](#liveness).
 
-Therefore a peer that leaves the cluster does not cause a registration to stay in the
+Therefore, a peer that leaves the cluster does not cause a registration to stay in the
 map.
 
 The endpoint discards a frame that has a `stream_id` value that is not in the map. This
