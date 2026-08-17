@@ -4,13 +4,11 @@ import io.vertx.core.Completable;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.GrpcError;
-import io.vertx.grpc.common.GrpcErrorException;
-import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.eventbus.transport.v1alpha.Cancel;
 import io.vertx.grpc.eventbus.transport.v1alpha.Headers;
@@ -31,6 +29,8 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
   private Future<Void> lastWrite;
   private boolean closed;
 
+  private final Inbound inbound;
+
   public EventBusGrpcServerStreamingCall(
     ContextInternal context,
     boolean localUnary,
@@ -42,6 +42,31 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     super(context, localUnary, remoteUnary, registration, window);
     this.wireFormat = wireFormat;
     this.encoding = encoding;
+    this.inbound = remoteUnary ? new UnaryInbound() : new StreamingInbound();
+  }
+
+  abstract class Inbound {
+
+    abstract void init(MultiMap headers, Message<Object> message);
+
+  }
+
+  class UnaryInbound extends Inbound {
+    @Override
+    void init(MultiMap headers, Message<Object> message) {
+      Buffer payload = EventBusGrpcCodec.decodeBody(message.body());
+      emit(new DefaultGrpcHeadersFrame(wireFormat, "identity", headers));
+      emit(new DefaultGrpcMessageFrame(GrpcMessage.message("identity", wireFormat, payload)));
+      emitEnd();
+    }
+  }
+
+  class StreamingInbound extends Inbound {
+    @Override
+    void init(MultiMap headers, Message<Object> message) {
+      GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(wireFormat, "identity, ", headers);
+      emit(frame);
+    }
   }
 
   @Override
@@ -122,9 +147,18 @@ class EventBusGrpcServerStreamingCall extends EventBusGrpcStreamBase {
     return last;
   }
 
-  void init(MultiMap headers) {
-    GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(wireFormat, "identity, ", headers);
-    emit(frame);
+  void init(String address, Message<Object> message) {
+
+    MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+    EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
+
+    DeliveryOptions replyOptions = new DeliveryOptions()
+      .addHeader(EventBusHeaders.SERVER_ADDRESS, address)
+      .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(window));
+
+    message.reply(Buffer.buffer(), replyOptions);
+
+    inbound.init(headers, message);
   }
 
   private Future<Void> sendResponseHeaders(MultiMap headers) {

@@ -458,13 +458,15 @@ public class EventBusGrpcStreamingTest extends GrpcTestBase {
     Promise<Void> serverReady = Promise.promise();
     server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {
       request.response().write(Reply.newBuilder().setMessage("first").build());
-      serverReady.tryComplete();
     }));
 
     Promise<Throwable> clientFailed = Promise.promise();
     client.request(SOURCE_CLIENT).onSuccess(request -> {
       request.end(Empty.getDefaultInstance());
-      request.response().onSuccess(response -> response.exceptionHandler(clientFailed::tryComplete));
+      request.response().onSuccess(response -> {
+        response.exceptionHandler(clientFailed::tryComplete);
+        serverReady.tryComplete();
+      });
     });
 
     // Wait until the stream is live, then close the server: its in-flight streams must be terminated

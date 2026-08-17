@@ -51,12 +51,92 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     this.methodName = methodName;
     this.pending = new ArrayDeque<>();
     this.state = State.IDLE;
-    this.outbound = new StreamingOutbound();
+    this.outbound = localUnary ? new UnaryOutbound() : new StreamingOutbound();
+    this.encoding = "identity";
+    this.wireFormat = WireFormat.PROTOBUF;
   }
 
   abstract class Outbound {
     abstract Future<Void> write(GrpcFrame frame);
     abstract Future<Void> end();
+  }
+
+  class UnaryOutbound extends Outbound {
+
+    private GrpcMessage message;
+
+    @Override
+    Future<Void> write(GrpcFrame frame) {
+      switch (frame.type()) {
+        case HEADERS:
+          GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
+          if (headersFrame.format() != null) {
+            wireFormat = headersFrame.format();
+          }
+          if (headersFrame.encoding() != null) {
+            encoding = headersFrame.encoding();
+          }
+          requestHeaders = headersFrame.headers();
+          timeout = headersFrame.timeout();
+          return context.succeededFuture();
+        case MESSAGE:
+          message = ((GrpcMessageFrame) frame).message();
+          return context.succeededFuture();
+        default:
+          return context.failedFuture("Frame not handled");
+      }
+    }
+
+    @Override
+    public Future<Void> end() {
+      GrpcMessage msg = message;
+      if (msg == null) {
+        return context.failedFuture("No message to send");
+      }
+      ended = true;
+      message = null;
+      return send(msg);
+    }
+
+    private Future<Void> send(GrpcMessage message) {
+
+      DeliveryOptions options = new DeliveryOptions()
+        .addHeader(EventBusHeaders.ACTION, methodName)
+        .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name())
+        .addHeader(EventBusHeaders.CLIENT_ADDRESS, endpoint.address())
+        .addHeader(EventBusHeaders.STREAM_ID, Long.toString(registration.id()));
+
+      if (timeout != null) {
+        options.setSendTimeout(timeout.toMillis());
+      }
+
+      if (requestHeaders != null) {
+        EventBusHeaders.encodeMultiMap(HEADER_PREFIX, requestHeaders, options.getHeaders());
+      }
+
+      Buffer payload = message != null ? message.payload() : Buffer.buffer();
+      Object body = EventBusGrpcCodec.encodeBody(payload, wireFormat);
+
+      Promise<Void> promise = context.promise();
+
+      eventBus.request(serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
+        if (ar.succeeded()) {
+          handleInitialized(ar.result(), EventBusGrpcClientStreamingCall.this.encoding, EventBusGrpcClientStreamingCall.this.wireFormat);
+          Throwable malformed = handleInitialized(ar.result(), encoding, wireFormat);
+          if (malformed == null) {
+            // Something specific to do ?
+          } else {
+            handleFailure(malformed, encoding, wireFormat);
+          }
+          promise.succeed();
+        } else {
+          handleFailure(ar.cause(), EventBusGrpcClientStreamingCall.this.encoding, EventBusGrpcClientStreamingCall.this.wireFormat);
+          promise.fail(ar.cause());
+        }
+      });
+
+      return promise.future();
+    }
   }
 
   class StreamingOutbound extends Outbound {
@@ -65,15 +145,17 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
       switch (frame.type()) {
         case HEADERS:
           GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
-          wireFormat = headersFrame.format();
-          encoding = headersFrame.encoding();
+          if (headersFrame.format() != null) {
+            wireFormat = headersFrame.format();
+          }
+          if (headersFrame.encoding() != null) {
+            encoding = headersFrame.encoding();
+          }
           requestHeaders = headersFrame.headers();
           timeout = headersFrame.timeout();
           return open();
         case MESSAGE:
           return onMessageWrite(((GrpcMessageFrame) frame).message());
-        case CANCEL:
-          return sendCancel();
         default:
           return context.failedFuture("Invalid message: " + frame.type());
       }
@@ -89,9 +171,6 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
     private Future<Void> open() {
       state = State.OPENING;
-
-      WireFormat wireFormat = Optional.ofNullable(EventBusGrpcClientStreamingCall.this.wireFormat).orElse(WireFormat.PROTOBUF);
-      String encoding = Optional.ofNullable(EventBusGrpcClientStreamingCall.this.encoding).orElse("identity");
 
       DeliveryOptions options = new DeliveryOptions()
         .addHeader(EventBusHeaders.ACTION, methodName)
@@ -152,7 +231,11 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
   @Override
   public Future<Void> write(GrpcFrame frame) {
-    return outbound.write(frame);
+    if (frame.type() == GrpcFrameType.CANCEL) {
+      return sendCancel();
+    } else {
+      return outbound.write(frame);
+    }
   }
 
   private Future<Void> onMessageWrite(GrpcMessage message) {

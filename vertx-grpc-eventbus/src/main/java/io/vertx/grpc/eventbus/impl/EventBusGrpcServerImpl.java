@@ -305,9 +305,6 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
       int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
       long remoteTimeout = remoteTimeout(message.headers().get(EventBusHeaders.PING_TIMEOUT));
 
-      MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-      EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
-
       context().runOnContext(v -> {
         EventBusGrpcEndpoint.StreamRegistration registration = createStream(streamId);
         EventBusGrpcServerStreamingCall stream = new EventBusGrpcServerStreamingCall(
@@ -348,13 +345,7 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
         stream.handler(dispatcher);
         stream.exceptionHandler(dispatcher::handleException);
 
-        DeliveryOptions replyOptions = new DeliveryOptions()
-          .addHeader(EventBusHeaders.SERVER_ADDRESS, address())
-          .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(window));
-
-        message.reply(Buffer.buffer(), replyOptions);
-
-        stream.init(headers);
+        stream.init(address(), message);
       });
     }
   }
