@@ -9,6 +9,7 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
@@ -131,8 +132,8 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
           }
           promise.succeed();
         } else {
-          handleFailure(ar.cause(), EventBusGrpcClientStreamingCall.this.encoding, EventBusGrpcClientStreamingCall.this.wireFormat);
-          promise.fail(ar.cause());
+          InvalidStatusException err = handleFailure(ar.cause(), EventBusGrpcClientStreamingCall.this.encoding, EventBusGrpcClientStreamingCall.this.wireFormat);
+          promise.fail(err);
         }
       });
 
@@ -320,12 +321,13 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     return outbound.end();
   }
 
-  private void handleFailure(Throwable cause, String encoding, WireFormat wireFormat) {
+  private InvalidStatusException handleFailure(Throwable cause, String encoding, WireFormat wireFormat) {
     GrpcStatus status = EventBusGrpcCodec.mapFailure(cause);
     emit(new DefaultGrpcHeadersFrame(wireFormat, encoding, MultiMap.caseInsensitiveMultiMap()));
     emit(new DefaultGrpcTrailersFrame(status, cause.getMessage(), MultiMap.caseInsensitiveMultiMap()));
     terminate();
     emitEnd();
+    return new InvalidStatusException(GrpcStatus.OK, status);
   }
 
   @Override
