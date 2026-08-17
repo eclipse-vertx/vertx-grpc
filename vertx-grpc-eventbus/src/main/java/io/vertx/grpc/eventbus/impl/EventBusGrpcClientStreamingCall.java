@@ -42,6 +42,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private State state;
 
   private Outbound outbound;
+  private final Inbound inbound;
 
   public EventBusGrpcClientStreamingCall(ContextInternal context, boolean localUnary, boolean remoteUnary, EventBusGrpcEndpoint.StreamRegistration registration, EventBusGrpcEndpoint endpoint, ServiceName serviceName, String methodName) {
     super(context, localUnary, remoteUnary, registration, DEFAULT_WINDOW);
@@ -54,6 +55,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     this.outbound = localUnary ? new UnaryOutbound() : new StreamingOutbound();
     this.encoding = "identity";
     this.wireFormat = WireFormat.PROTOBUF;
+    this.inbound = remoteUnary && localUnary ? new UnaryInbound() : new StreamingInbound();
   }
 
   abstract class Outbound {
@@ -121,8 +123,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
 
       eventBus.request(serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
         if (ar.succeeded()) {
-          handleInitialized(ar.result(), EventBusGrpcClientStreamingCall.this.encoding, EventBusGrpcClientStreamingCall.this.wireFormat);
-          Throwable malformed = handleInitialized(ar.result(), encoding, wireFormat);
+          Throwable malformed = inbound.handleReply(ar.result(), encoding, wireFormat);
           if (malformed == null) {
             // Something specific to do ?
           } else {
@@ -198,7 +199,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
           return;
         }
 
-        Throwable malformed = handleInitialized(ar.result(), encoding, wireFormat);
+        Throwable malformed = inbound.handleReply(ar.result(), encoding, wireFormat);
         if (malformed == null) {
 
           MessageWrite write;
@@ -226,6 +227,63 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
       public void write() {
         sendTransportFrame(TransportFrame.newBuilder().setHalfClose(HalfClose.newBuilder()));
       }
+    }
+  }
+
+  abstract class Inbound {
+
+    abstract Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat);
+
+  }
+
+  class StreamingInbound extends Inbound {
+
+    @Override
+    Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
+      MultiMap replyHeaders = reply.headers();
+      String serverAddress = replyHeaders.get(EventBusHeaders.SERVER_ADDRESS);
+      String initialWindowHeader = replyHeaders.get(EventBusHeaders.INITIAL_WINDOW);
+
+      if (serverAddress == null || initialWindowHeader == null) {
+        return new IllegalStateException("Malformed stream handshake reply: missing handshake headers");
+      }
+
+      int initialWindow;
+
+      try {
+        initialWindow = Integer.parseInt(initialWindowHeader);
+      } catch (NumberFormatException e) {
+        return new IllegalStateException("Malformed stream handshake reply: non-numeric handshake headers");
+      }
+
+      EventBusGrpcClientStreamingCall.this.encoding = encoding;
+      EventBusGrpcClientStreamingCall.this.wireFormat = wireFormat;
+      EventBusGrpcClientStreamingCall.this.state = State.STREAMING;
+
+      registration.bind(EventBusGrpcClientStreamingCall.this, serverAddress, endpoint.pingTimeout());
+
+      grantSendWindow(initialWindow);
+
+      sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(window)));
+
+      return null;
+    }
+  }
+
+  class UnaryInbound extends Inbound {
+
+    @Override
+    Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
+      MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+      MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
+      EventBusHeaders.decodeMultimap(HEADER_PREFIX, reply.headers(), headers);
+      EventBusHeaders.decodeMultimap(TRAILER_PREFIX, reply.headers(), trailers);
+      Buffer payload = EventBusGrpcCodec.decodeBody(reply.body());
+      emit(new DefaultGrpcHeadersFrame(wireFormat, encoding, headers));
+      emit(new DefaultGrpcMessageFrame(GrpcMessage.message(encoding, wireFormat, payload)));
+      emit(new DefaultGrpcTrailersFrame(GrpcStatus.OK, null, trailers));
+      emitEnd();
+      return null;
     }
   }
 
@@ -268,36 +326,6 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
     emit(new DefaultGrpcTrailersFrame(status, cause.getMessage(), MultiMap.caseInsensitiveMultiMap()));
     terminate();
     emitEnd();
-  }
-
-  private Throwable handleInitialized(Message<Object> reply, String encoding, WireFormat wireFormat) {
-    MultiMap replyHeaders = reply.headers();
-    String serverAddress = replyHeaders.get(EventBusHeaders.SERVER_ADDRESS);
-    String initialWindowHeader = replyHeaders.get(EventBusHeaders.INITIAL_WINDOW);
-
-    if (serverAddress == null || initialWindowHeader == null) {
-      return new IllegalStateException("Malformed stream handshake reply: missing handshake headers");
-    }
-
-    int initialWindow;
-
-    try {
-      initialWindow = Integer.parseInt(initialWindowHeader);
-    } catch (NumberFormatException e) {
-      return new IllegalStateException("Malformed stream handshake reply: non-numeric handshake headers");
-    }
-
-    this.encoding = encoding;
-    this.wireFormat = wireFormat;
-    this.state = State.STREAMING;
-
-    registration.bind(this, serverAddress, endpoint.pingTimeout());
-
-    grantSendWindow(initialWindow);
-
-    sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(window)));
-
-    return null;
   }
 
   @Override

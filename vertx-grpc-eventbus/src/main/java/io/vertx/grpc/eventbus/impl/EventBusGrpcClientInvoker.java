@@ -21,10 +21,7 @@ public class EventBusGrpcClientInvoker implements GrpcClientInvoker {
 
   @Override
   public GrpcStream invoke(ServiceName serviceName, String methodName) {
-    if (!localUnary || !remoteUnary) {
-      EventBusGrpcEndpoint.StreamRegistration registration = client.createStream();
-      return new EventBusGrpcClientStreamingCall(context, localUnary, remoteUnary, registration, client, serviceName, methodName);
-    }
-    return new EventBusGrpcClientUnaryCall(context, client.eventBus(), serviceName, methodName);
+    EventBusGrpcEndpoint.StreamRegistration registration = client.createStream();
+    return new EventBusGrpcClientStreamingCall(context, localUnary, remoteUnary, registration, client, serviceName, methodName);
   }
 }
