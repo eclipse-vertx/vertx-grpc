@@ -66,14 +66,14 @@ public class EventBusGrpcClientUnaryCall extends EventBusGrpcCallBase {
   @Override
   public Future<Void> end() {
     if (!sent) {
-      return send(null);
+      return context.failedFuture("No message sent");
     }
     return context.succeededFuture();
   }
 
   private Future<Void> send(GrpcMessage message) {
     if (sent) {
-      return context.succeededFuture();
+      return context.failedFuture("Should not be possible");
     }
     sent = true;
 
