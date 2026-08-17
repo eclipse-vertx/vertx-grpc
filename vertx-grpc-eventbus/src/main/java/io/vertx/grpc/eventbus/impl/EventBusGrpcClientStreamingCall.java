@@ -41,7 +41,7 @@ class EventBusGrpcClientStreamingCall extends EventBusGrpcStreamBase {
   private boolean ended;
   private State state;
 
-  private Outbound outbound;
+  private final Outbound outbound;
   private final Inbound inbound;
 
   public EventBusGrpcClientStreamingCall(ContextInternal context, boolean localUnary, boolean remoteUnary, EventBusGrpcEndpoint.StreamRegistration registration, EventBusGrpcEndpoint endpoint, ServiceName serviceName, String methodName) {
