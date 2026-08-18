@@ -1,4 +1,4 @@
-package io.vertx.grpc.eventbus.tests.eventbus;
+package io.vertx.grpc.eventbus.tests;
 
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -52,15 +53,6 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     client = EventBusGrpcClient.client(vertx).await();
   }
 
-  private static <T> Future<List<T>> collect(GrpcReadStream<T> stream) {
-    Promise<List<T>> promise = Promise.promise();
-    List<T> list = new ArrayList<>();
-    stream.handler(list::add);
-    stream.endHandler(v -> promise.tryComplete(list));
-    stream.exceptionHandler(promise::tryFail);
-    return promise.future();
-  }
-
   @Test
   public void testServerStreaming() throws Exception {
     server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {
@@ -73,10 +65,10 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     List<Reply> replies = client.request(SOURCE_CLIENT)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
-        return request.response();
-      })
-      .compose(EventBusGrpcStreamingTest::collect)
-      .await(10, TimeUnit.SECONDS);
+        return request
+          .response()
+          .compose(r -> r.collect(Collectors.toList()));
+      }).await(10, TimeUnit.SECONDS);
 
     assertEquals(5, replies.size());
     assertEquals("item-0", replies.get(0).getMessage());
@@ -115,10 +107,10 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
         request.write(Request.newBuilder().setName("a").build());
         request.write(Request.newBuilder().setName("b").build());
         request.end(Request.newBuilder().setName("c").build());
-        return request.response();
-      })
-      .compose(EventBusGrpcStreamingTest::collect)
-      .await(10, TimeUnit.SECONDS);
+        return request
+          .response()
+          .compose(r -> r.collect(Collectors.toList()));
+      }).await(10, TimeUnit.SECONDS);
 
     assertEquals(3, replies.size());
     assertEquals("echo-a", replies.get(0).getMessage());
@@ -137,10 +129,10 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
         request.format(WireFormat.JSON);
         request.write(Request.newBuilder().setName("x").build());
         request.end(Request.newBuilder().setName("y").build());
-        return request.response();
-      })
-      .compose(EventBusGrpcStreamingTest::collect)
-      .await(10, TimeUnit.SECONDS);
+        return request
+          .response()
+          .compose(r -> r.collect(Collectors.toList()));
+      }).await(10, TimeUnit.SECONDS);
 
     assertEquals(2, replies.size());
     assertEquals("echo-x", replies.get(0).getMessage());
@@ -160,12 +152,13 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     List<Reply> replies = client.request(SOURCE_CLIENT)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
-        return request.response();
-      })
-      .compose(response -> {
-        // initial metadata must be visible by the time response() resolves, before the messages
-        meta.set(response.headers().get("x-meta"));
-        return collect(response);
+        return request
+          .response()
+          .compose(response -> {
+            // initial metadata must be visible by the time response() resolves, before the messages
+            meta.set(response.headers().get("x-meta"));
+            return response.collect(Collectors.toList());
+          });
       })
       .await(10, TimeUnit.SECONDS);
 
@@ -187,10 +180,10 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     List<Reply> replies = client.request(SOURCE_CLIENT)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
-        return request.response();
-      })
-      .compose(EventBusGrpcStreamingTest::collect)
-      .await(20, TimeUnit.SECONDS);
+        return request
+          .response()
+          .compose(r -> r.collect(Collectors.toList()));
+      }).await(20, TimeUnit.SECONDS);
 
     assertEquals(count, replies.size());
     assertEquals("n-0", replies.get(0).getMessage());
@@ -218,9 +211,10 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
             request.write(Request.newBuilder().setName(prefix + i).build());
           }
           request.end();
-          return request.response();
+          return request
+            .response()
+            .compose(r -> r.collect(Collectors.toList()));
         })
-        .compose(EventBusGrpcStreamingTest::collect)
         .andThen(ar -> {
           if (ar.succeeded()) {
             results.set(idx, ar.result());
@@ -271,10 +265,10 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     List<Reply> replies = client.request(SOURCE_CLIENT)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
-        return request.response();
-      })
-      .compose(EventBusGrpcStreamingTest::collect)
-      .await(20, TimeUnit.SECONDS);
+        return request
+          .response()
+          .compose(r -> r.collect(Collectors.toList()));
+      }).await(20, TimeUnit.SECONDS);
 
     assertEquals(total, replies.size());
     for (int i = 0; i < total; i++) {
@@ -307,7 +301,9 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
 
     List<Reply> replies = client.request(SOURCE_CLIENT)
       .compose(request -> {
-        Future<List<Reply>> res = request.response().compose(EventBusGrpcStreamingTest::collect);
+        Future<List<Reply>> res = request
+          .response()
+          .compose(r -> r.collect(Collectors.toList()));
         request.end(Empty.getDefaultInstance());
         return res;
       })
@@ -345,10 +341,10 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
           request.write(Request.newBuilder().setName("r-" + i).build());
         }
         request.end();
-        return request.response();
-      })
-      .compose(EventBusGrpcStreamingTest::collect)
-      .await(30, TimeUnit.SECONDS);
+        return request
+          .response()
+          .compose(r -> r.collect(Collectors.toList()));
+      }).await(30, TimeUnit.SECONDS);
 
     assertEquals(total, replies.size());
     for (int i = 0; i < total; i++) {
@@ -421,14 +417,18 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     Future<List<Reply>> a = clientA.request(PIPE_CLIENT).compose(request -> {
       request.write(Request.newBuilder().setName("a1").build());
       request.end(Request.newBuilder().setName("a2").build());
-      return request.response();
-    }).compose(EventBusGrpcStreamingTest::collect);
+      return request
+        .response()
+        .compose(r -> r.collect(Collectors.toList()));
+    });
 
     Future<List<Reply>> b = clientB.request(PIPE_CLIENT).compose(request -> {
       request.write(Request.newBuilder().setName("b1").build());
       request.end(Request.newBuilder().setName("b2").build());
-      return request.response();
-    }).compose(EventBusGrpcStreamingTest::collect);
+      return request
+        .response()
+        .compose(r -> r.collect(Collectors.toList()));
+    });
 
     Future.all(a, b).await(10, TimeUnit.SECONDS);
 
@@ -556,9 +556,10 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     List<Reply> replies = client.request(SOURCE_CLIENT)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
-        return request.response();
+        return request
+          .response()
+          .compose(r -> r.collect(Collectors.toList()));
       })
-      .compose(EventBusGrpcStreamingTest::collect)
       .await(10, TimeUnit.SECONDS);
 
     // end() completes only once the trailers have actually been written to the event bus
@@ -983,10 +984,10 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     List<Reply> replies = client.request(SOURCE_CLIENT)
       .compose(request -> {
         request.end(Empty.getDefaultInstance());
-        return request.response();
-      })
-      .compose(EventBusGrpcStreamingTest::collect)
-      .await(10, TimeUnit.SECONDS);
+        return request
+          .response()
+          .compose(r -> r.collect(Collectors.toList()));
+      }).await(10, TimeUnit.SECONDS);
 
     assertEquals(count, replies.size());
     assertEquals("x-0", replies.get(0).getMessage());
@@ -1070,10 +1071,10 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
         request.format(WireFormat.JSON);
         request.write(Request.newBuilder().setName("a").build());
         request.end(Request.newBuilder().setName("b").build());
-        return request.response();
-      })
-      .compose(EventBusGrpcStreamingTest::collect)
-      .await(10, TimeUnit.SECONDS);
+        return request
+          .response()
+          .compose(r -> r.collect(Collectors.toList()));
+      }).await(10, TimeUnit.SECONDS);
 
     assertEquals(2, replies.size());
     assertEquals("echo-a", replies.get(0).getMessage());
@@ -1102,10 +1103,10 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
       .compose(request -> {
         request.write(Request.newBuilder().setName("a").build());
         request.end(Request.newBuilder().setName("b").build());
-        return request.response();
-      })
-      .compose(EventBusGrpcStreamingTest::collect)
-      .await(10, TimeUnit.SECONDS);
+        return request
+          .response()
+          .compose(r -> r.collect(Collectors.toList()));
+      }).await(10, TimeUnit.SECONDS);
 
     assertEquals(2, replies.size());
     assertFalse("the client's default wire format should produce JSON frames without request.format()", frames.isEmpty());

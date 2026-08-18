@@ -1,4 +1,4 @@
-package io.vertx.grpc.eventbus.tests.eventbus;
+package io.vertx.grpc.eventbus.tests;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
