@@ -51,6 +51,13 @@ public interface GrpcWriteStream<T> extends WriteStream<T> {
   GrpcWriteStream<T> drainHandler(@Nullable Handler<Void> handler);
 
   /**
+   * Send the headers.
+   *
+   * @return a future notified by the success or failure of the write operation
+   */
+  Future<Void> writeHead();
+
+  /**
    * Write an encoded gRPC message.
    *
    * @param message the message
