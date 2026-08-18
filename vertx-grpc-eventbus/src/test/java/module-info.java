@@ -11,4 +11,5 @@ open module io.vertx.grpc.eventbus.tests {
 
   requires com.google.protobuf;
   requires com.google.common;
+  requires io.vertx.core.tests;
 }

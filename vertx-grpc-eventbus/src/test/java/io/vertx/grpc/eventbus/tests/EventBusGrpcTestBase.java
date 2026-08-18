@@ -1,4 +1,4 @@
-package io.vertx.grpc.eventbus.tests.eventbus;
+package io.vertx.grpc.eventbus.tests;
 
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.tests.GrpcTestBase;
