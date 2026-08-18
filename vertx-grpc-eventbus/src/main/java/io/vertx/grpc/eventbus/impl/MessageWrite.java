@@ -15,8 +15,10 @@ interface MessageWrite {
    * configuration or state of the containing class or its dependencies.
    *
    * Implementing classes should ensure the write logic aligns with the expected operation of the system components where this method is employed.
+   *
+   * @return whether the write occured
    */
-  void write();
+  boolean write();
 
   /**
    * Handles a failure scenario by reporting the provided cause.

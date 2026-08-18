@@ -8,6 +8,7 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
@@ -26,7 +27,8 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
   protected final ContextInternal consumerContext;
 
   private EventBusGrpcServerImpl(ContextInternal consumerContext, EventBusGrpcServerOptions options) {
-    super(Utils.eventLoopCtx(consumerContext),  "grpc.eb.server.", WireFormat.PROTOBUF, 0L, 0L);
+    super(Utils.eventLoopCtx(consumerContext),  "grpc.eb.server.", WireFormat.PROTOBUF, 0L,
+      0L, options.getInitialWindowSize());
     this.consumerContext = consumerContext;
     this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
     this.maxPingTimeout = options.getMaxPingTimeout().toMillis();
@@ -274,6 +276,24 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
         return;
       }
 
+      int initialOutboundWindowSize;
+      if (serviceMethod.serverStreaming()) {
+        String initialWindowHeader = message.headers().get(EventBusHeaders.INITIAL_WINDOW);
+        if (initialWindowHeader == null) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.INITIAL_WINDOW + "' header");
+          return;
+        }
+        try {
+          initialOutboundWindowSize = Integer.parseInt(initialWindowHeader);
+        } catch (NumberFormatException e) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.INITIAL_WINDOW + "' header");
+          return;
+        }
+      } else {
+        initialOutboundWindowSize = EventBusGrpcClientOptions.DEFAULT_INITIAL_WINDOW_SIZE;
+      }
+
+
       String clientStreamIdHeader = message.headers().get(EventBusHeaders.STREAM_ID);
       long streamId;
       if (clientStreamIdHeader == null) {
@@ -291,7 +311,6 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
         }
       }
 
-      int window = EventBusGrpcStreamBase.DEFAULT_WINDOW;
       long remoteTimeout = remoteTimeout(message.headers().get(EventBusHeaders.PING_TIMEOUT));
 
       EventBusGrpcEndpoint.StreamRegistration registration = createStream(streamId);
@@ -302,7 +321,8 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
         registration,
         wireFormat,
         "identity",
-        window
+        initialWindowSize,
+        initialOutboundWindowSize
       );
 
       if (stream.registration.id() != 0) {

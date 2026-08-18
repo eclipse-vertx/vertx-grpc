@@ -1012,14 +1012,13 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
 
   @Test
   public void testMalformedHandshakeReplyFailsFast() throws Exception {
-    String fqn = SOURCE_SERVER.serviceName().fullyQualifiedName();
+    String fqn = PIPE_SERVER.serviceName().fullyQualifiedName();
     vertx.eventBus().<Buffer>consumer(fqn, msg -> msg.reply(Buffer.buffer(), new DeliveryOptions()
       .addHeader(EventBusHeaders.SERVER_ADDRESS, "s.addr"))).completion().await(5, TimeUnit.SECONDS);
-
     try {
-      client.request(SOURCE_CLIENT)
+      client.request(PIPE_CLIENT)
         .compose(request -> {
-          request.end(Empty.getDefaultInstance());
+          request.write(Request.getDefaultInstance());
           return request.response();
         })
         .compose(GrpcReadStream::last)

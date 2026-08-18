@@ -34,12 +34,14 @@ abstract class EventBusGrpcEndpoint {
   private final ConcurrentMap<Long, EventBusGrpcStreamBase> streams = new ConcurrentHashMap<>();
   private final ConcurrentMap<String, RemoteEndpoint> remoteEndpoints = new ConcurrentHashMap<>();
   private final AtomicLong pingData = new AtomicLong();
+  protected final int initialWindowSize;
 
   private MessageConsumer<Object> consumer;
   private long livenessTimerId = -1L;
   private boolean stopped;
 
-  EventBusGrpcEndpoint(ContextInternal producerContext, String prefix, WireFormat pingWireFormat, long pingInterval, long pingTimeout) {
+  EventBusGrpcEndpoint(ContextInternal producerContext, String prefix, WireFormat pingWireFormat, long pingInterval,
+                       long pingTimeout, int initialWindowSize) {
 
     UUID uuid = UUID.randomUUID();
 
@@ -51,6 +53,7 @@ abstract class EventBusGrpcEndpoint {
     this.pingWireFormat = pingWireFormat;
     this.pingInterval = pingInterval;
     this.pingTimeout = pingTimeout;
+    this.initialWindowSize = initialWindowSize;
   }
 
   int id() {
@@ -274,6 +277,9 @@ abstract class EventBusGrpcEndpoint {
       Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
       if (options == null) {
         options = new DeliveryOptions().addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+      }
+      if (remoteEndpoint == null) {
+        return null;
       }
       MessageProducer<Object> producer = remoteEndpoint.producer;
       return producer.write(payload, options);

@@ -16,7 +16,6 @@ import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
 
 abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
-  static final int DEFAULT_WINDOW = 64;
   static final Object END_MARKER = new Object();
 
   protected final EventBusGrpcEndpoint.StreamRegistration registration;
@@ -35,14 +34,16 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
   private long sequence;
 
-  EventBusGrpcStreamBase(ContextInternal context, boolean localUnary, boolean remoteUnary, EventBusGrpcEndpoint.StreamRegistration registration, int window) {
+  EventBusGrpcStreamBase(ContextInternal context, boolean localUnary, boolean remoteUnary,
+                         EventBusGrpcEndpoint.StreamRegistration registration, int initialInboundWindowSize,
+                         int initialOutboundWindowSize) {
     this.registration = registration;
     this.consumerContext = context;
     this.producerContext = registration.localEndpoint().producerContext;
-    this.inboundQueue = new IMQ(registration, context);
+    this.inboundQueue = new IMQ(registration, context, initialInboundWindowSize);
     this.localUnary = localUnary;
     this.remoteUnary = remoteUnary;
-    this.outboundQueue = new OMQ(context, window);
+    this.outboundQueue = new OMQ(context, initialOutboundWindowSize);
   }
 
   abstract void handle(TransportFrame frame, io.vertx.core.eventbus.Message<Object> message);
@@ -188,8 +189,12 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     }
 
     @Override
-    public void write() {
-      stream.doSendMessage(message).onComplete(promise);
+    public boolean write() {
+      Future<Void> sent = stream.doSendMessage(message);
+      if (sent != null) {
+        sent.onComplete(promise);
+      }
+      return sent != null;
     }
 
     @Override
@@ -204,18 +209,21 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
   private class IMQ extends InboundMessageQueue<Object> {
 
-    private int window;
+    private final int initialWindowSize;
+    private int windowSize;
 
-    public IMQ(EventBusGrpcEndpoint.StreamRegistration registration, ContextInternal context) {
+    public IMQ(EventBusGrpcEndpoint.StreamRegistration registration, ContextInternal context, int initialWindowSize) {
       super(registration.localEndpoint().producerContext.executor(), context.executor());
-      window = DEFAULT_WINDOW;
+      this.initialWindowSize = initialWindowSize;
+      this.windowSize = initialWindowSize;
     }
 
     @Override
     protected void handleMessage(Object msg) {
-      if (--window == 0) {
-        window = DEFAULT_WINDOW;
-        sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(DEFAULT_WINDOW)));
+      if (--windowSize < initialWindowSize / 2) {
+        // Replenish window
+        int windowSizeUpdate = initialWindowSize - windowSize;
+        sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(windowSizeUpdate)));
       }
       dispatchInbound(msg);
     }
@@ -223,20 +231,22 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
   private class OMQ extends OutboundMessageQueue<MessageWrite> {
 
-    private long outboundInflight;
+    private long window;
 
-    public OMQ(ContextInternal context, int window) {
+    public OMQ(ContextInternal context, int initialWindowSize) {
       super(context.eventLoop());
 
-      this.outboundInflight = window;
+      this.window = initialWindowSize;
     }
 
     @Override
     public boolean test(MessageWrite msg) {
-      if (outboundInflight > 0) {
-        outboundInflight--;
-        msg.write();
-        return true;
+      if (window > 0) {
+        boolean written = msg.write();
+        if (written) {
+          window--;
+        }
+        return written;
       } else {
         return false;
       }
@@ -258,8 +268,9 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
       }
     }
 
+    // Todo : check thread
     private void updateWindow(int delta) {
-      outboundInflight += delta;
+      window += delta;
       outboundQueue.tryDrain();
     }
   }

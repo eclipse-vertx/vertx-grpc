@@ -54,7 +54,6 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private Timer deadline;
   private GrpcClientResponseImpl<Req, Resp> response;
   private Handler<Void> drainHandler;
-  private boolean ended;
   private boolean headWritten;
 
   public GrpcClientRequestImpl(ContextInternal context,
@@ -163,6 +162,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
     ServiceName serviceName = this.serviceName;
     String methodName = this.methodName;
+    Handler<Void> drainHandler = this.drainHandler;
     if (serviceName == null) {
       throw new IllegalStateException();
     }
@@ -187,11 +187,19 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
     GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(format, encoding, headers, to);
 
+    Future<Void> result;
     if (end) {
-      return stream.end(frame);
+      result = stream.end(frame);
     } else {
-      return stream.write(frame);
+      result = stream.write(frame);
     }
+
+    // If we have been observed full while waiting for the stream, we should signal it
+    if (drainHandler != null) {
+      context.dispatch(null, drainHandler);
+    }
+
+    return result;
   }
 
   @Override
