@@ -15,6 +15,7 @@ import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.http.*;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.json.JsonObject;
@@ -41,6 +42,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.Assert.assertFalse;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -890,5 +893,43 @@ public class ClientRequestTest extends ClientTest {
         .send(Empty.getDefaultInstance())
         .map(GrpcClientResponse::status));
     Assert.assertEquals(GrpcStatus.UNAUTHENTICATED, status.await());
+  }
+
+  @Test
+  public void testEarlyHeaders() throws Exception {
+
+    Promise<Void> requestReceived = Promise.promise();
+    TestServiceGrpc.TestServiceImplBase called = new TestServiceGrpc.TestServiceImplBase() {
+      @Override
+      public void unary(Request request, StreamObserver<Reply> plainResponseObserver) {
+        requestReceived.succeed();
+        plainResponseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
+        plainResponseObserver.onCompleted();
+      }
+    };
+
+    Promise<String> headersReceived = Promise.promise();
+    startServer(called, ServerBuilder.forPort(port).intercept(new ServerInterceptor() {
+      @Override
+      public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+        String header = headers.get(Metadata.Key.of("custom_request_header", Metadata.ASCII_STRING_MARSHALLER));
+        headersReceived.succeed(header);
+        return next.startCall(call, headers);
+      }
+    }));
+
+    client = GrpcClient.client(vertx);
+    GrpcClientRequest<Request, Reply> request = client.request(SocketAddress.inetSocketAddress(port, "localhost"), UNARY).await();
+    request.format(WireFormat.PROTOBUF);
+    String expectedCustomRequestHeaderValue = "custom_request_header_value";
+    request.headers().add("custom_request_header", expectedCustomRequestHeaderValue);
+    request.writeHead().await();
+
+    String customRequestHeaderValue = headersReceived.future().await();
+    Assert.assertEquals(expectedCustomRequestHeaderValue, customRequestHeaderValue);
+    assertFalse(requestReceived.future().isComplete());
+
+    request.end(Request.newBuilder().setName("Julien").build()).await();
+    requestReceived.future().await();
   }
 }
