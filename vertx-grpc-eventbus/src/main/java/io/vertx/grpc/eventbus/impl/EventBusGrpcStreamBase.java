@@ -222,6 +222,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
       if (--windowSize < initialWindowSize / 2) {
         // Replenish window
         int windowSizeUpdate = initialWindowSize - windowSize;
+        windowSize = initialWindowSize;
         sendTransportFrame(TransportFrame.newBuilder().setWindowUpdate(WindowUpdate.newBuilder().setDelta(windowSizeUpdate)));
       }
       dispatchInbound(msg);

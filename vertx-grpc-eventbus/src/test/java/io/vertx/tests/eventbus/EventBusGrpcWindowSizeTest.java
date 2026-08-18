@@ -3,14 +3,18 @@ package io.vertx.tests.eventbus;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
+import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.tests.common.grpc.Empty;
 import io.vertx.tests.common.grpc.Reply;
 import io.vertx.tests.common.grpc.Request;
 import org.junit.Test;
@@ -25,7 +29,7 @@ public class EventBusGrpcWindowSizeTest extends EventBusGrpcTestBase {
   @Override
   public void setUp(TestContext should) {
     super.setUp(should);
-    client = EventBusGrpcClient.client(vertx).await();
+    client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()).await();
     server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setInitialWindowSize(8)).await();
   }
 
@@ -168,6 +172,57 @@ public class EventBusGrpcWindowSizeTest extends EventBusGrpcTestBase {
           // 16: outbound queue high watermark
           should.assertEquals(written, 8 + 16);
           async2.complete();
+        }));
+    }));
+  }
+
+  @Test
+  public void testReplenishWindow(TestContext should) {
+
+    Async async2 = should.async();
+
+    AtomicInteger numberOfWindowUpdates = new AtomicInteger();
+
+    vertx.eventBus().addOutboundInterceptor(ctx -> {
+      if (ctx.message().headers().contains("grpc-wire-format", "json", true)) {
+        JsonObject json = new JsonObject(ctx.body().toString());
+        if (json.containsKey("windowUpdate")) {
+          numberOfWindowUpdates.incrementAndGet();
+        }
+      }
+      ctx.next();
+    });
+
+    server.callHandler(SOURCE_SERVER, request -> {
+      GrpcServerResponse<Empty, Reply> response = request.response();
+      int idx = 0;
+      while (!response.writeQueueFull()) {
+        response.write(Reply.newBuilder().setMessage("msg-" + (idx++)).build());
+      }
+      response.end();
+    });
+
+    Future<GrpcClientRequest<Empty, Reply>> fut = client.request(SOURCE_CLIENT);
+    fut.onComplete(should.asyncAssertSuccess(request -> {
+      request.format(WireFormat.JSON);
+      request.end(Empty.getDefaultInstance());
+      request
+        .response()
+        .onComplete(should.asyncAssertSuccess(response -> {
+          AtomicInteger count = new AtomicInteger();
+          response.handler(msg -> count.incrementAndGet());
+          response.endHandler(v -> {
+            int halfWindow = 32; // initialWindowSize / 2
+            int replenishCycle = halfWindow + 1; // 33
+            int expectedNumberOfWindowUpdates = 0;
+            int val = count.get();
+            while (val > halfWindow) {
+              val -= replenishCycle;
+              expectedNumberOfWindowUpdates++;
+            }
+            should.assertEquals(expectedNumberOfWindowUpdates, numberOfWindowUpdates.get());
+            async2.complete();
+          });
         }));
     }));
   }
