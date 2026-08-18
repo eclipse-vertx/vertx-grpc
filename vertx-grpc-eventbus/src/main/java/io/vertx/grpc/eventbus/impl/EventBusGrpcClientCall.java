@@ -14,11 +14,10 @@ import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.*;
+import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.eventbus.transport.v1alpha.*;
 
 import java.time.Duration;
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 
@@ -30,7 +29,6 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
   private final EventBusGrpcEndpoint endpoint;
   private final ServiceName serviceName;
   private final String methodName;
-  private final Deque<MessageWrite> pending;
 
   private WireFormat wireFormat;
   private String encoding;
@@ -43,12 +41,13 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
   private final Outbound outbound;
   private final Inbound inbound;
 
-  public EventBusGrpcClientCall(ContextInternal context, boolean localUnary, boolean remoteUnary, EventBusGrpcEndpoint.StreamRegistration registration, EventBusGrpcEndpoint endpoint, ServiceName serviceName, String methodName) {
-    super(context, localUnary, remoteUnary, registration, DEFAULT_WINDOW);
+  public EventBusGrpcClientCall(ContextInternal context, boolean localUnary, boolean remoteUnary,
+                                EventBusGrpcEndpoint.StreamRegistration registration, EventBusGrpcEndpoint endpoint,
+                                ServiceName serviceName, String methodName, int initialInboundWindowSize, int initialOutboundWindowSize) {
+    super(context, localUnary, remoteUnary, registration, initialInboundWindowSize, initialOutboundWindowSize);
     this.endpoint = endpoint;
     this.serviceName = serviceName;
     this.methodName = methodName;
-    this.pending = new ArrayDeque<>();
     this.state = State.IDLE;
     this.outbound = localUnary ? new UnaryOutbound() : new StreamingOutbound();
     this.encoding = "identity";
@@ -106,6 +105,10 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
         .addHeader(EventBusHeaders.CLIENT_ADDRESS, endpoint.address())
         .addHeader(EventBusHeaders.STREAM_ID, Long.toString(registration.id()));
 
+      if (!remoteUnary) {
+        options.addHeader(EventBusHeaders.INITIAL_WINDOW, "" + endpoint.initialWindowSize);
+      }
+
       if (timeout != null) {
         options.setSendTimeout(timeout.toMillis());
       }
@@ -121,7 +124,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
 
       endpoint.request(consumerContext, serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
         if (ar.succeeded()) {
-          Throwable malformed = inbound.handleReply(ar.result(), encoding, wireFormat);
+          Throwable malformed = inbound._handleReply(ar.result(), encoding, wireFormat);
           if (malformed == null) {
             // Something specific to do ?
           } else {
@@ -177,6 +180,10 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
         .addHeader(EventBusHeaders.CLIENT_ADDRESS, endpoint.address())
         .addHeader(EventBusHeaders.STREAM_ID, Long.toString(registration.id()));
 
+      if (!remoteUnary) {
+        options.addHeader(EventBusHeaders.INITIAL_WINDOW, "" + endpoint.initialWindowSize);
+      }
+
       if (endpoint.pingTimeout() > 0) {
         options.addHeader(EventBusHeaders.PING_TIMEOUT, Long.toString(endpoint.pingTimeout()));
       }
@@ -197,13 +204,9 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
           return;
         }
 
-        Throwable malformed = inbound.handleReply(ar.result(), encoding, wireFormat);
+        Throwable malformed = inbound._handleReply(ar.result(), encoding, wireFormat);
         if (malformed == null) {
 
-          MessageWrite write;
-          while ((write = pending.poll()) != null) {
-            enqueue(write);
-          }
           if (ended) {
             sendHalfClose();
           }
@@ -222,61 +225,98 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
 
     private final class HalfCloseWrite implements MessageWrite {
       @Override
-      public void write() {
-        sendTransportFrame(TransportFrame.newBuilder().setHalfClose(HalfClose.newBuilder()));
+      public boolean write() {
+        return sendTransportFrame(TransportFrame.newBuilder().setHalfClose(HalfClose.newBuilder())) != null;
       }
     }
   }
 
-  private interface Inbound {
-    Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat);
-  }
+  private abstract class Inbound {
+    Throwable _handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
 
-  class StreamingInbound implements Inbound {
-
-    @Override
-    public Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
-      MultiMap replyHeaders = reply.headers();
-      String serverAddress = replyHeaders.get(EventBusHeaders.SERVER_ADDRESS);
-      String initialWindowHeader = replyHeaders.get(EventBusHeaders.INITIAL_WINDOW);
-
-      if (serverAddress == null || initialWindowHeader == null) {
-        return new IllegalStateException("Malformed stream handshake reply: missing handshake headers");
+      String serverAddress;
+      if (!localUnary || !remoteUnary) {
+        MultiMap replyHeaders = reply.headers();
+        serverAddress = replyHeaders.get(EventBusHeaders.SERVER_ADDRESS);
+        if (serverAddress == null) {
+          return new IllegalStateException("Malformed handshake reply: missing grpc-server-address header");
+        }
+      } else {
+        serverAddress = null;
       }
 
-      int initialWindow;
-
-      try {
-        initialWindow = Integer.parseInt(initialWindowHeader);
-      } catch (NumberFormatException e) {
-        return new IllegalStateException("Malformed stream handshake reply: non-numeric handshake headers");
+      if (serverAddress != null) {
+        // This could be racy since we are on the request/reply context ...
+        registration.bind(EventBusGrpcClientCall.this, serverAddress, endpoint.pingTimeout());
       }
 
-      EventBusGrpcClientCall.this.encoding = encoding;
-      EventBusGrpcClientCall.this.wireFormat = wireFormat;
-      EventBusGrpcClientCall.this.state = State.STREAMING;
+      Throwable err = handleReply(reply, encoding, wireFormat);
 
-      // This could be racy since we are on the request/reply context ...
-      registration.bind(EventBusGrpcClientCall.this, serverAddress, endpoint.pingTimeout());
+      if (err != null && serverAddress != null) {
+        registration.unbind();
+      }
 
+      return err;
+    }
+    Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
+
+      int initialOutboundWindowSize;
+      if (remoteUnary) {
+        initialOutboundWindowSize = EventBusGrpcServerOptions.DEFAULT_INITIAL_WINDOW_SIZE;
+      } else {
+        String initialWindowHeader = reply.headers().get(EventBusHeaders.INITIAL_WINDOW);
+        if (initialWindowHeader == null) {
+          return new IllegalStateException("Malformed handshake reply: missing grpc-initial-window header");
+        }
+        try {
+          initialOutboundWindowSize = Integer.parseInt(initialWindowHeader);
+        } catch (NumberFormatException e) {
+          return new IllegalStateException("Malformed handshake reply: non-numeric grpc-initial-window header");
+        }
+        if (initialOutboundWindowSize <= 0) {
+          return new IllegalStateException("Malformed handshake reply: invalid grpc-initial-window header");
+        }
+      }
+      updateOutboundWindow(initialOutboundWindowSize - EventBusGrpcServerOptions.DEFAULT_INITIAL_WINDOW_SIZE);
       return null;
     }
   }
 
-  class UnaryInbound implements Inbound {
+  class StreamingInbound extends Inbound {
 
     @Override
-    public Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
-      MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-      MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
-      EventBusHeaders.decodeMultimap(HEADER_PREFIX, reply.headers(), headers);
-      EventBusHeaders.decodeMultimap(TRAILER_PREFIX, reply.headers(), trailers);
-      Buffer payload = EventBusGrpcCodec.decodeBody(reply.body());
-      dispatchFrameInbound(new DefaultGrpcHeadersFrame(wireFormat, encoding, headers));
-      dispatchFrameInbound(new DefaultGrpcMessageFrame(GrpcMessage.message(encoding, wireFormat, payload)));
-      dispatchFrameInbound(new DefaultGrpcTrailersFrame(GrpcStatus.OK, null, trailers));
-      dispatchEndInbound();
-      return null;
+    Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
+
+      Throwable err = super.handleReply(reply, encoding, wireFormat);
+      if (err == null) {
+        EventBusGrpcClientCall.this.encoding = encoding;
+        EventBusGrpcClientCall.this.wireFormat = wireFormat;
+        EventBusGrpcClientCall.this.state = State.STREAMING;
+      }
+
+      return err;
+    }
+  }
+
+  class UnaryInbound extends Inbound {
+
+    @Override
+    Throwable handleReply(Message<Object> reply, String encoding, WireFormat wireFormat) {
+
+      Throwable err = super.handleReply(reply, encoding, wireFormat);
+      if (err == null) {
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
+        EventBusHeaders.decodeMultimap(HEADER_PREFIX, reply.headers(), headers);
+        EventBusHeaders.decodeMultimap(TRAILER_PREFIX, reply.headers(), trailers);
+        Buffer payload = EventBusGrpcCodec.decodeBody(reply.body());
+        dispatchFrameInbound(new DefaultGrpcHeadersFrame(wireFormat, encoding, headers));
+        dispatchFrameInbound(new DefaultGrpcMessageFrame(GrpcMessage.message(encoding, wireFormat, payload)));
+        dispatchFrameInbound(new DefaultGrpcTrailersFrame(GrpcStatus.OK, null, trailers));
+        dispatchEndInbound();
+      }
+
+      return err;
     }
   }
 
@@ -294,7 +334,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
     switch (s) {
       case OPENING:
         Promise<Void> promise = consumerContext.promise();
-        pending.add(messageWrite(message, promise));
+        enqueue(messageWrite(message, promise));
         return promise.future();
       case STREAMING:
         return writeMessage(message);
@@ -377,7 +417,9 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
   @Override
   protected Future<Void> sendTransportFrame(TransportFrame.Builder builder) {
     Future<Void> sent = registration.sendTransportFrame(builder, wireFormat, null);
-    sent.onFailure(this::handleRemoteEndpointDown);
+    if (sent != null) {
+      sent.onFailure(this::handleRemoteEndpointDown);
+    }
     return sent;
   }
 
@@ -402,10 +444,6 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
 
   private void failPending(Throwable cause) {
     failPendingWrites(cause);
-    MessageWrite write;
-    while ((write = pending.poll()) != null) {
-      write.fail(cause);
-    }
   }
 
   private void terminate() {

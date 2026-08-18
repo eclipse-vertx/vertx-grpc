@@ -10,6 +10,7 @@ import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
+import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -19,7 +20,8 @@ public class EventBusGrpcClientImpl extends EventBusGrpcEndpoint implements Even
   private final AtomicInteger sequence = new AtomicInteger();
 
   private EventBusGrpcClientImpl(ContextInternal producerContext, EventBusGrpcClientOptions options) {
-    super(producerContext, "grpc.eb.client.", options.getWireFormat(), options.getPingInterval().toMillis(), pingTimeout(options));
+    super(producerContext, "grpc.eb.client.", options.getWireFormat(), options.getPingInterval().toMillis(),
+      pingTimeout(options), options.getInitialWindowSize());
     this.wireFormat = options.getWireFormat();
   }
 
@@ -54,7 +56,8 @@ public class EventBusGrpcClientImpl extends EventBusGrpcEndpoint implements Even
   @Override
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
     ContextInternal consumerContext = vertx.getOrCreateContext();
-    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(consumerContext, this, !method.clientStreaming(), !method.serverStreaming());
+    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(consumerContext, this,
+      !method.clientStreaming(), !method.serverStreaming(), initialWindowSize, EventBusGrpcServerOptions.DEFAULT_INITIAL_WINDOW_SIZE);
     GrpcClientRequestImpl<Req, Resp> request = new GrpcClientRequestImpl<>(
       consumerContext,
       invoker,

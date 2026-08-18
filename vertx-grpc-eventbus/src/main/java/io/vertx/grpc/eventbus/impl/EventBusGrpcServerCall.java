@@ -35,8 +35,9 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     EventBusGrpcEndpoint.StreamRegistration registration,
     WireFormat wireFormat,
     String encoding,
-    int window) {
-    super(context, localUnary, remoteUnary, registration, window);
+    int initialInboundWindowSize,
+    int initialOutboundWindowSize) {
+    super(context, localUnary, remoteUnary, registration, initialInboundWindowSize, initialOutboundWindowSize);
     this.wireFormat = wireFormat;
     this.encoding = encoding;
     this.inbound = remoteUnary ? new UnaryInbound() : new StreamingInbound();
@@ -138,7 +139,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     public void init(String address, Message<Object> msg) {
       DeliveryOptions replyOptions = new DeliveryOptions()
         .addHeader(EventBusHeaders.SERVER_ADDRESS, address)
-        .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(DEFAULT_WINDOW));
+        .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(registration.localEndpoint().initialWindowSize));
 
       msg.reply(Buffer.buffer(), replyOptions);
     }
@@ -264,7 +265,9 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
 
   private Future<Void> sendTransportFrame(TransportFrame.Builder builder, DeliveryOptions options) {
     Future<Void> sent = registration.sendTransportFrame(builder, wireFormat, options);
-    sent.onFailure(this::handleRemoteEndpointDown);
+    if (sent != null) {
+      sent.onFailure(this::handleRemoteEndpointDown);
+    }
     return sent;
   }
 
@@ -302,10 +305,13 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     }
 
     @Override
-    public void write() {
+    public boolean write() {
       Future<Void> sent = sendTrailers(frame);
-      terminate();
-      sent.onComplete(promise);
+      if (sent != null) {
+        terminate();
+        sent.onComplete(promise);
+      }
+      return sent != null;
     }
 
     @Override
