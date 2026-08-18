@@ -91,19 +91,18 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   }
 
   private void emitInbound(Object o) {
-    assert producerContext.inThread();
-    inboundQueue.write(o);
+    producerContext.execute(o, inboundQueue::write);
   }
 
-  protected void emitFrameInbound(GrpcFrame frame) {
+  protected final void emitFrameInbound(GrpcFrame frame) {
     emitInbound(frame);
   }
 
-  protected void emitEndInbound() {
+  protected final void emitEndInbound() {
     emitInbound(END_MARKER);
   }
 
-  protected void emitExceptionInbound(Throwable t) {
+  protected final void emitExceptionInbound(Throwable t) {
     emitInbound(t);
   }
 
@@ -231,11 +230,13 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
   private class OMQ extends OutboundMessageQueue<MessageWrite> {
 
+    private final ContextInternal context;
     private long window;
 
     public OMQ(ContextInternal context, int initialWindowSize) {
-      super(context.eventLoop());
+      super(context.executor());
 
+      this.context = context;
       this.window = initialWindowSize;
     }
 
@@ -268,10 +269,13 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
       }
     }
 
-    // Todo : check thread
     private void updateWindow(int delta) {
-      window += delta;
-      outboundQueue.tryDrain();
+      if (context.inThread()) {
+        window += delta;
+        outboundQueue.tryDrain();
+      } else {
+        context.execute(delta, this::updateWindow);
+      }
     }
   }
 }
