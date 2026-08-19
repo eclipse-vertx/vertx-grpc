@@ -1,18 +1,17 @@
 package io.vertx.grpc.eventbus.impl;
 
 import com.google.protobuf.ByteString;
-import io.vertx.core.Closeable;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Promise;
+import io.vertx.core.*;
+import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.concurrent.InboundMessageQueue;
 import io.vertx.core.internal.concurrent.OutboundMessageQueue;
 import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.*;
-import io.vertx.grpc.eventbus.transport.v1alpha.Message;
-import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
-import io.vertx.grpc.eventbus.transport.v1alpha.WindowUpdate;
+import io.vertx.grpc.eventbus.transport.v1alpha.*;
+
+import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
 abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
@@ -44,11 +43,14 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     this.localUnary = localUnary;
     this.remoteUnary = remoteUnary;
     this.outboundQueue = new OMQ(context, initialOutboundWindowSize);
+    this.sequence = 1;
   }
 
   abstract void handle(TransportFrame frame, io.vertx.core.eventbus.Message<Object> message);
 
   abstract void handleRemoteEndpointDown(Throwable cause);
+
+  abstract WireFormat format();
 
   @Override
   public GrpcStream handler(Handler<GrpcFrame> handler) {
@@ -135,35 +137,57 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     }
   }
 
-  protected Future<Void> writeMessage(GrpcMessage message) {
-    Promise<Void> promise = consumerContext.promise();
-    enqueue(messageWrite(message, promise));
-    return promise.future();
-  }
+  protected MessageWrite messageWrite(GrpcMessage message) {
+    Promise<Void> completion = consumerContext.promise();
 
-  protected MessageWrite messageWrite(GrpcMessage message, Promise<Void> promise) {
-    return new MessageFrameWrite(this, message, promise);
-  }
-
-  private Future<Void> doSendMessage(GrpcMessage message) {
-    Message.Builder msg;
+    Message.Builder messageBuilder;
     switch (message.format().name()) {
       case "proto":
-        msg = Message.newBuilder().setBytes(ByteString.copyFrom(message.payload().getBytes()));
+        messageBuilder = Message.newBuilder().setBytes(ByteString.copyFrom(message.payload().getBytes()));
         break;
       case "json":
-        msg = Message.newBuilder().setStringBytes(ByteString.copyFrom(message.payload().getBytes()));
+        messageBuilder = Message.newBuilder().setStringBytes(ByteString.copyFrom(message.payload().getBytes()));
         break;
       default:
         throw new UnsupportedOperationException();
     }
-    return sendTransportFrame(TransportFrame.newBuilder()
-      .setStreamSequence(++sequence)
-      .setMessage(msg));
+    TransportFrame.Builder builder = TransportFrame
+      .newBuilder()
+      .setMessage(messageBuilder);
+
+    return new MessageWrite(completion, builder, null);
   }
 
-  protected void enqueue(MessageWrite write) {
+  final MessageWrite trailersWrite(GrpcTrailersFrame frame) {
+    Promise<Void> completion = consumerContext.promise();
+    DeliveryOptions deliveryOptions = new DeliveryOptions();
+    MultiMap headers = frame.trailers();
+    if (headers != null && !headers.isEmpty()) {
+      MultiMap delivery = MultiMap.caseInsensitiveMultiMap();
+      EventBusHeaders.encodeMultiMap(TRAILER_PREFIX, headers, delivery);
+      deliveryOptions.setHeaders(delivery);
+    }
+    Trailers.Builder trailersBuilder = Trailers.newBuilder().setStatus(frame.status().code);
+    if (frame.statusMessage() != null) {
+      trailersBuilder.setStatusMessage(frame.statusMessage());
+    }
+    TransportFrame.Builder builder = TransportFrame
+      .newBuilder()
+      .setTrailers(trailersBuilder);
+    return new MessageWrite(completion, builder, deliveryOptions);
+  }
+
+  protected MessageWrite halfCloseWrite() {
+    return new MessageWrite(
+      consumerContext.promise(),
+      TransportFrame.newBuilder().setHalfClose(HalfClose.newBuilder()),
+      null);
+  }
+
+  protected Future<Void> enqueue(MessageWrite write) {
+    write.frame.setStreamId(sequence++);
     outboundQueue.write(write);
+    return write.completion.future();
   }
 
   private Throwable cause;
@@ -184,33 +208,20 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     return this;
   }
 
-  protected abstract Future<Void> sendTransportFrame(TransportFrame.Builder frame);
-
-  private static final class MessageFrameWrite implements MessageWrite {
-
-    private final EventBusGrpcStreamBase stream;
-    private final GrpcMessage message;
-    private final Promise<Void> promise;
-
-    MessageFrameWrite(EventBusGrpcStreamBase stream, GrpcMessage message, Promise<Void> promise) {
-      this.stream = stream;
-      this.message = message;
-      this.promise = promise;
+  Future<Void> sendTransportFrame(TransportFrame.Builder builder, DeliveryOptions options) {
+    Future<Void> sent = registration.sendTransportFrame(builder, format(), options);
+    if (sent != null) {
+      sent.onFailure(this::handleRemoteEndpointDown);
     }
+    return sent;
+  }
 
-    @Override
-    public boolean write() {
-      Future<Void> sent = stream.doSendMessage(message);
-      if (sent != null) {
-        sent.onComplete(promise);
-      }
-      return sent != null;
+  Future<Void> sendTransportFrame(TransportFrame.Builder builder) {
+    Future<Void> sent = registration.sendTransportFrame(builder, format(), null);
+    if (sent != null) {
+      sent.onFailure(this::handleRemoteEndpointDown);
     }
-
-    @Override
-    public void fail(Throwable cause) {
-      promise.fail(cause);
-    }
+    return sent;
   }
 
   public void updateOutboundWindow(int delta) {
@@ -252,10 +263,27 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
       this.window = initialWindowSize;
     }
 
+    private boolean writeFrame(MessageWrite write)  {
+
+      TransportFrame.Builder frame = write.frame;
+
+      WireFormat format = format();
+
+      Future<Void> sent = registration.sendTransportFrame(frame, format, write.deliveryOptions);
+      if (sent != null) {
+        sent.onFailure(EventBusGrpcStreamBase.this::handleRemoteEndpointDown);
+        sent.onComplete(write.completion);
+      }
+
+      return sent != null;
+    }
+
+
     @Override
     public boolean test(MessageWrite msg) {
       if (window > 0) {
-        boolean written = msg.write();
+        boolean written;
+        written = writeFrame(msg);
         if (written) {
           window--;
         }
@@ -277,7 +305,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     protected void handleDispose(MessageWrite msg) {
       Throwable c = cause;
       if (c != null) {
-        msg.fail(cause);
+        msg.completion.tryFail(cause);
       }
     }
 

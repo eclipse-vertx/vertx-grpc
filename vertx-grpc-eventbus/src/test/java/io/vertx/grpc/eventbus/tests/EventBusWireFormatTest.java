@@ -84,6 +84,8 @@ public class EventBusWireFormatTest extends EventBusGrpcTestBase {
           Object str = message.getValue("string");
           should.assertEquals(String.class, str.getClass());
           JsonObject payload = new JsonObject((String)str);
+        } else if (json.containsKey("trailers") || json.containsKey("headers") || json.containsKey("halfClose")) {
+          //
         }
       }
     });

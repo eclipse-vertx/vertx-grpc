@@ -3,17 +3,13 @@ package io.vertx.grpc.eventbus.impl;
 import io.vertx.core.Completable;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
-import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.*;
-import io.vertx.grpc.eventbus.transport.v1alpha.Cancel;
-import io.vertx.grpc.eventbus.transport.v1alpha.Headers;
-import io.vertx.grpc.eventbus.transport.v1alpha.Trailers;
-import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
+import io.vertx.grpc.eventbus.transport.v1alpha.*;
 
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
@@ -153,12 +149,10 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
           written = sendResponseHeaders(responseHeaders);
           break;
         case MESSAGE:
-          written = writeMessage(((GrpcMessageFrame) frame).message());
+          written = enqueue(messageWrite(((GrpcMessageFrame) frame).message()));
           break;
         case TRAILERS:
-          Promise<Void> promise = consumerContext.promise();
-          enqueue(new TrailersWrite((GrpcTrailersFrame) frame, promise));
-          written = promise.future();
+          written = enqueue(trailersWrite((GrpcTrailersFrame) frame));
           break;
         default:
           return consumerContext.failedFuture("Invalid message: " + frame.type());
@@ -259,16 +253,8 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
   }
 
   @Override
-  protected Future<Void> sendTransportFrame(TransportFrame.Builder builder) {
-    return sendTransportFrame(builder, null);
-  }
-
-  private Future<Void> sendTransportFrame(TransportFrame.Builder builder, DeliveryOptions options) {
-    Future<Void> sent = registration.sendTransportFrame(builder, wireFormat, options);
-    if (sent != null) {
-      sent.onFailure(this::handleRemoteEndpointDown);
-    }
-    return sent;
+  WireFormat format() {
+    return wireFormat;
   }
 
   @Override
@@ -292,31 +278,5 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     }
     closed = true;
     registration.unbind();
-  }
-
-  private final class TrailersWrite implements MessageWrite {
-
-    private final GrpcTrailersFrame frame;
-    private final Promise<Void> promise;
-
-    TrailersWrite(GrpcTrailersFrame frame, Promise<Void> promise) {
-      this.frame = frame;
-      this.promise = promise;
-    }
-
-    @Override
-    public boolean write() {
-      Future<Void> sent = sendTrailers(frame);
-      if (sent != null) {
-        terminate();
-        sent.onComplete(promise);
-      }
-      return sent != null;
-    }
-
-    @Override
-    public void fail(Throwable cause) {
-      promise.fail(cause);
-    }
   }
 }
