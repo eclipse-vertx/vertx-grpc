@@ -80,7 +80,7 @@ these items:
 Depending on the client method type, the request body will differ, when the client
 
 - sends a unique message, the request body is this unique message
-- sends a stream of messages, the request body is empty
+- sends a stream of messages, the request body is null
 
 #### The reply of the server
 
@@ -96,6 +96,8 @@ operates. Therefore, the reply contains no response metadata.
 
 When the client sends a unique message as part of the event-bus request, this message is delivered to the
 service.
+
+The response body is null.
 
 Otherwise, the call is full duplex: all subsequent data are carried as `TransportFrame` on the  private addresses.
 
@@ -210,81 +212,6 @@ gRPC `status` value, because a response stream must end with a status.
 
 The full schema is in
 [`eventbus_transport.proto`](src/main/proto/io/vertx/grpc/eventbus/transport/v1alpha/eventbus_transport.proto):
-
-```proto
-syntax = "proto3";
-
-package io.vertx.grpc.eventbus.transport.v1alpha;
-
-option java_package = "io.vertx.grpc.eventbus.transport.v1alpha";
-option java_multiple_files = true;
-
-// A frame exchanged over the event bus during a streaming gRPC call, on the private
-// address only. Unary calls do not use these frames; they map to a plain request/reply.
-// The opening handshake is an upgrade-style request/reply too: the request carries the
-// client's address and stream id as delivery headers and the reply answers with the
-// server's address, stream id and initial window, both with empty bodies. Once open,
-// each endpoint multiplexes all of its streams over a single private address, and
-// stream_id demuxes the call on that address. Frames are serialized in the call's wire
-// format - protobuf binary, or JSON when the call runs in JSON mode, named in the
-// frame's grpc-wire-format header. The handshake and flow control are described in the
-// module README.
-message TransportFrame {
-  uint64 stream_id = 1; // the destination endpoint's id for this call, demuxes it on the shared private address, 0 for an endpoint level frame
-  uint64 stream_sequence = 2; // per-stream, monotonic, advances on Message frames only
-
-  oneof frame {
-    Message message = 3; // a message payload, either direction
-    WindowUpdate window_update = 4; // flow-control credit, either direction
-    HalfClose half_close = 5; // client to server, end of the request stream
-    Trailers trailers = 6; // server to client, terminates the call
-    Cancel cancel = 7; // either direction, abnormal termination
-    Headers headers = 8; // server to client, response metadata, before the first message
-    Ping ping = 9; // either direction, peer liveness probe, on stream_id 0
-  }
-}
-
-// Server to client, response initial metadata, ordered ahead of the first response
-// message. The metadata itself rides as __header__. prefixed delivery headers.
-message Headers {
-}
-
-// A message payload, either direction. The serialized message in the call's wire
-// format, carried verbatim.
-message Message {
-  bytes payload = 1;
-}
-
-// Flow-control credit, either direction: grants the peer delta more messages to
-// send. Counted in messages, after HTTP/2's WINDOW_UPDATE.
-message WindowUpdate {
-  uint32 delta = 1;
-}
-
-// Client to server, end of the request stream (half close).
-message HalfClose {
-}
-
-// Server to client, terminates the call. Trailing metadata rides as __trailer__.
-// prefixed delivery headers.
-message Trailers {
-  uint32 status = 1; // gRPC status code
-  string status_message = 2;
-}
-
-// Either direction, abnormal termination.
-message Cancel {
-  uint32 status = 1; // typically CANCELLED or DEADLINE_EXCEEDED
-  string reason = 2;
-}
-
-// A peer liveness probe, carried on stream_id 0 because it belongs to the peer endpoint
-// rather than to any single call.
-message Ping {
-  uint64 data = 1; // opaque, echoed verbatim in the ack
-  bool ack = 2; // set on the echo, clear on the probe
-}
-```
 
 The transport does not encode the messages again. The gRPC encoder makes the bytes. The
 `Message.payload` field contains these bytes without a change. The receiver sends the

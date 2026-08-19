@@ -141,7 +141,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
         .addHeader(EventBusHeaders.SERVER_ADDRESS, address)
         .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(registration.localEndpoint().initialWindowSize));
 
-      msg.reply(Buffer.buffer(), replyOptions);
+      msg.reply(null, replyOptions);
     }
 
     @Override

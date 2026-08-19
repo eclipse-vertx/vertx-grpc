@@ -197,7 +197,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
       }
 
       Promise<Void> promise = consumerContext.promise();
-      endpoint.request(consumerContext, serviceName.fullyQualifiedName(), Buffer.buffer(), options).onComplete(ar -> {
+      endpoint.request(consumerContext, serviceName.fullyQualifiedName(), null, options).onComplete(ar -> {
         if (ar.failed()) {
           handleFailure(ar.cause(), encoding, wireFormat);
           promise.fail(ar.cause());
