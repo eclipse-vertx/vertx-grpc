@@ -166,9 +166,11 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
     @Override
     public Future<Void> end() {
       if (state == State.STREAMING) {
-        sendHalfClose();
+        return sendHalfClose();
+      } else {
+        // Should be an error
+        return consumerContext.succeededFuture();
       }
-      return consumerContext.succeededFuture();
     }
 
     private Future<Void> open() {
@@ -208,7 +210,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
         if (malformed == null) {
 
           if (ended) {
-            sendHalfClose();
+            sendHalfClose(); // Should use return future ?
           }
 
         } else {
@@ -219,15 +221,8 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
       return promise.future();
     }
 
-    private void sendHalfClose() {
-      enqueue(new HalfCloseWrite());
-    }
-
-    private final class HalfCloseWrite implements MessageWrite {
-      @Override
-      public boolean write() {
-        return sendTransportFrame(TransportFrame.newBuilder().setHalfClose(HalfClose.newBuilder())) != null;
-      }
+    private Future<Void> sendHalfClose() {
+      return enqueue(halfCloseWrite());
     }
   }
 
@@ -333,11 +328,9 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
     State s = state;
     switch (s) {
       case OPENING:
-        Promise<Void> promise = consumerContext.promise();
-        enqueue(messageWrite(message, promise));
-        return promise.future();
+        return enqueue(messageWrite(message));
       case STREAMING:
-        return writeMessage(message);
+        return enqueue(messageWrite(message));
       default:
         return consumerContext.failedFuture(new IllegalStateException("Stream closed"));
     }
@@ -415,12 +408,8 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
   }
 
   @Override
-  protected Future<Void> sendTransportFrame(TransportFrame.Builder builder) {
-    Future<Void> sent = registration.sendTransportFrame(builder, wireFormat, null);
-    if (sent != null) {
-      sent.onFailure(this::handleRemoteEndpointDown);
-    }
-    return sent;
+  WireFormat format() {
+    return wireFormat;
   }
 
   @Override
