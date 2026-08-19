@@ -146,9 +146,20 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   }
 
   private Future<Void> doSendMessage(GrpcMessage message) {
+    Message.Builder msg;
+    switch (message.format().name()) {
+      case "proto":
+        msg = Message.newBuilder().setBytes(ByteString.copyFrom(message.payload().getBytes()));
+        break;
+      case "json":
+        msg = Message.newBuilder().setStringBytes(ByteString.copyFrom(message.payload().getBytes()));
+        break;
+      default:
+        throw new UnsupportedOperationException();
+    }
     return sendTransportFrame(TransportFrame.newBuilder()
       .setStreamSequence(++sequence)
-      .setMessage(Message.newBuilder().setPayload(ByteString.copyFrom(message.payload().getBytes()))));
+      .setMessage(msg));
   }
 
   protected void enqueue(MessageWrite write) {

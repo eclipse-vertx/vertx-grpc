@@ -38,7 +38,10 @@ message Headers {
 // A message payload, either direction. The serialized message in the call's wire
 // format, carried verbatim.
 message Message {
-  bytes payload = 1;
+  oneof payload {
+    bytes bytes = 1;
+    string string = 2;
+  }
 }
 
 // Flow-control credit, either direction: grants the peer delta more messages to

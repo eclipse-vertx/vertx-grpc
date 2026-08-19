@@ -52,7 +52,18 @@ final class EventBusGrpcCodec {
   }
 
   static GrpcMessage message(TransportFrame frame, String encoding, WireFormat wireFormat) {
-    return GrpcMessage.message(encoding, wireFormat, Buffer.buffer(frame.getMessage().getPayload().toByteArray()));
+    Buffer buffer;
+    switch (wireFormat.name()) {
+      case "proto":
+        buffer = Buffer.buffer(frame.getMessage().getBytes().toByteArray());
+        break;
+      case "json":
+        buffer = Buffer.buffer(frame.getMessage().getString());
+        break;
+      default:
+        throw new UnsupportedOperationException();
+    }
+    return GrpcMessage.message(encoding, wireFormat, buffer);
   }
 
   static GrpcStatus mapFailure(Throwable cause) {
