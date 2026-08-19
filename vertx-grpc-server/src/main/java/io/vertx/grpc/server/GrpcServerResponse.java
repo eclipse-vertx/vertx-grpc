@@ -47,6 +47,10 @@ public interface GrpcServerResponse<Req, Resp> extends GrpcWriteStream<Resp> {
   @Fluent
   GrpcServerResponse<Req, Resp> encoding(String encoding);
 
+  /**
+   * @deprecated this method should not be used, the response format must match the request format
+   */
+  @Deprecated(forRemoval = true)
   @Fluent
   GrpcServerResponse<Req, Resp> format(WireFormat format);
 

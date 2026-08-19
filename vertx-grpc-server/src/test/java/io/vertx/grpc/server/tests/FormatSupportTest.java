@@ -1,12 +1,20 @@
 package io.vertx.grpc.server.tests;
 
+import io.grpc.*;
 import io.vertx.core.http.*;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.tests.Reply;
+import io.vertx.grpc.common.tests.Request;
+import io.vertx.grpc.common.tests.TestServiceGrpc;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
+import io.vertx.grpc.server.GrpcServerResponse;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class FormatSupportTest extends ServerTestBase {
 
@@ -59,5 +67,35 @@ public class FormatSupportTest extends ServerTestBase {
       }).onComplete(should.asyncAssertSuccess(status -> {
         should.assertEquals(415, status);
       }));
+  }
+
+  @Test
+  public void testOverrideResponseFormat(TestContext should) {
+
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      should.assertEquals(WireFormat.PROTOBUF, call.format());
+      call
+        .response()
+        .format(WireFormat.JSON);
+      call.handler(helloRequest -> {
+        Reply helloReply = Reply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+        GrpcServerResponse<Request, Reply> response = call.response();
+        response
+          .end(helloReply);
+      });
+    }));
+
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+    Request request = Request.newBuilder().setName("Julien").build();
+    try {
+      Reply reply = stub.unary(request);
+      fail();
+    } catch (StatusRuntimeException expected) {
+      assertEquals(Status.Code.CANCELLED, expected.getStatus().getCode());
+    }
   }
 }
