@@ -133,8 +133,10 @@ public class TranscodingGrpcOutboundStream extends HttpGrpcOutboundStream {
       httpResponse.setStatusCode(500).end();
       res = context.failedFuture(e);
     }
-    if (head != null) {
-      res.onComplete(head);
+    Promise<Void> h = head;
+    if (h != null) {
+      head = null;
+      res.onComplete(h);
     }
     return res;
   }
@@ -158,7 +160,7 @@ public class TranscodingGrpcOutboundStream extends HttpGrpcOutboundStream {
         chunk = Buffer.buffer(transcoded.length() + NEWLINE.length()).appendBuffer(transcoded).appendBuffer(NEWLINE);
         break;
       }
-    case SSE: {
+      case SSE: {
         chunk = Buffer.buffer(SSE_PREFIX.length() + transcoded.length() + SSE_SUFFIX.length())
           .appendBuffer(SSE_PREFIX).appendBuffer(transcoded).appendBuffer(SSE_SUFFIX);
         break;
@@ -185,6 +187,14 @@ public class TranscodingGrpcOutboundStream extends HttpGrpcOutboundStream {
     if (status != GrpcStatus.OK) {
       httpResponse.setStatusCode(GrpcTranscodingError.fromHttp2Code(status.code).getHttpStatusCode());
     }
-    return super.writeEnd();
+    Future<Void> res = super.writeEnd();
+    // A unary call can end without ever writing a message, e.g. a failed call: the head promise
+    // is only resolved by writeUnaryMessage, so resolve it here instead of leaving it pending.
+    Promise<Void> h = head;
+    if (h != null) {
+      head = null;
+      res.onComplete(h);
+    }
+    return res;
   }
 }
