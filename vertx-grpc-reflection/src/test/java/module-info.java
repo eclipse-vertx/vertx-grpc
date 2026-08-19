@@ -11,8 +11,8 @@ open module io.vertx.tests.reflection {
   requires io.vertx.grpc.server;
   requires io.vertx.grpc.reflection;
   requires io.vertx.testing.unit;
-  requires io.vertx.tests.common;
-  requires io.vertx.tests.server;
+  requires io.vertx.grpc.common.tests;
+  requires io.vertx.grpc.server.tests;
   requires junit;
   requires testcontainers;
   exports io.vertx.tests.reflection.grpc;

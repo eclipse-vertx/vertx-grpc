@@ -1,0 +1,217 @@
+package io.vertx.grpc.eventbus.tests.eventbus;
+
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.DeliveryOptions;
+import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.client.InvalidStatusException;
+import io.vertx.grpc.common.GrpcReadStream;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.eventbus.EventBusGrpcClient;
+import io.vertx.grpc.eventbus.impl.EventBusHeaders;
+import io.vertx.grpc.common.tests.Reply;
+import io.vertx.grpc.common.tests.Request;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
+public class EventBusGrpcClientTest extends EventBusGrpcTestBase {
+
+  private EventBusGrpcClient client;
+
+  @Before
+  public void setUp(TestContext should) {
+    super.setUp(should);
+    client = EventBusGrpcClient.client(vertx).await();
+  }
+
+  @Test
+  public void testRequestReplyProtobuf(TestContext testContext) throws Exception {
+    vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> {
+      testContext.assertEquals("Unary", msg.headers().get("action"));
+      testContext.assertEquals(WireFormat.PROTOBUF.name(), msg.headers().get("grpc-wire-format"));
+      try {
+        Request request = Request.parseFrom(msg.body().getBytes());
+        Reply reply = Reply.newBuilder().setMessage("Hello " + request.getName()).build();
+        msg.reply(Buffer.buffer(reply.toByteArray()));
+      } catch (Exception e) {
+        msg.fail(GrpcStatus.INTERNAL.code, e.getMessage());
+      }
+    });
+
+    Reply reply = client.request(UNARY_CLIENT)
+      .compose(request -> {
+        request.end(Request.newBuilder().setName("Julien").build());
+        return request.response();
+      })
+      .compose(GrpcReadStream::last)
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals("Hello Julien", reply.getMessage());
+  }
+
+  @Test
+  public void testRequestReplyJson(TestContext testContext) throws TimeoutException {
+    vertx.eventBus().<JsonObject> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> {
+      testContext.assertEquals("Unary", msg.headers().get("action"));
+      testContext.assertEquals(WireFormat.JSON.name(), msg.headers().get("grpc-wire-format"));
+      String name = msg.body().getString("name");
+      msg.reply(new JsonObject().put("message", "Hello " + name));
+    });
+
+    Reply reply = client.request(UNARY_CLIENT)
+      .compose(request -> {
+        request.format(WireFormat.JSON);
+        request.end(Request.newBuilder().setName("Julien").build());
+        return request.response();
+      })
+      .compose(GrpcReadStream::last)
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals("Hello Julien", reply.getMessage());
+  }
+
+  @Test
+  public void testRequestReplyWithDelay() throws Exception {
+    vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> vertx.setTimer(50, id -> {
+      try {
+        Request request = Request.parseFrom(msg.body().getBytes());
+        Reply reply = Reply.newBuilder().setMessage("Delayed " + request.getName()).build();
+        msg.reply(Buffer.buffer(reply.toByteArray()));
+      } catch (Exception e) {
+        msg.fail(GrpcStatus.INTERNAL.code, e.getMessage());
+      }
+    }));
+
+    Reply reply = client.request(UNARY_CLIENT)
+      .compose(request -> {
+        request.end(Request.newBuilder().setName("Julien").build());
+        return request.response();
+      })
+      .compose(GrpcReadStream::last)
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals("Delayed Julien", reply.getMessage());
+  }
+
+  @Test
+  public void testNoHandler() throws TimeoutException {
+    try {
+      client.request(UNARY_CLIENT)
+        .compose(request -> {
+          request.end(Request.newBuilder().setName("Julien").build());
+          return request.response();
+        })
+        .compose(GrpcReadStream::last)
+        .await(10, TimeUnit.SECONDS);
+      fail("Should have thrown");
+    } catch (InvalidStatusException e) {
+      assertEquals(GrpcStatus.UNAVAILABLE, e.actualStatus());
+    }
+  }
+
+  @Test
+  public void testConsumerFailureUnmappedCode() throws TimeoutException {
+    vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> msg.fail(500, "Service error"));
+
+    try {
+      client.request(UNARY_CLIENT)
+        .compose(request -> {
+          request.end(Request.newBuilder().setName("Julien").build());
+          return request.response();
+        })
+        .compose(GrpcReadStream::last)
+        .await(10, TimeUnit.SECONDS);
+      fail("Should have thrown");
+    } catch (InvalidStatusException e) {
+      assertEquals(GrpcStatus.INTERNAL, e.actualStatus());
+    }
+  }
+
+  @Test
+  public void testConsumerFailureGrpcStatusCodeMapping() throws TimeoutException {
+    for (GrpcStatus status : GrpcStatus.values()) {
+      if (status == GrpcStatus.OK) {
+        continue;
+      }
+
+      MessageConsumer<Buffer> consumer = vertx.eventBus().consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> msg.fail(status.code, status.name()));
+
+      consumer.completion().await(10, TimeUnit.SECONDS);
+
+      try {
+        client.request(UNARY_CLIENT)
+          .compose(request -> {
+            request.end(Request.newBuilder().setName("Julien").build());
+            return request.response();
+          })
+          .compose(GrpcReadStream::last)
+          .await(10, TimeUnit.SECONDS);
+        fail("Should have thrown for " + status);
+      } catch (InvalidStatusException e) {
+        assertEquals(status, e.actualStatus());
+      }
+
+      consumer.unregister().await(10, TimeUnit.SECONDS);
+    }
+  }
+
+  @Test
+  public void testRequestHeaders(TestContext testContext) throws Exception {
+    vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> {
+      String customHeader = msg.headers().get(EventBusHeaders.HEADER_PREFIX + "x-custom");
+      Reply reply = Reply.newBuilder().setMessage("Header: " + customHeader).build();
+      msg.reply(Buffer.buffer(reply.toByteArray()), new DeliveryOptions()
+        .addHeader(EventBusHeaders.HEADER_PREFIX + "x-custom", "response_header_value")
+        .addHeader(EventBusHeaders.TRAILER_PREFIX + "x-custom", "response_trailer_value")
+      );
+    });
+
+    Reply reply = client.request(UNARY_CLIENT)
+      .compose(request -> {
+        request.headers().add("x-custom", "request_header_value");
+        request.end(Request.newBuilder().setName("Julien").build());
+        return request
+          .response()
+          .compose(response -> {
+            testContext.assertEquals("response_header_value", response.headers().get("x-custom"));
+            return response.last().andThen(ar -> {
+              if (ar.succeeded()) {
+                testContext.assertEquals("response_trailer_value", response.trailers().get("x-custom"));
+              }
+            });
+          });
+      })
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals("Header: request_header_value", reply.getMessage());
+  }
+
+  @Test
+  public void testDeadlineExceeded() throws TimeoutException {
+    vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> {
+      // do nothing
+    });
+
+    try {
+      client.request(UNARY_CLIENT)
+        .compose(request -> {
+          request.timeout(1, TimeUnit.SECONDS);
+          request.end(Request.newBuilder().setName("Julien").build());
+          return request.response();
+        })
+        .compose(GrpcReadStream::last)
+        .await(10, TimeUnit.SECONDS);
+      fail("Should have thrown");
+    } catch (InvalidStatusException e) {
+      assertEquals(GrpcStatus.DEADLINE_EXCEEDED, e.actualStatus());
+    }
+  }
+}

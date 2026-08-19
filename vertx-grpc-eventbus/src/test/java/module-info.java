@@ -1,11 +1,11 @@
-open module io.vertx.tests.eventbus {
+open module io.vertx.grpc.eventbus.tests {
   requires io.vertx.core;
   requires io.vertx.grpc.client;
   requires io.vertx.grpc.common;
   requires io.vertx.grpc.server;
   requires io.vertx.grpc.eventbus;
   requires io.vertx.testing.unit;
-  requires io.vertx.tests.common;
+  requires io.vertx.grpc.common.tests;
 
   requires junit;
 

@@ -1,0 +1,194 @@
+/*
+ * Copyright (c) 2011-2025 Contributors to the Eclipse Foundation
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+ * which is available at https://www.apache.org/licenses/LICENSE-2.0.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+ */
+package io.vertx.grpc.it.tests;
+
+import io.grpc.examples.helloworld.GreeterGrpcService;
+import io.grpc.examples.helloworld.HelloReply;
+import io.grpc.examples.helloworld.HelloWorldProto;
+import io.vertx.core.Future;
+import io.vertx.core.http.HttpServer;
+import io.vertx.ext.unit.Async;
+import io.vertx.ext.unit.TestContext;
+import io.vertx.grpc.health.HealthService;
+import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.Service;
+import org.junit.Test;
+import org.testcontainers.images.builder.ImageFromDockerfile;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * This test uses Testcontainers to run grpc_health_probe in a Docker container.
+ * It requires Docker to be installed and running.
+ * <p>
+ * Maven profile: mvn test -Phealth-probe
+ */
+public class HealthProbeTest extends TestContainerTestBase {
+
+  private HttpServer server;
+  private HealthService healthService;
+  private ImageFromDockerfile probeImage;
+
+  @Override
+  public void setUp(TestContext should) {
+    super.setUp(should);
+
+    Service greeterService = Service.service(GreeterGrpcService.SERVICE_NAME, HelloWorldProto.getDescriptor().findServiceByName("Greeter")).build();
+    GrpcServer grpcServer = GrpcServer.server(vertx);
+
+    healthService = HealthService.create(vertx);
+    healthService.register(GreeterGrpcService.SERVICE_NAME, () -> Future.succeededFuture(true));
+
+    grpcServer.addService(healthService);
+    grpcServer.addService(greeterService);
+
+    grpcServer.callHandler(GreeterGrpcService.SayHello, call -> call.handler(helloRequest -> {
+      HelloReply helloReply = HelloReply.newBuilder().setMessage("Hello " + helloRequest.getName()).build();
+      call.response().end(helloReply);
+    }));
+
+    Async async = should.async();
+    vertx.createHttpServer()
+      .requestHandler(grpcServer)
+      .listen(port, "0.0.0.0")
+      .onComplete(should.asyncAssertSuccess(s -> {
+        server = s;
+        async.complete();
+      }));
+    async.awaitSuccess(10000);
+
+    exposeHostPort();
+
+    File dockerfile = new File("src/test/resources/grpc-health-probe.Dockerfile");
+    probeImage = new ImageFromDockerfile().withFileFromFile("Dockerfile", dockerfile);
+  }
+
+  @Override
+  public void tearDown(TestContext should) {
+    if (server != null) {
+      Async async = should.async();
+      server.close().onComplete(v -> async.complete());
+      async.awaitSuccess(10000);
+    }
+    super.tearDown(should);
+  }
+
+  @Test
+  public void testBasicHealthProbe(TestContext should) {
+    Async async = should.async();
+
+    Future<String> future = executeHealthProbe();
+
+    future.onComplete(should.asyncAssertSuccess(output -> {
+      should.assertTrue(output.contains("status: SERVING"),
+        "Output should indicate SERVING status");
+      async.complete();
+    }));
+  }
+
+  @Test
+  public void testServiceSpecificHealthProbe(TestContext should) {
+    Async async = should.async();
+
+    Future<String> future = executeHealthProbe("-service=" + GreeterGrpcService.SERVICE_NAME.fullyQualifiedName());
+
+    future.onComplete(should.asyncAssertSuccess(output -> {
+      should.assertTrue(output.contains("status: SERVING"),
+        "Output should indicate SERVING status for " + GreeterGrpcService.SERVICE_NAME.fullyQualifiedName());
+      async.complete();
+    }));
+  }
+
+  @Test
+  public void testUnknownServiceHealthProbe(TestContext should) {
+    Async async = should.async();
+
+    Future<String> future = executeHealthProbe("-service=unknown.UnknownService");
+
+    future.onComplete(should.asyncAssertSuccess(output -> {
+      should.assertTrue(output.contains("NotFound"),
+        "Output should indicate unknown service: " + output
+      );
+      async.complete();
+    }));
+  }
+
+  @Test
+  public void testNotServingHealthProbe(TestContext should) {
+    Async async = should.async();
+
+    // Register a service with NOT_SERVING status
+    healthService.register("test.NotServingService", () -> Future.succeededFuture(false));
+
+    Future<String> future = executeHealthProbe("-service=test.NotServingService");
+
+    future.onComplete(should.asyncAssertSuccess(output -> {
+      should.assertTrue(output.contains("NOT_SERVING"),
+        "Output should indicate NOT_SERVING status: " + output
+      );
+      async.complete();
+    }));
+  }
+
+  @Test
+  public void testHealthProbeWithUserAgent(TestContext should) {
+    Async async = should.async();
+
+    Future<String> future = executeHealthProbe("-user-agent=custom-health-probe/1.0");
+
+    future.onComplete(should.asyncAssertSuccess(output -> {
+      should.assertTrue(output.contains("status: SERVING"),
+        "Output should indicate SERVING status with custom user agent");
+      async.complete();
+    }));
+  }
+
+  @Test
+  public void testHealthProbeWithTimeout(TestContext should) {
+    Async async = should.async();
+
+    Future<String> future = executeHealthProbe("-connect-timeout=5s", "-rpc-timeout=10s");
+
+    future.onComplete(should.asyncAssertSuccess(output -> {
+      should.assertTrue(output.contains("status: SERVING"),
+        "Output should indicate SERVING status with timeout options");
+      async.complete();
+    }));
+  }
+
+  @Test
+  public void testHealthProbeWithGzip(TestContext should) {
+    Async async = should.async();
+
+    Future<String> future = executeHealthProbe("-gzip");
+
+    future.onComplete(should.asyncAssertSuccess(output -> {
+      should.assertTrue(output.contains("status: SERVING"),
+        "Output should indicate SERVING status with gzip compression");
+      async.complete();
+    }));
+  }
+
+  private Future<String> executeHealthProbe(String... args) {
+    List<String> command = new ArrayList<>();
+    command.add("-addr=" + HOST_INTERNAL + ":" + port);
+    command.add("-v");  // verbose output
+    command.add("-connect-timeout=10s");
+    command.add("-rpc-timeout=10s");
+
+    Collections.addAll(command, args);
+
+    return executeInContainer(probeImage, command);
+  }
+}

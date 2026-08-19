@@ -20,11 +20,11 @@ import io.vertx.grpc.reflection.ReflectionService;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerResponse;
-import io.vertx.tests.common.grpc.TestConstants;
-import io.vertx.tests.server.ServerTestBase;
-import io.vertx.tests.common.grpc.Reply;
-import io.vertx.tests.common.grpc.Request;
-import io.vertx.tests.common.grpc.Tests;
+import io.vertx.grpc.common.tests.TestConstants;
+import io.vertx.grpc.server.tests.ServerTestBase;
+import io.vertx.grpc.common.tests.Reply;
+import io.vertx.grpc.common.tests.Request;
+import io.vertx.grpc.common.tests.Tests;
 import io.vertx.tests.reflection.grpc.*;
 import org.junit.Test;
 

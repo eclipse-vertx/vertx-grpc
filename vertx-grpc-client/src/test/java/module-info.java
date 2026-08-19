@@ -1,4 +1,4 @@
-open module io.vertx.tests.client {
+open module io.vertx.grpc.client.tests {
   requires io.grpc;
   requires io.grpc.stub;
   requires io.grpc.util;
@@ -7,7 +7,7 @@ open module io.vertx.tests.client {
   requires io.vertx.grpc.client;
   requires io.vertx.grpc.common;
   requires io.vertx.testing.unit;
-  requires io.vertx.tests.common;
+  requires io.vertx.grpc.common.tests;
   requires junit;
   requires com.google.protobuf;
   requires com.google.common;

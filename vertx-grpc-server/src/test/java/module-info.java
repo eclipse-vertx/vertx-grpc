@@ -1,4 +1,4 @@
-open module io.vertx.tests.server {
+open module io.vertx.grpc.server.tests {
   requires com.google.common;
   requires com.google.protobuf;
   requires com.google.protobuf.util;
@@ -10,9 +10,9 @@ open module io.vertx.tests.server {
   requires io.vertx.grpc.common;
   requires io.vertx.grpc.server;
   requires io.vertx.testing.unit;
-  requires io.vertx.tests.common;
+  requires io.vertx.grpc.common.tests;
   requires junit;
   requires testcontainers;
   exports io.vertx.tests.server.grpc.web;
-  exports io.vertx.tests.server;
+  exports io.vertx.grpc.server.tests;
 }
