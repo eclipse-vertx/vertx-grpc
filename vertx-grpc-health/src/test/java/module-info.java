@@ -1,4 +1,4 @@
-open module io.vertx.tests.health {
+open module io.vertx.grpc.health.tests {
   requires com.google.common;
   requires com.google.protobuf;
   requires com.google.protobuf.util;
@@ -10,11 +10,11 @@ open module io.vertx.tests.health {
   requires io.vertx.grpc.server;
   requires io.vertx.grpc.health;
   requires io.vertx.testing.unit;
-  requires io.vertx.tests.common;
-  requires io.vertx.tests.server;
+  requires io.vertx.grpc.common.tests;
+  requires io.vertx.grpc.server.tests;
   requires junit;
   requires testcontainers;
   requires io.vertx.core;
   requires io.vertx.codegen.api;
-  exports io.vertx.tests.health.grpc;
+  exports io.vertx.grpc.health.tests;
 }

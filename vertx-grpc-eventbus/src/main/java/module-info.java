@@ -11,7 +11,7 @@ module io.vertx.grpc.eventbus {
   requires static io.vertx.codegen.json;
 
   exports io.vertx.grpc.eventbus;
-  exports io.vertx.grpc.eventbus.impl to io.vertx.tests.eventbus;
+  exports io.vertx.grpc.eventbus.impl to io.vertx.grpc.eventbus.tests;
 
   opens io.vertx.grpc.eventbus.transport.v1alpha to com.google.protobuf;
 }

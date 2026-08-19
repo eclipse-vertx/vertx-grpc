@@ -23,7 +23,7 @@ option csharp_namespace = "Grpc.Health.V1";
 option go_package = "google.golang.org/grpc/health/grpc_health_v1";
 option java_multiple_files = true;
 option java_outer_classname = "HealthProto";
-option java_package = "io.vertx.tests.health.grpc";
+option java_package = "io.vertx.grpc.health.tests";
 
 message HealthCheckRequest {
   string service = 1;

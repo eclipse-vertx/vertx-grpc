@@ -1,4 +1,4 @@
-open module io.vertx.tests.transcoding {
+open module io.vertx.grpc.transcoding.tests {
   requires io.vertx.testing.unit;
   requires junit;
   requires io.grpc;
@@ -9,10 +9,10 @@ open module io.vertx.tests.transcoding {
   requires io.vertx.grpc.transcoding;
   requires io.vertx.grpc.common;
   requires io.vertx.grpc.server;
-  requires io.vertx.tests.common;
-  requires io.vertx.tests.server;
+  requires io.vertx.grpc.common.tests;
+  requires io.vertx.grpc.server.tests;
   requires com.google.protobuf;
   requires com.google.protobuf.util;
   requires jmh.core;
-  exports io.vertx.tests.transcoding;
+  exports io.vertx.grpc.transcoding.tests;
 }
