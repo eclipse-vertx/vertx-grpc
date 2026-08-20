@@ -15,8 +15,6 @@ import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
 abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
-  static final Object END_MARKER = new Object();
-
   protected final EventBusGrpcEndpoint.StreamRegistration registration;
   protected final ContextInternal consumerContext;
   protected final ContextInternal producerContext;
@@ -100,10 +98,6 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     emitInbound(frame);
   }
 
-  protected final void emitEndInbound() {
-    emitInbound(END_MARKER);
-  }
-
   protected final void emitExceptionInbound(Throwable t) {
     emitInbound(t);
   }
@@ -112,18 +106,9 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     dispatchInbound(frame);
   }
 
-  protected void dispatchEndInbound() {
-    dispatchInbound(END_MARKER);
-  }
-
   private void dispatchInbound(Object event) {
     assert consumerContext.inThread();
-    if (event == END_MARKER) {
-      Handler<Void> handler = endHandler;
-      if (handler != null) {
-        handler.handle(null);
-      }
-    } else if (event instanceof Throwable) {
+    if (event instanceof Throwable) {
       Handler<Throwable> handler = exceptionHandler;
       if (handler != null) {
         handler.handle((Throwable) event);
@@ -134,10 +119,31 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
       if (handler != null) {
         handler.handle(frame);
       }
+      if (frame.type() == GrpcFrameType.HALF_CLOSE) {
+        Handler<Void> endHandler = this.endHandler;
+        if (endHandler != null) {
+          endHandler.handle(null);
+        }
+      }
     }
   }
 
-  protected MessageWrite messageWrite(GrpcMessage message) {
+  protected MessageWrite messageWrite(GrpcFrame frame) {
+    switch (frame.type()) {
+      case MESSAGE:
+        return messageWrite(((GrpcMessageFrame)frame).message());
+      case HALF_CLOSE:
+        if (frame instanceof GrpcTrailersFrame) {
+          return trailersWrite((GrpcTrailersFrame) frame);
+        } else {
+          return halfCloseWrite();
+        }
+      default:
+        throw new IllegalArgumentException();
+    }
+  }
+
+  private MessageWrite messageWrite(GrpcMessage message) {
     Promise<Void> completion = consumerContext.promise();
 
     Message.Builder messageBuilder;
@@ -158,7 +164,7 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     return new MessageWrite(completion, builder, null);
   }
 
-  final MessageWrite trailersWrite(GrpcTrailersFrame frame) {
+  private MessageWrite trailersWrite(GrpcTrailersFrame frame) {
     Promise<Void> completion = consumerContext.promise();
     DeliveryOptions deliveryOptions = new DeliveryOptions();
     MultiMap headers = frame.trailers();
@@ -177,17 +183,21 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
     return new MessageWrite(completion, builder, deliveryOptions);
   }
 
-  protected MessageWrite halfCloseWrite() {
+  private MessageWrite halfCloseWrite() {
     return new MessageWrite(
       consumerContext.promise(),
       TransportFrame.newBuilder().setHalfClose(HalfClose.newBuilder()),
       null);
   }
 
-  protected Future<Void> enqueue(MessageWrite write) {
+  private Future<Void> enqueue(MessageWrite write) {
     write.frame.setStreamId(sequence++);
     outboundQueue.write(write);
     return write.completion.future();
+  }
+
+  final Future<Void> enqueue(GrpcFrame frame) {
+    return enqueue(messageWrite(frame));
   }
 
   private Throwable cause;
@@ -316,6 +326,19 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
       } else {
         context.execute(delta, this::updateWindow);
       }
+    }
+  }
+
+  private class MessageWrite {
+
+    final Promise<Void> completion;
+    final TransportFrame.Builder frame;
+    final DeliveryOptions deliveryOptions;
+
+    public MessageWrite(Promise<Void> completion, TransportFrame.Builder frame, DeliveryOptions deliveryOptions) {
+      this.completion = completion;
+      this.frame = frame;
+      this.deliveryOptions = deliveryOptions;
     }
   }
 }

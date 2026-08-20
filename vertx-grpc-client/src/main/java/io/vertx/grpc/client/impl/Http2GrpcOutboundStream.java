@@ -15,11 +15,7 @@ import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.common.impl.DefaultGrpcMessage;
-import io.vertx.grpc.common.impl.GrpcFrame;
-import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcStream;
-import io.vertx.grpc.common.impl.GrpcMessageFrame;
+import io.vertx.grpc.common.impl.*;
 
 import java.time.Duration;
 import java.util.Map;
@@ -33,6 +29,7 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
   protected final HttpClientRequest httpRequest;
   protected final ServiceName serviceName;
   protected final String methodName;
+  private Future<Void> halfCloseSent;
 
   public Http2GrpcOutboundStream(ContextInternal context,
                                  HttpClientRequest httpRequest,
@@ -46,30 +43,49 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
 
   @Override
   public Future<Void> end(GrpcFrame frame) {
-    return write(frame, true);
+    if (frame.type() == GrpcFrameType.HALF_CLOSE) {
+      return doWrite(frame);
+    } else {
+      return context.failedFuture("Stream must be ended with an half-close frame");
+    }
   }
 
   @Override
   public Future<Void> write(GrpcFrame frame) {
-    return write(frame, false);
+    return doWrite(frame);
   }
 
   @Override
   public Future<Void> end() {
-    return httpRequest.end();
+    Future<Void> ret = halfCloseSent;
+    if (ret == null) {
+      return context.failedFuture("Stream must be ended with an half-close frame prior ending it");
+    }
+    return ret;
   }
 
-  protected Future<Void> write(GrpcFrame frame, boolean end) {
+  protected Future<Void> doWrite(GrpcFrame frame) {
     switch (frame.type()) {
       case HEADERS:
-        return handleHeadersFrame((GrpcHeadersFrame) frame, end);
+        if (halfCloseSent != null) {
+          return context.failedFuture("Trailers message sent");
+        }
+        return handleHeadersFrame((GrpcHeadersFrame) frame);
       case MESSAGE:
-        return handleMessageFrame((GrpcMessageFrame) frame, end);
+        if (halfCloseSent != null) {
+          return context.failedFuture("Trailers message sent");
+        }
+        return handleMessageFrame((GrpcMessageFrame) frame);
+      case HALF_CLOSE:
+        if (halfCloseSent != null) {
+          return context.failedFuture("Trailers message sent");
+        }
+        return halfCloseSent = httpRequest.end();
       case CANCEL:
-        return handleCancelFrame((GrpcCancelFrame) frame, end);
+        return handleCancelFrame((GrpcCancelFrame) frame);
       case OTHER:
         if (frame instanceof SetIdleTimeoutFrame) {
-          return handleSetIdleTimeout((SetIdleTimeoutFrame) frame, end);
+          return handleSetIdleTimeout((SetIdleTimeoutFrame) frame);
         }
         // Fall through
       default:
@@ -77,7 +93,7 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
     }
   }
 
-  private Future<Void> handleHeadersFrame(GrpcHeadersFrame frame, boolean end) {
+  private Future<Void> handleHeadersFrame(GrpcHeadersFrame frame) {
     MultiMap headers = frame.headers();
 
     if (headers != null && !headers.isEmpty()) {
@@ -108,14 +124,10 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
     httpRequest.setChunked(true);
     httpRequest.setURI(uri);
 
-    if (end) {
-      return httpRequest.end();
-    } else {
-      return httpRequest.writeHead();
-    }
+    return httpRequest.writeHead();
   }
 
-  private Future<Void> handleMessageFrame(GrpcMessageFrame frame, boolean end) {
+  private Future<Void> handleMessageFrame(GrpcMessageFrame frame) {
     Buffer payload;
     try {
       GrpcMessage message = frame.message();
@@ -123,18 +135,14 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
     } catch (CodecException e) {
       return context.failedFuture(e);
     }
-    if (end) {
-      return httpRequest.end(payload);
-    } else {
-      return httpRequest.write(payload);
-    }
+    return httpRequest.write(payload);
   }
 
-  private Future<Void> handleCancelFrame(GrpcCancelFrame frame, boolean end) {
+  private Future<Void> handleCancelFrame(GrpcCancelFrame frame) {
     return httpRequest.reset(GrpcError.CANCELLED.http2ResetCode);
   }
 
-  private Future<Void> handleSetIdleTimeout(SetIdleTimeoutFrame frame, boolean end) {
+  private Future<Void> handleSetIdleTimeout(SetIdleTimeoutFrame frame) {
     httpRequest.idleTimeout(frame.timeout().toMillis());
     return context.succeededFuture();
   }

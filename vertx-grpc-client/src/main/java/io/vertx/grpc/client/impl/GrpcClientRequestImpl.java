@@ -27,15 +27,7 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.DefaultGrpcCancelFrame;
-import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
-import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
-import io.vertx.grpc.common.impl.GrpcFrame;
-import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcStream;
-import io.vertx.grpc.common.impl.GrpcMessageFrame;
-import io.vertx.grpc.common.impl.GrpcTrailersFrame;
-import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
+import io.vertx.grpc.common.impl.*;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -155,10 +147,10 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       throw new IllegalStateException();
     }
     headWritten = true;
-    return sendHeaders(format(), encoding(), headers(), false);
+    return sendHeaders(format(), encoding(), headers());
   }
 
-  private Future<Void> sendHeaders(WireFormat format, String encoding, MultiMap headers, boolean end) {
+  private Future<Void> sendHeaders(WireFormat format, String encoding, MultiMap headers) {
 
     ServiceName serviceName = this.serviceName;
     String methodName = this.methodName;
@@ -186,13 +178,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     }
 
     GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(format, encoding, headers, to);
-
-    Future<Void> result;
-    if (end) {
-      result = stream.end(frame);
-    } else {
-      result = stream.write(frame);
-    }
+    Future<Void> result = stream.write(frame);
 
     // If we have been observed full while waiting for the stream, we should signal it
     if (drainHandler != null) {
@@ -210,18 +196,9 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
         wireFormat = WireFormat.PROTOBUF;
         format(WireFormat.PROTOBUF);
       }
-      return sendHeaders(wireFormat, encoding(), null, true);
-    } else {
-      return stream.end();
+      sendHeaders(wireFormat, encoding(), null);
     }
-  }
-
-  @Override
-  protected Future<Void> sendEnd(GrpcMessage message) {
-    if (!headWritten) {
-      sendHead();
-    }
-    return stream.end(new DefaultGrpcMessageFrame(message));
+    return stream.end(DefaultGrpcHalfCloseFrame.INSTANCE);
   }
 
   @Override
@@ -309,7 +286,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       case MESSAGE:
         handleMessageFrame((GrpcMessageFrame) frame);
         break;
-      case TRAILERS:
+      case HALF_CLOSE:
         handleTrailersFrame((GrpcTrailersFrame) frame);
         break;
       case CANCEL:

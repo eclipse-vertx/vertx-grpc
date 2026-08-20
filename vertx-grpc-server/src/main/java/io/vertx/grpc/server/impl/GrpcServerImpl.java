@@ -228,7 +228,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       options.getScheduleDeadlineAutomatically());
     outboundInvoker.handler(dispatcher);
     outboundInvoker.exceptionHandler(dispatcher::handleException);
-    outboundInvoker.endHandler(v -> dispatcher.handleEnd());
+    outboundInvoker.endHandler(dispatcher::handleEnd);
 
     outboundInvoker.init(httpRequest, options.getMaxMessageSize());
 

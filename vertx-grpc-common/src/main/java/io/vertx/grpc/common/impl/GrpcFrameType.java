@@ -4,7 +4,7 @@ public enum GrpcFrameType {
 
   HEADERS,
   MESSAGE,
-  TRAILERS,
+  HALF_CLOSE,
   CANCEL,
   OTHER
 

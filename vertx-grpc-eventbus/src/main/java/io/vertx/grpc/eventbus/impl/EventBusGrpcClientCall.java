@@ -35,7 +35,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
   private MultiMap requestHeaders;
   private Duration timeout;
 
-  private boolean ended;
+  private Future<Void> halfCloseWritten;
   private State state;
 
   private final Outbound outbound;
@@ -57,15 +57,18 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
 
   private interface Outbound {
     Future<Void> write(GrpcFrame frame);
-    Future<Void> end();
   }
 
   private class UnaryOutbound implements Outbound {
 
     private GrpcMessage message;
+    private Promise<Void> halfClosePromise;
 
     @Override
     public Future<Void> write(GrpcFrame frame) {
+      if (halfCloseWritten != null) {
+        return consumerContext.failedFuture("Stream closed");
+      }
       switch (frame.type()) {
         case HEADERS:
           GrpcHeadersFrame headersFrame = (GrpcHeadersFrame) frame;
@@ -79,25 +82,27 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
           timeout = headersFrame.timeout();
           return consumerContext.succeededFuture();
         case MESSAGE:
+          if (message != null) {
+            return consumerContext.failedFuture("A message frame has already been written");
+          }
           message = ((GrpcMessageFrame) frame).message();
+          halfClosePromise = consumerContext.promise();
           return consumerContext.succeededFuture();
+        case HALF_CLOSE:
+          GrpcMessage msg = message;
+          if (msg == null) {
+            return consumerContext.failedFuture("A message frame must have been sent prior closing the stream");
+          }
+          send(msg, halfClosePromise);
+          Future<Void> fut = halfClosePromise.future();
+          halfCloseWritten = fut;
+          return fut;
         default:
           return consumerContext.failedFuture("Frame not handled");
       }
     }
 
-    @Override
-    public Future<Void> end() {
-      GrpcMessage msg = message;
-      if (msg == null) {
-        return consumerContext.failedFuture("No message to send");
-      }
-      ended = true;
-      message = null;
-      return send(msg);
-    }
-
-    private Future<Void> send(GrpcMessage message) {
+    private void send(GrpcMessage message, Promise<Void> promise) {
 
       DeliveryOptions options = new DeliveryOptions()
         .addHeader(EventBusHeaders.ACTION, methodName)
@@ -120,8 +125,6 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
       Buffer payload = message != null ? message.payload() : Buffer.buffer();
       Object body = EventBusGrpcCodec.encodeBody(payload, wireFormat);
 
-      Promise<Void> promise = consumerContext.promise();
-
       endpoint.request(consumerContext, serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
         if (ar.succeeded()) {
           Throwable malformed = inbound._handleReply(ar.result(), encoding, wireFormat);
@@ -136,8 +139,6 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
           promise.fail(err);
         }
       });
-
-      return promise.future();
     }
   }
 
@@ -157,19 +158,13 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
           timeout = headersFrame.timeout();
           return open();
         case MESSAGE:
-          return onMessageWrite(((GrpcMessageFrame) frame).message());
+          return onMessageWrite(frame);
+        case HALF_CLOSE:
+          Future<Void> res = onMessageWrite(frame);
+          halfCloseWritten = res;
+          return halfCloseWritten;
         default:
           return consumerContext.failedFuture("Invalid message: " + frame.type());
-      }
-    }
-
-    @Override
-    public Future<Void> end() {
-      if (state == State.STREAMING) {
-        return sendHalfClose();
-      } else {
-        // Should be an error
-        return consumerContext.succeededFuture();
       }
     }
 
@@ -203,26 +198,17 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
         if (ar.failed()) {
           handleFailure(ar.cause(), encoding, wireFormat);
           promise.fail(ar.cause());
-          return;
-        }
-
-        Throwable malformed = inbound._handleReply(ar.result(), encoding, wireFormat);
-        if (malformed == null) {
-
-          if (ended) {
-            sendHalfClose(); // Should use return future ?
-          }
-
         } else {
-          handleFailure(malformed, encoding, wireFormat);
+          Throwable malformed = inbound._handleReply(ar.result(), encoding, wireFormat);
+          if (malformed == null) {
+            //
+          } else {
+            handleFailure(malformed, encoding, wireFormat);
+          }
+          promise.complete();
         }
-        promise.complete();
       });
       return promise.future();
-    }
-
-    private Future<Void> sendHalfClose() {
-      return enqueue(halfCloseWrite());
     }
   }
 
@@ -308,7 +294,6 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
         dispatchFrameInbound(new DefaultGrpcHeadersFrame(wireFormat, encoding, headers));
         dispatchFrameInbound(new DefaultGrpcMessageFrame(GrpcMessage.message(encoding, wireFormat, payload)));
         dispatchFrameInbound(new DefaultGrpcTrailersFrame(GrpcStatus.OK, null, trailers));
-        dispatchEndInbound();
       }
 
       return err;
@@ -324,13 +309,12 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
     }
   }
 
-  private Future<Void> onMessageWrite(GrpcMessage message) {
+  private Future<Void> onMessageWrite(GrpcFrame frame) {
     State s = state;
     switch (s) {
       case OPENING:
-        return enqueue(messageWrite(message));
       case STREAMING:
-        return enqueue(messageWrite(message));
+        return enqueue(frame);
       default:
         return consumerContext.failedFuture(new IllegalStateException("Stream closed"));
     }
@@ -343,8 +327,12 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
 
   @Override
   public Future<Void> end() {
-    ended = true;
-    return outbound.end();
+    // Todo : check double end
+    Future<Void> ret = halfCloseWritten;
+    if (ret == null) {
+      return consumerContext.failedFuture("An half-close frame must be sent prior closing the stream");
+    }
+    return ret;
   }
 
   private InvalidStatusException handleFailure(Throwable cause, String encoding, WireFormat wireFormat) {
@@ -352,7 +340,6 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
     emitFrameInbound(new DefaultGrpcHeadersFrame(wireFormat, encoding, MultiMap.caseInsensitiveMultiMap()));
     emitFrameInbound(new DefaultGrpcTrailersFrame(status, cause.getMessage(), MultiMap.caseInsensitiveMultiMap()));
     terminate();
-    emitEndInbound();
     return new InvalidStatusException(GrpcStatus.OK, status);
   }
 
@@ -374,12 +361,10 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
         GrpcStatus status = Optional.ofNullable(GrpcStatus.valueOf(t.getStatus())).orElse(GrpcStatus.UNKNOWN);
         emitFrameInbound(new DefaultGrpcTrailersFrame(status, t.getStatusMessage().isEmpty() ? null : t.getStatusMessage(), trailers));
         terminate();
-        emitEndInbound();
         break;
       case CANCEL:
         emitExceptionInbound(new CancellationException(frame.getCancel().getReason()));
         terminate();
-        emitEndInbound();
         break;
       default:
         break;
@@ -402,7 +387,6 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
       }
       terminate();
       emitExceptionInbound(new CancellationException("Client closed"));
-      emitEndInbound();
     }
     completion.succeed();
   }
@@ -428,7 +412,6 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
 
     failPending(cause);
     emitExceptionInbound(cause);
-    emitEndInbound();
   }
 
   private void failPending(Throwable cause) {

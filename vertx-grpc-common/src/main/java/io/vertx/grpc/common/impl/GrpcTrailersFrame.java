@@ -4,15 +4,15 @@ import io.vertx.core.MultiMap;
 import io.vertx.grpc.common.GrpcStatus;
 
 /**
- * Signals the trailers, this frame is server to client.
+ * Signals the response trailers, this frame is server to client.
  *
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public interface GrpcTrailersFrame extends GrpcFrame {
+public interface GrpcTrailersFrame extends GrpcHalfCloseFrame {
 
   @Override
   default GrpcFrameType type() {
-    return GrpcFrameType.TRAILERS;
+    return GrpcFrameType.HALF_CLOSE;
   }
 
   /**

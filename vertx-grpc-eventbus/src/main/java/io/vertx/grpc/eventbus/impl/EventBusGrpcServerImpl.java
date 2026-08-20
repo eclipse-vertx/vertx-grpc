@@ -353,6 +353,7 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
       stream.handler(dispatcher);
       stream.exceptionHandler(dispatcher::handleException);
+      stream.endHandler(dispatcher::handleEnd);
 
       stream.init(address(), message);
     }

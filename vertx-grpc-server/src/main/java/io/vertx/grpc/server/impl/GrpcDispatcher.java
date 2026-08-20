@@ -66,6 +66,9 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
       case CANCEL:
         handleCancel((GrpcCancelFrame) frame);
         break;
+      case HALF_CLOSE:
+        handleHalfClose();
+        break;
       default:
         // Log
         break;
@@ -88,7 +91,6 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
         return httpConnection;
       }
     };
-    stream.endHandler(v -> grpcRequest.handleEnd());
     grpcResponse = new GrpcServerResponseImpl<>(
       context,
       grpcRequest,
@@ -140,15 +142,18 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
     }
   }
 
+  private void handleHalfClose() {
+    if (grpcRequest != null) {
+      grpcRequest.handleEnd();
+    }
+  }
+
   public void handleException(Throwable exception) {
     if (grpcRequest != null) {
       grpcRequest.handleException(exception);
     }
   }
 
-  public void handleEnd() {
-    if (grpcRequest != null) {
-      grpcRequest.handleEnd();
-    }
+  public void handleEnd(Void v) {
   }
 }
