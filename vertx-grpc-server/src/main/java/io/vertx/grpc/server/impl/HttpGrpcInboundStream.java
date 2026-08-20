@@ -5,20 +5,13 @@ import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.impl.DefaultGrpcCancelFrame;
+import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.common.GrpcCancelFrame;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMediaType;
 import io.vertx.grpc.common.WireFormat;
-import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
-import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
-import io.vertx.grpc.common.impl.GrpcDeframingStream;
-import io.vertx.grpc.common.impl.GrpcFrame;
-import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcInboundStream;
-import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
 
 import java.time.Duration;
@@ -107,9 +100,13 @@ public class HttpGrpcInboundStream implements GrpcInboundStream {
     stream.exceptionHandler(this::handleException);
 
     stream.endHandler(v -> {
-      Handler<Void> handler = endHandler;
-      if (handler != null) {
-        handler.handle(null);
+      Handler<GrpcFrame> frameHandler = this.frameHandler;
+      Handler<Void> endHandler = this.endHandler;
+      if (frameHandler != null) {
+        frameHandler.handle(DefaultGrpcHalfCloseFrame.INSTANCE);
+      }
+      if (endHandler != null) {
+        endHandler.handle(null);
       }
     });
 

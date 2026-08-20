@@ -52,7 +52,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
       Buffer payload = EventBusGrpcCodec.decodeBody(message.body());
       emitFrameInbound(new DefaultGrpcHeadersFrame(wireFormat, "identity", headers));
       emitFrameInbound(new DefaultGrpcMessageFrame(GrpcMessage.message("identity", wireFormat, payload)));
-      emitEndInbound();
+      emitFrameInbound(DefaultGrpcHalfCloseFrame.INSTANCE);
     }
   }
 
@@ -91,7 +91,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
         case MESSAGE:
           encodedMessage = ((GrpcMessageFrame) frame).message();
           return consumerContext.succeededFuture();
-        case TRAILERS:
+        case HALF_CLOSE:
           assert !replied;
           replied = true;
           GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
@@ -148,11 +148,9 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
           MultiMap responseHeaders = ((GrpcHeadersFrame) frame).headers();
           written = sendResponseHeaders(responseHeaders);
           break;
+        case HALF_CLOSE:
         case MESSAGE:
-          written = enqueue(messageWrite(((GrpcMessageFrame) frame).message()));
-          break;
-        case TRAILERS:
-          written = enqueue(trailersWrite((GrpcTrailersFrame) frame));
+          written = enqueue(frame);
           break;
         default:
           return consumerContext.failedFuture("Invalid message: " + frame.type());
@@ -177,7 +175,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
         emitFrameInbound(new DefaultGrpcMessageFrame(EventBusGrpcCodec.message(frame, encoding, wireFormat)));
         break;
       case HALF_CLOSE:
-        emitEndInbound();
+        emitFrameInbound(DefaultGrpcHalfCloseFrame.INSTANCE);
         break;
       case CANCEL:
         if (closed) {

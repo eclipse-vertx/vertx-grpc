@@ -165,12 +165,6 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   }
 
   @Override
-  protected Future<Void> sendEnd(GrpcMessage message) {
-    sendMessage(message);
-    return sendEnd();
-  }
-
-  @Override
   protected Future<Void> sendMessage(GrpcMessage message) {
     if (!headWritten) {
       sendHead();

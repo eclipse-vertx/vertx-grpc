@@ -28,8 +28,9 @@ import java.util.Map;
 
 public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream implements GrpcStream {
 
-  private boolean headersSent;
   private final HttpServerResponse httpResponse;
+  private boolean headersSent;
+  private Future<Void> trailersSent;
   protected GrpcStatus status;
 
   public HttpGrpcOutboundStream(HttpServerRequest httpRequest, GrpcProtocol protocol, GrpcMessageDeframer deframer) {
@@ -45,7 +46,10 @@ public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream imple
 
   @Override
   public Future<Void> end() {
-    return context.succeededFuture();
+    if (trailersSent == null) {
+      return context.failedFuture("Trailers message must have been sent previously");
+    }
+    return trailersSent;
   }
 
   @Override
@@ -55,13 +59,16 @@ public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream imple
 
   @Override
   public Future<Void> write(GrpcFrame frame) {
+    if (trailersSent != null) {
+      return context.failedFuture("Trailers message sent");
+    }
     switch (frame.type()) {
       case HEADERS:
         return writeHeaders((GrpcHeadersFrame) frame);
       case MESSAGE:
         return writeMessage((GrpcMessageFrame) frame);
-      case TRAILERS:
-        return writeTrailers((GrpcTrailersFrame) frame);
+      case HALF_CLOSE:
+        return trailersSent = writeTrailers((GrpcTrailersFrame) frame);
       default:
         return context.failedFuture("Invalid message: " + frame.type());
     }

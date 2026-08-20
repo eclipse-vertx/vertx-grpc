@@ -64,12 +64,12 @@ public class Http2GrpcInboundStream extends Http2GrpcOutboundStream {
   }
 
   @Override
-  protected Future<Void> write(GrpcFrame frame, boolean end) {
+  protected Future<Void> doWrite(GrpcFrame frame) {
     if (!initialized) {
       initialized = true;
       init();
     }
-    return super.write(frame, end);
+    return super.doWrite(frame);
   }
 
   private void handleStreamException(Throwable failure) {

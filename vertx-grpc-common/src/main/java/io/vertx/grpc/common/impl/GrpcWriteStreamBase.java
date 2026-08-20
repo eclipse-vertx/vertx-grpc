@@ -154,9 +154,13 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
   protected abstract Future<Void> sendHead();
   protected abstract Future<Void> sendMessage(GrpcMessage message);
-  protected abstract Future<Void> sendEnd(GrpcMessage message);
   protected abstract Future<Void> sendEnd();
   protected abstract boolean sendCancel();
+
+  protected Future<Void> sendEnd(GrpcMessage message) {
+    sendMessage(message);
+    return sendEnd();
+  }
 
   private Future<Void> sendHead(boolean writeHeaders) {
     if (!writeHeaders) {
