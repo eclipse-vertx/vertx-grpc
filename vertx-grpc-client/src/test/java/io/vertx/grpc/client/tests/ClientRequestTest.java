@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.vertx.grpc.common.GrpcError.CANCELLED;
 import static org.junit.Assert.assertFalse;
 
 /**
@@ -663,7 +664,7 @@ public class ClientRequestTest extends ClientTest {
         callRequest.response().onComplete(should.asyncAssertFailure(err -> {
           should.assertEquals(GrpcErrorException.class, err.getClass());
           GrpcErrorException gee = (GrpcErrorException) err;
-          should.assertEquals(GrpcError.CANCELLED, gee.error());
+          should.assertEquals(CANCELLED, gee.error());
           done.complete();
         }));
       }));
@@ -931,5 +932,23 @@ public class ClientRequestTest extends ClientTest {
 
     request.end(Request.newBuilder().setName("Julien").build()).await();
     requestReceived.future().await();
+  }
+
+  @Override
+  public void testServerCancellationReset(TestContext should) {
+    super.testServerCancellationReset(should);
+    Async test = should.async();
+    client = GrpcClient.client(vertx);
+    client.request(SocketAddress.inetSocketAddress(port, "localhost"), SINK)
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.exceptionHandler(err -> {
+          if (err instanceof GrpcErrorException && ((GrpcErrorException)err).error() == CANCELLED) {
+            callRequest.exceptionHandler(null);
+            should.assertTrue(callRequest.isCancelled());
+            test.complete();
+          }
+        });
+        callRequest.write(Request.newBuilder().setName("Julien").build());
+      }));
   }
 }

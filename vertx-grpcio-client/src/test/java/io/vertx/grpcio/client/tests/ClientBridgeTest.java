@@ -664,4 +664,31 @@ public class ClientBridgeTest extends ClientTest {
       Assert.assertEquals(Status.UNAUTHENTICATED, expected.getStatus());
     }
   }
+
+  @Override
+  public void testServerCancellationReset(TestContext should) {
+    super.testServerCancellationReset(should);
+    Async test = should.async();
+
+    client = GrpcIoClient.client(vertx);
+    GrpcIoClientChannel channel = new GrpcIoClientChannel(client, SocketAddress.inetSocketAddress(port, "localhost"));
+
+    TestServiceGrpc.TestServiceStub stub = TestServiceGrpc.newStub(channel);
+     StreamObserver<Request> sink = stub.pipe(new StreamObserver<Reply>() {
+      @Override
+      public void onNext(Reply value) {
+      }
+      @Override
+      public void onError(Throwable t) {
+        should.assertEquals(StatusRuntimeException.class, t.getClass());
+        StatusRuntimeException sre = (StatusRuntimeException)t;
+        should.assertEquals(Status.Code.CANCELLED, sre.getStatus().getCode());
+        test.complete();
+      }
+      @Override
+      public void onCompleted() {
+      }
+    });
+    sink.onNext(Request.newBuilder().setName("item").build());
+  }
 }

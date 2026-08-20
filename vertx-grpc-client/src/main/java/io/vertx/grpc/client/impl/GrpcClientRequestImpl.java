@@ -334,7 +334,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   private void handleCancelFrame(GrpcCancelFrame frame) {
-    cancel();
+    handleCancel();
   }
 
   private void handleEnd(Void v) {
