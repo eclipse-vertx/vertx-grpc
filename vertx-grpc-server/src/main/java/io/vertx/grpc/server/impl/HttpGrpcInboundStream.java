@@ -74,17 +74,17 @@ public class HttpGrpcInboundStream implements GrpcInboundStream {
   }
 
   void handleException(Throwable err) {
+    if (err instanceof StreamResetException) {
+      StreamResetException reset = (StreamResetException) err;
+      GrpcErrorException grpcError = GrpcErrorException.create(reset);
+      if (grpcError.error() == GrpcError.CANCELLED) {
+        GrpcCancelFrame frame = DefaultGrpcCancelFrame.INSTANCE;
+        emit(frame);
+      }
+      err = grpcError;
+    }
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {
-      if (err instanceof StreamResetException) {
-        StreamResetException reset = (StreamResetException) err;
-        GrpcErrorException grpcError = GrpcErrorException.create(reset);
-        if (grpcError.error() == GrpcError.CANCELLED) {
-          GrpcCancelFrame frame = DefaultGrpcCancelFrame.INSTANCE;
-          emit(frame);
-        }
-        err = grpcError;
-      }
       handler.handle(err);
     }
   }
