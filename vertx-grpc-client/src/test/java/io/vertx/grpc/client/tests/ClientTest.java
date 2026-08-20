@@ -462,4 +462,16 @@ public abstract class ClientTest extends ClientTestBase {
       .listen(port, "localhost")
       .await();
   }
+
+  @Test
+  public void testServerCancellationReset(TestContext should) {
+    vertx.createHttpServer().requestHandler(req -> {
+        req.handler(msg -> {
+          // Cancel via reset
+          req.response().reset(0x08);
+        });
+      })
+      .listen(8080, "localhost")
+      .await();
+  }
 }
