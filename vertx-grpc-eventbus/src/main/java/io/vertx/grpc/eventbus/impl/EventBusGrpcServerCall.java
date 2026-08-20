@@ -222,22 +222,6 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
     return sendTransportFrame(TransportFrame.newBuilder().setHeaders(Headers.newBuilder()), options);
   }
 
-  private Future<Void> sendTrailers(GrpcTrailersFrame frame) {
-    Trailers.Builder trailers = Trailers.newBuilder().setStatus(frame.status().code);
-    if (frame.statusMessage() != null) {
-      trailers.setStatusMessage(frame.statusMessage());
-    }
-    DeliveryOptions options = new DeliveryOptions();
-    MultiMap headers = frame.trailers();
-    if (headers != null && !headers.isEmpty()) {
-      MultiMap delivery = MultiMap.caseInsensitiveMultiMap();
-      EventBusHeaders.encodeMultiMap(TRAILER_PREFIX, headers, delivery);
-      options.setHeaders(delivery);
-    }
-    options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
-    return sendTransportFrame(TransportFrame.newBuilder().setTrailers(trailers), options);
-  }
-
   @Override
   public void close(Completable<Void> completion) {
     if (!closed) {
