@@ -382,9 +382,6 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
   @Override
   public void close(Completable<Void> completion) {
     if (state != State.CLOSED) {
-      if (state == State.STREAMING) {
-        sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Client closed")));
-      }
       terminate();
       emitExceptionInbound(new CancellationException("Client closed"));
     }
@@ -401,15 +398,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
     if (state == State.CLOSED) {
       return;
     }
-
-    boolean notifyRemoteEndpoint = state == State.STREAMING;
-
     terminate();
-
-    if (notifyRemoteEndpoint) {
-      sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Remote endpoint down")));
-    }
-
     failPending(cause);
     emitExceptionInbound(cause);
   }

@@ -7,8 +7,10 @@ import io.vertx.core.eventbus.*;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.VertxInternal;
 import io.vertx.core.internal.eventbus.EventBusInternal;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.JsonWireFormat;
 import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.eventbus.transport.v1alpha.Cancel;
 import io.vertx.grpc.eventbus.transport.v1alpha.Ping;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 
@@ -135,26 +137,30 @@ abstract class EventBusGrpcEndpoint {
         .addHeader(EventBusHeaders.REMOTE_ENDPOINT_ADDRESS, address);
       remoteEndpoint.producer
         .write(EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ping), pingWireFormat), options)
-        .onFailure(cause -> remoteEndpointDown(remoteEndpoint, cause));
+        .onFailure(cause -> remoteEndpointDown(remoteEndpoint, false, cause));
     }
   }
 
   private void reapSilentRemoteEndpoints(long now) {
     for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
       if (remoteEndpoint.timeout > 0 && now - remoteEndpoint.lastSeen > remoteEndpoint.timeout) {
-        remoteEndpointDown(remoteEndpoint, new TimeoutException("No ping from remote endpoint " + remoteEndpoint.address + " within " + remoteEndpoint.timeout + " ms"));
+        remoteEndpointDown(remoteEndpoint, true, new TimeoutException("No ping from remote endpoint " + remoteEndpoint.address + " within " + remoteEndpoint.timeout + " ms"));
       }
     }
   }
 
-  private void remoteEndpointDown(RemoteEndpoint remoteEndpoint, Throwable cause) {
+  private void remoteEndpointDown(RemoteEndpoint remoteEndpoint, boolean notify, Throwable cause) {
     if (!remoteEndpoints.remove(remoteEndpoint.address, remoteEndpoint)) {
       return;
     }
     remoteEndpoint.producer.close();
+    TransportFrame.Builder builder = TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Remote endpoint down"));
     for (Long id : remoteEndpoint.streams) {
       EventBusGrpcStreamBase stream = streams.get(id);
       if (stream != null) {
+        if (notify) {
+          stream.registration.sendTransportFrame(builder, stream.format(), null);
+        }
         stream.handleRemoteEndpointDown(cause);
       }
     }
@@ -210,8 +216,10 @@ abstract class EventBusGrpcEndpoint {
     remoteEndpoints.clear();
     List<EventBusGrpcStreamBase> active = new ArrayList<>(streams.values());
     streams.clear();
+    TransportFrame.Builder builder = TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Closed"));
     List<Future<Void>> futures = new ArrayList<>();
     for (EventBusGrpcStreamBase stream : active) {
+      stream.registration.sendTransportFrame(builder, stream.format(), null);
       Promise<Void> promise = Promise.promise();
       stream.close(promise);
       futures.add(promise.future());
@@ -287,7 +295,7 @@ abstract class EventBusGrpcEndpoint {
         Future<Void> res = producer.write(payload, options);
         return res.andThen(ar -> {
           if (ar.failed()) {
-            remoteEndpointDown(remoteEndpoint, ar.cause());
+            remoteEndpointDown(remoteEndpoint, false, ar.cause());
           }
         });
       }

@@ -241,7 +241,6 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
   @Override
   public void close(Completable<Void> completion) {
     if (!closed) {
-      sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.UNAVAILABLE.code).setReason("Server closed")));
       terminate();
       GrpcErrorException failure = new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED);
       failPending(failure);
@@ -261,7 +260,6 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase {
       return;
     }
     terminate();
-    sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.UNAVAILABLE.code).setReason("Remote endpoint down")));
     failPending(cause);
     emitExceptionInbound(new GrpcErrorException(GrpcError.UNAVAILABLE, GrpcStatus.UNAVAILABLE));
   }
