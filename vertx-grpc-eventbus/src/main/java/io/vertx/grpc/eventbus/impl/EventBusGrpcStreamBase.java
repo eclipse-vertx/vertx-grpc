@@ -219,19 +219,11 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   }
 
   Future<Void> sendTransportFrame(TransportFrame.Builder builder, DeliveryOptions options) {
-    Future<Void> sent = registration.sendTransportFrame(builder, format(), options);
-    if (sent != null) {
-      sent.onFailure(this::handleRemoteEndpointDown);
-    }
-    return sent;
+    return registration.sendTransportFrame(builder, format(), options);
   }
 
   Future<Void> sendTransportFrame(TransportFrame.Builder builder) {
-    Future<Void> sent = registration.sendTransportFrame(builder, format(), null);
-    if (sent != null) {
-      sent.onFailure(this::handleRemoteEndpointDown);
-    }
-    return sent;
+    return registration.sendTransportFrame(builder, format(), null);
   }
 
   public void updateOutboundWindow(int delta) {
@@ -281,7 +273,6 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
 
       Future<Void> sent = registration.sendTransportFrame(frame, format, write.deliveryOptions);
       if (sent != null) {
-        sent.onFailure(EventBusGrpcStreamBase.this::handleRemoteEndpointDown);
         sent.onComplete(write.completion);
       }
 

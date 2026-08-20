@@ -284,7 +284,12 @@ abstract class EventBusGrpcEndpoint {
         }
         options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
         MessageProducer<Object> producer = remote.producer;
-        return producer.write(payload, options);
+        Future<Void> res = producer.write(payload, options);
+        return res.andThen(ar -> {
+          if (ar.failed()) {
+            remoteEndpointDown(remoteEndpoint, ar.cause());
+          }
+        });
       }
     }
 
