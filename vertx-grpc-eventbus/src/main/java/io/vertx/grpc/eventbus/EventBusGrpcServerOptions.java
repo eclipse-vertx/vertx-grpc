@@ -15,7 +15,7 @@ import java.util.Set;
  */
 @DataObject
 @Unstable
-public class EventBusGrpcServerOptions {
+public class EventBusGrpcServerOptions extends EventBusGrpcEndpointOptions {
 
   /**
    * The default set of wire formats the server accepts = {@code [proto, json]}
@@ -128,5 +128,10 @@ public class EventBusGrpcServerOptions {
     }
     this.initialWindowSize = initialWindowSize;
     return this;
+  }
+
+  @Override
+  public EventBusGrpcServerOptions setCleanerPeriod(Duration cleanerPeriod) {
+    return (EventBusGrpcServerOptions)super.setCleanerPeriod(cleanerPeriod);
   }
 }

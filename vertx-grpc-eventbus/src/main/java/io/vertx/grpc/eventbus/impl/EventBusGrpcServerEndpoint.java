@@ -17,21 +17,23 @@ import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.impl.GrpcDispatcher;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements EventBusGrpcServer {
+public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements EventBusGrpcServer {
 
-  private final Map<String, ServiceConsumer> consumers = new HashMap<>();
   private final Set<WireFormat> supportedWireFormats;
   private final long maxPingTimeout;
-  protected final ContextInternal consumerContext;
+  private final ContextInternal consumerContext;
+  private final AtomicReference<Map<String, ServiceConsumer>> consumersRef;
 
-  private EventBusGrpcServerImpl(ContextInternal consumerContext, EventBusGrpcServerOptions options) {
-    super(Utils.eventLoopCtx(consumerContext),  "grpc.eb.server.", WireFormat.PROTOBUF, 0L,
+  private EventBusGrpcServerEndpoint(ContextInternal consumerContext, EventBusGrpcServerOptions options) {
+    super(Utils.eventLoopCtx(consumerContext),  "grpc.eb.server.", options.getCleanerPeriod().toMillis(),
       0L, options.getInitialWindowSize());
     this.consumerContext = consumerContext;
     this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
     this.maxPingTimeout = options.getMaxPingTimeout().toMillis();
+    this.consumersRef = new AtomicReference<>(new HashMap<>());
   }
 
   /**
@@ -54,7 +56,7 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
   public static Future<EventBusGrpcServer> create(Vertx vertx, EventBusGrpcServerOptions options) {
     ContextInternal consumerContext = (ContextInternal) vertx.getOrCreateContext();
-    EventBusGrpcServerImpl server = new EventBusGrpcServerImpl(consumerContext, options);
+    EventBusGrpcServerEndpoint server = new EventBusGrpcServerEndpoint(consumerContext, options);
     PromiseInternal<Void> promise = consumerContext.promise();
     server.bind(promise);
     return promise
@@ -63,10 +65,10 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
   }
 
   @Override
-  public <Req, Resp> EventBusGrpcServerImpl callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-    String serviceFqn = serviceMethod.serviceName().fullyQualifiedName();
+  public <Req, Resp> EventBusGrpcServerEndpoint callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
 
-    ServiceConsumer consumer = consumers.get(serviceFqn);
+    String serviceFqn = serviceMethod.serviceName().fullyQualifiedName();
+    ServiceConsumer consumer = consumersRef.get().get(serviceFqn);
 
     Service service;
     if (consumer == null) {
@@ -83,7 +85,7 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
       SimpleService simpleService = (SimpleService) service;
       String methodName = serviceMethod.methodName();
       if (handler != null) {
-        simpleService.handlers.put(methodName, new MethodHandler<>(serviceMethod, handler));
+        simpleService.handlers.put(methodName, new MethodHandler<>(handler));
         simpleService.methods.add(serviceMethod);
       } else {
         throw new UnsupportedOperationException("Not yet implemented");
@@ -97,23 +99,30 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
   @Override
   public EventBusGrpcServer addService(Service service) {
-    for (ServiceConsumer consumer : consumers.values()) {
-      if (consumer.service.name().equals(service.name())) {
-        throw new IllegalStateException("Duplicated name: " + service.name().name());
-      }
-    }
 
-    String serviceFqn = service.name().fullyQualifiedName();
-    Adapter adapter = new Adapter(serviceFqn, service);
-    MessageConsumer<Object> consumer = consumer(serviceFqn, adapter);
-    consumers.put(serviceFqn, new ServiceConsumer(consumer, service));
+    Map<String, ServiceConsumer> consumers;
+    Map<String, ServiceConsumer> copy;
+    do {
+      consumers = consumersRef.get();
+      for (ServiceConsumer consumer : consumers.values()) {
+        if (consumer.service.name().equals(service.name())) {
+          throw new IllegalStateException("Duplicated name: " + service.name().name());
+        }
+      }
+      String serviceFqn = service.name().fullyQualifiedName();
+      MessageConsumer<Object> consumer = consumer(serviceFqn, new Adapter(service));
+      copy = new HashMap<>(consumers);
+      copy.put(serviceFqn, new ServiceConsumer(consumer, service));
+    }
+    while (!consumersRef.compareAndSet(consumers, copy));
 
     return this;
   }
 
   @Override
   public List<Service> services() {
-    return consumers
+    return consumersRef
+      .get()
       .values()
       .stream()
       .map(sc -> sc.service)
@@ -121,37 +130,23 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
   }
 
   @Override
-  public Future<Void> close() {
-    PromiseInternal<Void> result = consumerContext.owner().promise();
-    close(result);
-    return result;
-  }
-
-  private void close(Promise<Void> result) {
-    if (consumerContext.inThread()) {
-      List<Future<Void>> futures = new ArrayList<>();
-      for (ServiceConsumer consumer : consumers.values()) {
-        futures.add(consumer.consumer.unregister());
-        futures.add(consumer.service.close());
-      }
-      consumers.clear();
-      futures.add(closeStreams());
-      Future.all(futures).<Void>mapEmpty().onComplete(result);
-    } else {
-      consumerContext.runOnContext(v -> {
-        close(result);
-      });
+  protected Future<Void> handleClose() {
+    List<Future<Void>> futures = new ArrayList<>();
+    Map<String, ServiceConsumer> consumers = consumersRef.getAndSet(Collections.emptyMap());
+    for (ServiceConsumer consumer : consumers.values()) {
+      futures.add(consumer.consumer.unregister());
+      futures.add(consumer.service.close());
     }
+    return Future
+      .join(futures)
+      .<Void>mapEmpty();
   }
 
   private class MethodHandler<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {
 
+    private final Handler<GrpcServerRequest<Req, Resp>> handler;
 
-    final ServiceMethod<Req, Resp> serviceMethod;
-    final Handler<GrpcServerRequest<Req, Resp>> handler;
-
-    MethodHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-      this.serviceMethod = serviceMethod;
+    MethodHandler(Handler<GrpcServerRequest<Req, Resp>> handler) {
       this.handler = handler;
     }
 
@@ -218,11 +213,9 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
   private class Adapter implements Handler<Message<Object>> {
 
-    private final String serviceFqn;
     private final Service service;
 
-    public Adapter(String serviceFqn, Service service) {
-      this.serviceFqn = serviceFqn;
+    public Adapter(Service service) {
       this.service = service;
     }
 
@@ -270,10 +263,41 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
     }
 
     private <Req, Resp> void dispatchStreaming(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
-      String clientAddress = message.headers().get(EventBusHeaders.CLIENT_ADDRESS);
-      if (clientAddress == null && (serviceMethod.serverStreaming() || serviceMethod.clientStreaming())) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' or '" + EventBusHeaders.STREAM_ID + "' header");
-        return;
+      boolean needClientAddress = serviceMethod.serverStreaming() || serviceMethod.clientStreaming();
+      String clientAddress = message.headers().get(EventBusHeaders.ENDPOINT_ADDRESS);
+      String s = message.headers().get(EventBusHeaders.ENDPOINT_WIRE_FORMAT);
+
+      WireFormat clientFormat;
+      if (needClientAddress) {
+        if (clientAddress == null) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ENDPOINT_ADDRESS + "' header");
+          return;
+        }
+        if (s == null) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ENDPOINT_WIRE_FORMAT + "' header");
+          return;
+        }
+        switch (s) {
+          case "json":
+            clientFormat = WireFormat.JSON;
+            break;
+          case "proto":
+            clientFormat = WireFormat.PROTOBUF;
+            break;
+          default:
+            message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.ENDPOINT_WIRE_FORMAT + "' header");
+            return;
+        }
+      } else {
+        if (clientAddress != null) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.ENDPOINT_ADDRESS + "' header");
+          return;
+        }
+        if (s != null) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.ENDPOINT_WIRE_FORMAT + "' header");
+          return;
+        }
+        clientFormat = null;
       }
 
       int initialOutboundWindowSize;
@@ -293,15 +317,11 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
         initialOutboundWindowSize = EventBusGrpcClientOptions.DEFAULT_INITIAL_WINDOW_SIZE;
       }
 
-
       String clientStreamIdHeader = message.headers().get(EventBusHeaders.STREAM_ID);
       long streamId;
       if (clientStreamIdHeader == null) {
-        if (serviceMethod.serverStreaming() || serviceMethod.clientStreaming()) {
-          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.CLIENT_ADDRESS + "' or '" + EventBusHeaders.STREAM_ID + "' header");
-          return;
-        }
-        streamId = 0L;
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ENDPOINT_ADDRESS + "' or '" + EventBusHeaders.STREAM_ID + "' header");
+        return;
       } else {
         try {
           streamId = Long.parseLong(clientStreamIdHeader);
@@ -313,20 +333,21 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
 
       long remoteTimeout = remoteTimeout(message.headers().get(EventBusHeaders.PING_TIMEOUT));
 
-      EventBusGrpcEndpoint.StreamRegistration registration = createStream(streamId);
       EventBusGrpcServerCall stream = new EventBusGrpcServerCall(
+        EventBusGrpcServerEndpoint.this,
+        streamId,
         consumerContext,
         !serviceMethod.serverStreaming(),
         !serviceMethod.clientStreaming(),
-        registration,
         wireFormat,
         "identity",
         initialWindowSize,
         initialOutboundWindowSize
       );
 
-      if (stream.registration.id() != 0) {
-        registration.bind(stream, clientAddress, remoteTimeout);
+      stream.registerStream();
+      if (clientAddress != null) {
+        stream.registerRemoteEndpoint(clientAddress, remoteTimeout, clientFormat);
       }
 
       ServiceMethodInvoker<Req, Resp> invoker;
@@ -355,7 +376,7 @@ public class EventBusGrpcServerImpl extends EventBusGrpcEndpoint implements Even
       stream.exceptionHandler(dispatcher::handleException);
       stream.endHandler(dispatcher::handleEnd);
 
-      stream.init(address(), message);
+      stream.handleConnect(message);
     }
   }
 }

@@ -41,8 +41,8 @@ final class EventBusGrpcCodec {
     throw new IllegalStateException("Unsupported event bus body type: " + body.getClass().getName());
   }
 
-  static Buffer encodeFrame(TransportFrame.Builder builder, WireFormat format) {
-    return FRAME_ENCODER.encode(builder.build(), format).payload();
+  static Buffer encodeFrame(TransportFrame frame, WireFormat format) {
+    return FRAME_ENCODER.encode(frame, format).payload();
   }
 
   static TransportFrame decodeFrame(Message<Object> message) {

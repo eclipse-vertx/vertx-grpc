@@ -9,6 +9,7 @@ module io.vertx.grpc.eventbus {
   requires static io.vertx.docgen;
   requires static io.vertx.codegen.api;
   requires static io.vertx.codegen.json;
+  requires io.netty.common;
 
   exports io.vertx.grpc.eventbus;
   exports io.vertx.grpc.eventbus.impl to io.vertx.grpc.eventbus.tests;

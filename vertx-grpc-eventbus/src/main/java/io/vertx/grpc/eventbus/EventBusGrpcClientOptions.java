@@ -11,7 +11,7 @@ import java.time.Duration;
  */
 @DataObject
 @Unstable
-public class EventBusGrpcClientOptions {
+public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
 
   /**
    * The default wire format requests use unless overridden with {@code request.format(...)} = {@link WireFormat#PROTOBUF}
@@ -144,5 +144,10 @@ public class EventBusGrpcClientOptions {
     }
     this.initialWindowSize = initialWindowSize;
     return this;
+  }
+
+  @Override
+  public EventBusGrpcClientOptions setCleanerPeriod(Duration cleanerPeriod) {
+    return (EventBusGrpcClientOptions)super.setCleanerPeriod(cleanerPeriod);
   }
 }

@@ -8,7 +8,7 @@ import io.vertx.core.eventbus.EventBus;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.ServiceInvoker;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.eventbus.impl.EventBusGrpcClientImpl;
+import io.vertx.grpc.eventbus.impl.EventBusGrpcClientEndpoint;
 
 /**
  * A gRPC client that uses the Vert.x {@link EventBus} as transport instead of HTTP/2.
@@ -33,7 +33,7 @@ public interface EventBusGrpcClient extends ServiceInvoker {
    * @return a future of the created client
    */
   static Future<EventBusGrpcClient> client(Vertx vertx) {
-    return EventBusGrpcClientImpl.create(vertx, new EventBusGrpcClientOptions());
+    return EventBusGrpcClientEndpoint.create(vertx, new EventBusGrpcClientOptions());
   }
 
   /**
@@ -45,7 +45,7 @@ public interface EventBusGrpcClient extends ServiceInvoker {
    * @return a future of the created client
    */
   static Future<EventBusGrpcClient> client(Vertx vertx, EventBusGrpcClientOptions options) {
-    return EventBusGrpcClientImpl.create(vertx, options);
+    return EventBusGrpcClientEndpoint.create(vertx, options);
   }
 
   /**

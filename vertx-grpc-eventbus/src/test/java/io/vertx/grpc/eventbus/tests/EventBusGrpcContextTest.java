@@ -76,7 +76,7 @@ public class EventBusGrpcContextTest extends EventBusGrpcTestBase {
                    ServiceMethod<Request, Reply> serverMethod,
                    ServiceMethod<Reply, Request> clientMethod) {
 
-    Async async = should.async(2);
+    Async async = should.async();
 
     int clientMessages = clientMethod.clientStreaming() ? 128 : 1;
     int serverMessages = clientMethod.serverStreaming() ? 128 : 1;
@@ -108,7 +108,6 @@ public class EventBusGrpcContextTest extends EventBusGrpcTestBase {
           should.assertEquals(clientContext, Vertx.currentContext());
           response.handler(msg -> {
             should.assertEquals(clientContext, Vertx.currentContext());
-            async.countDown();
           });
           response.endHandler(v2 -> {
             should.assertEquals(clientContext, Vertx.currentContext());
