@@ -125,7 +125,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
       Buffer payload = message != null ? message.payload() : Buffer.buffer();
       Object body = EventBusGrpcCodec.encodeBody(payload, wireFormat);
 
-      endpoint.request(consumerContext, serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
+      endpoint.request(serviceName.fullyQualifiedName(), body, options).onComplete(ar -> {
         if (ar.succeeded()) {
           Throwable malformed = inbound._handleReply(ar.result(), encoding, wireFormat);
           if (malformed == null) {
@@ -180,21 +180,18 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
       if (!remoteUnary) {
         options.addHeader(EventBusHeaders.INITIAL_WINDOW, "" + endpoint.initialWindowSize);
       }
-
       if (endpoint.pingTimeout() > 0) {
         options.addHeader(EventBusHeaders.PING_TIMEOUT, Long.toString(endpoint.pingTimeout()));
       }
-
       if (timeout != null) {
         options.setSendTimeout(timeout.toMillis());
       }
-
       if (requestHeaders != null) {
         EventBusHeaders.encodeMultiMap(HEADER_PREFIX, requestHeaders, options.getHeaders());
       }
 
       Promise<Void> promise = consumerContext.promise();
-      endpoint.request(consumerContext, serviceName.fullyQualifiedName(), null, options).onComplete(ar -> {
+      endpoint.request(serviceName.fullyQualifiedName(), null, options).onComplete(ar -> {
         if (ar.failed()) {
           handleFailure(ar.cause(), encoding, wireFormat);
           promise.fail(ar.cause());
@@ -227,7 +224,6 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
       }
 
       if (serverAddress != null) {
-        // This could be racy since we are on the request/reply context ...
         registration.bind(EventBusGrpcClientCall.this, serverAddress, endpoint.pingTimeout());
       }
 
@@ -286,14 +282,16 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
 
       Throwable err = super.handleReply(reply, encoding, wireFormat);
       if (err == null) {
-        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-        MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
-        EventBusHeaders.decodeMultimap(HEADER_PREFIX, reply.headers(), headers);
-        EventBusHeaders.decodeMultimap(TRAILER_PREFIX, reply.headers(), trailers);
-        Buffer payload = EventBusGrpcCodec.decodeBody(reply.body());
-        dispatchFrameInbound(new DefaultGrpcHeadersFrame(wireFormat, encoding, headers));
-        dispatchFrameInbound(new DefaultGrpcMessageFrame(GrpcMessage.message(encoding, wireFormat, payload)));
-        dispatchFrameInbound(new DefaultGrpcTrailersFrame(GrpcStatus.OK, null, trailers));
+        consumerContext.execute(v -> {
+          MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+          MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
+          EventBusHeaders.decodeMultimap(HEADER_PREFIX, reply.headers(), headers);
+          EventBusHeaders.decodeMultimap(TRAILER_PREFIX, reply.headers(), trailers);
+          Buffer payload = EventBusGrpcCodec.decodeBody(reply.body());
+          dispatchFrameInbound(new DefaultGrpcHeadersFrame(wireFormat, encoding, headers));
+          dispatchFrameInbound(new DefaultGrpcMessageFrame(GrpcMessage.message(encoding, wireFormat, payload)));
+          dispatchFrameInbound(new DefaultGrpcTrailersFrame(GrpcStatus.OK, null, trailers));
+        });
       }
 
       return err;

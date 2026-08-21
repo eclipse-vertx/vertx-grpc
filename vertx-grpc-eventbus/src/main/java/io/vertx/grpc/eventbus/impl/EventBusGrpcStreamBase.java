@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import io.vertx.core.*;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.PromiseInternal;
 import io.vertx.core.internal.concurrent.InboundMessageQueue;
 import io.vertx.core.internal.concurrent.OutboundMessageQueue;
 import io.vertx.grpc.common.GrpcMessage;
@@ -219,11 +220,20 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
   }
 
   Future<Void> sendTransportFrame(TransportFrame.Builder builder, DeliveryOptions options) {
-    return registration.sendTransportFrame(builder, format(), options);
+    if (producerContext.inThread()) {
+      return registration.sendTransportFrame(builder, format(), options);
+    } else {
+      PromiseInternal<Void> ret = consumerContext.promise();
+      producerContext.execute(() -> {
+        Future<Void> result = registration.sendTransportFrame(builder, format(), options);
+        result.onComplete(ret);
+      });
+      return ret.future();
+    }
   }
 
   Future<Void> sendTransportFrame(TransportFrame.Builder builder) {
-    return registration.sendTransportFrame(builder, format(), null);
+    return sendTransportFrame(builder, null);
   }
 
   public void updateOutboundWindow(int delta) {

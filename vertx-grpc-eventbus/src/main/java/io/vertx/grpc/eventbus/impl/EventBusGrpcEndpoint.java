@@ -115,8 +115,8 @@ abstract class EventBusGrpcEndpoint {
     return period == Long.MAX_VALUE ? -1L : period;
   }
 
-  Future<Message<Object>> request(ContextInternal context, String address, Object body, DeliveryOptions options) {
-    return eventBus.request(context, address, body, options);
+  Future<Message<Object>> request(String address, Object body, DeliveryOptions options) {
+    return eventBus.request(producerContext, address, body, options);
   }
 
   MessageConsumer<Object> consumer(String address, Handler<Message<Object>> handler) {
@@ -273,6 +273,7 @@ abstract class EventBusGrpcEndpoint {
     }
 
     void bind(EventBusGrpcStreamBase stream, String remoteAddress, long remoteTimeout) {
+      assert producerContext.inThread();
       streams.put(id, stream);
       RemoteEndpoint bound = remoteEndpoints.computeIfAbsent(remoteAddress, addr -> new RemoteEndpoint(addr, remoteTimeout, eventBus.sender(addr), System.currentTimeMillis()));
       bound.streams.add(id);
@@ -280,25 +281,30 @@ abstract class EventBusGrpcEndpoint {
       scheduleLivenessCheck();
     }
 
-    public Future<Void> sendTransportFrame(TransportFrame.Builder builder, WireFormat wireFormat, DeliveryOptions options) {
+    Future<Void> sendTransportFrame(TransportFrame.Builder builder, WireFormat wireFormat, DeliveryOptions options) {
+      assert producerContext.inThread();
       RemoteEndpoint remote = remoteEndpoint;
-      assert remote != null;
-      builder.setStreamId(id);
-      Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
-      if (options == null) {
-        options = new DeliveryOptions();
-      }
-      options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
-      MessageProducer<Object> producer = remote.producer;
-      Future<Void> res = producer.write(payload, options);
-      return res.andThen(ar -> {
-        if (ar.failed()) {
-          remoteEndpointDown(remoteEndpoint, false, ar.cause());
+      if (remote == null) {
+        return producerContext.failedFuture("Endpoint absent");
+      } else {
+        builder.setStreamId(id);
+        Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
+        if (options == null) {
+          options = new DeliveryOptions();
         }
-      });
+        options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+        MessageProducer<Object> producer = remote.producer;
+        Future<Void> res = producer.write(payload, options);
+        return res.andThen(ar -> {
+          if (ar.failed()) {
+            remoteEndpointDown(remoteEndpoint, false, ar.cause());
+          }
+        });
+      }
     }
 
     void unbind() {
+      assert producerContext.inThread();
       streams.remove(id);
       RemoteEndpoint bound = remoteEndpoint;
       if (!closed) {
