@@ -265,30 +265,19 @@ abstract class EventBusGrpcStreamBase implements GrpcStream, Closeable {
       this.window = initialWindowSize;
     }
 
-    private boolean writeFrame(MessageWrite write)  {
-
+    private void writeFrame(MessageWrite write)  {
       TransportFrame.Builder frame = write.frame;
-
-      WireFormat format = format();
-
-      Future<Void> sent = registration.sendTransportFrame(frame, format, write.deliveryOptions);
-      if (sent != null) {
-        sent.onComplete(write.completion);
-      }
-
-      return sent != null;
+      Future<Void> sent = sendTransportFrame(frame, write.deliveryOptions);
+      sent.onComplete(write.completion);
     }
 
 
     @Override
     public boolean test(MessageWrite msg) {
       if (window > 0) {
-        boolean written;
-        written = writeFrame(msg);
-        if (written) {
-          window--;
-        }
-        return written;
+        writeFrame(msg);
+        window--;
+        return true;
       } else {
         return false;
       }

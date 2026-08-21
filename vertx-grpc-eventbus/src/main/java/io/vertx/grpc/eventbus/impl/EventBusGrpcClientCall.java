@@ -258,7 +258,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase {
           return new IllegalStateException("Malformed handshake reply: invalid grpc-initial-window header");
         }
       }
-      updateOutboundWindow(initialOutboundWindowSize - EventBusGrpcServerOptions.DEFAULT_INITIAL_WINDOW_SIZE);
+      updateOutboundWindow(initialOutboundWindowSize);
       return null;
     }
   }

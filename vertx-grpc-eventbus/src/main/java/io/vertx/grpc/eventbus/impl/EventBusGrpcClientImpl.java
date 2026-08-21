@@ -57,7 +57,7 @@ public class EventBusGrpcClientImpl extends EventBusGrpcEndpoint implements Even
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
     ContextInternal consumerContext = vertx.getOrCreateContext();
     EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(consumerContext, this,
-      !method.clientStreaming(), !method.serverStreaming(), initialWindowSize, EventBusGrpcServerOptions.DEFAULT_INITIAL_WINDOW_SIZE);
+      !method.clientStreaming(), !method.serverStreaming(), initialWindowSize, 0);
     GrpcClientRequestImpl<Req, Resp> request = new GrpcClientRequestImpl<>(
       consumerContext,
       invoker,

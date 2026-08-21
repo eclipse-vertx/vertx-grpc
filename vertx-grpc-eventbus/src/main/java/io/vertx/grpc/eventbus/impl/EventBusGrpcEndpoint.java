@@ -282,23 +282,20 @@ abstract class EventBusGrpcEndpoint {
 
     public Future<Void> sendTransportFrame(TransportFrame.Builder builder, WireFormat wireFormat, DeliveryOptions options) {
       RemoteEndpoint remote = remoteEndpoint;
-      if (remote == null) {
-        return null;
-      } else {
-        builder.setStreamId(id);
-        Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
-        if (options == null) {
-          options = new DeliveryOptions();
-        }
-        options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
-        MessageProducer<Object> producer = remote.producer;
-        Future<Void> res = producer.write(payload, options);
-        return res.andThen(ar -> {
-          if (ar.failed()) {
-            remoteEndpointDown(remoteEndpoint, false, ar.cause());
-          }
-        });
+      assert remote != null;
+      builder.setStreamId(id);
+      Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
+      if (options == null) {
+        options = new DeliveryOptions();
       }
+      options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+      MessageProducer<Object> producer = remote.producer;
+      Future<Void> res = producer.write(payload, options);
+      return res.andThen(ar -> {
+        if (ar.failed()) {
+          remoteEndpointDown(remoteEndpoint, false, ar.cause());
+        }
+      });
     }
 
     void unbind() {
