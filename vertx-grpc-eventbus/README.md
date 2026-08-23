@@ -71,10 +71,14 @@ these items:
 
 - `action`, the name of the method.
 - `grpc-wire-format`, the wire format.
-- `grpc-client-address`, the private address of the client.
+- `grpc-endpoint-address`, the private address of the client. Present when any side streams.
+- `grpc-endpoint-wire-format`, the wire format of the client endpoint. Present when any
+  side streams.
 - `grpc-stream-id`, the identifier that the client gives to this call.
+- `grpc-initial-window`, the number of messages the client can receive. Present when the
+  server streams. The server uses this value as its send credit.
 - `grpc-ping-timeout`, the time in milliseconds that the client waits before it declares a
-  peer down. Refer to [Liveness](#liveness).
+  peer down. Present when the client streams. Refer to [Liveness](#liveness).
 - The request metadata, with the `__header__.` prefix.
 
 Depending on the client method type, the request body will differ, when the client
@@ -89,7 +93,7 @@ The server does these steps:
 1. Find the method.
 2. Prepare the call.
 3. Register the call.
-4. Reply with `grpc-server-address` and `grpc-initial-window`.
+4. Reply with `grpc-endpoint-address`, `grpc-endpoint-wire-format`, and `grpc-initial-window`.
 
 The reply is only the signal to start. The server sends the reply before the handler
 operates. Therefore, the reply contains no response metadata.
@@ -99,7 +103,7 @@ service.
 
 The response body is null.
 
-Otherwise, the call is full duplex: all subsequent data are carried as `TransportFrame` on the  private addresses.
+Otherwise, the call is full duplex: all subsequent data are carried as `TransportFrame` on the private addresses.
 
 #### Private addresses and multiplex operation
 
@@ -150,12 +154,11 @@ sequenceDiagram
     participant S as Server
 
     Note over C,S: Open the stream. A request and a reply on the<br/>service address. The bodies are empty.
-    C->>S: request, headers action, grpc-wire-format,<br/>grpc-client-address, grpc-stream-id
+    C->>S: request, headers action, grpc-wire-format,<br/>grpc-endpoint-address, grpc-endpoint-wire-format,<br/>grpc-stream-id, grpc-initial-window
     Note right of S: The method type is a stream.<br/>Register the call in the stream map.
-    S-->>C: reply, headers grpc-server-address,<br/> grpc-initial-window
+    S-->>C: reply, headers grpc-endpoint-address,<br/>grpc-endpoint-wire-format, grpc-initial-window
 
     Note over C,S: The call is now full duplex. Each frame contains<br/>the stream_id of the destination. Each direction<br/>counts its messages separately.
-    C->>S: WindowUpdate, give the server its window
     C->>S: Message, stream_sequence 1, the first request message
     S->>C: Headers, the response metadata
     S->>C: Message, stream_sequence 1
@@ -172,15 +175,11 @@ Each endpoint registers its consumer when it starts. The factory gives the clien
 server only after this registration is complete. Therefore the private address of an
 endpoint always has a consumer when the handshake begins.
 
-Two rules then keep the response behind the reply. The send window of the server starts at
-zero, and the client sends its first `WindowUpdate` frame after it reads the reply.
-Therefore the server cannot send a response message before that frame. The server also
-holds the `Headers` frame until the first frame of the client arrives on the private
-address of the server.
-
-These rules prevent an error condition. On a local event bus, the full sequence can operate
-synchronously. Then the sequence can be complete before the application attaches its
-response handler.
+Both sides exchange their inbound window in the handshake itself. The client sends
+`grpc-initial-window` in the request when the server streams, and the server sends
+`grpc-initial-window` in the reply when the client streams. Each side uses the window of
+the peer as its send credit. Therefore neither side starts at zero and no initial
+`WindowUpdate` frame is necessary.
 
 ## Frames
 
@@ -201,7 +200,7 @@ A frame contains a small header and one variant. The header contains the `stream
 - `Ping`, a liveness probe, from the client or from the server.
 
 A `Ping` frame is not related to a call. Therefore, it has the `stream_id` value 0. The
-endpoint processes this frame and does not send it to a stream. The `grpc-remote-endpoint-address`
+endpoint processes this frame and does not send it to a stream. The `grpc-endpoint-address`
 header of the frame contains the private address of the sender. The receiver uses this
 address to send the ack, and to give the credit to the correct peer.
 
@@ -255,6 +254,9 @@ EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
   of the client. A call can change this format with the `request.format(...)` method. The
   `create(client, WireFormat.JSON)` method of the generated stub does the same. The value
   of the call has priority.
+- `initialWindowSize` (client and server, `int`, default 64) gives the number of messages
+  that the endpoint can receive before the sender must wait for a `WindowUpdate` frame.
+  Each side sends this value in the handshake, and the peer uses it as its send credit.
 - `pingInterval` (client, `Duration`, default 30 seconds) gives the interval between the
   probes. The client sends a probe to each server endpoint that holds one of its streams.
   Refer to [Liveness](#liveness).
@@ -268,8 +270,11 @@ EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
   client to that same value. Both sides then stop a stream at the same time. Therefore the
   server has no option that must agree with an option of the client. This option only
   limits the time that a client can ask the server to wait.
+- `cleanerPeriod` (client and server, `Duration`, default 5 milliseconds) gives the period
+  at which the endpoint checks remote endpoints for liveness. At each tick, the endpoint
+  sends pings that are due and reaps remote endpoints that have gone silent.
 
-You cannot set these three options to zero. The event bus gives no connection, and the
+You cannot set the ping options to zero. The event bus gives no connection, and the
 probe replaces the connection. Therefore the probe is always in operation. Refer to
 [Liveness](#liveness).
 
@@ -281,10 +286,11 @@ backpressure. The design has its own window, and this window counts messages and
 bytes.
 
 The window is equivalent to the HTTP/2 `WINDOW_UPDATE` mechanism (RFC 7540, section 6.9),
-but at message level. The client starts with the window that the reply of the server
-gives in the `grpc-initial-window` header. The server starts at zero and receives its
-window in the first `WindowUpdate` frame of the client. The endpoint uses one credit for
-each `Message` frame that it sends. At zero credits, the endpoint stops.
+but at message level. Both sides exchange their inbound window in the handshake. The client
+sends `grpc-initial-window` in the request when the server streams, and the server sends
+`grpc-initial-window` in the reply when the client streams. Each side uses the window of
+the peer as its send credit. The endpoint uses one credit for each `Message` frame that it
+sends. At zero credits, the endpoint stops.
 
 The application of the receiver reads the messages. Then the receiver sends a
 `WindowUpdate` frame with a delta value. The sender adds this delta to its window.
