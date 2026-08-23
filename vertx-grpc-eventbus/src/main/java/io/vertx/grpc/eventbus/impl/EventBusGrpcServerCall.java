@@ -79,7 +79,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
   private class StreamingInbound implements Inbound {
     @Override
     public void handleConnect(MultiMap headers, Message<Object> message) {
-      GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(wireFormat, "identity, ", headers);
+      GrpcHeadersFrame frame = new DefaultGrpcHeadersFrame(wireFormat, "identity", headers);
       emitInbound(frame);
     }
   }

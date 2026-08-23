@@ -49,6 +49,7 @@ public class EventBusGrpcServerOptions extends EventBusGrpcEndpointOptions {
    * Copy constructor.
    */
   public EventBusGrpcServerOptions(EventBusGrpcServerOptions other) {
+    super(other);
     supportedWireFormats = new LinkedHashSet<>(other.supportedWireFormats);
     maxPingTimeout = other.maxPingTimeout;
     initialWindowSize = other.initialWindowSize;

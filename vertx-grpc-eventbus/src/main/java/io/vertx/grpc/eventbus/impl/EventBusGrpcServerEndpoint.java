@@ -320,7 +320,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
       String clientStreamIdHeader = message.headers().get(EventBusHeaders.STREAM_ID);
       long streamId;
       if (clientStreamIdHeader == null) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ENDPOINT_ADDRESS + "' or '" + EventBusHeaders.STREAM_ID + "' header");
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.STREAM_ID + "' header");
         return;
       } else {
         try {

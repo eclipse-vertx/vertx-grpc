@@ -165,6 +165,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase<EventBusGrpcClientEn
         if (ret == null) {
           return consumerContext.failedFuture("An half-close frame must be sent prior closing the stream");
         }
+        return ret;
       default:
         return consumerContext.failedFuture(new IllegalStateException("Stream closed"));
     }

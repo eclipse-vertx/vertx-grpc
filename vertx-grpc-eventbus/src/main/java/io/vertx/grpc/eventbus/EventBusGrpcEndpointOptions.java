@@ -17,13 +17,17 @@ public abstract class EventBusGrpcEndpointOptions {
     cleanerPeriod = DEFAULT_CLEANER_PERIOD;
   }
 
+  public EventBusGrpcEndpointOptions(EventBusGrpcEndpointOptions other) {
+    cleanerPeriod = other.cleanerPeriod;
+  }
+
   public Duration getCleanerPeriod() {
     return cleanerPeriod;
   }
 
   public EventBusGrpcEndpointOptions setCleanerPeriod(Duration cleanerPeriod) {
     if (cleanerPeriod.isNegative() || cleanerPeriod.isZero()) {
-      throw new IllegalArgumentException();
+      throw new IllegalArgumentException("Cleaner period must be > 0");
     }
     this.cleanerPeriod = cleanerPeriod;
     return this;

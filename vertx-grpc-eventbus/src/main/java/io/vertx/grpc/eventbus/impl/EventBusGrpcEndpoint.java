@@ -110,32 +110,36 @@ abstract class EventBusGrpcEndpoint {
   private void pingRemoteEndpoints(long now) {
     if (pingInterval > 0) {
       long data = pingData.incrementAndGet();
+      List<RemoteEndpoint> toPing = new ArrayList<>();
       for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
         if (now - remoteEndpoint.lastPingTimestamp > pingInterval) {
-          Ping.Builder ping = Ping.newBuilder().setData(data);
-          DeliveryOptions options = new DeliveryOptions()
-            .addHeader(EventBusHeaders.WIRE_FORMAT, remoteEndpoint.format.name())
-            .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
-          remoteEndpoint.lastPingTimestamp = now;
-          remoteEndpoint.producer
-            .write(EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ping).build(), remoteEndpoint.format), options)
-            .onFailure(cause -> remoteEndpointDown(remoteEndpoint, false, cause));
+          toPing.add(remoteEndpoint);
         }
+      }
+      for (RemoteEndpoint remoteEndpoint : toPing) {
+        Ping.Builder ping = Ping.newBuilder().setData(data);
+        DeliveryOptions options = new DeliveryOptions()
+          .addHeader(EventBusHeaders.WIRE_FORMAT, remoteEndpoint.format.name())
+          .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
+        remoteEndpoint.lastPingTimestamp = now;
+        remoteEndpoint.producer
+          .write(EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ping).build(), remoteEndpoint.format), options)
+          .onFailure(cause -> remoteEndpointDown(remoteEndpoint));
       }
     }
   }
 
   private void reapSilentRemoteEndpoints(long now) {
-    for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
+    for (RemoteEndpoint remoteEndpoint : new ArrayList<>(remoteEndpoints.values())) {
       if (remoteEndpoint.timeout > 0 && now - remoteEndpoint.lastSeenTimestamp > remoteEndpoint.timeout) {
         GrpcErrorException err = new GrpcErrorException(GrpcError.UNAVAILABLE, GrpcStatus.UNAVAILABLE);
         err.initCause(new TimeoutException("No ping from remote endpoint " + remoteEndpoint.address + " within " + remoteEndpoint.timeout + " ms"));
-        remoteEndpointDown(remoteEndpoint, true, err);
+        remoteEndpointDown(remoteEndpoint);
       }
     }
   }
 
-  private void remoteEndpointDown(RemoteEndpoint remoteEndpoint, boolean notify, Throwable cause) {
+  private void remoteEndpointDown(RemoteEndpoint remoteEndpoint) {
     if (remoteEndpoints.get(remoteEndpoint.address) == remoteEndpoint) {
       ArrayList<StreamRegistration> copy = new ArrayList<>(remoteEndpoint.streams.values());
       for (StreamRegistration registration : copy) {
@@ -215,10 +219,6 @@ abstract class EventBusGrpcEndpoint {
     List<Future<Void>> futures = new ArrayList<>();
     for (EventBusGrpcStreamBase<?> stream : active) {
       ((StreamRegistration)stream).close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), true);
-    }
-    if (consumer != null) {
-      futures.add(consumer.unregister());
-      consumer = null;
     }
     return Future.all(futures).andThen(ar -> {
       assert remoteEndpoints.isEmpty();
@@ -309,7 +309,7 @@ abstract class EventBusGrpcEndpoint {
         Future<Void> res = producer.write(payload, options);
         return res.andThen(ar -> {
           if (ar.failed()) {
-            localEndpoint.remoteEndpointDown(remoteEndpoint, false, ar.cause());
+            localEndpoint.remoteEndpointDown(remoteEndpoint);
           }
         });
       }

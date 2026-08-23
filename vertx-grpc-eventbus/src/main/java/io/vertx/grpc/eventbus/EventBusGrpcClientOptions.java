@@ -52,6 +52,7 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
    * Copy constructor.
    */
   public EventBusGrpcClientOptions(EventBusGrpcClientOptions other) {
+    super(other);
     wireFormat = other.wireFormat;
     pingInterval = other.pingInterval;
     pingTimeout = other.pingTimeout;

@@ -252,7 +252,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
             return new IllegalStateException("Malformed handshake reply: missing endpoint-wire-format header");
           }
           if (serverAddress == null) {
-            return new IllegalStateException("Malformed handshake reply: missing grpc-server-address header");
+            return new IllegalStateException("Malformed handshake reply: missing grpc-endpoint-address header");
           }
           switch (s) {
             case "json":
