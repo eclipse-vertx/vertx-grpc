@@ -170,7 +170,12 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
         if (err == null) {
           apply(context, actions);
         } else {
-          context.fail(ReplyFailure.ERROR, 0, err.getMessage());
+          if (err instanceof ReplyException) {
+            ReplyException replyException = (ReplyException)err;
+            context.fail(replyException.failureType(), replyException.failureCode(), replyException.getMessage());
+          } else {
+            context.fail(ReplyFailure.ERROR, 0, err.getMessage());
+          }
         }
       });
     }

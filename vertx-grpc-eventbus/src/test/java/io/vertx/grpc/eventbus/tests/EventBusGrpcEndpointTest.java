@@ -1,18 +1,23 @@
 package io.vertx.grpc.eventbus.tests;
 
+import io.vertx.core.Future;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.grpc.common.GrpcErrorException;
+import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.tests.Reply;
 import io.vertx.grpc.common.tests.Request;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
+import io.vertx.grpc.server.GrpcServerRequest;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class EventBusGrpcEndpointTest extends EventBusGrpcTestBase {
 
@@ -73,5 +78,28 @@ public class EventBusGrpcEndpointTest extends EventBusGrpcTestBase {
     test.awaitSuccess(20_000);
     Thread.sleep(10);
     should.assertEquals(0, numberOfPingFrames.get());
+  }
+
+  @Test
+  public void testCloseClientStreamsAfterEndpointClose(TestContext should) {
+    Async latch = should.async();
+    AtomicReference<GrpcServerRequest<Request, Reply>> serverRequestRef = new AtomicReference<>();
+    server.callHandler(UNARY_SERVER, request -> {
+      serverRequestRef.set(request);
+      latch.complete();
+    });
+    GrpcClientRequest<Request, Reply> request = client.request(UNARY_CLIENT).await();
+    Future<Void> end = request.end(Request.getDefaultInstance());
+    latch.awaitSuccess(20_000);
+    client.close().await();
+    should.assertTrue(request.response().failed());
+    should.assertFalse(end.isComplete());
+    serverRequestRef.get().response().end(Reply.getDefaultInstance());
+    try {
+      end.await();
+      should.fail();
+    } catch (GrpcErrorException e) {
+      should.assertEquals(GrpcStatus.CANCELLED, e.error().status);
+    }
   }
 }

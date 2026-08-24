@@ -333,7 +333,7 @@ abstract class EventBusGrpcEndpoint {
       }
     }
 
-    private void close(Throwable cause, boolean notify) {
+    void close(Throwable cause, boolean notify) {
       assert localEndpoint.producerContext.inThread();
       if (!inboundClosed || !outboundClosed) {
         closeReason = cause;

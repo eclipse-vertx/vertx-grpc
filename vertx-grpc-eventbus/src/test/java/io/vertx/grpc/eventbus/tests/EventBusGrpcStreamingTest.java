@@ -7,6 +7,7 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.ReplyException;
 import io.vertx.core.eventbus.ReplyFailure;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.client.GrpcClientRequest;
@@ -278,11 +279,12 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
   }
 
   @Test
-  public void testQueuedWriteCompletesOnDrain() throws Exception {
+  public void testQueuedWriteCompletesOnDrain(TestContext should) throws Exception {
     AtomicBoolean stalled = new AtomicBoolean();
     AtomicInteger written = new AtomicInteger();
     AtomicInteger drains = new AtomicInteger();
     Promise<Void> queued = Promise.promise();
+    Async drainLatch = should.async();
 
     server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> {
       GrpcServerResponse<Empty, Reply> response = request.response();
@@ -290,7 +292,11 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
       while (!response.writeQueueFull()) {
         response.write(Reply.newBuilder().setMessage("m-" + cnt++).build());
       }
-      response.drainHandler(v -> drains.incrementAndGet());
+      response.drainHandler(v -> {
+        if (drains.incrementAndGet() == 1) {
+          drainLatch.complete();
+        }
+      });
       Future<Void> write = response.write(Reply.newBuilder().setMessage("queued").build());
       stalled.set(!write.isComplete());
       written.set(1 + cnt);
@@ -314,7 +320,7 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     assertTrue("the write must not complete while the message sits behind a closed window", stalled.get());
     queued.future().await(20, TimeUnit.SECONDS);
     assertEquals("queued", replies.get(replies.size() - 1).getMessage());
-    assertEquals(1, drains.get());
+    drainLatch.awaitSuccess(20_000);
   }
 
   @Test
@@ -480,8 +486,8 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     // message is on the wire, so the following writes have no consumer to deliver to.
     vertx.eventBus().addOutboundInterceptor(new TransportInterceptor() {
       @Override
-      public Result onServerConnect(String serverAddress, String streamId) {
-        return Result.of(server.close());
+      protected Result onClientConnect(String clientAddress, String streamId) {
+        return Result.failure(new ReplyException(ReplyFailure.NO_HANDLERS));
       }
     });
 
@@ -491,8 +497,7 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     try {
       request.write(Request.newBuilder().setName("a").build()).await(10, TimeUnit.SECONDS);
       fail("the write must fail once the server address has no consumer");
-    } catch (ReplyException e) {
-      assertEquals(ReplyFailure.NO_HANDLERS, e.failureType());
+    } catch (InvalidStatusException expected) {
     }
 
     // The stream is given up on rather than left hanging: the response is failed too.
