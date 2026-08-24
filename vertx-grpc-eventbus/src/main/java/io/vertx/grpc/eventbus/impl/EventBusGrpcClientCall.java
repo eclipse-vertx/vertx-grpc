@@ -97,7 +97,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase<EventBusGrpcClientEn
     }
 
     private Future<Void> connect(GrpcMessage message) {
-      Buffer payload = message != null ? message.payload() : Buffer.buffer();
+      Buffer payload = message.payload();
       Object body = EventBusGrpcCodec.encodeBody(payload, wireFormat);
       return EventBusGrpcClientCall.this.connect(body);
     }

@@ -15,4 +15,5 @@ module io.vertx.grpc.eventbus {
   exports io.vertx.grpc.eventbus.impl to io.vertx.grpc.eventbus.tests;
 
   opens io.vertx.grpc.eventbus.transport.v1alpha to com.google.protobuf;
+  exports io.vertx.grpc.eventbus.transport.v1alpha;
 }

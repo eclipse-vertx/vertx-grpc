@@ -68,7 +68,7 @@ public final class EventBusHeaders {
   /**
    * Prefixed header decoding.
    */
-  static void decodeMultimap(String prefix, MultiMap src, MultiMap dst) {
+  public static void decodeMultimap(String prefix, MultiMap src, MultiMap dst) {
     for (Map.Entry<String, String> entry : src) {
       if (entry.getKey().startsWith(prefix)) {
         dst.set(entry.getKey().substring(prefix.length()), entry.getValue());
