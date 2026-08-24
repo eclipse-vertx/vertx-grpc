@@ -3,11 +3,9 @@ package io.vertx.grpc.eventbus.tests;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClientRequest;
-import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.tests.Empty;
 import io.vertx.grpc.common.tests.Reply;
 import io.vertx.grpc.common.tests.Request;
@@ -183,14 +181,12 @@ public class EventBusGrpcWindowSizeTest extends EventBusGrpcTestBase {
 
     AtomicInteger numberOfWindowUpdates = new AtomicInteger();
 
-    vertx.eventBus().addOutboundInterceptor(ctx -> {
-      if (ctx.message().headers().contains("grpc-wire-format", "json", true)) {
-        JsonObject json = new JsonObject(ctx.body().toString());
-        if (json.containsKey("windowUpdate")) {
-          numberOfWindowUpdates.incrementAndGet();
-        }
+    vertx.eventBus().addOutboundInterceptor(new TransportInterceptor() {
+      @Override
+      public Result onClientWindowUpdate(String serverAddress, String streamId, int increment) {
+        numberOfWindowUpdates.incrementAndGet();
+        return Result.cont();
       }
-      ctx.next();
     });
 
     server.callHandler(SOURCE_SERVER, request -> {
@@ -204,7 +200,6 @@ public class EventBusGrpcWindowSizeTest extends EventBusGrpcTestBase {
 
     Future<GrpcClientRequest<Empty, Reply>> fut = client.request(SOURCE_CLIENT);
     fut.onComplete(should.asyncAssertSuccess(request -> {
-      request.format(WireFormat.JSON);
       request.end(Empty.getDefaultInstance());
       request
         .response()

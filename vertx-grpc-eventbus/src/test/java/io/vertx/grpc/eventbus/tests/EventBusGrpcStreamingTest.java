@@ -474,26 +474,18 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
   @Test
   public void testClientWriteFailureFailsStream() throws Exception {
     server.callHandler(SINK_SERVER, request -> {
-      request.handler(req -> {
-      });
-      request.endHandler(v -> request.response().end(Empty.getDefaultInstance()));
     });
 
     // Simulate the server node leaving the cluster: drop its consumer as soon as the first client
     // message is on the wire, so the following writes have no consumer to deliver to.
-    vertx.eventBus().addOutboundInterceptor(dc -> {
-      if (dc.message().address().startsWith("grpc.eb.server.") && dc.message().body() instanceof Buffer) {
-        JsonObject json = ((Buffer) dc.message().body()).toJsonObject();
-        if (json.getJsonObject("message") != null) {
-          server.close().onComplete(ar -> dc.next());
-          return;
-        }
+    vertx.eventBus().addOutboundInterceptor(new TransportInterceptor() {
+      @Override
+      public Result onServerConnect(String serverAddress, String streamId) {
+        return Result.of(server.close());
       }
-      dc.next();
     });
 
     GrpcClientRequest<Request, Empty> request = client.request(SINK_CLIENT).await(10, TimeUnit.SECONDS);
-    request.format(WireFormat.JSON);
     Future<GrpcClientResponse<Request, Empty>> response = request.response();
 
     try {
@@ -525,19 +517,13 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
 
     // Simulate the client node leaving the cluster: drop its consumer as soon as the first server
     // message is on the wire, so the following writes have no consumer to deliver to.
-    vertx.eventBus().addOutboundInterceptor(dc -> {
-      if (dc.message().address().startsWith("grpc.eb.client.") && dc.message().body() instanceof Buffer) {
-        JsonObject json = ((Buffer) dc.message().body()).toJsonObject();
-        if (json.getJsonObject("message") != null) {
-          client.close().onComplete(ar -> dc.next());
-          return;
-        }
+    vertx.eventBus().addOutboundInterceptor(new TransportInterceptor() {
+      @Override
+      protected Result onClientMessage(String clientAddress, WireFormat wireFormat, String streamId, Buffer msg) {
+        return Result.of(client.close());
       }
-      dc.next();
     });
-
     client.request(SOURCE_CLIENT).onSuccess(request -> {
-      request.format(WireFormat.JSON);
       request.end(Empty.getDefaultInstance());
     });
 
@@ -582,19 +568,14 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
 
     // Simulate the client node leaving the cluster once the first message is on the wire, so the
     // trailers that follow have no consumer to deliver to.
-    vertx.eventBus().addOutboundInterceptor(dc -> {
-      if (dc.message().address().startsWith("grpc.eb.client.") && dc.message().body() instanceof Buffer) {
-        JsonObject json = ((Buffer) dc.message().body()).toJsonObject();
-        if (json.getJsonObject("message") != null) {
-          client.close().onComplete(ar -> dc.next());
-          return;
-        }
+    vertx.eventBus().addOutboundInterceptor(new TransportInterceptor() {
+      @Override
+      public Result onClientConnect(String clientAddress, String streamId) {
+        return Result.of(client.close());
       }
-      dc.next();
     });
 
     client.request(SOURCE_CLIENT).onSuccess(request -> {
-      request.format(WireFormat.JSON);
       request.end(Empty.getDefaultInstance());
     });
 
@@ -667,7 +648,6 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
   public void testClientGivesStreamUpWhenServerStopsAcking() throws Exception {
     EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
     EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
-      .setWireFormat(WireFormat.JSON)
       .setPingInterval(Duration.ofMillis(100))
       .setPingTimeout(Duration.ofMillis(400))).await(10, TimeUnit.SECONDS);
 
@@ -677,14 +657,15 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
       request.handler(empty -> request.response().write(Reply.newBuilder().setMessage("first").build()));
     });
 
-    vertx.eventBus().addOutboundInterceptor(dc -> {
-      if (dc.message().address().startsWith("grpc.eb.client.") && dc.message().body() instanceof Buffer) {
-        JsonObject ping = ((Buffer) dc.message().body()).toJsonObject().getJsonObject("ping");
-        if (ping != null && ping.getBoolean("ack", false)) {
-          return;
+    vertx.eventBus().addOutboundInterceptor(new TransportInterceptor() {
+      @Override
+      public Result onPing(String srcAddress, String dstAddress, long data, boolean ack) {
+        if (dstAddress.startsWith("grpc.eb.client.")) {
+          return Result.stop();
+        } else {
+          return Result.cont();
         }
       }
-      dc.next();
     });
 
     Promise<Throwable> failed = Promise.promise();
@@ -923,20 +904,20 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
   public void testPingIsSentPerPeerNotPerStream() throws Exception {
     EventBusGrpcServer server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await(10, TimeUnit.SECONDS);
     EventBusGrpcClient client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
-      .setWireFormat(WireFormat.JSON)
       .setPingInterval(Duration.ofMillis(100))).await(10, TimeUnit.SECONDS);
 
     server.callHandler(SOURCE_SERVER, request -> request.handler(empty ->
       request.response().write(Reply.newBuilder().setMessage("first").build())));
 
     AtomicInteger probes = new AtomicInteger();
-    vertx.eventBus().addOutboundInterceptor(dc -> {
-      if (dc.message().address().startsWith("grpc.eb.server.") && dc.message().body() instanceof Buffer) {
-        if (((Buffer) dc.message().body()).toJsonObject().getJsonObject("ping") != null) {
+    vertx.eventBus().addOutboundInterceptor(new TransportInterceptor() {
+      @Override
+      public Result onPing(String srcAddress, String dstAddress, long data, boolean ack) {
+        if (dstAddress.startsWith("grpc.eb.server.")) {
           probes.incrementAndGet();
         }
+        return Result.cont();
       }
-      dc.next();
     });
 
     // The service never ends these, so all four stay open and bound to the same peer.

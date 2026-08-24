@@ -13,7 +13,7 @@ import io.vertx.grpc.common.JsonWireFormat;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 
-final class EventBusGrpcCodec {
+public final class EventBusGrpcCodec {
 
   private static final GrpcMessageEncoder<TransportFrame> FRAME_ENCODER = GrpcMessageEncoder.encoder();
   private static final GrpcMessageDecoder<TransportFrame> FRAME_DECODER = GrpcMessageDecoder.decoder(TransportFrame.getDefaultInstance());
@@ -21,14 +21,14 @@ final class EventBusGrpcCodec {
   private EventBusGrpcCodec() {
   }
 
-  static Object encodeBody(Buffer payload, WireFormat wireFormat) {
+  public static Object encodeBody(Buffer payload, WireFormat wireFormat) {
     if (wireFormat == WireFormat.JSON) {
       return payload.length() == 0 ? new JsonObject() : new JsonObject(payload);
     }
     return payload;
   }
 
-  static Buffer decodeBody(Object body) {
+  public static Buffer decodeBody(Object body) {
     if (body instanceof Buffer) {
       return (Buffer) body;
     }
@@ -45,7 +45,7 @@ final class EventBusGrpcCodec {
     return FRAME_ENCODER.encode(frame, format).payload();
   }
 
-  static TransportFrame decodeFrame(Message<Object> message) {
+  public static TransportFrame decodeFrame(Message<?> message) {
     String header = message.headers().get(EventBusHeaders.WIRE_FORMAT);
     WireFormat format = JsonWireFormat.NAME.equals(header) ? WireFormat.JSON : WireFormat.PROTOBUF;
     return FRAME_DECODER.decode(GrpcMessage.message("identity", format, decodeBody(message.body())));
