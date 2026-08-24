@@ -5,6 +5,7 @@ import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.EventExecutor;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.core.internal.concurrent.InboundMessageQueue;
 import io.vertx.core.internal.concurrent.OutboundMessageQueue;
@@ -14,7 +15,6 @@ import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.eventbus.transport.v1alpha.*;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +22,8 @@ import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
 abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends EventBusGrpcEndpoint.StreamRegistration implements GrpcStream {
+
+  private static final Throwable CLOSED = new InvalidStatusException(GrpcStatus.OK, GrpcStatus.CANCELLED);
 
   protected final E localEndpoint;
   protected final ContextInternal consumerContext;
@@ -39,11 +41,11 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
 
   private long sequence;
 
-  private Throwable cause;
+  private Throwable closed;
+  private Throwable pendingWriteFailureCause;
 
   EventBusGrpcStreamBase(E localEndpoint, long id, ContextInternal context, boolean localUnary, boolean remoteUnary,
-                         int initialInboundWindowSize,
-                         int initialOutboundWindowSize) {
+                         int initialInboundWindowSize, int initialOutboundWindowSize) {
     super(localEndpoint, id);
     this.localEndpoint = localEndpoint;
     this.consumerContext = context;
@@ -51,12 +53,13 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     this.inboundQueue = new IMQ(context, initialInboundWindowSize);
     this.localUnary = localUnary;
     this.remoteUnary = remoteUnary;
-    this.outboundQueue = new OMQ(context, initialOutboundWindowSize);
+    this.outboundQueue = new OMQ(localEndpoint.producerContext().executor(), initialOutboundWindowSize);
     this.sequence = 1;
   }
 
   @Override
   protected final void handleClose(Throwable cause) {
+    closed = cause != null ? cause : CLOSED;
     consumerContext.execute(cause, err -> {
       if (cause != null) {
         failPendingWrites(cause);
@@ -214,29 +217,33 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     return new OutboundWrite(promise) {
       @Override
       void write() {
+        registerStream();
         localEndpoint.request(serviceName.fullyQualifiedName(), body, options)
           .onComplete(ar -> {
-            if (ar.succeeded()) {
-              Throwable malformed = handleReply(ar.result());
-              if (malformed == null) {
-                // Something specific to do ?
-              } else {
-                handleFailure(malformed, encoding, wireFormat);
-              }
-              promise.succeed();
+            Throwable c = closed;
+            if (c != null) {
+              promise.fail(c);
             } else {
-              InvalidStatusException err = handleFailure(ar.cause(), encoding, wireFormat);
-              promise.fail(err);
+              if (ar.succeeded()) {
+                Throwable malformed = handleReply(ar.result());
+                if (malformed == null) {
+                  promise.succeed();
+                } else {
+                  InvalidStatusException err = invalidStatusException(malformed);
+                  close(err, true);
+                  promise.fail(err);
+                }
+              } else {
+                InvalidStatusException err = invalidStatusException(ar.cause());
+                close(err, false);
+                promise.fail(err);
+              }
             }
           });
       }
 
-      private InvalidStatusException handleFailure(Throwable cause, String encoding, WireFormat wireFormat) {
+      private InvalidStatusException invalidStatusException(Throwable cause) {
         GrpcStatus status = EventBusGrpcCodec.mapFailure(cause);
-        emitInbound(Arrays.asList(
-          new DefaultGrpcHeadersFrame(wireFormat, encoding, MultiMap.caseInsensitiveMultiMap()),
-          new DefaultGrpcTrailersFrame(status, cause.getMessage(), MultiMap.caseInsensitiveMultiMap())
-        ));
         return new InvalidStatusException(GrpcStatus.OK, status);
       }
 
@@ -286,8 +293,6 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
             return new IllegalStateException("Malformed handshake reply: invalid grpc-initial-window header");
           }
         }
-
-        registerStream();
 
         if (serverAddress != null) {
           registerRemoteEndpoint(serverAddress, pingTimeout, serverFormat);
@@ -386,7 +391,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
   }
 
   protected void failPendingWrites(Throwable cause) {
-    this.cause = cause;
+    this.pendingWriteFailureCause = cause;
     outboundQueue.close();
   }
 
@@ -443,13 +448,11 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
 
   private class OMQ extends OutboundMessageQueue<OutboundWrite> {
 
-    private final ContextInternal context;
     private long window;
 
-    public OMQ(ContextInternal context, int initialWindowSize) {
-      super(context.executor());
+    public OMQ(EventExecutor eventExecutor, int initialWindowSize) {
+      super(eventExecutor);
 
-      this.context = context;
       this.window = initialWindowSize;
     }
 
@@ -466,26 +469,28 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
 
     @Override
     protected void handleDrained() {
-      Handler<Void> handler = drainHandler;
-      if (handler != null) {
-        handler.handle(null);
-      }
+      consumerContext.emit(v -> {
+        Handler<Void> handler = drainHandler;
+        if (handler != null) {
+          consumerContext.dispatch(null, handler);
+        }
+      });
     }
 
     @Override
     protected void handleDispose(OutboundWrite msg) {
-      Throwable c = cause;
+      Throwable c = pendingWriteFailureCause;
       if (c != null) {
         msg.cancel(c);
       }
     }
 
     private void updateWindow(int delta) {
-      if (context.inThread()) {
+      if (producerContext.inThread()) {
         window += delta;
         outboundQueue.tryDrain();
       } else {
-        context.execute(delta, this::updateWindow);
+        producerContext.execute(delta, this::updateWindow);
       }
     }
   }
