@@ -74,12 +74,19 @@ public interface GrpcWriteStream<T> extends WriteStream<T> {
   Future<Void> endMessage(GrpcMessage message);
 
   /**
-   * Cancel the stream.
+   * Attempt to cancel the stream.
    */
   void cancel();
 
   /**
-   * @return whether the stream is canceled
+   * @return the current attempt of cancelling the stream when not null.
+   */
+  @Nullable
+  Future<Void> cancellation();
+
+  /**
+   * @return whether the stream is canceled, this might not reflect the status of the cancellation
+   * accurately on the client side.
    */
   boolean isCancelled();
 
