@@ -48,7 +48,9 @@ public class EventBusGrpcClientTest extends EventBusGrpcTestBase {
 
     Reply reply = client.request(UNARY_CLIENT)
       .compose(request -> {
-        request.end(Request.newBuilder().setName("Julien").build());
+        request
+          .end(Request.newBuilder().setName("Julien").build())
+          .onComplete(testContext.asyncAssertSuccess());
         return request.response();
       })
       .compose(GrpcReadStream::last)

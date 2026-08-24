@@ -88,6 +88,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase<EventBusGrpcClientEn
           }
           Future<Void> fut = connect(msg);
           fut.onComplete(halfClosePromise);
+          state = State.CONNECTING;
           halfCloseWritten = fut;
           return fut;
         default:
@@ -158,8 +159,9 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase<EventBusGrpcClientEn
   public Future<Void> end() {
     State s = state;
     switch (s) {
+      case IDLE:
+        return consumerContext.failedFuture("Messages must be sent prior ending the stream");
       case CONNECTING:
-        return consumerContext.failedFuture("Stream opening");
       case STREAMING:
         Future<Void> ret = halfCloseWritten;
         if (ret == null) {
