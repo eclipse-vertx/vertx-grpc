@@ -23,8 +23,6 @@ import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
 abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends EventBusGrpcEndpoint.StreamRegistration implements GrpcStream {
 
-  private static final Throwable CLOSED = new InvalidStatusException(GrpcStatus.OK, GrpcStatus.CANCELLED);
-
   protected final E localEndpoint;
   protected final ContextInternal consumerContext;
   protected final ContextInternal producerContext;
@@ -41,7 +39,8 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
 
   private long sequence;
 
-  private Throwable closed;
+  private boolean closed;
+  private Throwable closeCause;
   private Throwable pendingWriteFailureCause;
 
   EventBusGrpcStreamBase(E localEndpoint, long id, ContextInternal context, boolean localUnary, boolean remoteUnary,
@@ -58,14 +57,15 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
   }
 
   @Override
-  protected final void handleClose(Throwable cause) {
-    closed = cause != null ? cause : CLOSED;
+  protected final void handleProducerClosed(Throwable cause) {
+    closeCause = cause;
+    closed = true;
     consumerContext.execute(cause, err -> {
       if (cause != null) {
         failPendingWrites(cause);
         handleException(cause);
-        handleClosed();
       }
+      handleConsumerClosed();
     });
   }
 
@@ -106,7 +106,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     }
   }
 
-  abstract void handleClosed();
+  abstract void handleConsumerClosed();
 
   abstract WireFormat format();
 
@@ -220,9 +220,12 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
         registerStream();
         localEndpoint.request(serviceName.fullyQualifiedName(), body, options)
           .onComplete(ar -> {
-            Throwable c = closed;
-            if (c != null) {
-              promise.fail(c);
+            if (closed) {
+              Throwable cause = closeCause;
+              if (cause == null) {
+                cause = new VertxException("Stream closed");
+              }
+              promise.fail(cause);
             } else {
               if (ar.succeeded()) {
                 Throwable malformed = handleReply(ar.result());

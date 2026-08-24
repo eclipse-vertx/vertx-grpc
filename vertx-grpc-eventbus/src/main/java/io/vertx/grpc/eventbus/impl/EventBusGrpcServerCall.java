@@ -56,7 +56,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
   }
 
   @Override
-  void handleClosed() {
+  void handleConsumerClosed() {
     closed = true;
   }
 
