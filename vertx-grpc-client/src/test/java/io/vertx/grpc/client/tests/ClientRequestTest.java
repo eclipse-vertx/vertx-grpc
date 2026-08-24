@@ -951,4 +951,35 @@ public class ClientRequestTest extends ClientTest {
         callRequest.write(Request.newBuilder().setName("Julien").build());
       }));
   }
+
+  @Test
+  public void testClientEarlyCancel(TestContext should) throws Exception {
+
+    TestServiceGrpc.TestServiceImplBase called = new TestServiceGrpc.TestServiceImplBase() {
+      @Override
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
+      }
+    };
+    startServer(called);
+
+    Async test = should.async(2);
+    client = GrpcClient.client(vertx);
+    client.request(SocketAddress.inetSocketAddress(port, "localhost"), UNARY)
+      .onComplete(should.asyncAssertSuccess(callRequest -> {
+        callRequest.exceptionHandler(err -> {
+          test.complete();
+          callRequest.exceptionHandler(null);
+        });
+        callRequest
+          .write(Request.newBuilder().setName("Julien").build())
+          .onComplete(should.asyncAssertSuccess(v -> {
+            callRequest.cancel();
+        }));
+        callRequest
+          .response()
+          .onComplete(should.asyncAssertFailure(err -> {
+            test.countDown();
+        }));
+      }));
+  }
 }

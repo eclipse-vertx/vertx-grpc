@@ -221,11 +221,14 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   }
 
   @Override
-  protected boolean sendCancel() {
-    stream
-      .write(DefaultGrpcCancelFrame.INSTANCE)
-      .onSuccess(v -> handleError(GrpcError.CANCELLED));
-    return true;
+  protected Future<Void> sendCancel() {
+    GrpcStream s = stream;
+    if (s != null) {
+      return s.write(DefaultGrpcCancelFrame.INSTANCE);
+    } else {
+      internalHandleException(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED));
+      return Future.succeededFuture();
+    }
   }
 
   @Override

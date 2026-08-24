@@ -5,10 +5,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.eventbus.transport.v1alpha.*;
 
@@ -24,6 +21,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase<EventBusGrpcClientEn
   private MultiMap requestHeaders;
   private Duration timeout;
   private Future<Void> halfCloseWritten;
+  private Promise<Void> cancellation;
   private State state;
   private final Outbound outbound;
 
@@ -136,13 +134,29 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase<EventBusGrpcClientEn
   }
 
   @Override
-  public Future<Void> write(GrpcFrame frame) {
-    if (state == State.CLOSED) {
-      return consumerContext.failedFuture("Stream closed");
+  protected void dispatchInbound(GrpcFrame frame) {
+    if (frame.type() == GrpcFrameType.HEADERS) {
+      Promise<Void> c = cancellation;
+      if (c != null) {
+        if (localUnary && remoteUnary) {
+          c.fail("Cannot cancel a unary/unary stream");
+        } else {
+          Future<Void> fut = sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code)), null);
+          fut.onComplete(c);
+        }
+      }
     }
+    super.dispatchInbound(frame);
+  }
+
+  @Override
+  public Future<Void> write(GrpcFrame frame) {
     if (frame.type() == GrpcFrameType.CANCEL) {
       return writeCancel();
     } else {
+      if (state == State.CLOSED) {
+        return consumerContext.failedFuture("Stream closed");
+      }
       return outbound.write(frame);
     }
   }
@@ -186,10 +200,21 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase<EventBusGrpcClientEn
   }
 
   private Future<Void> writeCancel() {
-    if (state == State.STREAMING) {
-      return sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code)), null);
-    } else {
-      return consumerContext.failedFuture("Not supported");
+    switch (state) {
+      case CLOSED:
+        return consumerContext.failedFuture("Stream closed");
+      case IDLE:
+        state = State.CLOSED;
+        handleException(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED));
+        return consumerContext.succeededFuture();
+      case CONNECTING:
+        Promise<Void> promise = consumerContext.promise();
+        cancellation = promise;
+        return promise.future();
+      case STREAMING:
+        return sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code)), null);
+      default:
+        return consumerContext.failedFuture("Not supported");
     }
   }
 

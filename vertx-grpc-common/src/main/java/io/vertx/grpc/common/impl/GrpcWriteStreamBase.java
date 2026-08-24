@@ -18,7 +18,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private boolean headersWritten;
   private boolean endWritten;
   private GrpcError error;
-  private boolean cancelled;
+  private Future<Void> cancellation;
   private MultiMap headers;
   private Handler<Throwable> exceptionHandler;
 
@@ -35,7 +35,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   }
 
   public void handleCancel() {
-    cancelled = true;
+    cancellation = context.succeededFuture();
   }
 
   public void handleException(Throwable err) {
@@ -50,19 +50,28 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   }
 
   public void handleStatus(GrpcStatus status) {
-    cancelled |= status == GrpcStatus.CANCELLED;
+    if (cancellation == null && status == GrpcStatus.CANCELLED) {
+      cancellation = context.succeededFuture();
+    }
   }
 
   @Override
   public boolean isCancelled() {
-    return cancelled;
+    Future<Void> c = cancellation;
+    // Compute an optimistic view of cancellation
+    return c != null && (c.succeeded() || !c.isComplete());
   }
 
   @Override
   public void cancel() {
-    if (!cancelled) {
-      cancelled = sendCancel();
+    if (cancellation == null) {
+      cancellation = sendCancel();
     }
+  }
+
+  @Override
+  public Future<Void> cancellation() {
+    return cancellation;
   }
 
   @Override
@@ -155,7 +164,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   protected abstract Future<Void> sendHead();
   protected abstract Future<Void> sendMessage(GrpcMessage message);
   protected abstract Future<Void> sendEnd();
-  protected abstract boolean sendCancel();
+  protected abstract Future<Void> sendCancel();
 
   protected Future<Void> sendEnd(GrpcMessage message) {
     sendMessage(message);

@@ -66,7 +66,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     });
   }
 
-  private void handleException(Throwable t) {
+  protected void handleException(Throwable t) {
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {
       consumerContext.dispatch(t, handler);
@@ -157,7 +157,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     inboundQueue.write(frames);
   }
 
-  private void dispatchInbound(GrpcFrame frame) {
+  protected void dispatchInbound(GrpcFrame frame) {
     Handler<GrpcFrame> handler = frameHandler;
     if (handler != null) {
       handler.handle(frame);

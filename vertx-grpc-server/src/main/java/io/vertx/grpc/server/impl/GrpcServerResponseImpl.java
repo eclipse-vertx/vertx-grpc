@@ -147,14 +147,13 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
     return acceptedEncodings;
   }
 
-  protected boolean sendCancel() {
+  protected Future<Void> sendCancel() {
     if (!isEndWritten()) {
       status(GrpcStatus.CANCELLED);
-      end();
-      return true;
+      return end();
     } else {
       // Can this happen ?
-      return false;
+      throw new UnsupportedOperationException();
     }
   }
 
