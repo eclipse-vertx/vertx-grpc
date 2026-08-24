@@ -7,7 +7,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.eventbus.impl.EventBusGrpcServerImpl;
+import io.vertx.grpc.eventbus.impl.EventBusGrpcServerEndpoint;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.Service;
@@ -33,7 +33,7 @@ public interface EventBusGrpcServer extends ServiceContainer {
    * @return a future of the created server
    */
   static Future<EventBusGrpcServer> server(Vertx vertx) {
-    return EventBusGrpcServerImpl.create(vertx, new EventBusGrpcServerOptions());
+    return EventBusGrpcServerEndpoint.create(vertx, new EventBusGrpcServerOptions());
   }
 
   /**
@@ -45,7 +45,7 @@ public interface EventBusGrpcServer extends ServiceContainer {
    * @return a future of the created server
    */
   static Future<EventBusGrpcServer> server(Vertx vertx, EventBusGrpcServerOptions options) {
-    return EventBusGrpcServerImpl.create(vertx, options);
+    return EventBusGrpcServerEndpoint.create(vertx, options);
   }
 
   @Fluent

@@ -175,7 +175,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
   private Future<Void> writeMessage(GrpcMessage message, boolean end) {
     if (error != null) {
-      throw new IllegalStateException("The stream is failed: " + error);
+      return context.failedFuture(new GrpcErrorException(error, error.status));
     }
     if (end && endWritten) {
       throw new IllegalStateException("The stream is ended");

@@ -1,79 +1,72 @@
 package io.vertx.grpc.eventbus.impl;
 
+import io.netty.util.collection.LongObjectHashMap;
+import io.netty.util.collection.LongObjectMap;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.eventbus.*;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.internal.PromiseInternal;
 import io.vertx.core.internal.VertxInternal;
 import io.vertx.core.internal.eventbus.EventBusInternal;
-import io.vertx.grpc.common.JsonWireFormat;
-import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.*;
+import io.vertx.grpc.eventbus.transport.v1alpha.Cancel;
 import io.vertx.grpc.eventbus.transport.v1alpha.Ping;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 abstract class EventBusGrpcEndpoint {
 
-  protected final ContextInternal producerContext;
-  protected final VertxInternal vertx;
+  private final ContextInternal producerContext;
+  private final VertxInternal vertx;
   private final EventBusInternal eventBus;
   private final String address;
   private final int id;
-  private final WireFormat pingWireFormat;
   private final long pingInterval;
-  private final long pingTimeout;
-  private final ConcurrentMap<Long, EventBusGrpcStreamBase> streams = new ConcurrentHashMap<>();
-  private final ConcurrentMap<String, RemoteEndpoint> remoteEndpoints = new ConcurrentHashMap<>();
+  private final LongObjectMap<EventBusGrpcStreamBase<?>> streams = new LongObjectHashMap<>();
+  private final Map<String, RemoteEndpoint> remoteEndpoints = new HashMap<>();
   private final AtomicLong pingData = new AtomicLong();
   protected final int initialWindowSize;
-
   private MessageConsumer<Object> consumer;
+  private final long cleanerPeriod;
   private long livenessTimerId = -1L;
-  private boolean stopped;
 
-  EventBusGrpcEndpoint(ContextInternal producerContext, String prefix, WireFormat pingWireFormat, long pingInterval,
-                       long pingTimeout, int initialWindowSize) {
+  EventBusGrpcEndpoint(ContextInternal producerContext,
+                       String prefix,
+                       long cleanerPeriod,
+                       long pingInterval,
+                       int initialWindowSize) {
 
     UUID uuid = UUID.randomUUID();
 
     this.vertx = producerContext.owner();
     this.producerContext = producerContext;
     this.eventBus = vertx.eventBus();
-    this.id = uuid.hashCode();
+    this.id = uuid.hashCode() & 0x7FFFFFFF;
     this.address = prefix + uuid;
-    this.pingWireFormat = pingWireFormat;
     this.pingInterval = pingInterval;
-    this.pingTimeout = pingTimeout;
     this.initialWindowSize = initialWindowSize;
+    this.cleanerPeriod = cleanerPeriod;
+  }
+
+  public ContextInternal producerContext() {
+    return producerContext;
   }
 
   int id() {
     return id;
   }
 
-  String address() {
+  public String address() {
     return address;
   }
 
   long pingInterval() {
     return pingInterval;
-  }
-
-  long pingTimeout() {
-    return pingTimeout;
-  }
-
-  StreamRegistration createStream(long id) {
-    return new StreamRegistration(id);
   }
 
   void bind(Promise<Void> promise) {
@@ -82,39 +75,30 @@ abstract class EventBusGrpcEndpoint {
       .completion()
       .andThen(ar -> {
         if (ar.succeeded()) {
-          scheduleLivenessCheck();
+          livenessTimerId = scheduleLivenessCheck();
         }
       }).onComplete(promise);
   }
 
-  private void scheduleLivenessCheck() {
-    if (stopped || livenessTimerId >= 0) {
-      return;
-    }
-    long period = checkPeriod();
-    if (period > 0) {
-      livenessTimerId = producerContext.setTimer(period, id -> {
-        livenessTimerId = -1L;
-        long now = System.currentTimeMillis();
-        pingRemoteEndpoints();
-        reapSilentRemoteEndpoints(now);
-        scheduleLivenessCheck();
-      });
+  private long scheduleLivenessCheck() {
+    return producerContext.setTimer(cleanerPeriod, id -> {
+      livenessTimerId = -1L;
+      long now = System.currentTimeMillis();
+      pingRemoteEndpoints(now);
+      reapSilentRemoteEndpoints(now);
+      livenessTimerId = scheduleLivenessCheck();
+    });
+  }
+
+  private void cancelLivenessCheck() {
+    long timer = livenessTimerId;
+    if (timer != -1) {
+      vertx.cancelTimer(timer);
     }
   }
 
-  private long checkPeriod() {
-    long period = pingInterval > 0 ? pingInterval : Long.MAX_VALUE;
-    for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
-      if (remoteEndpoint.timeout > 0) {
-        period = Math.min(period, Math.max(1, remoteEndpoint.timeout / 2));
-      }
-    }
-    return period == Long.MAX_VALUE ? -1L : period;
-  }
-
-  Future<Message<Object>> request(ContextInternal context, String address, Object body, DeliveryOptions options) {
-    return eventBus.request(context, address, body, options);
+  Future<Message<Object>> request(String address, Object body, DeliveryOptions options) {
+    return eventBus.request(producerContext, address, body, options);
   }
 
   MessageConsumer<Object> consumer(String address, Handler<Message<Object>> handler) {
@@ -123,40 +107,46 @@ abstract class EventBusGrpcEndpoint {
     return consumer;
   }
 
-  private void pingRemoteEndpoints() {
-    if (pingInterval <= 0) {
-      return;
-    }
-    long data = pingData.incrementAndGet();
-    for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
-      Ping.Builder ping = Ping.newBuilder().setData(data);
-      DeliveryOptions options = new DeliveryOptions()
-        .addHeader(EventBusHeaders.WIRE_FORMAT, pingWireFormat.name())
-        .addHeader(EventBusHeaders.REMOTE_ENDPOINT_ADDRESS, address);
-      remoteEndpoint.producer
-        .write(EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ping), pingWireFormat), options)
-        .onFailure(cause -> remoteEndpointDown(remoteEndpoint, cause));
+  private void pingRemoteEndpoints(long now) {
+    if (pingInterval > 0) {
+      long data = pingData.incrementAndGet();
+      List<RemoteEndpoint> toPing = new ArrayList<>();
+      for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
+        if (now - remoteEndpoint.lastPingTimestamp > pingInterval) {
+          toPing.add(remoteEndpoint);
+        }
+      }
+      for (RemoteEndpoint remoteEndpoint : toPing) {
+        Ping.Builder ping = Ping.newBuilder().setData(data);
+        DeliveryOptions options = new DeliveryOptions()
+          .addHeader(EventBusHeaders.WIRE_FORMAT, remoteEndpoint.format.name())
+          .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
+        remoteEndpoint.lastPingTimestamp = now;
+        remoteEndpoint.producer
+          .write(EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ping).build(), remoteEndpoint.format), options)
+          .onFailure(cause -> remoteEndpointDown(remoteEndpoint));
+      }
     }
   }
 
   private void reapSilentRemoteEndpoints(long now) {
-    for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
-      if (remoteEndpoint.timeout > 0 && now - remoteEndpoint.lastSeen > remoteEndpoint.timeout) {
-        remoteEndpointDown(remoteEndpoint, new TimeoutException("No ping from remote endpoint " + remoteEndpoint.address + " within " + remoteEndpoint.timeout + " ms"));
+    for (RemoteEndpoint remoteEndpoint : new ArrayList<>(remoteEndpoints.values())) {
+      if (remoteEndpoint.timeout > 0 && now - remoteEndpoint.lastSeenTimestamp > remoteEndpoint.timeout) {
+        GrpcErrorException err = new GrpcErrorException(GrpcError.UNAVAILABLE, GrpcStatus.UNAVAILABLE);
+        err.initCause(new TimeoutException("No ping from remote endpoint " + remoteEndpoint.address + " within " + remoteEndpoint.timeout + " ms"));
+        remoteEndpointDown(remoteEndpoint);
       }
     }
   }
 
-  private void remoteEndpointDown(RemoteEndpoint remoteEndpoint, Throwable cause) {
-    if (!remoteEndpoints.remove(remoteEndpoint.address, remoteEndpoint)) {
-      return;
-    }
-    remoteEndpoint.producer.close();
-    for (Long id : remoteEndpoint.streams) {
-      EventBusGrpcStreamBase stream = streams.get(id);
-      if (stream != null) {
-        stream.handleRemoteEndpointDown(cause);
+  private void remoteEndpointDown(RemoteEndpoint remoteEndpoint) {
+    if (remoteEndpoints.get(remoteEndpoint.address) == remoteEndpoint) {
+      ArrayList<StreamRegistration> copy = new ArrayList<>(remoteEndpoint.streams.values());
+      for (StreamRegistration registration : copy) {
+        registration.close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), true);
       }
+      // Check endpoint is down
+      assert !remoteEndpoints.containsKey(remoteEndpoint.address);
     }
   }
 
@@ -166,10 +156,10 @@ abstract class EventBusGrpcEndpoint {
       handlePing(frame.getPing(), message);
       return;
     }
-    EventBusGrpcStreamBase stream = streams.get(frame.getStreamId());
+    EventBusGrpcStreamBase<?> stream = streams.get(frame.getStreamId());
     if (stream != null) {
-      if (frame.getFrameCase() == TransportFrame.FrameCase.WINDOW_UPDATE) {
-        stream.updateOutboundWindow(frame.getWindowUpdate().getDelta());
+      if (frame.getFrameCase() == TransportFrame.FrameCase.CANCEL) {
+        ((StreamRegistration)stream).close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), false);
       } else {
         stream.handle(frame, message);
       }
@@ -177,127 +167,203 @@ abstract class EventBusGrpcEndpoint {
   }
 
   private void handlePing(Ping ping, Message<Object> message) {
-    String remoteAddress = message.headers().get(EventBusHeaders.REMOTE_ENDPOINT_ADDRESS);
-    if (remoteAddress == null) {
-      return;
-    }
+    String remoteAddress = message.headers().get(EventBusHeaders.ENDPOINT_ADDRESS);
     RemoteEndpoint remoteEndpoint = remoteEndpoints.get(remoteAddress);
     if (remoteEndpoint != null) {
-      remoteEndpoint.lastSeen = System.currentTimeMillis();
+      remoteEndpoint.lastSeenTimestamp = System.currentTimeMillis();
     }
-    if (ping.getAck()) {
-      return;
+    if (!ping.getAck()) {
+      String wireFormatName = message.headers().get(EventBusHeaders.WIRE_FORMAT);
+      WireFormat wireFormat = JsonWireFormat.NAME.equals(wireFormatName) ? WireFormat.JSON : WireFormat.PROTOBUF;
+      DeliveryOptions options = new DeliveryOptions()
+        .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name())
+        .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
+      Ping.Builder ack = Ping.newBuilder().setData(ping.getData()).setAck(true);
+      eventBus.send(remoteAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ack).build(), wireFormat), options);
     }
-
-    String wireFormatName = message.headers().get(EventBusHeaders.WIRE_FORMAT);
-    WireFormat wireFormat = JsonWireFormat.NAME.equals(wireFormatName) ? WireFormat.JSON : WireFormat.PROTOBUF;
-    DeliveryOptions options = new DeliveryOptions()
-      .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name())
-      .addHeader(EventBusHeaders.REMOTE_ENDPOINT_ADDRESS, address);
-    Ping.Builder ack = Ping.newBuilder().setData(ping.getData()).setAck(true);
-    eventBus.send(remoteAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ack), wireFormat), options);
   }
 
-  Future<Void> closeStreams() {
-    stopped = true;
+  protected abstract Future<Void> handleClose();
+
+  public final Future<Void> close() {
+    PromiseInternal<Void> completion = vertx.promise();
+    if (producerContext.inThread()) {
+      closeImpl(completion);
+    } else {
+      producerContext.execute(v -> closeImpl(completion));
+    }
+    return completion.future();
+  }
+
+  private void closeImpl(Promise<Void> completion) {
+    cancelLivenessCheck();
+    handleClose()
+      .eventually(this::closeStreams)
+      .eventually(() -> consumer.unregister())
+      .onComplete(completion);
+  }
+
+  private RemoteEndpoint remoteEndpoint(String remoteAddress, long remoteTimeout,  WireFormat wireFormat) {
+    return remoteEndpoints.computeIfAbsent(remoteAddress,
+      addr -> new RemoteEndpoint(addr, remoteTimeout, eventBus.sender(addr),
+        System.currentTimeMillis(), wireFormat));
+  }
+
+  private Future<Void> closeStreams() {
     if (livenessTimerId >= 0) {
       vertx.cancelTimer(livenessTimerId);
       livenessTimerId = -1L;
     }
-    for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
-      remoteEndpoint.producer.close();
-    }
-    remoteEndpoints.clear();
-    List<EventBusGrpcStreamBase> active = new ArrayList<>(streams.values());
+    List<EventBusGrpcStreamBase<?>> active = new ArrayList<>(streams.values());
     streams.clear();
     List<Future<Void>> futures = new ArrayList<>();
-    for (EventBusGrpcStreamBase stream : active) {
-      Promise<Void> promise = Promise.promise();
-      stream.close(promise);
-      futures.add(promise.future());
+    for (EventBusGrpcStreamBase<?> stream : active) {
+      ((StreamRegistration)stream).close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), true);
     }
-    if (consumer != null) {
-      futures.add(consumer.unregister());
-      consumer = null;
-    }
-    return Future.all(futures).mapEmpty();
+    return Future.all(futures).andThen(ar -> {
+      assert remoteEndpoints.isEmpty();
+    }).mapEmpty();
   }
 
-  public static final class RemoteEndpoint {
+  public final class RemoteEndpoint {
 
     private final String address;
     private final long timeout;
     public final MessageProducer<Object> producer;
-    private final Set<Long> streams = ConcurrentHashMap.newKeySet();
+    private final LongObjectMap<StreamRegistration> streams = new LongObjectHashMap<>();
+    private final WireFormat format;
+    private long lastPingTimestamp;
+    private long lastSeenTimestamp;
 
-    private volatile long lastSeen;
-
-    private RemoteEndpoint(String address, long timeout, MessageProducer<Object> producer, long now) {
+    private RemoteEndpoint(String address, long timeout, MessageProducer<Object> producer, long now, WireFormat format) {
       this.address = address;
       this.timeout = timeout;
       this.producer = producer;
-      this.lastSeen = now;
+      this.lastSeenTimestamp = now;
+      this.lastPingTimestamp = 0L;
+      this.format = format;
+    }
+
+    void dispose() {
+      assert streams.isEmpty();
+      remoteEndpoints.remove(address, this);
+      producer.close();
     }
   }
 
-  final class StreamRegistration {
+  static abstract class StreamRegistration {
 
+    private final EventBusGrpcEndpoint localEndpoint;
     private final long id;
+    private RemoteEndpoint remoteEndpoint;
+    private boolean outboundClosed;
+    private boolean inboundClosed;
+    private Throwable closeReason;
 
-    RemoteEndpoint remoteEndpoint;
-
-    boolean closed;
-
-    private StreamRegistration(long id) {
+    StreamRegistration(EventBusGrpcEndpoint localEndpoint, long id) {
+      assert id > 0;
+      this.localEndpoint = localEndpoint;
       this.id = id;
     }
 
-    EventBusGrpcEndpoint localEndpoint() {
-      return EventBusGrpcEndpoint.this;
-    }
+    abstract WireFormat format();
 
-    RemoteEndpoint remoteEndpoint() {
-      return remoteEndpoint;
-    }
+    abstract void handleClose(Throwable cause);
 
-    long id() {
+    final long id() {
       return id;
     }
 
-    void bind(EventBusGrpcStreamBase stream, String remoteAddress, long remoteTimeout) {
-      streams.put(id, stream);
-      RemoteEndpoint bound = remoteEndpoints.computeIfAbsent(remoteAddress, addr -> new RemoteEndpoint(addr, remoteTimeout, eventBus.sender(addr), System.currentTimeMillis()));
-      bound.streams.add(id);
-      remoteEndpoint = bound;
-      scheduleLivenessCheck();
+    final void registerStream() {
+      assert localEndpoint.producerContext.inThread();
+      localEndpoint.streams.put(id, (EventBusGrpcStreamBase<?>) this);
     }
 
-    public Future<Void> sendTransportFrame(TransportFrame.Builder builder, WireFormat wireFormat, DeliveryOptions options) {
+    final void registerRemoteEndpoint(String remoteAddress, long remoteTimeout, WireFormat wireFormat) {
+      assert localEndpoint.producerContext.inThread();
+      RemoteEndpoint bound = localEndpoint.remoteEndpoint(remoteAddress, remoteTimeout, wireFormat);
+      bound.streams.put(id, this);
+      remoteEndpoint = bound;
+    }
+
+    final Future<Void> sendTransportFrame(TransportFrame.Builder builder, WireFormat wireFormat, DeliveryOptions options) {
+      assert localEndpoint.producerContext.inThread();
       RemoteEndpoint remote = remoteEndpoint;
       if (remote == null) {
-        return null;
+        return localEndpoint.producerContext.failedFuture("Endpoint absent");
       } else {
         builder.setStreamId(id);
-        Object payload = EventBusGrpcCodec.encodeFrame(builder, wireFormat);
+        TransportFrame frame = builder.build();
+        if (frame.getFrameCase() == TransportFrame.FrameCase.HALF_CLOSE || frame.getFrameCase() == TransportFrame.FrameCase.TRAILERS) {
+          closeOutbound();
+        } else if (frame.getFrameCase() == TransportFrame.FrameCase.CANCEL) {
+          // Should use a root cause for this to get unavailable instead ?
+          close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), false);
+        }
+        Object payload = EventBusGrpcCodec.encodeFrame(frame, wireFormat);
         if (options == null) {
           options = new DeliveryOptions();
         }
         options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
         MessageProducer<Object> producer = remote.producer;
-        return producer.write(payload, options);
+        Future<Void> res = producer.write(payload, options);
+        return res.andThen(ar -> {
+          if (ar.failed()) {
+            localEndpoint.remoteEndpointDown(remoteEndpoint);
+          }
+        });
       }
     }
 
-    void unbind() {
-      streams.remove(id);
-      RemoteEndpoint bound = remoteEndpoint;
-      if (!closed) {
-        closed = true;
-        if (bound != null) {
-          bound.streams.remove(id);
-          if (bound.streams.isEmpty() && remoteEndpoints.remove(bound.address, bound)) {
-            bound.producer.close();
-          }
+    final void closeInbound() {
+      assert localEndpoint.producerContext.inThread();
+      inboundClosed = true;
+      if (outboundClosed) {
+        remove();
+        handleClose(null);
+      }
+    }
+
+    final void closeOutbound() {
+      assert localEndpoint.producerContext.inThread();
+      outboundClosed = true;
+      if (inboundClosed) {
+        remove();
+        handleClose(null);
+      }
+    }
+
+    private void close(Throwable cause, boolean notify) {
+      assert localEndpoint.producerContext.inThread();
+      if (!inboundClosed || !outboundClosed) {
+        closeReason = cause;
+        inboundClosed = true;
+        outboundClosed = true;
+        if (cause != null && remoteEndpoint != null && notify) {
+          // Send a transport frame that bypasses the accounting
+          TransportFrame frame = TransportFrame.newBuilder()
+            .setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Closed"))
+            .setStreamId(id)
+            .build();
+          WireFormat format = format();
+          DeliveryOptions options = new DeliveryOptions();
+          options.addHeader(EventBusHeaders.WIRE_FORMAT, format.name());
+          Object payload = EventBusGrpcCodec.encodeFrame(frame, format);
+          remoteEndpoint.producer.write(payload, options);
+        }
+        remove();
+        handleClose(cause);
+      }
+    }
+
+    private void remove() {
+      localEndpoint.streams.remove(id);
+      RemoteEndpoint rm = remoteEndpoint;
+      if (rm != null) {
+        remoteEndpoint = null;
+        rm.streams.remove(id);
+        if (rm.streams.isEmpty()) {
+          rm.dispose();
         }
       }
     }

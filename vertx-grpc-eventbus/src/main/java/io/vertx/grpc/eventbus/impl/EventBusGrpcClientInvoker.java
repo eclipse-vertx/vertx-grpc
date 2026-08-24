@@ -9,12 +9,12 @@ public class EventBusGrpcClientInvoker implements GrpcClientInvoker {
 
   private final ContextInternal context;
   private final boolean remoteUnary;
-  private final EventBusGrpcClientImpl client;
+  private final EventBusGrpcClientEndpoint client;
   private final boolean localUnary;
   private final int initialInboundWindowSize;
   private final int initialOutboundWindowSize;
 
-  public EventBusGrpcClientInvoker(ContextInternal context, EventBusGrpcClientImpl client, boolean localUnary,
+  public EventBusGrpcClientInvoker(ContextInternal context, EventBusGrpcClientEndpoint client, boolean localUnary,
                                    boolean remoteUnary, int initialInboundWindowSize, int initialOutboundWindowSize) {
     this.client = client;
     this.context = context;
@@ -26,8 +26,7 @@ public class EventBusGrpcClientInvoker implements GrpcClientInvoker {
 
   @Override
   public GrpcStream invoke(ServiceName serviceName, String methodName) {
-    EventBusGrpcEndpoint.StreamRegistration registration = client.createStream();
-    return new EventBusGrpcClientCall(context, localUnary, remoteUnary, registration, client, serviceName, methodName,
+    return new EventBusGrpcClientCall(client, client.nextStreamId(), context, localUnary, remoteUnary, serviceName, methodName,
       initialInboundWindowSize, initialOutboundWindowSize);
   }
 }

@@ -20,19 +20,20 @@ public final class EventBusHeaders {
   public static final String WIRE_FORMAT = "grpc-wire-format";
 
   /**
-   * Streaming handshake, client to server: the client's private address for server to client frames.
+   * The endpoint wire format, carrying the {@link io.vertx.grpc.common.WireFormat#name()} value, e.g. {@code "proto"} or {@code "json"}, used
+   * for endpoint messaging such as ping.
    */
-  public static final String CLIENT_ADDRESS = "grpc-client-address";
+  public static final String ENDPOINT_WIRE_FORMAT = "grpc-endpoint-wire-format";
+
+  /**
+   * The address of the endpoint sending the message, it can be carried by initial stream frames and non stream frames such as ping frames.
+   */
+  public static final String ENDPOINT_ADDRESS = "grpc-endpoint-address";
 
   /**
    * Streaming handshake, client to server: the stream's id for this call, used to demux server to identify frames.
    */
   public static final String STREAM_ID = "grpc-stream-id";
-
-  /**
-   * Streaming handshake, server to client: the server's private address for client to server frames.
-   */
-  public static final String SERVER_ADDRESS = "grpc-server-address";
 
   /**
    * Streaming handshake, server to client: the number of messages the server grants the client to send.
@@ -44,11 +45,6 @@ public final class EventBusHeaders {
    * both sides give the stream up at the same time. Absent when the client does not ping.
    */
   public static final String PING_TIMEOUT = "grpc-ping-timeout";
-
-  /**
-   * Ping frames, either direction: the sender's private address, so the receiver knows where to send the ack and which remote endpoint to credit for it.
-   */
-  public static final String REMOTE_ENDPOINT_ADDRESS = "grpc-remote-endpoint-address";
 
   /**
    * The prefix for grpc headers among delivery options.
