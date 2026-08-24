@@ -138,6 +138,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase<EventBusGrpcClientEn
     if (frame.type() == GrpcFrameType.HEADERS) {
       Promise<Void> c = cancellation;
       if (c != null) {
+        cancellation = null;
         if (localUnary && remoteUnary) {
           c.fail("Cannot cancel a unary/unary stream");
         } else {
@@ -230,9 +231,14 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase<EventBusGrpcClientEn
   }
 
   @Override
-  void handleClosed() {
+  void handleConsumerClosed() {
     assert state != State.CLOSED;
     state = State.CLOSED;
+    Promise<Void> c = cancellation;
+    if (c != null) {
+      cancellation = null;
+      c.succeed();
+    }
   }
 
   private enum State {

@@ -1,5 +1,6 @@
 package io.vertx.grpc.eventbus.tests;
 
+import io.vertx.core.Future;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClientRequest;
@@ -26,7 +27,7 @@ public class EventBusGrpcClientCancellationTest extends EventBusGrpcTestBase {
   public void setUp(TestContext should) {
     super.setUp(should);
     client = EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()).await();
-    server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setInitialWindowSize(8)).await();
+    server = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()).await();
   }
 
   @Test
@@ -76,9 +77,28 @@ public class EventBusGrpcClientCancellationTest extends EventBusGrpcTestBase {
       .get()
       .response()
       .end(Reply.getDefaultInstance());
-    request.cancellation().onComplete(should.asyncAssertFailure(err -> {
+    Future<Void> cancellation = request.cancellation();
+    should.assertFalse(cancellation.isComplete());
+    should.assertTrue(request.isCancelled()); // Optimistic
+    cancellation.onComplete(should.asyncAssertFailure(err -> {
       should.assertFalse(request.isCancelled());
     }));
+  }
+
+  @Test
+  public void testClientUnaryCancelCompletesAfterClose(TestContext should) {
+    Async async = should.async();
+    server.callHandler(UNARY_SERVER, request -> {
+      async.complete();
+    });
+    GrpcClientRequest<Request, Reply> request = client.request(UNARY_CLIENT).await();
+    request.end(Request.getDefaultInstance());
+    async.awaitSuccess(20_000);
+    request.cancel();
+    Future<Void> cancellation = request.cancellation();
+    should.assertFalse(cancellation.isComplete());
+    client.close().await();
+    should.assertTrue(cancellation.isComplete());
   }
 
   @Test

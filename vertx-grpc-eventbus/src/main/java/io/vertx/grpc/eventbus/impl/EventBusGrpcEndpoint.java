@@ -268,7 +268,7 @@ abstract class EventBusGrpcEndpoint {
 
     abstract WireFormat format();
 
-    abstract void handleClose(Throwable cause);
+    abstract void handleProducerClosed(Throwable cause);
 
     final long id() {
       return id;
@@ -320,7 +320,7 @@ abstract class EventBusGrpcEndpoint {
       inboundClosed = true;
       if (outboundClosed) {
         remove();
-        handleClose(null);
+        handleProducerClosed(null);
       }
     }
 
@@ -329,7 +329,7 @@ abstract class EventBusGrpcEndpoint {
       outboundClosed = true;
       if (inboundClosed) {
         remove();
-        handleClose(null);
+        handleProducerClosed(null);
       }
     }
 
@@ -352,7 +352,7 @@ abstract class EventBusGrpcEndpoint {
           remoteEndpoint.producer.write(payload, options);
         }
         remove();
-        handleClose(cause);
+        handleProducerClosed(cause);
       }
     }
 
