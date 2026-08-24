@@ -124,7 +124,7 @@ abstract class EventBusGrpcEndpoint {
         remoteEndpoint.lastPingTimestamp = now;
         remoteEndpoint.producer
           .write(EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ping).build(), remoteEndpoint.format), options)
-          .onFailure(cause -> remoteEndpointDown(remoteEndpoint));
+          .onFailure(cause -> remoteEndpointDown(remoteEndpoint, false));
       }
     }
   }
@@ -134,16 +134,16 @@ abstract class EventBusGrpcEndpoint {
       if (remoteEndpoint.timeout > 0 && now - remoteEndpoint.lastSeenTimestamp > remoteEndpoint.timeout) {
         GrpcErrorException err = new GrpcErrorException(GrpcError.UNAVAILABLE, GrpcStatus.UNAVAILABLE);
         err.initCause(new TimeoutException("No ping from remote endpoint " + remoteEndpoint.address + " within " + remoteEndpoint.timeout + " ms"));
-        remoteEndpointDown(remoteEndpoint);
+        remoteEndpointDown(remoteEndpoint, true);
       }
     }
   }
 
-  private void remoteEndpointDown(RemoteEndpoint remoteEndpoint) {
+  private void remoteEndpointDown(RemoteEndpoint remoteEndpoint, boolean notify) {
     if (remoteEndpoints.get(remoteEndpoint.address) == remoteEndpoint) {
       ArrayList<StreamRegistration> copy = new ArrayList<>(remoteEndpoint.streams.values());
       for (StreamRegistration registration : copy) {
-        registration.close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), true);
+        registration.close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), notify);
       }
       // Check endpoint is down
       assert !remoteEndpoints.containsKey(remoteEndpoint.address);
@@ -309,7 +309,7 @@ abstract class EventBusGrpcEndpoint {
         Future<Void> res = producer.write(payload, options);
         return res.andThen(ar -> {
           if (ar.failed()) {
-            localEndpoint.remoteEndpointDown(remoteEndpoint);
+            localEndpoint.remoteEndpointDown(remote, false);
           }
         });
       }
