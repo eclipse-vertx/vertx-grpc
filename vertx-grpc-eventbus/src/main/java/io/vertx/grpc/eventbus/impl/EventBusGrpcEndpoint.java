@@ -165,7 +165,7 @@ abstract class EventBusGrpcEndpoint {
     EventBusGrpcStreamBase<?> stream = streams.get(frame.getStreamId());
     if (stream != null) {
       if (frame.getFrameCase() == TransportFrame.FrameCase.CANCEL) {
-        ((StreamRegistration)stream).close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), false);
+        stream.close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), false);
       } else {
         stream.handle(frame, message);
       }

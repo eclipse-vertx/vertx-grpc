@@ -37,7 +37,8 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
   private final OMQ outboundQueue;
   private final IMQ inboundQueue;
 
-  private long sequence;
+  private long outboundSequence;
+  private long inboundSequence;
 
   private boolean closed;
   private Throwable closeCause;
@@ -53,7 +54,8 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     this.localUnary = localUnary;
     this.remoteUnary = remoteUnary;
     this.outboundQueue = new OMQ(localEndpoint.producerContext().executor(), initialOutboundWindowSize);
-    this.sequence = 1;
+    this.outboundSequence = 1;
+    this.inboundSequence = 1;
   }
 
   @Override
@@ -77,32 +79,37 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
   }
 
   void handle(TransportFrame frame, io.vertx.core.eventbus.Message<Object> message) {
-    switch (frame.getFrameCase()) {
-      case WINDOW_UPDATE:
-        updateOutboundWindow(frame.getWindowUpdate().getDelta());
-        break;
-      case HEADERS:
-        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-        EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
-        emitInbound(new DefaultGrpcHeadersFrame(format(), encoding(), headers));
-        break;
-      case MESSAGE:
-        emitInbound(new DefaultGrpcMessageFrame(EventBusGrpcCodec.message(frame, encoding(), format())));
-        break;
-      case HALF_CLOSE:
-        emitInbound(DefaultGrpcHalfCloseFrame.INSTANCE);
-        closeInbound();
-        break;
-      case TRAILERS:
-        Trailers t = frame.getTrailers();
-        MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
-        EventBusHeaders.decodeMultimap(TRAILER_PREFIX, message.headers(), trailers);
-        GrpcStatus status = Optional.ofNullable(GrpcStatus.valueOf(t.getStatus())).orElse(GrpcStatus.UNKNOWN);
-        emitInbound(new DefaultGrpcTrailersFrame(status, t.getStatusMessage().isEmpty() ? null : t.getStatusMessage(), trailers));
-        closeInbound();
-        break;
-      default:
-        break;
+    long sequence;
+    if ((sequence = frame.getStreamSequence()) > 0 && sequence != inboundSequence++) {
+      close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), true);
+    } else {
+      switch (frame.getFrameCase()) {
+        case WINDOW_UPDATE:
+          updateOutboundWindow(frame.getWindowUpdate().getDelta());
+          break;
+        case HEADERS:
+          MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+          EventBusHeaders.decodeMultimap(HEADER_PREFIX, message.headers(), headers);
+          emitInbound(new DefaultGrpcHeadersFrame(format(), encoding(), headers));
+          break;
+        case MESSAGE:
+          emitInbound(new DefaultGrpcMessageFrame(EventBusGrpcCodec.message(frame, encoding(), format())));
+          break;
+        case HALF_CLOSE:
+          emitInbound(DefaultGrpcHalfCloseFrame.INSTANCE);
+          closeInbound();
+          break;
+        case TRAILERS:
+          Trailers t = frame.getTrailers();
+          MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
+          EventBusHeaders.decodeMultimap(TRAILER_PREFIX, message.headers(), trailers);
+          GrpcStatus status = Optional.ofNullable(GrpcStatus.valueOf(t.getStatus())).orElse(GrpcStatus.UNKNOWN);
+          emitInbound(new DefaultGrpcTrailersFrame(status, t.getStatusMessage().isEmpty() ? null : t.getStatusMessage(), trailers));
+          closeInbound();
+          break;
+        default:
+          break;
+      }
     }
   }
 
@@ -216,6 +223,10 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     Promise<Void> promise = consumerContext.promise();
 
     return new OutboundWrite(promise) {
+      @Override
+      long sequence() {
+        return 0L;
+      }
       @Override
       void write() {
         registerStream();
@@ -337,7 +348,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     }
   }
 
-  private OutboundFrameMessage messageFrameWrite(GrpcMessage message) {
+  private OutboundFrameWrite messageFrameWrite(GrpcMessage message) {
     Promise<Void> completion = consumerContext.promise();
 
     Message.Builder messageBuilder;
@@ -355,10 +366,10 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
       .newBuilder()
       .setMessage(messageBuilder);
 
-    return new OutboundFrameMessage(completion, builder, null);
+    return new OutboundFrameWrite(completion, builder, outboundSequence++, null);
   }
 
-  private OutboundFrameMessage trailersFrameWrite(GrpcTrailersFrame frame) {
+  private OutboundFrameWrite trailersFrameWrite(GrpcTrailersFrame frame) {
     Promise<Void> completion = consumerContext.promise();
     DeliveryOptions deliveryOptions = new DeliveryOptions();
     MultiMap headers = frame.trailers();
@@ -374,18 +385,18 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     TransportFrame.Builder builder = TransportFrame
       .newBuilder()
       .setTrailers(trailersBuilder);
-    return new OutboundFrameMessage(completion, builder, deliveryOptions);
+    return new OutboundFrameWrite(completion, builder, outboundSequence++, deliveryOptions);
   }
 
-  private OutboundFrameMessage halfCloseFrameWrite() {
-    return new OutboundFrameMessage(
+  private OutboundFrameWrite halfCloseFrameWrite() {
+    return new OutboundFrameWrite(
       consumerContext.promise(),
       TransportFrame.newBuilder().setHalfClose(HalfClose.newBuilder()),
+      outboundSequence++,
       null);
   }
 
   Future<Void> enqueue(OutboundWrite write) {
-    write.serial = sequence++;
     outboundQueue.write(write);
     return write.completion.future();
   }
@@ -501,12 +512,13 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
 
   static abstract class OutboundWrite {
 
-    long serial;
     final Promise<Void> completion;
 
     public OutboundWrite(Promise<Void> completion) {
       this.completion = completion;
     }
+
+    abstract long sequence();
 
     abstract void write();
 
@@ -515,20 +527,28 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     }
   }
 
-  private class OutboundFrameMessage extends OutboundWrite {
+  private class OutboundFrameWrite extends OutboundWrite {
 
+
+    final long sequence;
     final TransportFrame.Builder frame;
     final DeliveryOptions deliveryOptions;
 
-    public OutboundFrameMessage(Promise<Void> completion, TransportFrame.Builder frame, DeliveryOptions deliveryOptions) {
+    public OutboundFrameWrite(Promise<Void> completion, TransportFrame.Builder frame, long sequence, DeliveryOptions deliveryOptions) {
       super(completion);
       this.frame = frame;
       this.deliveryOptions = deliveryOptions;
+      this.sequence = sequence;
+    }
+
+    @Override
+    long sequence() {
+      return sequence;
     }
 
     @Override
     public void write() {
-      frame.setStreamSequence(serial);
+      frame.setStreamSequence(sequence);
       Future<Void> sent = sendTransportFrame(frame, deliveryOptions);
       sent.onComplete(completion);
     }

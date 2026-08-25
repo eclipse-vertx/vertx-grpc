@@ -137,6 +137,7 @@ The endpoint removes a stream from the map when the stream ends with trailers or
 
 - The endpoint cannot deliver a frame.
 - The peer of the stream does not answer. Refer to [Liveness](#liveness).
+- A frame arrives out of order. Refer to [Frame ordering](#frame-ordering).
 
 Therefore, a peer that leaves the cluster does not cause a registration to stay in the
 map.
@@ -158,14 +159,14 @@ sequenceDiagram
     Note right of S: The method type is a stream.<br/>Register the call in the stream map.
     S-->>C: reply, headers grpc-endpoint-address,<br/>grpc-endpoint-wire-format, grpc-stream-initial-window
 
-    Note over C,S: The call is now full duplex. Each frame contains<br/>the stream_id of the destination. Each direction<br/>counts its messages separately.
-    C->>S: Message, stream_sequence 1, the first request message
-    S->>C: Headers, the response metadata
-    S->>C: Message, stream_sequence 1
-    C->>S: Message, stream_sequence 2
-    C->>S: HalfClose, the client sends no more messages
+    Note over C,S: The call is now full duplex. Each frame contains<br/>the stream_id of the destination. Content frames<br/>carry an incrementing stream_sequence per direction.<br/>Control frames (WindowUpdate) carry stream_sequence 0.
+    C->>S: Message, stream_sequence 1
+    S->>C: Headers, stream_sequence 1
     S->>C: Message, stream_sequence 2
-    S->>C: Trailers, the status
+    C->>S: Message, stream_sequence 2
+    C->>S: HalfClose, stream_sequence 3
+    S->>C: Message, stream_sequence 3
+    S->>C: Trailers, stream_sequence 4
     Note over C,S: The two endpoints remove the stream from their<br/>maps. The call is complete.
 ```
 
@@ -198,6 +199,20 @@ A frame contains a small header and one variant. The header contains the `stream
 - `Headers` or `Trailers`, from the server.
 - `Cancel`, from the client or from the server.
 - `Ping`, a liveness probe, from the client or from the server.
+
+### Frame ordering
+
+Content frames — `Message`, `Headers`, `Trailers`, and `HalfClose` — carry an
+incrementing `stream_sequence` value. Each direction counts independently, starting from
+1. Control frames (`WindowUpdate`) carry `stream_sequence` 0 and are not sequenced.
+
+The receiver tracks the expected sequence for each stream. When a content frame arrives
+with a `stream_sequence` that does not match the expected value, the receiver cancels the
+stream and sends a `Cancel` frame to the peer. This condition indicates that a frame was
+lost or reordered in transit, which can happen on a clustered event bus.
+
+The `Ping` and `Cancel` frames bypass the sequence check. A `Ping` frame is not related
+to a stream. A `Cancel` frame stops the stream immediately, regardless of order.
 
 A `Ping` frame is not related to a call. Therefore, it has the `stream_id` value 0. The
 endpoint processes this frame and does not send it to a stream. The `grpc-endpoint-address`
@@ -447,10 +462,10 @@ direction for each function.
   in addition to the window of each stream. Therefore a connection can limit the total
   quantity of data in its buffers. The equivalent function is a window for all the streams
   that use one private address. This function needs the `session_id` value above.
-- **Resumption.** Each `Message` frame contains a `stream_sequence` value. This value
-  permits a future function. A client that loses its connection can connect again. The
-  client can then ask the server to send again all the messages after the last sequence
-  value that it received. The MCP `Last-Event-ID` function has the same purpose. Two items
+- **Resumption.** Each content frame contains a `stream_sequence` value. The sequence
+  currently detects out-of-order delivery. It also permits a future resumption function. A
+  client that loses its connection can connect again. The client can then ask the server to
+  send again all the messages after the last sequence value that it received. The MCP `Last-Event-ID` function has the same purpose. Two items
   are necessary: a handshake for the new connection, and a replay buffer with a limit. To
   continue after a node failure, and not only after a lost connection, the session data
   must be in a shared or permanent store. This store can be an SPI with a local default
