@@ -1,12 +1,11 @@
 package io.vertx.grpc.transcoding.impl;
 
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.ServiceName;
-import io.vertx.grpc.common.WireFormat;
+import io.vertx.core.json.DecodeException;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.GrpcInvocation;
 import io.vertx.grpc.server.impl.MountPoint;
@@ -102,15 +101,25 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
     if (res != null) {
       List<HttpVariableBinding> bindings = new ArrayList<>(res.getVariableBindings());
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
-      TranscodingMessageDecoder<I> messageDecoder = new TranscodingMessageDecoder<>(decoder, format, res.getBodyFieldPath(), bindings);
-      TranscodingMessageDeframer deframer = new TranscodingMessageDeframer(format);
+      TranscodingMessageDeframer deframer = new TranscodingMessageDeframer(format) {
+        @Override
+        protected Buffer decode(Buffer buffer) throws InvalidMessageException {
+          Buffer transcoded;
+          try {
+            transcoded = MessageWeaver.weaveRequestMessage(buffer, bindings, res.getBodyFieldPath(), decoder.messageDescriptor());
+          } catch (DecodeException e) {
+            throw new TranscodingInvalidMessageException(e);
+          }
+          return transcoded;
+        }
+      };
       HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, options.getResponseBody(), deframer);
-      return new GrpcInvocation(deframer, protocolHandler, messageDecoder);
+      return new GrpcInvocation(deframer, protocolHandler);
     } else if (options == null) {
       io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
       TranscodingMessageDeframer deframer = new TranscodingMessageDeframer(format);
       HttpGrpcOutboundStream protocolHandler = new TranscodingGrpcOutboundStream(context, httpRequest, null, deframer);
-      return new GrpcInvocation(deframer, protocolHandler, decoder);
+      return new GrpcInvocation(deframer, protocolHandler);
     }
 
     return null;
