@@ -209,20 +209,17 @@ abstract class EventBusGrpcEndpoint {
         System.currentTimeMillis(), wireFormat));
   }
 
-  private Future<Void> closeStreams() {
-    if (livenessTimerId >= 0) {
-      vertx.cancelTimer(livenessTimerId);
-      livenessTimerId = -1L;
+  private Future<?> closeStreams() {
+    GrpcErrorException cause = new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED);
+    List<Future<?>> results = new ArrayList<>();
+    for (EventBusGrpcStreamBase<?> stream : new ArrayList<>(streams.values())) {
+      Future<Void> result = stream.close(cause, true);
+      if (result != null) {
+        results.add(result);
+      }
     }
-    List<EventBusGrpcStreamBase<?>> active = new ArrayList<>(streams.values());
-    streams.clear();
-    List<Future<Void>> futures = new ArrayList<>();
-    for (EventBusGrpcStreamBase<?> stream : active) {
-      ((StreamRegistration)stream).close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), true);
-    }
-    return Future.all(futures).andThen(ar -> {
-      assert remoteEndpoints.isEmpty();
-    }).mapEmpty();
+    assert remoteEndpoints.isEmpty();
+    return Future.join(results);
   }
 
   public final class RemoteEndpoint {
@@ -244,10 +241,10 @@ abstract class EventBusGrpcEndpoint {
       this.format = format;
     }
 
-    void dispose() {
+    Future<Void> dispose() {
       assert streams.isEmpty();
       remoteEndpoints.remove(address, this);
-      producer.close();
+      return producer.close();
     }
   }
 
@@ -333,7 +330,7 @@ abstract class EventBusGrpcEndpoint {
       }
     }
 
-    void close(Throwable cause, boolean notify) {
+    Future<Void> close(Throwable cause, boolean notify) {
       assert localEndpoint.producerContext.inThread();
       if (!inboundClosed || !outboundClosed) {
         closeReason = cause;
@@ -351,21 +348,25 @@ abstract class EventBusGrpcEndpoint {
           Object payload = EventBusGrpcCodec.encodeFrame(frame, format);
           remoteEndpoint.producer.write(payload, options);
         }
-        remove();
+        Future<Void> res = remove();
         handleProducerClosed(cause);
+        return res;
+      } else {
+        return null;
       }
     }
 
-    private void remove() {
+    private Future<Void> remove() {
       localEndpoint.streams.remove(id);
       RemoteEndpoint rm = remoteEndpoint;
       if (rm != null) {
         remoteEndpoint = null;
         rm.streams.remove(id);
         if (rm.streams.isEmpty()) {
-          rm.dispose();
+          return rm.dispose();
         }
       }
+      return null;
     }
   }
 }
