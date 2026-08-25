@@ -10,14 +10,9 @@ import java.util.Map;
 public final class EventBusHeaders {
 
   /**
-   * The gRPC method name, e.g. {@code "SayHello"}.
+   * The service proxy action, e.g. {@code "SayHello"}.
    */
-  public static final String ACTION = "action";
-
-  /**
-   * The wire format, carrying the {@link io.vertx.grpc.common.WireFormat#name()} value, e.g. {@code "proto"} or {@code "json"}.
-   */
-  public static final String WIRE_FORMAT = "grpc-wire-format";
+  public static final String SERVICE_PROXY_ACTION = "action";
 
   /**
    * The endpoint wire format, carrying the {@link io.vertx.grpc.common.WireFormat#name()} value, e.g. {@code "proto"} or {@code "json"}, used
@@ -31,6 +26,22 @@ public final class EventBusHeaders {
   public static final String ENDPOINT_ADDRESS = "grpc-endpoint-address";
 
   /**
+   * Streaming handshake, client to server: how long in milliseconds the client may go unheard before it is considered gone, the same deadline the client applies to this server, so
+   * both sides give the stream up at the same time. Absent when the client does not ping.
+   */
+  public static final String ENDPOINT_PING_TIMEOUT = "grpc-endpoint-ping-timeout";
+
+  /**
+   * The gRPC method name , e.g. {@code "SayHello"}.
+   */
+  public static final String STREAM_METHOD_NAME = "grpc-stream-method-name";
+
+  /**
+   * The wire format, carrying the {@link io.vertx.grpc.common.WireFormat#name()} value, e.g. {@code "proto"} or {@code "json"}.
+   */
+  public static final String STREAM_WIRE_FORMAT = "grpc-stream-wire-format";
+
+  /**
    * Streaming handshake, client to server: the stream's id for this call, used to demux server to identify frames.
    */
   public static final String STREAM_ID = "grpc-stream-id";
@@ -38,13 +49,7 @@ public final class EventBusHeaders {
   /**
    * Streaming handshake, server to client: the number of messages the server grants the client to send.
    */
-  public static final String INITIAL_WINDOW = "grpc-initial-window";
-
-  /**
-   * Streaming handshake, client to server: how long in milliseconds the client may go unheard before it is considered gone, the same deadline the client applies to this server, so
-   * both sides give the stream up at the same time. Absent when the client does not ping.
-   */
-  public static final String PING_TIMEOUT = "grpc-ping-timeout";
+  public static final String STREAM_INITIAL_WINDOW = "grpc-stream-initial-window";
 
   /**
    * The prefix for grpc headers among delivery options.

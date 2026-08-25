@@ -40,8 +40,8 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
     Deque<Supplier<Result>> actions = new ArrayDeque<>();
     Message<?> msg = ctx.message();
     MultiMap headers = msg.headers();
-    String actionHeader = headers.get(EventBusHeaders.ACTION);
-    String formatHeader = headers.get(EventBusHeaders.WIRE_FORMAT);
+    String actionHeader = headers.get(EventBusHeaders.SERVICE_PROXY_ACTION);
+    String formatHeader = headers.get(EventBusHeaders.STREAM_WIRE_FORMAT);
     WireFormat wireFormat;
     if (formatHeader != null) {
       switch (formatHeader) {

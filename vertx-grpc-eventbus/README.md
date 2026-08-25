@@ -37,15 +37,17 @@ of the event bus.
 
 ## Types of call
 
-The type of the method selects the part.
+Every call uses one event bus `request()` to the service address. The type of the method
+determines what follows.
 
-### Client Unary calls: a request and a reply
+### Unary calls: a request and a reply
 
 A unary call is one event bus `request()` call and its reply. The request contains these
 items:
 
-- The `action` header, which contains the name of the method.
-- The `grpc-wire-format` header, which contains the wire format.
+- `grpc-stream-method-name`, the name of the method.
+- `grpc-stream-wire-format`, the wire format.
+- `grpc-stream-id`, the stream identifier.
 - The headers with the `__header__.` prefix, which contain the request metadata.
 - The body, which contains the encoded message.
 
@@ -54,31 +56,29 @@ The reply contains the response message. The headers with the `__header__.` and
 not `OK` gives no reply. The server fails the event bus message with the gRPC status as
 the failure code and the status message as the failure message.
 
-A Vert.x service proxy uses the same format. This is intentional. A unary call and a
-service proxy call stay interchangeable on the bus. Therefore unary calls do not change,
-and only streams add new items.
-
 ### Streams: an upgrade handshake
 
-The event bus does not natively support streaming, instead any kind of streaming requires more than one request and one reply.
+The event bus does not natively support streaming, instead any kind of streaming requires
+more than one request and one reply.
 
-To open a stream, the client sends a request and receives a reply, this procedure is very much like an HTTP upgrade.
+To open a stream, the client sends a request and receives a reply, this procedure is very
+much like an HTTP upgrade.
 
 #### The request of the client
 
 The client sends the first `request()` call to the service address. The headers contain
 these items:
 
-- `action`, the name of the method.
-- `grpc-wire-format`, the wire format.
+- `grpc-stream-method-name`, the name of the method.
+- `grpc-stream-wire-format`, the wire format.
+- `grpc-stream-id`, the identifier that the client gives to this call.
 - `grpc-endpoint-address`, the private address of the client. Present when any side streams.
 - `grpc-endpoint-wire-format`, the wire format of the client endpoint. Present when any
   side streams.
-- `grpc-stream-id`, the identifier that the client gives to this call.
-- `grpc-initial-window`, the number of messages the client can receive. Present when the
-  server streams. The server uses this value as its send credit.
-- `grpc-ping-timeout`, the time in milliseconds that the client waits before it declares a
-  peer down. Present when the client streams. Refer to [Liveness](#liveness).
+- `grpc-stream-initial-window`, the number of messages the client can receive. Present when
+  the server streams. The server uses this value as its send credit.
+- `grpc-endpoint-ping-timeout`, the time in milliseconds that the client waits before it
+  declares a peer down. Present when the client streams. Refer to [Liveness](#liveness).
 - The request metadata, with the `__header__.` prefix.
 
 Depending on the client method type, the request body will differ, when the client
@@ -93,7 +93,7 @@ The server does these steps:
 1. Find the method.
 2. Prepare the call.
 3. Register the call.
-4. Reply with `grpc-endpoint-address`, `grpc-endpoint-wire-format`, and `grpc-initial-window`.
+4. Reply with `grpc-endpoint-address`, `grpc-endpoint-wire-format`, and `grpc-stream-initial-window`.
 
 The reply is only the signal to start. The server sends the reply before the handler
 operates. Therefore, the reply contains no response metadata.
@@ -154,9 +154,9 @@ sequenceDiagram
     participant S as Server
 
     Note over C,S: Open the stream. A request and a reply on the<br/>service address. The bodies are empty.
-    C->>S: request, headers action, grpc-wire-format,<br/>grpc-endpoint-address, grpc-endpoint-wire-format,<br/>grpc-stream-id, grpc-initial-window
+    C->>S: request, headers grpc-stream-method-name,<br/>grpc-stream-wire-format, grpc-stream-id,<br/>grpc-endpoint-address, grpc-endpoint-wire-format,<br/>grpc-stream-initial-window
     Note right of S: The method type is a stream.<br/>Register the call in the stream map.
-    S-->>C: reply, headers grpc-endpoint-address,<br/>grpc-endpoint-wire-format, grpc-initial-window
+    S-->>C: reply, headers grpc-endpoint-address,<br/>grpc-endpoint-wire-format, grpc-stream-initial-window
 
     Note over C,S: The call is now full duplex. Each frame contains<br/>the stream_id of the destination. Each direction<br/>counts its messages separately.
     C->>S: Message, stream_sequence 1, the first request message
@@ -176,9 +176,9 @@ server only after this registration is complete. Therefore the private address o
 endpoint always has a consumer when the handshake begins.
 
 Both sides exchange their inbound window in the handshake itself. The client sends
-`grpc-initial-window` in the request when the server streams, and the server sends
-`grpc-initial-window` in the reply when the client streams. Each side uses the window of
-the peer as its send credit. Therefore neither side starts at zero and no initial
+`grpc-stream-initial-window` in the request when the server streams, and the server sends
+`grpc-stream-initial-window` in the reply when the client streams. Each side uses the
+window of the peer as its send credit. Therefore neither side starts at zero and no initial
 `WindowUpdate` frame is necessary.
 
 ## Frames
@@ -186,8 +186,8 @@ the peer as its send credit. Therefore neither side starts at zero and no initia
 Each item of data after the handshake is a `TransportFrame` object. The wire format of the
 call gives the format of the frame. The default format is protobuf binary. In JSON mode,
 the format is JSON. The frame is the body of the event bus message. The
-`grpc-wire-format` header of the frame gives the format. Therefore the receiver knows how
-to read the frame.
+`grpc-stream-wire-format` header of the frame gives the format. Therefore the receiver
+knows how to read the frame.
 
 A frame contains a small header and one variant. The header contains the `stream_id` and
 `stream_sequence` values. The variant is one of these items:
@@ -225,11 +225,11 @@ The payload in a JSON frame stays as the message bytes. The frame contains these
 base64 data. The transport does not encode them again.
 
 The encoder and the decoder do not control all of the gRPC data. The delivery headers of
-the event bus contain this data. The map is the same for unary calls and for streams:
+the event bus contain this data. The map is as follows:
 
-- `action` contains the method.
+- `grpc-stream-method-name` contains the method.
+- `grpc-stream-wire-format` contains the wire format.
 - The headers with the `__header__.` and `__trailer__.` prefixes contain the metadata.
-- `grpc-wire-format` contains the wire format.
 
 The frame protobuf contains only the data that streams add.
 
@@ -287,10 +287,10 @@ bytes.
 
 The window is equivalent to the HTTP/2 `WINDOW_UPDATE` mechanism (RFC 7540, section 6.9),
 but at message level. Both sides exchange their inbound window in the handshake. The client
-sends `grpc-initial-window` in the request when the server streams, and the server sends
-`grpc-initial-window` in the reply when the client streams. Each side uses the window of
-the peer as its send credit. The endpoint uses one credit for each `Message` frame that it
-sends. At zero credits, the endpoint stops.
+sends `grpc-stream-initial-window` in the request when the server streams, and the server
+sends `grpc-stream-initial-window` in the reply when the client streams. Each side uses the
+window of the peer as its send credit. The endpoint uses one credit for each `Message`
+frame that it sends. At zero credits, the endpoint stops.
 
 The application of the receiver reads the messages. Then the receiver sends a
 `WindowUpdate` frame with a delta value. The sender adds this delta to its window.
@@ -411,6 +411,24 @@ streams behind one slow stream. This condition is head-of-line blocking.
 
 A slow reader keeps the `WindowUpdate` credit of its own stream. At the same time, the
 shared consumer continues to read the data of the other streams.
+
+## Service proxy compatibility
+
+The server also accepts Vert.x service proxy requests. A service proxy sends a request
+with the `action` header and a JSON body, but without `grpc-stream-method-name`. The
+server distinguishes the two forms by the presence of that header.
+
+When `grpc-stream-method-name` is absent, the server falls back to the service proxy
+form:
+
+- The method name comes from the `action` header.
+- The wire format is JSON.
+- The server generates the stream identifier.
+- Only unary methods are allowed. A streaming method is rejected with `INVALID_ARGUMENT`.
+
+The gRPC client also sends the `action` header on every request, so that the same service
+address can accept both forms. A service proxy consumer on the same address receives the
+`action` header and can process the call.
 
 ## Open questions and future work
 

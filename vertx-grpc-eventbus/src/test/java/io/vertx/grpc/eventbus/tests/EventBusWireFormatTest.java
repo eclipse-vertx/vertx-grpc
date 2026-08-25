@@ -34,7 +34,7 @@ public class EventBusWireFormatTest extends EventBusGrpcTestBase {
       MultiMap headers = ctx
         .message()
         .headers();
-      String wireFormat = headers.get(EventBusHeaders.WIRE_FORMAT);
+      String wireFormat = headers.get(EventBusHeaders.STREAM_WIRE_FORMAT);
       if (wireFormat != null) {
         try {
           payloadHandler.accept(wireFormat, ctx.message().body());

@@ -221,25 +221,43 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
 
     @Override
     public void handle(Message<Object> message) {
-      String methodName = message.headers().get(EventBusHeaders.ACTION);
-      if (methodName == null) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ACTION + "' header");
-        return;
-      }
-      String wireFormatName = message.headers().get(EventBusHeaders.WIRE_FORMAT);
-      if (wireFormatName == null) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.WIRE_FORMAT + "' header");
-        return;
-      }
 
+      boolean isServiceProxy;
       WireFormat wireFormat;
-      if (ProtobufWireFormat.NAME.equals(wireFormatName)) {
-        wireFormat = WireFormat.PROTOBUF;
-      } else if (JsonWireFormat.NAME.equals(wireFormatName)) {
+      long streamId;
+      String methodName = message.headers().get(EventBusHeaders.STREAM_METHOD_NAME);
+      if (methodName == null) {
+        methodName = message.headers().get(EventBusHeaders.SERVICE_PROXY_ACTION);
+        if (methodName == null) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.SERVICE_PROXY_ACTION + "' header");
+          return;
+        }
+        isServiceProxy = true;
         wireFormat = WireFormat.JSON;
+        streamId = nextStreamId();
       } else {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Unknown wire format: " + wireFormatName);
-        return;
+        isServiceProxy = false;
+        String wireFormatName = message.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT);
+        if (ProtobufWireFormat.NAME.equals(wireFormatName)) {
+          wireFormat = WireFormat.PROTOBUF;
+        } else if (JsonWireFormat.NAME.equals(wireFormatName)) {
+          wireFormat = WireFormat.JSON;
+        } else {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Unknown wire format: " + wireFormatName);
+          return;
+        }
+        String clientStreamIdHeader = message.headers().get(EventBusHeaders.STREAM_ID);
+        if (clientStreamIdHeader == null) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.STREAM_ID + "' header");
+          return;
+        } else {
+          try {
+            streamId = Long.parseLong(clientStreamIdHeader);
+          } catch (NumberFormatException e) {
+            message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.STREAM_ID + "' header: " + clientStreamIdHeader);
+            return;
+          }
+        }
       }
 
       if (!supportedWireFormats.contains(wireFormat)) {
@@ -257,12 +275,17 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
 
       if (serviceMethod == null) {
         message.fail(GrpcStatus.UNIMPLEMENTED.code, "Method not found: " + methodName);
-        return;
+      } else if (isServiceProxy && (serviceMethod.clientStreaming() || serviceMethod.serverStreaming())) {
+        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Unsupported service proxy action");
+      } else {
+        dispatchStreaming(message, serviceMethod, streamId, wireFormat);
       }
-      dispatchStreaming(message, serviceMethod, wireFormat);
     }
 
-    private <Req, Resp> void dispatchStreaming(Message<Object> message, ServiceMethod<Req, Resp> serviceMethod, WireFormat wireFormat) {
+    private <Req, Resp> void dispatchStreaming(Message<Object> message,
+                                               ServiceMethod<Req, Resp> serviceMethod,
+                                               long streamId,
+                                               WireFormat wireFormat) {
       boolean needClientAddress = serviceMethod.serverStreaming() || serviceMethod.clientStreaming();
       String clientAddress = message.headers().get(EventBusHeaders.ENDPOINT_ADDRESS);
       String s = message.headers().get(EventBusHeaders.ENDPOINT_WIRE_FORMAT);
@@ -302,36 +325,22 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
 
       int initialOutboundWindowSize;
       if (serviceMethod.serverStreaming()) {
-        String initialWindowHeader = message.headers().get(EventBusHeaders.INITIAL_WINDOW);
+        String initialWindowHeader = message.headers().get(EventBusHeaders.STREAM_INITIAL_WINDOW);
         if (initialWindowHeader == null) {
-          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.INITIAL_WINDOW + "' header");
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.STREAM_INITIAL_WINDOW + "' header");
           return;
         }
         try {
           initialOutboundWindowSize = Integer.parseInt(initialWindowHeader);
         } catch (NumberFormatException e) {
-          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.INITIAL_WINDOW + "' header");
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.STREAM_INITIAL_WINDOW + "' header");
           return;
         }
       } else {
         initialOutboundWindowSize = EventBusGrpcClientOptions.DEFAULT_INITIAL_WINDOW_SIZE;
       }
 
-      String clientStreamIdHeader = message.headers().get(EventBusHeaders.STREAM_ID);
-      long streamId;
-      if (clientStreamIdHeader == null) {
-        message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.STREAM_ID + "' header");
-        return;
-      } else {
-        try {
-          streamId = Long.parseLong(clientStreamIdHeader);
-        } catch (NumberFormatException e) {
-          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.STREAM_ID + "' header: " + clientStreamIdHeader);
-          return;
-        }
-      }
-
-      long remoteTimeout = remoteTimeout(message.headers().get(EventBusHeaders.PING_TIMEOUT));
+      long remoteTimeout = remoteTimeout(message.headers().get(EventBusHeaders.ENDPOINT_PING_TIMEOUT));
 
       EventBusGrpcServerCall stream = new EventBusGrpcServerCall(
         EventBusGrpcServerEndpoint.this,

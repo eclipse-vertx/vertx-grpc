@@ -17,6 +17,7 @@ import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 
 import java.util.*;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 abstract class EventBusGrpcEndpoint {
@@ -26,6 +27,7 @@ abstract class EventBusGrpcEndpoint {
   private final EventBusInternal eventBus;
   private final String address;
   private final int id;
+  private final AtomicInteger sequence = new AtomicInteger();
   private final long pingInterval;
   private final LongObjectMap<EventBusGrpcStreamBase<?>> streams = new LongObjectHashMap<>();
   private final Map<String, RemoteEndpoint> remoteEndpoints = new HashMap<>();
@@ -63,6 +65,10 @@ abstract class EventBusGrpcEndpoint {
 
   public String address() {
     return address;
+  }
+
+  long nextStreamId() {
+    return ((long)id()) << 32 | sequence.getAndIncrement();
   }
 
   long pingInterval() {
@@ -119,7 +125,7 @@ abstract class EventBusGrpcEndpoint {
       for (RemoteEndpoint remoteEndpoint : toPing) {
         Ping.Builder ping = Ping.newBuilder().setData(data);
         DeliveryOptions options = new DeliveryOptions()
-          .addHeader(EventBusHeaders.WIRE_FORMAT, remoteEndpoint.format.name())
+          .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, remoteEndpoint.format.name())
           .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
         remoteEndpoint.lastPingTimestamp = now;
         remoteEndpoint.producer
@@ -173,10 +179,10 @@ abstract class EventBusGrpcEndpoint {
       remoteEndpoint.lastSeenTimestamp = System.currentTimeMillis();
     }
     if (!ping.getAck()) {
-      String wireFormatName = message.headers().get(EventBusHeaders.WIRE_FORMAT);
+      String wireFormatName = message.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT);
       WireFormat wireFormat = JsonWireFormat.NAME.equals(wireFormatName) ? WireFormat.JSON : WireFormat.PROTOBUF;
       DeliveryOptions options = new DeliveryOptions()
-        .addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name())
+        .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name())
         .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
       Ping.Builder ack = Ping.newBuilder().setData(ping.getData()).setAck(true);
       eventBus.send(remoteAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ack).build(), wireFormat), options);
@@ -258,7 +264,7 @@ abstract class EventBusGrpcEndpoint {
     private Throwable closeReason;
 
     StreamRegistration(EventBusGrpcEndpoint localEndpoint, long id) {
-      assert id > 0;
+      assert id >= 0;
       this.localEndpoint = localEndpoint;
       this.id = id;
     }
@@ -273,6 +279,7 @@ abstract class EventBusGrpcEndpoint {
 
     final void registerStream() {
       assert localEndpoint.producerContext.inThread();
+      assert id > 0;
       localEndpoint.streams.put(id, (EventBusGrpcStreamBase<?>) this);
     }
 
@@ -301,7 +308,7 @@ abstract class EventBusGrpcEndpoint {
         if (options == null) {
           options = new DeliveryOptions();
         }
-        options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+        options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
         MessageProducer<Object> producer = remote.producer;
         Future<Void> res = producer.write(payload, options);
         return res.andThen(ar -> {
@@ -344,7 +351,7 @@ abstract class EventBusGrpcEndpoint {
             .build();
           WireFormat format = format();
           DeliveryOptions options = new DeliveryOptions();
-          options.addHeader(EventBusHeaders.WIRE_FORMAT, format.name());
+          options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, format.name());
           Object payload = EventBusGrpcCodec.encodeFrame(frame, format);
           remoteEndpoint.producer.write(payload, options);
         }

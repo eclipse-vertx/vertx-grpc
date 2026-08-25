@@ -46,7 +46,7 @@ public final class EventBusGrpcCodec {
   }
 
   public static TransportFrame decodeFrame(Message<?> message) {
-    String header = message.headers().get(EventBusHeaders.WIRE_FORMAT);
+    String header = message.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT);
     WireFormat format = JsonWireFormat.NAME.equals(header) ? WireFormat.JSON : WireFormat.PROTOBUF;
     return FRAME_DECODER.decode(GrpcMessage.message("identity", format, decodeBody(message.body())));
   }

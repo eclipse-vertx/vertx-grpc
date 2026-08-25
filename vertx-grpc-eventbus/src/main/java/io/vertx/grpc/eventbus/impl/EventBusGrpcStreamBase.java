@@ -185,7 +185,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
 
     if (localUnary) {
       if (!remoteUnary) {
-        options.addHeader(EventBusHeaders.INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
+        options.addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
         options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, wireFormat.name());
         options.addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address());
       }
@@ -193,10 +193,10 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
       options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, wireFormat.name());
       options.addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address());
       if (!remoteUnary) {
-        options.addHeader(EventBusHeaders.INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
+        options.addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
       }
       if (pingTimeout > 0) {
-        options.addHeader(EventBusHeaders.PING_TIMEOUT, Long.toString(pingTimeout));
+        options.addHeader(EventBusHeaders.ENDPOINT_PING_TIMEOUT, Long.toString(pingTimeout));
       }
     }
 
@@ -204,8 +204,9 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
       options.setSendTimeout(timeout.toMillis());
     }
 
-    options.addHeader(EventBusHeaders.ACTION, methodName);;
-    options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+    options.addHeader(EventBusHeaders.SERVICE_PROXY_ACTION, methodName);;
+    options.addHeader(EventBusHeaders.STREAM_METHOD_NAME, methodName);;
+    options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
     options.addHeader(EventBusHeaders.STREAM_ID, Long.toString(id()));
 
     if (requestHeaders != null) {
@@ -283,7 +284,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
         if (remoteUnary) {
           initialOutboundWindowSize = EventBusGrpcServerOptions.DEFAULT_INITIAL_WINDOW_SIZE;
         } else {
-          String initialWindowHeader = reply.headers().get(EventBusHeaders.INITIAL_WINDOW);
+          String initialWindowHeader = reply.headers().get(EventBusHeaders.STREAM_INITIAL_WINDOW);
           if (initialWindowHeader == null) {
             return new IllegalStateException("Malformed handshake reply: missing grpc-initial-window header");
           }
