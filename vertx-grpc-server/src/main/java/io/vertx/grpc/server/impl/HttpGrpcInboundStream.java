@@ -45,6 +45,11 @@ public class HttpGrpcInboundStream implements GrpcInboundStream {
   private Handler<Throwable> exceptionHandler;
   private Handler<Void> endHandler;
 
+  // Initialization state
+  private GrpcHeadersFrame initialMessage;
+  private boolean initializing;
+  private long initialDemand;
+
   public HttpGrpcInboundStream(ContextInternal context, GrpcProtocol protocol, GrpcMessageDeframer deframer) {
     this.context = context;
     this.deframer = deframer;
@@ -95,6 +100,7 @@ public class HttpGrpcInboundStream implements GrpcInboundStream {
     stream.handler(message -> {
       emit(new DefaultGrpcMessageFrame(message));
     });
+    stream.pause();
 
     stream.exceptionHandler(this::handleException);
 
@@ -122,9 +128,7 @@ public class HttpGrpcInboundStream implements GrpcInboundStream {
 
     WireFormat wireFormat = protocol.wireFormat(contentType);
 
-    GrpcHeadersFrame headersFrame = new DefaultGrpcHeadersFrame(wireFormat, encoding, httpRequest.headers(), timeout);
-
-    emit(headersFrame);
+    initialMessage = new DefaultGrpcHeadersFrame(wireFormat, encoding, httpRequest.headers(), timeout);
   }
 
   private void emit(GrpcFrame frame) {
@@ -136,19 +140,50 @@ public class HttpGrpcInboundStream implements GrpcInboundStream {
 
   @Override
   public GrpcInboundStream pause() {
-    deframingStream.pause();
+    if (initializing) {
+      initialDemand = 0L;
+    } else {
+      deframingStream.pause();
+    }
     return this;
   }
 
   @Override
   public GrpcInboundStream resume() {
-    deframingStream.resume();
-    return this;
+    return fetch(Long.MAX_VALUE);
   }
 
   @Override
   public GrpcInboundStream fetch(long amount) {
-    deframingStream.fetch(amount);
+    if (amount < 0) {
+      throw new IllegalArgumentException("Invalid amount");
+    } else if (amount > 0) {
+      if (initializing) {
+        long value = initialDemand;
+        value += initialDemand;
+        if (value < 0L) {
+          value = Long.MAX_VALUE;
+        }
+        initialDemand = value;
+      } else {
+        GrpcHeadersFrame initialMessage;
+        if ((initialMessage = this.initialMessage) != null) {
+          if (amount != Long.MAX_VALUE) {
+            amount--;
+          }
+          this.initialMessage = null;
+          initializing = true;
+          initialDemand = amount;
+          try {
+            emit(initialMessage);
+          } finally {
+            initializing = false;
+          }
+          amount = initialDemand;
+        }
+      }
+      deframingStream.fetch(amount);
+    }
     return this;
   }
 

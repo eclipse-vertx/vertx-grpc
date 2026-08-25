@@ -17,7 +17,7 @@ import io.vertx.core.http.HttpConnection;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcInboundStream;
-import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.common.impl.GrpcMethod;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.server.GrpcServerRequest;
 
@@ -29,11 +29,13 @@ import java.util.concurrent.TimeUnit;
  */
 public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcServerRequestImpl<Req, Resp>, Req> implements GrpcServerRequest<Req, Resp> {
 
+  private final ServiceName serviceName;
+  private final String fullMethodName;
+  private final String methodName;
   private final GrpcInboundStream inbound;
   private final MultiMap headers;
   final Duration timeout;
   private GrpcServerResponseImpl<Req, Resp> response;
-  private final GrpcMethodCall methodCall;
   private Timer deadline;
 
   public GrpcServerRequestImpl(ContextInternal context,
@@ -43,13 +45,17 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                Duration timeout,
                                String encoding,
                                GrpcMessageDecoder<Req> messageDecoder,
-                               GrpcMethodCall methodCall) {
+                               ServiceName serviceName,
+                               String fullMethodName,
+                               String methodName) {
     super(context, encoding, format, messageDecoder);
 
     this.inbound = inbound;
     this.headers = headers;
     this.timeout = timeout;
-    this.methodCall = methodCall;
+    this.serviceName = serviceName;
+    this.fullMethodName = fullMethodName;
+    this.methodName = methodName;
   }
 
   ContextInternal context() {
@@ -100,7 +106,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   }
 
   public String fullMethodName() {
-    return methodCall.fullMethodName();
+    return fullMethodName;
   }
 
   @Override
@@ -110,12 +116,12 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
 
   @Override
   public ServiceName serviceName() {
-    return methodCall.serviceName();
+    return serviceName;
   }
 
   @Override
   public String methodName() {
-    return methodCall.methodName();
+    return methodName;
   }
 
   @Override

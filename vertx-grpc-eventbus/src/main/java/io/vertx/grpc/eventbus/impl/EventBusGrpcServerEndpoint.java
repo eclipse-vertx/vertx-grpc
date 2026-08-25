@@ -7,7 +7,6 @@ import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
@@ -15,6 +14,7 @@ import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.impl.GrpcDispatcher;
+import io.vertx.grpc.server.impl.GrpcMethodCall;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -377,13 +377,12 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
         throw new UnsupportedOperationException("Handle me");
       }
 
-      GrpcMethodCall methodCall = new GrpcMethodCall(serviceMethod.serviceName().pathOf(serviceMethod.methodName()));
+      GrpcMethodCall<Req, Resp> methodCall = new GrpcMethodCall<>(
+        serviceMethod.serviceName().pathOf(serviceMethod.methodName()),
+        stream, serviceMethod.decoder(), serviceMethod.encoder());
 
       GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
-        stream,
         consumerContext,
-        serviceMethod.decoder(),
-        serviceMethod.encoder(),
         methodCall,
         null,
         invoker::invoke,
