@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -666,7 +667,7 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
       @Override
       public Result onPing(String srcAddress, String dstAddress, long data, boolean ack) {
         if (dstAddress.startsWith("grpc.eb.client.")) {
-          return Result.stop();
+          return Result.never();
         } else {
           return Result.cont();
         }
@@ -1125,5 +1126,55 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     } catch (InvalidStatusException e) {
       assertEquals(GrpcStatus.UNIMPLEMENTED, e.actualStatus());
     }
+  }
+
+  @Test
+  public void testMessageReordering() {
+
+    int num = 8;
+    int limit = 4;
+
+    vertx.eventBus().addOutboundInterceptor(new TransportInterceptor() {
+      int count = 0;
+      @Override
+      protected Result onClientMessage(String clientAddress, WireFormat wireFormat, String streamId, Buffer msg) {
+        if (count++ == limit) {
+          return Result.of(vertx.timer(5));
+        } else if (count > limit) {
+          return Result.never();
+        }
+        return Result.cont();
+      }
+    });
+
+    List<String> received = Collections.synchronizedList(new ArrayList<>());
+    server.callHandler(SINK_SERVER, request -> {
+      request.handler(msg -> {
+        received.add(msg.getName());
+      });
+      request.endHandler(v -> {
+        request.response().end();
+      });
+    });
+
+    try {
+      client.request(SINK_CLIENT)
+        .compose(request -> {
+          for (int i = 0;i < num;i++) {
+            request.write(Request.newBuilder().setName("msg-" + i).build());
+          }
+          request.end();
+          return request.response();
+        }).await();
+      fail();
+    } catch (GrpcErrorException expected) {
+    }
+
+    List<String> expected = IntStream
+      .range(0, limit)
+      .mapToObj(val -> "msg-" + val)
+      .collect(Collectors.toList());
+
+    assertEquals(expected, received);
   }
 }

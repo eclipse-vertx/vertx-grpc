@@ -241,7 +241,7 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
       }
     };
 
-    private static final Result STOP = new Result() {
+    private static final Result NEVER = new Result() {
       @Override
       void apply(Completable<?> completion) {
       }
@@ -251,8 +251,8 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
       return NEXT;
     }
 
-    public static Result stop() {
-      return STOP;
+    public static Result never() {
+      return NEVER;
     }
 
     public static Result of(Future<?> result) {
