@@ -75,8 +75,8 @@ these items:
 - `grpc-endpoint-address`, the private address of the client. Present when any side streams.
 - `grpc-endpoint-wire-format`, the wire format of the client endpoint. Present when any
   side streams.
-- `grpc-stream-initial-window`, the number of messages the client can receive. Present when
-  the server streams. The server uses this value as its send credit.
+- `grpc-stream-initial-window`, the initial flow control window. Present when
+  the server streams. Refer to [Flow control](#flow-control).
 - `grpc-endpoint-ping-timeout`, the time in milliseconds that the client waits before it
   declares a peer down. Present when the client streams. Refer to [Liveness](#liveness).
 - The request metadata, with the `__header__.` prefix.
@@ -130,6 +130,11 @@ There is no register operation and no unregister operation for each call. Such o
 send registration data to each node of the cluster. A stream timeout, when added, will
 also be an operation on a map.
 
+The endpoint never puts this consumer in the pause condition. A pause stops all the
+streams behind one slow stream. This condition is head-of-line blocking. The window of
+each stream is the only backpressure. A slow reader holds the `WindowUpdate` credit of
+its own stream while the shared consumer continues to read the data of the other streams.
+
 #### The end of a stream
 
 The endpoint removes a stream from the map when the stream ends with trailers or with a
@@ -159,7 +164,7 @@ sequenceDiagram
     Note right of S: The method type is a stream.<br/>Register the call in the stream map.
     S-->>C: reply, headers grpc-endpoint-address,<br/>grpc-endpoint-wire-format, grpc-stream-initial-window
 
-    Note over C,S: The call is now full duplex. Each frame contains<br/>the stream_id of the destination. Content frames<br/>carry an incrementing stream_sequence per direction.<br/>Control frames (WindowUpdate) carry stream_sequence 0.
+    Note over C,S: The call is now full duplex. Each frame<br/>contains the stream_id of the destination.<br/>Refer to Frame ordering for sequence rules.
     C->>S: Message, stream_sequence 1
     S->>C: Headers, stream_sequence 1
     S->>C: Message, stream_sequence 2
@@ -169,18 +174,6 @@ sequenceDiagram
     S->>C: Trailers, stream_sequence 4
     Note over C,S: The two endpoints remove the stream from their<br/>maps. The call is complete.
 ```
-
-#### The sequence of the handshake
-
-Each endpoint registers its consumer when it starts. The factory gives the client or the
-server only after this registration is complete. Therefore the private address of an
-endpoint always has a consumer when the handshake begins.
-
-Both sides exchange their inbound window in the handshake itself. The client sends
-`grpc-stream-initial-window` in the request when the server streams, and the server sends
-`grpc-stream-initial-window` in the reply when the client streams. Each side uses the
-window of the peer as its send credit. Therefore neither side starts at zero and no initial
-`WindowUpdate` frame is necessary.
 
 ## Frames
 
@@ -272,26 +265,15 @@ EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
 - `initialWindowSize` (client and server, `int`, default 64) gives the number of messages
   that the endpoint can receive before the sender must wait for a `WindowUpdate` frame.
   Each side sends this value in the handshake, and the peer uses it as its send credit.
-- `pingInterval` (client, `Duration`, default 30 seconds) gives the interval between the
-  probes. The client sends a probe to each server endpoint that holds one of its streams.
-  Refer to [Liveness](#liveness).
+- `pingInterval` (client, `Duration`, default 30 seconds) gives the interval between
+  liveness probes. Refer to [Liveness](#liveness).
 - `pingTimeout` (client, `Duration`, default 60 seconds) gives the maximum time that a
-  server can take to answer a probe. After this time, the client stops each stream with
-  that server. This value must be more than `pingInterval`. The factory of the client
-  rejects a value that is not more, because the client would then stop the streams before
-  the server can answer.
+  server can take to answer a probe. Must be more than `pingInterval`.
+  Refer to [Liveness](#liveness).
 - `maxPingTimeout` (server, `Duration`, default 2 minutes) gives the maximum ping timeout
-  that the server accepts. The client sends its own timeout, and the server holds the
-  client to that same value. Both sides then stop a stream at the same time. Therefore the
-  server has no option that must agree with an option of the client. This option only
-  limits the time that a client can ask the server to wait.
+  that the server accepts from a client. Refer to [Liveness](#liveness).
 - `cleanerPeriod` (client and server, `Duration`, default 5 milliseconds) gives the period
-  at which the endpoint checks remote endpoints for liveness. At each tick, the endpoint
-  sends pings that are due and reaps remote endpoints that have gone silent.
-
-You cannot set the ping options to zero. The event bus gives no connection, and the
-probe replaces the connection. Therefore the probe is always in operation. Refer to
-[Liveness](#liveness).
+  at which the endpoint checks remote endpoints for liveness.
 
 ## Flow control
 
@@ -415,17 +397,6 @@ You can change the rate of the probes. Keep the `pingTimeout` value at a small m
 the `pingInterval` value. One late ack then does not stop a stream that is in operation.
 
 A unary call does not use the probe. A unary call is only a request and a reply.
-
-### Backpressure and the shared consumer
-
-All the streams of an endpoint use one consumer. Therefore the window of each stream is
-the only backpressure.
-
-The endpoint never puts this consumer in the pause condition. A pause stops all the
-streams behind one slow stream. This condition is head-of-line blocking.
-
-A slow reader keeps the `WindowUpdate` credit of its own stream. At the same time, the
-shared consumer continues to read the data of the other streams.
 
 ## Service proxy compatibility
 
