@@ -7,7 +7,7 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.concurrent.InboundMessageQueue;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.MessageSizeOverflowException;
+import io.vertx.grpc.common.InvalidMessageException;
 
 import static io.vertx.grpc.common.impl.GrpcReadStreamBase.END_SENTINEL;
 
@@ -78,8 +78,8 @@ public class GrpcDeframingStream implements ReadStream<GrpcMessage> {
       Object ret = deframer.next();
       if (ret == null) {
         break;
-      } else if (ret instanceof MessageSizeOverflowException) {
-        MessageSizeOverflowException msoe = (MessageSizeOverflowException) ret;
+      } else if (ret instanceof InvalidMessageException) {
+        InvalidMessageException msoe = (InvalidMessageException) ret;
         Handler<Throwable> handler = exceptionHandler;
         if (handler != null) {
           handler.handle(msoe);

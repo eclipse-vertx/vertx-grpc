@@ -1,6 +1,5 @@
 package io.vertx.grpc.server.impl;
 
-import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 
 /**
@@ -10,11 +9,9 @@ public class GrpcInvocation {
 
   public final GrpcMessageDeframer deframer;
   public final HttpGrpcOutboundStream outboundInvoker;
-  public final GrpcMessageDecoder<?> messageDecoder;
 
-  public GrpcInvocation(GrpcMessageDeframer deframer, HttpGrpcOutboundStream outboundInvoker, GrpcMessageDecoder<?> messageDecoder) {
+  public GrpcInvocation(GrpcMessageDeframer deframer, HttpGrpcOutboundStream outboundInvoker) {
     this.deframer = deframer;
     this.outboundInvoker = outboundInvoker;
-    this.messageDecoder = messageDecoder;
   }
 }

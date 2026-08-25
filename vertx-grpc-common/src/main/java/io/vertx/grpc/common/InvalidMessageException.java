@@ -19,11 +19,11 @@ import io.vertx.core.VertxException;
  */
 public abstract class InvalidMessageException extends VertxException {
 
-    InvalidMessageException() {
+    protected InvalidMessageException() {
         super((String) null, true);
     }
 
-    InvalidMessageException(Throwable cause) {
+    protected InvalidMessageException(Throwable cause) {
         super(cause, true);
     }
 }
