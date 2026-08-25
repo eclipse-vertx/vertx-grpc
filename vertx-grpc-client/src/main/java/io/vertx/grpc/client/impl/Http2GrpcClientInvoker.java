@@ -1,6 +1,7 @@
 package io.vertx.grpc.client.impl;
 
 import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpConnection;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.grpc.common.ServiceName;
@@ -15,6 +16,15 @@ public class Http2GrpcClientInvoker implements GrpcClientInvoker {
     this.httpRequest = httpRequest;
     this.context = ((PromiseInternal<?>)httpRequest.response()).context();
     this.maxMessageSize = maxMessageSize;
+  }
+
+  public HttpConnection connection() {
+    return httpRequest.connection();
+  }
+
+  @Override
+  public ContextInternal context() {
+    return ((PromiseInternal<?>)httpRequest.response()).context();
   }
 
   @Override
