@@ -19,7 +19,6 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcInboundStream;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
-import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
 
 import java.time.Duration;
@@ -33,14 +32,12 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   private final GrpcInboundStream inbound;
   private final MultiMap headers;
   final Duration timeout;
-  final GrpcProtocol protocol;
   private GrpcServerResponseImpl<Req, Resp> response;
   private final GrpcMethodCall methodCall;
   private Timer deadline;
 
   public GrpcServerRequestImpl(ContextInternal context,
                                MultiMap headers,
-                               GrpcProtocol protocol,
                                WireFormat format,
                                GrpcInboundStream inbound,
                                Duration timeout,
@@ -51,7 +48,6 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
 
     this.inbound = inbound;
     this.headers = headers;
-    this.protocol = protocol;
     this.timeout = timeout;
     this.methodCall = methodCall;
   }

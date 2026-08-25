@@ -104,6 +104,7 @@ public class ServerTranscodingJsonFormatTest extends GrpcTestBase {
     httpClient.request(HttpMethod.POST, "/hello").compose(req -> {
       req.headers().addAll(HEADERS);
       req.headers().set(HttpHeaders.CONTENT_LENGTH, String.valueOf(body.length()));
+      req.putHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE);
       return req.send(body).compose(response -> response.body().map(response));
     }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
       assertEquals(200, response.statusCode());
