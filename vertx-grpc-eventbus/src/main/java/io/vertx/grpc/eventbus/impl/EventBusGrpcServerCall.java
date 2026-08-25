@@ -171,7 +171,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
       DeliveryOptions replyOptions = new DeliveryOptions()
         .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address())
         .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, format().name())
-        .addHeader(EventBusHeaders.INITIAL_WINDOW, Integer.toString(localEndpoint.initialWindowSize));
+        .addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, Integer.toString(localEndpoint.initialWindowSize));
 
       msg.reply(null, replyOptions);
     }
@@ -210,7 +210,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
         EventBusHeaders.encodeMultiMap(HEADER_PREFIX, headers, delivery);
         options.setHeaders(delivery);
       }
-      options.addHeader(EventBusHeaders.WIRE_FORMAT, wireFormat.name());
+      options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
       return sendTransportFrame(TransportFrame.newBuilder().setHeaders(Headers.newBuilder()), options);
     }
   }

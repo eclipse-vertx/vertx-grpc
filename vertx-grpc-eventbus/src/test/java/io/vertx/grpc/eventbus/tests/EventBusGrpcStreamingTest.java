@@ -636,8 +636,8 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
 
     // Open the stream by hand, omitting the advertisement a real client would send.
     DeliveryOptions handshake = new DeliveryOptions()
-      .addHeader(EventBusHeaders.ACTION, "Sink")
-      .addHeader(EventBusHeaders.WIRE_FORMAT, WireFormat.PROTOBUF.name())
+      .addHeader(EventBusHeaders.STREAM_METHOD_NAME, "Sink")
+      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, WireFormat.PROTOBUF.name())
       .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, WireFormat.PROTOBUF.name())
       .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, "grpc.eb.client.silent")
       .addHeader(EventBusHeaders.STREAM_ID, "1");
@@ -1026,8 +1026,8 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     server.callHandler(SOURCE_SERVER, request -> request.handler(empty -> request.response().end()));
 
     DeliveryOptions options = new DeliveryOptions()
-      .addHeader(EventBusHeaders.ACTION, "Source")
-      .addHeader(EventBusHeaders.WIRE_FORMAT, "NOT_A_FORMAT")
+      .addHeader(EventBusHeaders.SERVICE_PROXY_ACTION, "Source")
+      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, "NOT_A_FORMAT")
       .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, "c.addr")
       .addHeader(EventBusHeaders.STREAM_ID, "1")
       .setSendTimeout(3000);

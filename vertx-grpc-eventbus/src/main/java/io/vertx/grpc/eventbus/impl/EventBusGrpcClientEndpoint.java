@@ -12,13 +12,11 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class EventBusGrpcClientEndpoint extends EventBusGrpcEndpoint implements EventBusGrpcClient {
 
   private final VertxInternal vertx;
   private final WireFormat wireFormat;
-  private final AtomicInteger sequence = new AtomicInteger();
   final long pingTimeout;
 
   private EventBusGrpcClientEndpoint(ContextInternal producerContext, EventBusGrpcClientOptions options) {
@@ -34,10 +32,6 @@ public class EventBusGrpcClientEndpoint extends EventBusGrpcEndpoint implements 
       throw new IllegalArgumentException("pingTimeout (" + options.getPingTimeout() + ") must be greater than pingInterval (" + options.getPingInterval() + ")");
     }
     return options.getPingTimeout().toMillis();
-  }
-
-  long nextStreamId() {
-    return ((long)id()) << 32 | sequence.getAndIncrement();
   }
 
   public static Future<EventBusGrpcClient> create(Vertx vertx, EventBusGrpcClientOptions options) {
