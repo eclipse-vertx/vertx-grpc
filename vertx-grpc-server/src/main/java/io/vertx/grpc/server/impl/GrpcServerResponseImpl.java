@@ -23,7 +23,6 @@ import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcTrailersFrame;
 import io.vertx.grpc.common.impl.GrpcOutboundStream;
 import io.vertx.grpc.common.impl.GrpcWriteStreamBase;
-import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.StatusException;
 
@@ -49,7 +48,6 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
                                 GrpcOutboundStream outbound,
-                                GrpcProtocol protocol,
                                 GrpcMessageEncoder<Resp> encoder) {
     super(context, encoder);
     this.outbound = outbound;

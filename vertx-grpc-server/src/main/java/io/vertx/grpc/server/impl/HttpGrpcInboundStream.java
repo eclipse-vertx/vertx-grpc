@@ -10,7 +10,6 @@ import io.vertx.grpc.common.GrpcCancelFrame;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcHeaderNames;
-import io.vertx.grpc.common.GrpcMediaType;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.server.GrpcProtocol;
 
@@ -121,7 +120,7 @@ public class HttpGrpcInboundStream implements GrpcInboundStream {
     String encoding = httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING);
     String contentType = httpRequest.headers().get(HttpHeaders.CONTENT_TYPE);
 
-    WireFormat wireFormat = GrpcMediaType.parseContentType(contentType, protocol.mediaType());
+    WireFormat wireFormat = protocol.wireFormat(contentType);
 
     GrpcHeadersFrame headersFrame = new DefaultGrpcHeadersFrame(wireFormat, encoding, httpRequest.headers(), timeout);
 

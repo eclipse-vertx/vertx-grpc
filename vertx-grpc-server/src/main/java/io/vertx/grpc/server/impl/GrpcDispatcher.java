@@ -10,15 +10,12 @@ import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcStream;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.common.impl.GrpcMethodCall;
-import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
 
 public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
 
   private final GrpcStream stream;
   private final ContextInternal context;
-  private final GrpcProtocol protocol;
-  private final WireFormat format;
   private final GrpcMessageDecoder<Req> messageDecoder;
   private final GrpcMessageEncoder<Resp> messageEncoder;
   private final GrpcMethodCall methodCall;
@@ -31,8 +28,6 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
 
   public GrpcDispatcher(GrpcStream stream,
                         ContextInternal context,
-                        GrpcProtocol protocol,
-                        WireFormat format,
                         GrpcMessageDecoder<Req> messageDecoder,
                         GrpcMessageEncoder<Resp> messageEncoder,
                         GrpcMethodCall methodCall,
@@ -42,8 +37,6 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
                         boolean scheduleDeadline) {
     this.stream = stream;
     this.context = context;
-    this.protocol = protocol;
-    this.format = format;
     this.messageDecoder = messageDecoder;
     this.messageEncoder = messageEncoder;
     this.methodCall = methodCall;
@@ -76,10 +69,10 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
   }
 
   private void handleHeadersFrame(GrpcHeadersFrame frame) {
+    WireFormat format = frame.format();
     grpcRequest = new GrpcServerRequestImpl<>(
       context,
       frame.headers(),
-      protocol,
       format,
       stream,
       frame.timeout(),
@@ -95,7 +88,6 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
       context,
       grpcRequest,
       stream,
-      protocol,
       messageEncoder);
     grpcResponse.format(format);
     long timeout = grpcRequest.timeout();

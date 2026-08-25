@@ -371,8 +371,6 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
       GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
         stream,
         consumerContext,
-        null,
-        wireFormat,
         serviceMethod.decoder(),
         serviceMethod.encoder(),
         methodCall,

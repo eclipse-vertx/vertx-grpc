@@ -30,7 +30,6 @@ import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
 import io.vertx.grpc.server.*;
 
 import java.util.*;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
@@ -39,8 +38,6 @@ import static io.vertx.core.http.HttpHeaders.CONTENT_TYPE;
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
 public class GrpcServerImpl implements GrpcServer, Closeable {
-
-  private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("application/grpc(-web(-text)?)?(\\+(json|proto))?");
 
   private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
@@ -217,8 +214,6 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
       outboundInvoker,
       context,
-      protocol,
-      format,
       messageDecoder,
       method.messageEncoder,
       methodCall,

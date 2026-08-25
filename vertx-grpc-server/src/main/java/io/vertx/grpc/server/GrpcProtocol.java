@@ -1,6 +1,8 @@
 package io.vertx.grpc.server;
 
 import io.vertx.core.http.HttpVersion;
+import io.vertx.grpc.common.GrpcMediaType;
+import io.vertx.grpc.common.WireFormat;
 
 import java.util.EnumSet;
 
@@ -12,22 +14,42 @@ public enum GrpcProtocol {
   /**
    * gRPC over HTTP/2
    */
-  HTTP_2("application/grpc", EnumSet.of(HttpVersion.HTTP_2)),
+  HTTP_2("application/grpc", EnumSet.of(HttpVersion.HTTP_2)) {
+    @Override
+    public WireFormat wireFormat(String mediaType) {
+      return GrpcMediaType.parseContentType(mediaType, mediaType());
+    }
+  },
 
   /**
    * gRPC transcoding HTTP/1
    */
-  TRANSCODING("application/json", EnumSet.allOf(HttpVersion.class)),
+  TRANSCODING("application/json", EnumSet.allOf(HttpVersion.class)) {
+    @Override
+    public WireFormat wireFormat(String mediaType) {
+      return mediaType().equals(mediaType) ? WireFormat.JSON : null;
+    }
+  },
 
   /**
    * gRPC Web
    */
-  WEB("application/grpc-web", EnumSet.allOf(HttpVersion.class)),
+  WEB("application/grpc-web", EnumSet.allOf(HttpVersion.class)) {
+    @Override
+    public WireFormat wireFormat(String mediaType) {
+      return GrpcMediaType.parseContentType(mediaType, mediaType());
+    }
+  },
 
   /**
    * gRPC Web text
    */
-  WEB_TEXT("application/grpc-web-text", EnumSet.allOf(HttpVersion.class));
+  WEB_TEXT("application/grpc-web-text", EnumSet.allOf(HttpVersion.class)) {
+    @Override
+    public WireFormat wireFormat(String mediaType) {
+      return GrpcMediaType.parseContentType(mediaType, mediaType());
+    }
+  };
 
   private final String mediaType;
   private final EnumSet<HttpVersion> acceptedVersions;
@@ -50,4 +72,12 @@ public enum GrpcProtocol {
   public String mediaType() {
     return mediaType;
   }
+
+  /**
+   * The wire format adapted for the
+   * @param mediaType
+   * @return
+   */
+  public abstract WireFormat wireFormat(String mediaType);
+
 }
