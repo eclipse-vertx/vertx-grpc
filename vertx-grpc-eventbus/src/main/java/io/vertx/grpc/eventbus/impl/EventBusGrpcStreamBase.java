@@ -26,8 +26,6 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
   protected final E localEndpoint;
   protected final ContextInternal consumerContext;
   protected final ContextInternal producerContext;
-  protected final boolean localUnary;
-  protected final boolean remoteUnary;
 
   private Handler<GrpcFrame> frameHandler;
   private Handler<Void> endHandler;
@@ -40,22 +38,185 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
   private long outboundSequence;
   private long inboundSequence;
 
-  private boolean closed;
-  private Throwable closeCause;
+  boolean closed;
+  Throwable closeCause;
   private Throwable pendingWriteFailureCause;
 
-  EventBusGrpcStreamBase(E localEndpoint, long id, ContextInternal context, boolean localUnary, boolean remoteUnary,
-                         int initialInboundWindowSize, int initialOutboundWindowSize) {
+  EventBusGrpcStreamBase(E localEndpoint, long id, ContextInternal context, int initialInboundWindowSize, int initialOutboundWindowSize) {
     super(localEndpoint, id);
     this.localEndpoint = localEndpoint;
     this.consumerContext = context;
     this.producerContext = localEndpoint.producerContext();
     this.inboundQueue = new IMQ(context, initialInboundWindowSize);
-    this.localUnary = localUnary;
-    this.remoteUnary = remoteUnary;
     this.outboundQueue = new OMQ(localEndpoint.producerContext().executor(), initialOutboundWindowSize);
     this.outboundSequence = 1;
     this.inboundSequence = 1;
+  }
+
+  abstract static class Client extends EventBusGrpcStreamBase<EventBusGrpcClientEndpoint> {
+
+    protected final boolean localUnary;
+    protected final boolean remoteUnary;
+
+    public Client(EventBusGrpcClientEndpoint localEndpoint, long id, ContextInternal context, boolean localUnary, boolean remoteUnary, int initialInboundWindowSize, int initialOutboundWindowSize) {
+      super(localEndpoint, id, context, initialInboundWindowSize, initialOutboundWindowSize);
+
+      this.localUnary = localUnary;
+      this.remoteUnary = remoteUnary;
+    }
+
+    Future<Void> connect(Object body, MultiMap requestHeaders, ServiceName serviceName, String methodName,
+                         long pingTimeout, String encoding, WireFormat wireFormat, java.time.Duration timeout) {
+      return enqueue(createConnectWrite(body, requestHeaders, serviceName, methodName, pingTimeout, encoding, wireFormat, timeout));
+    }
+
+    private OutboundWrite createConnectWrite(Object body, MultiMap requestHeaders, ServiceName serviceName,
+                                             String methodName, long pingTimeout, String encoding, WireFormat wireFormat,
+                                             java.time.Duration timeout) {
+      DeliveryOptions options = new DeliveryOptions();
+
+      if (localUnary) {
+        if (!remoteUnary) {
+          options.addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
+          options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, wireFormat.name());
+          options.addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address());
+        }
+      } else {
+        options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, wireFormat.name());
+        options.addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address());
+        if (!remoteUnary) {
+          options.addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
+        }
+        if (pingTimeout > 0) {
+          options.addHeader(EventBusHeaders.ENDPOINT_PING_TIMEOUT, Long.toString(pingTimeout));
+        }
+      }
+
+      if (timeout != null) {
+        options.setSendTimeout(timeout.toMillis());
+      }
+
+      options.addHeader(EventBusHeaders.SERVICE_PROXY_ACTION, methodName);;
+      options.addHeader(EventBusHeaders.STREAM_METHOD_NAME, methodName);;
+      options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
+      options.addHeader(EventBusHeaders.STREAM_ID, Long.toString(id()));
+
+      if (requestHeaders != null) {
+        EventBusHeaders.encodeMultiMap(HEADER_PREFIX, requestHeaders, options.getHeaders());
+      }
+
+      Promise<Void> promise = consumerContext.promise();
+
+      return new OutboundWrite(promise) {
+        @Override
+        long sequence() {
+          return 0L;
+        }
+        @Override
+        void write() {
+          registerStream();
+          localEndpoint.request(serviceName.fullyQualifiedName(), body, options)
+            .onComplete(ar -> {
+              if (closed) {
+                Throwable cause = closeCause;
+                if (cause == null) {
+                  cause = new VertxException("Stream closed");
+                }
+                promise.fail(cause);
+              } else {
+                if (ar.succeeded()) {
+                  Throwable malformed = handleReply(ar.result());
+                  if (malformed == null) {
+                    promise.succeed();
+                  } else {
+                    InvalidStatusException err = invalidStatusException(malformed);
+                    close(err, true);
+                    promise.fail(err);
+                  }
+                } else {
+                  InvalidStatusException err = invalidStatusException(ar.cause());
+                  close(err, false);
+                  promise.fail(err);
+                }
+              }
+            });
+        }
+
+        private InvalidStatusException invalidStatusException(Throwable cause) {
+          GrpcStatus status = EventBusGrpcCodec.mapFailure(cause);
+          return new InvalidStatusException(GrpcStatus.OK, status);
+        }
+
+        private Throwable handleReply(io.vertx.core.eventbus.Message<Object> reply) {
+
+          WireFormat serverFormat;
+          String serverAddress;
+          if (!localUnary || !remoteUnary) {
+            MultiMap replyHeaders = reply.headers();
+            serverAddress = replyHeaders.get(EventBusHeaders.ENDPOINT_ADDRESS);
+            String s = replyHeaders.get(EventBusHeaders.ENDPOINT_WIRE_FORMAT);
+            if (s == null) {
+              return new IllegalStateException("Malformed handshake reply: missing endpoint-wire-format header");
+            }
+            if (serverAddress == null) {
+              return new IllegalStateException("Malformed handshake reply: missing grpc-endpoint-address header");
+            }
+            switch (s) {
+              case "json":
+                serverFormat = WireFormat.JSON;
+                break;
+              case "proto":
+                serverFormat = WireFormat.PROTOBUF;
+                break;
+              default:
+                return new IllegalStateException("Malformed handshake reply: invalid endpoint-wire-format header");
+            }
+          } else {
+            serverAddress = null;
+            serverFormat = null;
+          }
+
+          int initialOutboundWindowSize;
+          if (remoteUnary) {
+            initialOutboundWindowSize = EventBusGrpcServerOptions.DEFAULT_INITIAL_WINDOW_SIZE;
+          } else {
+            String initialWindowHeader = reply.headers().get(EventBusHeaders.STREAM_INITIAL_WINDOW);
+            if (initialWindowHeader == null) {
+              return new IllegalStateException("Malformed handshake reply: missing grpc-initial-window header");
+            }
+            try {
+              initialOutboundWindowSize = Integer.parseInt(initialWindowHeader);
+            } catch (NumberFormatException e) {
+              return new IllegalStateException("Malformed handshake reply: non-numeric grpc-initial-window header");
+            }
+            if (initialOutboundWindowSize <= 0) {
+              return new IllegalStateException("Malformed handshake reply: invalid grpc-initial-window header");
+            }
+          }
+
+          if (serverAddress != null) {
+            registerRemoteEndpoint(serverAddress, pingTimeout, serverFormat);
+          }
+
+          updateOutboundWindow(initialOutboundWindowSize);
+
+          if (remoteUnary && localUnary) {
+            MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+            MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
+            EventBusHeaders.decodeMultimap(HEADER_PREFIX, reply.headers(), headers);
+            EventBusHeaders.decodeMultimap(TRAILER_PREFIX, reply.headers(), trailers);
+            Buffer payload = EventBusGrpcCodec.decodeBody(reply.body());
+            emitInbound(List.of(
+              new DefaultGrpcHeadersFrame(wireFormat, encoding, headers),
+              new DefaultGrpcMessageFrame(GrpcMessage.message(encoding, wireFormat, payload)),
+              new DefaultGrpcTrailersFrame(GrpcStatus.OK, null, trailers)
+            ));
+          }
+
+          return null;
+        }
+      };
+    }
   }
 
   @Override
@@ -180,159 +341,6 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     }
   }
 
-  Future<Void> connect(Object body, MultiMap requestHeaders, ServiceName serviceName, String methodName,
-                       long pingTimeout, String encoding, WireFormat wireFormat, java.time.Duration timeout) {
-    return enqueue(createConnectWrite(body, requestHeaders, serviceName, methodName, pingTimeout, encoding, wireFormat, timeout));
-  }
-
-  private OutboundWrite createConnectWrite(Object body, MultiMap requestHeaders, ServiceName serviceName,
-                                           String methodName, long pingTimeout, String encoding, WireFormat wireFormat,
-                                           java.time.Duration timeout) {
-    DeliveryOptions options = new DeliveryOptions();
-
-    if (localUnary) {
-      if (!remoteUnary) {
-        options.addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
-        options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, wireFormat.name());
-        options.addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address());
-      }
-    } else {
-      options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, wireFormat.name());
-      options.addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address());
-      if (!remoteUnary) {
-        options.addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
-      }
-      if (pingTimeout > 0) {
-        options.addHeader(EventBusHeaders.ENDPOINT_PING_TIMEOUT, Long.toString(pingTimeout));
-      }
-    }
-
-    if (timeout != null) {
-      options.setSendTimeout(timeout.toMillis());
-    }
-
-    options.addHeader(EventBusHeaders.SERVICE_PROXY_ACTION, methodName);;
-    options.addHeader(EventBusHeaders.STREAM_METHOD_NAME, methodName);;
-    options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
-    options.addHeader(EventBusHeaders.STREAM_ID, Long.toString(id()));
-
-    if (requestHeaders != null) {
-      EventBusHeaders.encodeMultiMap(HEADER_PREFIX, requestHeaders, options.getHeaders());
-    }
-
-    Promise<Void> promise = consumerContext.promise();
-
-    return new OutboundWrite(promise) {
-      @Override
-      long sequence() {
-        return 0L;
-      }
-      @Override
-      void write() {
-        registerStream();
-        localEndpoint.request(serviceName.fullyQualifiedName(), body, options)
-          .onComplete(ar -> {
-            if (closed) {
-              Throwable cause = closeCause;
-              if (cause == null) {
-                cause = new VertxException("Stream closed");
-              }
-              promise.fail(cause);
-            } else {
-              if (ar.succeeded()) {
-                Throwable malformed = handleReply(ar.result());
-                if (malformed == null) {
-                  promise.succeed();
-                } else {
-                  InvalidStatusException err = invalidStatusException(malformed);
-                  close(err, true);
-                  promise.fail(err);
-                }
-              } else {
-                InvalidStatusException err = invalidStatusException(ar.cause());
-                close(err, false);
-                promise.fail(err);
-              }
-            }
-          });
-      }
-
-      private InvalidStatusException invalidStatusException(Throwable cause) {
-        GrpcStatus status = EventBusGrpcCodec.mapFailure(cause);
-        return new InvalidStatusException(GrpcStatus.OK, status);
-      }
-
-      private Throwable handleReply(io.vertx.core.eventbus.Message<Object> reply) {
-
-        WireFormat serverFormat;
-        String serverAddress;
-        if (!localUnary || !remoteUnary) {
-          MultiMap replyHeaders = reply.headers();
-          serverAddress = replyHeaders.get(EventBusHeaders.ENDPOINT_ADDRESS);
-          String s = replyHeaders.get(EventBusHeaders.ENDPOINT_WIRE_FORMAT);
-          if (s == null) {
-            return new IllegalStateException("Malformed handshake reply: missing endpoint-wire-format header");
-          }
-          if (serverAddress == null) {
-            return new IllegalStateException("Malformed handshake reply: missing grpc-endpoint-address header");
-          }
-          switch (s) {
-            case "json":
-              serverFormat = WireFormat.JSON;
-              break;
-            case "proto":
-              serverFormat = WireFormat.PROTOBUF;
-              break;
-            default:
-              return new IllegalStateException("Malformed handshake reply: invalid endpoint-wire-format header");
-          }
-        } else {
-          serverAddress = null;
-          serverFormat = null;
-        }
-
-        int initialOutboundWindowSize;
-        if (remoteUnary) {
-          initialOutboundWindowSize = EventBusGrpcServerOptions.DEFAULT_INITIAL_WINDOW_SIZE;
-        } else {
-          String initialWindowHeader = reply.headers().get(EventBusHeaders.STREAM_INITIAL_WINDOW);
-          if (initialWindowHeader == null) {
-            return new IllegalStateException("Malformed handshake reply: missing grpc-initial-window header");
-          }
-          try {
-            initialOutboundWindowSize = Integer.parseInt(initialWindowHeader);
-          } catch (NumberFormatException e) {
-            return new IllegalStateException("Malformed handshake reply: non-numeric grpc-initial-window header");
-          }
-          if (initialOutboundWindowSize <= 0) {
-            return new IllegalStateException("Malformed handshake reply: invalid grpc-initial-window header");
-          }
-        }
-
-        if (serverAddress != null) {
-          registerRemoteEndpoint(serverAddress, pingTimeout, serverFormat);
-        }
-
-        updateOutboundWindow(initialOutboundWindowSize);
-
-        if (remoteUnary && localUnary) {
-          MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-          MultiMap trailers = MultiMap.caseInsensitiveMultiMap();
-          EventBusHeaders.decodeMultimap(HEADER_PREFIX, reply.headers(), headers);
-          EventBusHeaders.decodeMultimap(TRAILER_PREFIX, reply.headers(), trailers);
-          Buffer payload = EventBusGrpcCodec.decodeBody(reply.body());
-          emitInbound(List.of(
-            new DefaultGrpcHeadersFrame(wireFormat, encoding, headers),
-            new DefaultGrpcMessageFrame(GrpcMessage.message(encoding, wireFormat, payload)),
-            new DefaultGrpcTrailersFrame(GrpcStatus.OK, null, trailers)
-          ));
-        }
-
-        return null;
-      }
-    };
-  }
-
   protected OutboundWrite frameWrite(GrpcFrame frame) {
     switch (frame.type()) {
       case MESSAGE:
@@ -434,7 +442,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     }
   }
 
-  private void updateOutboundWindow(int delta) {
+  void updateOutboundWindow(int delta) {
     outboundQueue.updateWindow(delta);
   }
 

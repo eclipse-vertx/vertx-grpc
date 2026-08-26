@@ -11,7 +11,7 @@ import io.vertx.grpc.eventbus.transport.v1alpha.*;
 
 import java.time.Duration;
 
-class EventBusGrpcClientCall extends EventBusGrpcStreamBase<EventBusGrpcClientEndpoint> {
+class EventBusGrpcClientCall extends EventBusGrpcStreamBase.Client {
 
   private final ServiceName serviceName;
   private final String methodName;

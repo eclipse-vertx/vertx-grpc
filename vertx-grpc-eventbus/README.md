@@ -86,14 +86,21 @@ Depending on the client method type, the request body will differ, when the clie
 - sends a unique message, the request body is this unique message
 - sends a stream of messages, the request body is null
 
+The server deduces the communication pattern from the request. It does not use the method
+definition. A null body means the client streams. When the client streams, the presence of
+`grpc-stream-initial-window` means the server streams. When the client does not stream,
+the presence of `grpc-endpoint-address` means the server streams. Therefore a client can
+use any streaming pattern, regardless of the method type in the service definition.
+
 #### The reply of the server
 
 The server does these steps:
 
 1. Find the method.
-2. Prepare the call.
-3. Register the call.
-4. Reply with `grpc-endpoint-address`, `grpc-endpoint-wire-format`, and `grpc-stream-initial-window`.
+2. Deduce the communication pattern from the request.
+3. Prepare the call.
+4. Register the call.
+5. Reply with `grpc-endpoint-address`, `grpc-endpoint-wire-format`, and `grpc-stream-initial-window`.
 
 The reply is only the signal to start. The server sends the reply before the handler
 operates. Therefore, the reply contains no response metadata.

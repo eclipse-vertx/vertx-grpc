@@ -273,20 +273,31 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
         }
       }
 
+      boolean clientStreaming = message.body() == null;
+      boolean serverStreaming;
+      if (clientStreaming) {
+        serverStreaming = message.headers().get(EventBusHeaders.STREAM_INITIAL_WINDOW) != null;
+      } else {
+        serverStreaming = message.headers().get(EventBusHeaders.ENDPOINT_ADDRESS) != null;
+      }
+
       if (serviceMethod == null) {
         message.fail(GrpcStatus.UNIMPLEMENTED.code, "Method not found: " + methodName);
-      } else if (isServiceProxy && (serviceMethod.clientStreaming() || serviceMethod.serverStreaming())) {
+      } else if (isServiceProxy && (clientStreaming || serverStreaming)) {
         message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Unsupported service proxy action");
       } else {
-        dispatchStreaming(message, serviceMethod, streamId, wireFormat);
+        dispatchStreaming(message, serviceMethod, clientStreaming, serverStreaming, streamId, wireFormat);
       }
     }
 
     private <Req, Resp> void dispatchStreaming(Message<Object> message,
                                                ServiceMethod<Req, Resp> serviceMethod,
+                                               boolean clientStreaming,
+                                               boolean serverStreaming,
                                                long streamId,
                                                WireFormat wireFormat) {
-      boolean needClientAddress = serviceMethod.serverStreaming() || serviceMethod.clientStreaming();
+
+      boolean needClientAddress = serverStreaming || clientStreaming;
       String clientAddress = message.headers().get(EventBusHeaders.ENDPOINT_ADDRESS);
       String s = message.headers().get(EventBusHeaders.ENDPOINT_WIRE_FORMAT);
 
@@ -324,7 +335,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
       }
 
       int initialOutboundWindowSize;
-      if (serviceMethod.serverStreaming()) {
+      if (serverStreaming) {
         String initialWindowHeader = message.headers().get(EventBusHeaders.STREAM_INITIAL_WINDOW);
         if (initialWindowHeader == null) {
           message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.STREAM_INITIAL_WINDOW + "' header");
@@ -346,8 +357,8 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
         EventBusGrpcServerEndpoint.this,
         streamId,
         consumerContext,
-        !serviceMethod.serverStreaming(),
-        !serviceMethod.clientStreaming(),
+        !serverStreaming,
+        !clientStreaming,
         wireFormat,
         "identity",
         initialWindowSize,
