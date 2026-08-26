@@ -31,9 +31,10 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
     String encoding,
     int initialInboundWindowSize,
     int initialOutboundWindowSize) {
-    super(localEndpoint, id, context, localUnary, remoteUnary, initialInboundWindowSize, initialOutboundWindowSize);
+    super(localEndpoint, id, context, initialInboundWindowSize, initialOutboundWindowSize);
     this.wireFormat = wireFormat;
     this.encoding = encoding;
+
     this.inbound = remoteUnary ? new UnaryInbound() : new StreamingInbound();
     this.outbound = localUnary && remoteUnary ? new UnaryOutbound() : new StreamingOutbound();
   }

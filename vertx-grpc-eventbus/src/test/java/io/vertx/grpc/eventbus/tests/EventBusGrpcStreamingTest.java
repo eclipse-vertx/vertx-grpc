@@ -644,7 +644,7 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
       .addHeader(EventBusHeaders.STREAM_ID, "1");
     vertx.eventBus().consumer("grpc.eb.client.silent", msg -> {
     }).completion().await(10, TimeUnit.SECONDS);
-    vertx.eventBus().request(TestConstants.TEST_SERVICE.fullyQualifiedName(), Buffer.buffer(), handshake).await(10, TimeUnit.SECONDS);
+    vertx.eventBus().request(TestConstants.TEST_SERVICE.fullyQualifiedName(), null, handshake).await(10, TimeUnit.SECONDS);
 
     Throwable failure = serverFailed.future().await(10, TimeUnit.SECONDS);
     assertNotNull("a peer that never advertised must still be given up on", failure);
