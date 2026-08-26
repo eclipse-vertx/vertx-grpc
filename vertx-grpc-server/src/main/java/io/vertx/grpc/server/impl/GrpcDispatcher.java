@@ -7,7 +7,6 @@ import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcStream;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
 import io.vertx.grpc.server.GrpcServerRequest;
 

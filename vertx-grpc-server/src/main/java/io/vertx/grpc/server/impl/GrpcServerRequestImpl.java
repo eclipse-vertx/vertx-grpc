@@ -17,7 +17,6 @@ import io.vertx.core.http.HttpConnection;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcInboundStream;
-import io.vertx.grpc.common.impl.GrpcMethod;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
 import io.vertx.grpc.server.GrpcServerRequest;
 
