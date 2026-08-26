@@ -8,9 +8,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.grpc.common.tests;
+package io.vertx.grpc.server.tests;
 
-import io.vertx.grpc.common.impl.GrpcMethod;
+import io.vertx.grpc.server.impl.GrpcMethodCall;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -19,15 +19,15 @@ import static org.junit.Assert.assertNull;
 
 public class GrpcMethodCallTest {
 
-  private GrpcMethod grpcMethodCall0;
-  private GrpcMethod grpcMethodCall1;
-  private GrpcMethod grpcMethodCall2;
+  private GrpcMethodCall<?, ?> grpcMethodCall0;
+  private GrpcMethodCall<?, ?> grpcMethodCall1;
+  private GrpcMethodCall<?, ?> grpcMethodCall2;
 
   @Before
   public void setUp() {
-    grpcMethodCall0 = new GrpcMethod("/com.examples.MyService/Method1");
-    grpcMethodCall1 = new GrpcMethod("/com.examples/MyService/Method2");
-    grpcMethodCall2 = new GrpcMethod("/MyService/Method3");
+    grpcMethodCall0 = new GrpcMethodCall<>("/com.examples.MyService/Method1", null, null, null);
+    grpcMethodCall1 = new GrpcMethodCall<>("/com.examples/MyService/Method2", null, null, null);
+    grpcMethodCall2 = new GrpcMethodCall<>("/MyService/Method3", null, null, null);
   }
 
   @Test
