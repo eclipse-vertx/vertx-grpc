@@ -127,27 +127,35 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
             }
             readAdapter.init(grpcResponse, decoder);
             grpcResponse.end().onComplete(ar -> {
-              Status status;
-              Metadata trailers;
-              if (grpcResponse.status() != null) {
-                status = Status.fromCodeValue(grpcResponse.status().code);
-                if (grpcResponse.statusMessage() != null) {
-                  status = status.withDescription(grpcResponse.statusMessage());
-                }
-                trailers = io.vertx.grpcio.common.impl.Utils.readMetadata(trailersOnly ? grpcResponse.headers() : grpcResponse.trailers());
+              if (deadline != null && deadline.isExpired()) {
+                doClose(Status.DEADLINE_EXCEEDED.withDescription("Deadline exceeded"), new Metadata());
               } else {
-                status = Status.fromThrowable(ar.cause());
-                trailers = new Metadata();
+                Status status;
+                Metadata trailers;
+                if (grpcResponse.status() != null) {
+                  status = Status.fromCodeValue(grpcResponse.status().code);
+                  if (grpcResponse.statusMessage() != null) {
+                    status = status.withDescription(grpcResponse.statusMessage());
+                  }
+                  trailers = io.vertx.grpcio.common.impl.Utils.readMetadata(trailersOnly ? grpcResponse.headers() : grpcResponse.trailers());
+                } else {
+                  status = Status.fromThrowable(ar.cause());
+                  trailers = new Metadata();
+                }
+                doClose(status, trailers);
               }
-              doClose(status, trailers);
             });
           } else {
-            Throwable err = ar2.cause();
-            if (err instanceof GrpcErrorException) {
-              GrpcErrorException reset = (GrpcErrorException) err;
-              doClose(Status.fromCodeValue(reset.status().code), new Metadata());
+            if (deadline != null && deadline.isExpired()) {
+              doClose(Status.DEADLINE_EXCEEDED.withDescription("Deadline exceeded"), new Metadata());
             } else {
-              doClose(Status.fromThrowable(err), new Metadata());
+              Throwable err = ar2.cause();
+              if (err instanceof GrpcErrorException) {
+                GrpcErrorException reset = (GrpcErrorException) err;
+                doClose(Status.fromCodeValue(reset.status().code), new Metadata());
+              } else {
+                doClose(Status.fromThrowable(err), new Metadata());
+              }
             }
           }
         });
