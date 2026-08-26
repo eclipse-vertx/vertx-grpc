@@ -6,6 +6,7 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.core.internal.VertxInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.grpc.client.impl.GrpcClientInvoker;
 import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.WireFormat;
@@ -66,6 +67,13 @@ public class EventBusGrpcClientEndpoint extends EventBusGrpcEndpoint implements 
     request.methodName(method.methodName());
     request.format(wireFormat);
     return consumerContext.succeededFuture(request);
+  }
+
+  public Future<GrpcClientInvoker> connect(ServiceMethod<?, ?> method) {
+    ContextInternal consumerContext = vertx.getOrCreateContext();
+    EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(consumerContext, this,
+      !method.clientStreaming(), !method.serverStreaming(), initialWindowSize, 1);
+    return consumerContext.succeededFuture(invoker);
   }
 
   @Override
