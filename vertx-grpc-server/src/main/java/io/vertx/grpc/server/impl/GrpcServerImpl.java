@@ -286,10 +286,10 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
   class MethodCallHandler<Req, Resp> {
 
-    final String fullMethodName;
-    final GrpcMessageDecoder<Req> messageDecoder;
-    final GrpcMessageEncoder<Resp> messageEncoder;
-    final Handler<? super HttpGrpcMethodCall<Req, Resp>> handler;
+    private final String fullMethodName;
+    private final GrpcMessageDecoder<Req> messageDecoder;
+    private final GrpcMessageEncoder<Resp> messageEncoder;
+    private final Handler<? super HttpGrpcMethodCall<Req, Resp>> handler;
 
     MethodCallHandler(String fullMethodName,
                       GrpcMessageDecoder<Req> messageDecoder,
@@ -333,10 +333,9 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     }
 
     boolean handle(String path, HttpServerRequest httpRequest, GrpcProtocol protocol,  WireFormat format, ContextInternal context) {
-      HttpGrpcMethodCall<Req, Resp> mc = handle(context, httpRequest.connection(), path, httpRequest, protocol, format);
-      if (mc != null) {
-        Handler<? super HttpGrpcMethodCall<Req, Resp>> h = handler;
-        h.handle(mc);
+      HttpGrpcMethodCall<Req, Resp> methodCall = handle(context, httpRequest.connection(), path, httpRequest, protocol, format);
+      if (methodCall != null) {
+        handler.handle(methodCall);
         return true;
       } else {
         return false;
