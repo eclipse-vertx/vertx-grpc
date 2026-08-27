@@ -32,12 +32,14 @@ abstract class EventBusGrpcEndpoint {
   private final LongObjectMap<EventBusGrpcStreamBase<?>> streams = new LongObjectHashMap<>();
   private final Map<String, RemoteEndpoint> remoteEndpoints = new HashMap<>();
   private final AtomicLong pingData = new AtomicLong();
+  final WireFormat wireFormat;
   protected final int initialWindowSize;
   private MessageConsumer<TransportFrame> consumer;
   private final long cleanerPeriod;
   private long livenessTimerId = -1L;
 
   EventBusGrpcEndpoint(ContextInternal producerContext,
+                       WireFormat wireFormat,
                        String prefix,
                        long cleanerPeriod,
                        long pingInterval,
@@ -53,6 +55,7 @@ abstract class EventBusGrpcEndpoint {
       // Already registered ...
     }
 
+    this.wireFormat = wireFormat;
     this.vertx = producerContext.owner();
     this.producerContext = producerContext;
     this.eventBus = vertx.eventBus();
@@ -133,7 +136,7 @@ abstract class EventBusGrpcEndpoint {
       for (RemoteEndpoint remoteEndpoint : toPing) {
         TransportFrame frame = TransportFrame.newBuilder().setPing(Ping.newBuilder().setData(data)).build();
         DeliveryOptions options = new DeliveryOptions()
-          .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, remoteEndpoint.format.name())
+          .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, remoteEndpoint.format.name())
           .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
         switch (remoteEndpoint.format.name()) {
           case "json":
@@ -196,13 +199,11 @@ abstract class EventBusGrpcEndpoint {
     if (remoteEndpoint != null) {
       remoteEndpoint.lastSeenTimestamp = System.currentTimeMillis();
       if (!ping.getAck()) {
-        String wireFormatName = message.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT);
-        WireFormat wireFormat = JsonWireFormat.NAME.equals(wireFormatName) ? WireFormat.JSON : WireFormat.PROTOBUF;
         DeliveryOptions options = new DeliveryOptions()
-          .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name())
+          .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, wireFormat.name())
           .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
         Ping.Builder ack = Ping.newBuilder().setData(ping.getData()).setAck(true);
-        remoteEndpoint.sendTransportFrame(TransportFrame.newBuilder().setPing(ack).build(), wireFormat, options);
+        remoteEndpoint.sendTransportFrame(TransportFrame.newBuilder().setPing(ack).build(), options);
       }
     }
   }
@@ -270,8 +271,7 @@ abstract class EventBusGrpcEndpoint {
       return producer.close();
     }
 
-    Future<Void> sendTransportFrame(TransportFrame frame, WireFormat format, DeliveryOptions options) {
-      options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, format.name());
+    Future<Void> sendTransportFrame(TransportFrame frame, DeliveryOptions options) {
       switch (format.name()) {
         case "json":
           options.setCodecName(EventBusGrpcJsonMessageCodec.CODEC_NAME);
@@ -322,7 +322,7 @@ abstract class EventBusGrpcEndpoint {
       remoteEndpoint = bound;
     }
 
-    final Future<Void> sendTransportFrame(TransportFrame.Builder builder, WireFormat wireFormat, DeliveryOptions options) {
+    Future<Void> sendTransportFrame(TransportFrame.Builder builder, DeliveryOptions options) {
       assert localEndpoint.producerContext.inThread();
       RemoteEndpoint remote = remoteEndpoint;
       if (remote == null) {
@@ -339,8 +339,8 @@ abstract class EventBusGrpcEndpoint {
         if (options == null) {
           options = new DeliveryOptions();
         }
-        options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
-        switch (wireFormat.name()) {
+        options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, format().name());
+        switch (remote.format.name()) {
           case "json":
             options.setCodecName(EventBusGrpcJsonMessageCodec.CODEC_NAME);
             break;
@@ -351,7 +351,7 @@ abstract class EventBusGrpcEndpoint {
             throw new UnsupportedOperationException();
         }
 
-        Future<Void> res = remote.sendTransportFrame(frame, wireFormat, options);
+        Future<Void> res = remote.sendTransportFrame(frame, options);
         return res.andThen(ar -> {
           if (ar.failed()) {
             localEndpoint.remoteEndpointDown(remote, false);
@@ -394,7 +394,7 @@ abstract class EventBusGrpcEndpoint {
             .setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Closed"))
             .setStreamId(id)
             .build();
-          remoteEndpoint.sendTransportFrame(frame, remoteEndpoint.format, new DeliveryOptions());
+          remoteEndpoint.sendTransportFrame(frame, new DeliveryOptions());
         }
         Future<Void> res = remove();
         handleProducerClosed(cause);

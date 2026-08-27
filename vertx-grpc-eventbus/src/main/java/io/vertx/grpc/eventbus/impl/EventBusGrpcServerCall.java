@@ -171,7 +171,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
     public void handleConnect(Message<Object> msg) {
       DeliveryOptions replyOptions = new DeliveryOptions()
         .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address())
-        .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, format().name())
+        .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, localEndpoint.wireFormat.name())
         .addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, Integer.toString(localEndpoint.initialWindowSize));
 
       msg.reply(null, replyOptions);

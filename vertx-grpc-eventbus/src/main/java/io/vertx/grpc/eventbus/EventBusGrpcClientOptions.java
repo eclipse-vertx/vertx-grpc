@@ -14,11 +14,6 @@ import java.time.Duration;
 public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
 
   /**
-   * The default wire format requests use unless overridden with {@code request.format(...)} = {@link WireFormat#PROTOBUF}
-   */
-  public static final WireFormat DEFAULT_WIRE_FORMAT = WireFormat.PROTOBUF;
-
-  /**
    * The default ping interval = {@code 30} seconds
    */
   public static final Duration DEFAULT_PING_INTERVAL = Duration.ofSeconds(30);
@@ -33,7 +28,6 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
    */
   public static final int DEFAULT_INITIAL_WINDOW_SIZE = 64;
 
-  private WireFormat wireFormat;
   private Duration pingInterval;
   private Duration pingTimeout;
   private int initialWindowSize;
@@ -42,7 +36,6 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
    * Default options.
    */
   public EventBusGrpcClientOptions() {
-    wireFormat = DEFAULT_WIRE_FORMAT;
     pingInterval = DEFAULT_PING_INTERVAL;
     pingTimeout = DEFAULT_PING_TIMEOUT;
     initialWindowSize = DEFAULT_INITIAL_WINDOW_SIZE;
@@ -53,28 +46,9 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
    */
   public EventBusGrpcClientOptions(EventBusGrpcClientOptions other) {
     super(other);
-    wireFormat = other.wireFormat;
     pingInterval = other.pingInterval;
     pingTimeout = other.pingTimeout;
     initialWindowSize = other.initialWindowSize;
-  }
-
-  /**
-   * @return the default wire format requests use
-   */
-  public WireFormat getWireFormat() {
-    return wireFormat;
-  }
-
-  /**
-   * Set the default wire format requests use. A request can still override it with {@code request.format(...)}.
-   *
-   * @param wireFormat the default wire format
-   * @return a reference to this, so the API can be used fluently
-   */
-  public EventBusGrpcClientOptions setWireFormat(WireFormat wireFormat) {
-    this.wireFormat = wireFormat;
-    return this;
   }
 
   /**
@@ -150,5 +124,10 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
   @Override
   public EventBusGrpcClientOptions setCleanerPeriod(Duration cleanerPeriod) {
     return (EventBusGrpcClientOptions)super.setCleanerPeriod(cleanerPeriod);
+  }
+
+  @Override
+  public EventBusGrpcClientOptions setWireFormat(WireFormat wireFormat) {
+    return (EventBusGrpcClientOptions)super.setWireFormat(wireFormat);
   }
 }

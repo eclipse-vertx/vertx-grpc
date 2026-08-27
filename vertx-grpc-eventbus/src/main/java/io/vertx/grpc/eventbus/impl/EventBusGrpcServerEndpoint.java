@@ -28,7 +28,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
   private final AtomicReference<Map<String, ServiceConsumer>> consumersRef;
 
   private EventBusGrpcServerEndpoint(ContextInternal consumerContext, EventBusGrpcServerOptions options) {
-    super(Utils.eventLoopCtx(consumerContext),  "grpc.eb.server.", options.getCleanerPeriod().toMillis(),
+    super(Utils.eventLoopCtx(consumerContext),  options.getWireFormat(), "grpc.eb.server.", options.getCleanerPeriod().toMillis(),
       0L, options.getInitialWindowSize());
     this.consumerContext = consumerContext;
     this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());

@@ -79,11 +79,11 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
       if (localUnary) {
         if (!remoteUnary) {
           options.addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
-          options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, wireFormat.name());
+          options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, localEndpoint.wireFormat.name());
           options.addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address());
         }
       } else {
-        options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, wireFormat.name());
+        options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, localEndpoint.wireFormat.name());
         options.addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address());
         if (!remoteUnary) {
           options.addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
@@ -150,31 +150,31 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
 
         private Throwable handleReply(io.vertx.core.eventbus.Message<Object> reply) {
 
-          WireFormat serverFormat;
-          String serverAddress;
+          WireFormat remoteEndpointWireFormat;
+          String remoteEndpointAddress;
           if (!localUnary || !remoteUnary) {
             MultiMap replyHeaders = reply.headers();
-            serverAddress = replyHeaders.get(EventBusHeaders.ENDPOINT_ADDRESS);
+            remoteEndpointAddress = replyHeaders.get(EventBusHeaders.ENDPOINT_ADDRESS);
             String s = replyHeaders.get(EventBusHeaders.ENDPOINT_WIRE_FORMAT);
             if (s == null) {
               return new IllegalStateException("Malformed handshake reply: missing endpoint-wire-format header");
             }
-            if (serverAddress == null) {
+            if (remoteEndpointAddress == null) {
               return new IllegalStateException("Malformed handshake reply: missing grpc-endpoint-address header");
             }
             switch (s) {
               case "json":
-                serverFormat = WireFormat.JSON;
+                remoteEndpointWireFormat = WireFormat.JSON;
                 break;
               case "proto":
-                serverFormat = WireFormat.PROTOBUF;
+                remoteEndpointWireFormat = WireFormat.PROTOBUF;
                 break;
               default:
                 return new IllegalStateException("Malformed handshake reply: invalid endpoint-wire-format header");
             }
           } else {
-            serverAddress = null;
-            serverFormat = null;
+            remoteEndpointAddress = null;
+            remoteEndpointWireFormat = null;
           }
 
           int initialOutboundWindowSize;
@@ -195,8 +195,8 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
             }
           }
 
-          if (serverAddress != null) {
-            registerRemoteEndpoint(serverAddress, pingTimeout, serverFormat);
+          if (remoteEndpointAddress != null) {
+            registerRemoteEndpoint(remoteEndpointAddress, pingTimeout, remoteEndpointWireFormat);
           }
 
           updateOutboundWindow(initialOutboundWindowSize);
@@ -453,11 +453,11 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
 
   Future<Void> sendTransportFrame(TransportFrame.Builder builder, DeliveryOptions options) {
     if (producerContext.inThread()) {
-      return sendTransportFrame(builder, format(), options);
+      return super.sendTransportFrame(builder, options);
     } else {
       PromiseInternal<Void> ret = consumerContext.promise();
       producerContext.execute(() -> {
-        Future<Void> result = sendTransportFrame(builder, format(), options);
+        Future<Void> result = super.sendTransportFrame(builder, options);
         result.onComplete(ret);
       });
       return ret.future();
