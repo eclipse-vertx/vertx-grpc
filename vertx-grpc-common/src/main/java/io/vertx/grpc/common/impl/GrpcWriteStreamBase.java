@@ -20,6 +20,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private GrpcError error;
   private Future<Void> cancellation;
   private MultiMap headers;
+  private Handler<GrpcError> errorHandler;
   private Handler<Throwable> exceptionHandler;
 
   public GrpcWriteStreamBase(ContextInternal context, GrpcMessageEncoder<T> messageEncoder) {
@@ -31,21 +32,26 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   public void handleError(GrpcError error) {
     if (this.error == null) {
       this.error = error;
+      if (error == GrpcError.CANCELLED) {
+        handleCancel();
+      }
+      Handler<GrpcError> handler = errorHandler;
+      if (handler != null) {
+        context.dispatch(error, handler);
+      } else {
+        handleException(new GrpcErrorException(error));
+      }
     }
   }
 
-  public void handleCancel() {
+  private void handleCancel() {
     cancellation = context.succeededFuture();
   }
 
   public void handleException(Throwable err) {
-    if (err instanceof GrpcErrorException) {
-      GrpcErrorException ee = (GrpcErrorException) err;
-      handleError(ee.error());
-    }
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {
-      handler.handle(err);
+      context.dispatch(err, handler);
     }
   }
 
@@ -129,6 +135,11 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
     return (S) this;
   }
 
+  public final S errorHandler(Handler<GrpcError> handler) {
+    errorHandler = handler;
+    return (S) this;
+  }
+
   @Override
   public final Future<Void> write(T message) {
     return writeMessage(encodeMessage(message));
@@ -184,7 +195,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
   private Future<Void> writeMessage(GrpcMessage message, boolean end) {
     if (error != null) {
-      return context.failedFuture(new GrpcErrorException(error, error.status));
+      return context.failedFuture(new GrpcErrorException(error));
     }
     if (end && endWritten) {
       throw new IllegalStateException("The stream is ended");

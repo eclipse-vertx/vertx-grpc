@@ -318,6 +318,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
           GrpcStream stream = methodCall.stream();
           stream.handler(dispatcher);
           stream.exceptionHandler(dispatcher::handleException);
+          stream.errorHandler(dispatcher::handleError);
           stream.endHandler(dispatcher::handleEnd);
           stream.resume();
         }

@@ -8,7 +8,6 @@ import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.grpc.common.impl.DefaultGrpcCancelFrame;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcHeaderNames;
@@ -16,14 +15,7 @@ import io.vertx.grpc.common.GrpcMediaType;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.WireFormat;
-import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
-import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
-import io.vertx.grpc.common.impl.DefaultGrpcTrailersFrame;
-import io.vertx.grpc.common.impl.GrpcDeframingStream;
-import io.vertx.grpc.common.impl.GrpcFrame;
-import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcTrailersFrame;
-import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
+import io.vertx.grpc.common.impl.*;
 
 import java.nio.charset.StandardCharsets;
 
@@ -32,6 +24,7 @@ public class Http2GrpcInboundStream extends Http2GrpcOutboundStream {
   private Handler<GrpcFrame> frameHandler;
   private Handler<Void> endHandler;
   private Handler<Throwable> exceptionHandler;
+  private Handler<GrpcError> errorHandler;
   private GrpcDeframingStream stream;
   private final long maxMessageSize;
   private boolean initialized;
@@ -75,8 +68,9 @@ public class Http2GrpcInboundStream extends Http2GrpcOutboundStream {
   private void handleStreamException(Throwable failure) {
     if (failure instanceof StreamResetException) {
       GrpcErrorException error = GrpcErrorException.create((StreamResetException) failure);
-      if (error.error() == GrpcError.CANCELLED) {
-        emit(DefaultGrpcCancelFrame.INSTANCE);
+      Handler<GrpcError> handler = errorHandler;
+      if (errorHandler != null) {
+        handler.handle(error.error());
       }
       failure = error;
     }
@@ -200,6 +194,12 @@ public class Http2GrpcInboundStream extends Http2GrpcOutboundStream {
   @Override
   public Http2GrpcInboundStream exceptionHandler(Handler<Throwable> handler) {
     this.exceptionHandler = handler;
+    return this;
+  }
+
+  @Override
+  public GrpcStream errorHandler(Handler<GrpcError> handler) {
+    this.errorHandler = handler;
     return this;
   }
 

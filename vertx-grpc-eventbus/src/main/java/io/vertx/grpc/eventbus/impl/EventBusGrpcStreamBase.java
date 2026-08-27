@@ -30,6 +30,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
   private Handler<GrpcFrame> frameHandler;
   private Handler<Void> endHandler;
   private Handler<Throwable> exceptionHandler;
+  private Handler<GrpcError> errorHandler;
   private Handler<Void> drainHandler;
 
   private final OMQ outboundQueue;
@@ -226,23 +227,38 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     consumerContext.execute(cause, err -> {
       if (cause != null) {
         failPendingWrites(cause);
-        handleException(cause);
+        if (cause instanceof GrpcErrorException) {
+          handleError(((GrpcErrorException)cause).error());
+        } else {
+          handleException(cause);
+        }
       }
       handleConsumerClosed();
     });
   }
 
+  protected void handleError(GrpcError error) {
+    consumerContext.dispatch(error, e -> {
+      Handler<GrpcError> handler = errorHandler;
+      if (handler != null) {
+        handler.handle(e);
+      }
+    });
+  }
+
   protected void handleException(Throwable t) {
-    Handler<Throwable> handler = exceptionHandler;
-    if (handler != null) {
-      consumerContext.dispatch(t, handler);
-    }
+    consumerContext.dispatch(t, e -> {
+      Handler<Throwable> handler = exceptionHandler;
+      if (handler != null) {
+        handler.handle(e);
+      }
+    });
   }
 
   void handle(TransportFrame frame, io.vertx.core.eventbus.Message<Object> message) {
     long sequence;
     if ((sequence = frame.getStreamSequence()) > 0 && sequence != inboundSequence++) {
-      close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), true);
+      close(GrpcError.CANCELLED, true);
     } else {
       switch (frame.getFrameCase()) {
         case WINDOW_UPDATE:
@@ -295,6 +311,12 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
   @Override
   public GrpcStream exceptionHandler(Handler<Throwable> handler) {
     this.exceptionHandler = handler;
+    return this;
+  }
+
+  @Override
+  public GrpcStream errorHandler(Handler<GrpcError> handler) {
+    this.errorHandler = handler;
     return this;
   }
 

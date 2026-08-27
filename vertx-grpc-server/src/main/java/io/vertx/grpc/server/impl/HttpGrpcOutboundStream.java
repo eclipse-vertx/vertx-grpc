@@ -9,10 +9,7 @@ import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
-import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.GrpcHeaderNames;
-import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
@@ -171,6 +168,12 @@ public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream imple
   @Override
   public HttpGrpcOutboundStream exceptionHandler(@Nullable Handler<Throwable> handler) {
     super.exceptionHandler(handler);
+    return this;
+  }
+
+  @Override
+  public HttpGrpcOutboundStream errorHandler(Handler<GrpcError> handler) {
+    super.errorHandler(handler);
     return this;
   }
 

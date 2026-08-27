@@ -39,6 +39,13 @@ public final class GrpcErrorException extends VertxException {
     this.status = status;
   }
 
+  public GrpcErrorException(GrpcError error) {
+    super("gRPC error status: " + error.status.name());
+
+    this.error = error;
+    this.status = error.status;
+  }
+
   public GrpcError error() {
     return error;
   }

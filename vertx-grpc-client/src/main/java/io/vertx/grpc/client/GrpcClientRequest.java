@@ -19,9 +19,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Timer;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.streams.ReadStream;
-import io.vertx.grpc.common.WireFormat;
-import io.vertx.grpc.common.GrpcWriteStream;
-import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.*;
 
 import java.util.concurrent.TimeUnit;
 
@@ -126,6 +124,9 @@ public interface GrpcClientRequest<Req, Resp> extends GrpcWriteStream<Req> {
    */
   @Fluent
   GrpcClientRequest<Req, Resp> idleTimeout(long timeout);
+
+  @Fluent
+  GrpcClientRequest<Req, Resp> errorHandler(@Nullable Handler<GrpcError> handler);
 
   /**
    * @return the underlying HTTP connection

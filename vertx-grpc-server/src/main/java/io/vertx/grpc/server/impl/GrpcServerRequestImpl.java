@@ -88,8 +88,10 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
     response.handleException(err);
   }
 
-  void handleCancel() {
-    response.handleCancel();
+  @Override
+  public void handleError(GrpcError error) {
+    super.handleError(error);
+    response.handleError(error);
   }
 
   @Override
