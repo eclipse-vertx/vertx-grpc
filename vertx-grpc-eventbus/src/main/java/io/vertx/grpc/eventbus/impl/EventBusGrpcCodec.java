@@ -1,22 +1,15 @@
 package io.vertx.grpc.eventbus.impl;
 
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.ReplyException;
 import io.vertx.core.eventbus.ReplyFailure;
 import io.vertx.core.json.JsonObject;
 import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.JsonWireFormat;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 
 public final class EventBusGrpcCodec {
-
-  private static final GrpcMessageEncoder<TransportFrame> FRAME_ENCODER = GrpcMessageEncoder.encoder();
-  private static final GrpcMessageDecoder<TransportFrame> FRAME_DECODER = GrpcMessageDecoder.decoder(TransportFrame.getDefaultInstance());
 
   private EventBusGrpcCodec() {
   }
@@ -39,16 +32,6 @@ public final class EventBusGrpcCodec {
       return Buffer.buffer();
     }
     throw new IllegalStateException("Unsupported event bus body type: " + body.getClass().getName());
-  }
-
-  static Buffer encodeFrame(TransportFrame frame, WireFormat format) {
-    return FRAME_ENCODER.encode(frame, format).payload();
-  }
-
-  public static TransportFrame decodeFrame(Message<?> message) {
-    String header = message.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT);
-    WireFormat format = JsonWireFormat.NAME.equals(header) ? WireFormat.JSON : WireFormat.PROTOBUF;
-    return FRAME_DECODER.decode(GrpcMessage.message("identity", format, decodeBody(message.body())));
   }
 
   static GrpcMessage message(TransportFrame frame, String encoding, WireFormat wireFormat) {

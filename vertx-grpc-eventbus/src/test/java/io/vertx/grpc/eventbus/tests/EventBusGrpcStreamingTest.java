@@ -19,6 +19,8 @@ import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
+import io.vertx.grpc.eventbus.transport.v1alpha.Message;
+import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.common.tests.*;
 import org.junit.Before;
@@ -750,8 +752,9 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     });
 
     vertx.eventBus().addInboundInterceptor(dc -> {
-      if (dc.message().address().startsWith("grpc.eb.server.") && dc.message().body() instanceof Buffer) {
-        if (((Buffer) dc.message().body()).toJsonObject().getJsonObject("ping") != null) {
+      if (dc.message().address().startsWith("grpc.eb.server.") && dc.message().body() instanceof TransportFrame) {
+        TransportFrame frame = (TransportFrame) dc.message().body();
+        if (frame.getFrameCase() == TransportFrame.FrameCase.PING) {
           return;
         }
       }
@@ -807,7 +810,7 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
         if (partitioned.get()) {
           return;
         }
-        if (dc.message().body() instanceof Buffer && ((Buffer) dc.message().body()).toJsonObject().getJsonObject("ping") != null) {
+        if (dc.message().body() instanceof TransportFrame && ((TransportFrame)dc.message().body()).getFrameCase() == TransportFrame.FrameCase.PING) {
           if (toServer) {
             lastPingToServer.set(System.currentTimeMillis());
           } else {
@@ -875,8 +878,8 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
         if (congested.get()) {
           return;
         }
-        if (address.startsWith("grpc.eb.client.") && dc.message().body() instanceof Buffer
-          && ((Buffer) dc.message().body()).toJsonObject().getJsonObject("ping") != null) {
+        if (address.startsWith("grpc.eb.client.") && dc.message().body() instanceof TransportFrame
+          && ((TransportFrame) dc.message().body()).getFrameCase() == TransportFrame.FrameCase.PING) {
           acked.tryComplete();
         }
       }
@@ -1048,11 +1051,14 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
       request.endHandler(v -> request.response().end());
     });
 
-    List<JsonObject> frames = new CopyOnWriteArrayList<>();
+    List<Message> messages = new CopyOnWriteArrayList<>();
     vertx.eventBus().addOutboundInterceptor(ctx -> {
       Object body = ctx.message().body();
-      if (ctx.message().address().startsWith("grpc.eb.") && body instanceof Buffer && ((Buffer) body).length() > 0) {
-        frames.add(new JsonObject((Buffer) body));
+      if (ctx.message().address().startsWith("grpc.eb.") && body instanceof TransportFrame) {
+        TransportFrame frame = (TransportFrame)body;
+        if (frame.getFrameCase() == TransportFrame.FrameCase.MESSAGE) {
+          messages.add(frame.getMessage());
+        }
       }
       ctx.next();
     });
@@ -1069,8 +1075,11 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
 
     assertEquals(2, replies.size());
     assertEquals("echo-a", replies.get(0).getMessage());
-    assertFalse("expected JSON transport frames on the bus", frames.isEmpty());
-    assertTrue("a message frame should carry a JSON message object", frames.stream().anyMatch(f -> f.containsKey("message")));
+    assertFalse("expected JSON transport frames on the bus", messages.isEmpty());
+    for (Message msg : messages) {
+      assertNotNull(msg.getString());
+      new JsonObject(msg.getString());
+    }
   }
 
   @Test
@@ -1081,11 +1090,11 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
       request.endHandler(v -> request.response().end());
     });
 
-    List<JsonObject> frames = new CopyOnWriteArrayList<>();
+    List<TransportFrame> frames = new CopyOnWriteArrayList<>();
     vertx.eventBus().addOutboundInterceptor(ctx -> {
       Object body = ctx.message().body();
-      if (ctx.message().address().startsWith("grpc.eb.") && body instanceof Buffer && ((Buffer) body).length() > 0) {
-        frames.add(new JsonObject((Buffer) body));
+      if (ctx.message().address().startsWith("grpc.eb.") && body instanceof TransportFrame) {
+        frames.add((TransportFrame) body);
       }
       ctx.next();
     });
@@ -1101,7 +1110,7 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
 
     assertEquals(2, replies.size());
     assertFalse("the client's default wire format should produce JSON frames without request.format()", frames.isEmpty());
-    assertTrue(frames.stream().anyMatch(f -> f.containsKey("message")));
+    assertTrue(frames.stream().anyMatch(f -> f.getFrameCase() == TransportFrame.FrameCase.MESSAGE));
   }
 
   @Test

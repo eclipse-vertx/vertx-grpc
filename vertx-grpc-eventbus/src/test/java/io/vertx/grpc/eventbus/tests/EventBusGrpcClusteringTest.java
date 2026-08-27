@@ -6,6 +6,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.common.GrpcReadStream;
+import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -56,7 +57,16 @@ public class EventBusGrpcClusteringTest {
   }
 
   @Test
-  public void testRequestReply() throws Exception {
+  public void testRequestReplyProtobuf() throws Exception {
+    testRequestReply(WireFormat.PROTOBUF);
+  }
+
+  @Test
+  public void testRequestReplyJson() throws Exception {
+    testRequestReply(WireFormat.JSON);
+  }
+
+  private void testRequestReply(WireFormat wireFormat) throws Exception {
     server.callHandler(UNARY_SERVER, request -> request.handler(msg -> {
       Reply reply = Reply.newBuilder().setMessage("Hello " + msg.getName()).build();
       request.response().end(reply);
@@ -64,6 +74,7 @@ public class EventBusGrpcClusteringTest {
 
     Reply reply = client.request(UNARY_CLIENT)
       .compose(request -> {
+        request.format(wireFormat);
         request.end(Request.newBuilder().setName("Julien").build());
         return request.response();
       })
@@ -74,7 +85,16 @@ public class EventBusGrpcClusteringTest {
   }
 
   @Test
-  public void testStreaming(TestContext should) throws Exception {
+  public void testStreamingProtobuf(TestContext should) throws Exception {
+    testStreaming(should, WireFormat.PROTOBUF);
+  }
+
+  @Test
+  public void testStreamingJson(TestContext should) throws Exception {
+    testStreaming(should, WireFormat.JSON);
+  }
+
+  private void testStreaming(TestContext should, WireFormat wireFormat) throws Exception {
     server.callHandler(PIPE_SERVER, request -> {
       GrpcServerResponse<Request, Reply> response = request.response();
       request.handler(msg -> {
@@ -94,6 +114,7 @@ public class EventBusGrpcClusteringTest {
 
     GrpcClientRequest<Request, Reply> request = client.request(PIPE_CLIENT).await();
     Async async = should.async();
+    request.format(wireFormat);
     request.response().onComplete(should.asyncAssertSuccess(response -> {
       List<String> result = new ArrayList<>();
       response.handler(reply -> {

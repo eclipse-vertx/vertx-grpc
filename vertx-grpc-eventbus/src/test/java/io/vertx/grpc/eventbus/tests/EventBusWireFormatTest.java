@@ -11,6 +11,7 @@ import io.vertx.grpc.common.tests.Request;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
+import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -77,15 +78,10 @@ public class EventBusWireFormatTest extends EventBusGrpcTestBase {
       if (body == null) {
         // OK
       } else {
-        Buffer buffer = (Buffer) body;
-        JsonObject json = new JsonObject(buffer);
-        JsonObject message = json.getJsonObject("message");
-        if (message != null) {
-          Object str = message.getValue("string");
-          should.assertEquals(String.class, str.getClass());
-          JsonObject payload = new JsonObject((String)str);
-        } else if (json.containsKey("trailers") || json.containsKey("headers") || json.containsKey("halfClose")) {
-          //
+        TransportFrame frame = (TransportFrame) body;
+        if (frame.getFrameCase() == TransportFrame.FrameCase.MESSAGE) {
+          should.assertNotNull(frame.getMessage().getString());
+          JsonObject message = new JsonObject(frame.getMessage().getString());
         }
       }
     });
