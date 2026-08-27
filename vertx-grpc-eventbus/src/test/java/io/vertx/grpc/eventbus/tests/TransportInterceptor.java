@@ -102,8 +102,9 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
           }
         }
       } else {
-        if (wireFormat != null) {
-          TransportFrame frame = (TransportFrame)msg.body();
+        Object body = msg.body();
+        if (body instanceof TransportFrame) {
+          TransportFrame frame = (TransportFrame) body;
           String streamId = "" + frame.getStreamId();
           if (streamId.equals("0")) {
             if (frame.getFrameCase() == TransportFrame.FrameCase.PING) {

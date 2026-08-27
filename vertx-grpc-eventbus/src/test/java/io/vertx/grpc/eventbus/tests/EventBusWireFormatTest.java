@@ -1,7 +1,6 @@
 package io.vertx.grpc.eventbus.tests;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcReadStream;
@@ -21,7 +20,6 @@ public class EventBusWireFormatTest extends EventBusGrpcTestBase {
 
   private EventBusGrpcServer server;
   private EventBusGrpcClient client;
-  private volatile BiConsumer<String, Buffer> payloadHandler;
 
   @Before
   public void setUp(TestContext should) {

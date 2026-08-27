@@ -135,4 +135,9 @@ public class EventBusGrpcServerOptions extends EventBusGrpcEndpointOptions {
   public EventBusGrpcServerOptions setCleanerPeriod(Duration cleanerPeriod) {
     return (EventBusGrpcServerOptions)super.setCleanerPeriod(cleanerPeriod);
   }
+
+  @Override
+  public EventBusGrpcServerOptions setWireFormat(WireFormat wireFormat) {
+    return (EventBusGrpcServerOptions)super.setWireFormat(wireFormat);
+  }
 }

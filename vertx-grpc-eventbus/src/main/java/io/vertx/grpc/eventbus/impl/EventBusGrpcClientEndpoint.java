@@ -17,13 +17,11 @@ import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 public class EventBusGrpcClientEndpoint extends EventBusGrpcEndpoint implements EventBusGrpcClient {
 
   private final VertxInternal vertx;
-  private final WireFormat wireFormat;
   final long pingTimeout;
 
   private EventBusGrpcClientEndpoint(ContextInternal producerContext, EventBusGrpcClientOptions options) {
-    super(producerContext, "grpc.eb.client.", options.getCleanerPeriod().toMillis(),
+    super(producerContext, options.getWireFormat(), "grpc.eb.client.", options.getCleanerPeriod().toMillis(),
       options.getPingInterval().toMillis(), options.getInitialWindowSize());
-    this.wireFormat = options.getWireFormat();
     this.pingTimeout = pingTimeout(options);
     this.vertx = producerContext.owner();
   }
@@ -65,7 +63,7 @@ public class EventBusGrpcClientEndpoint extends EventBusGrpcEndpoint implements 
     );
     request.serviceName(method.serviceName());
     request.methodName(method.methodName());
-    request.format(wireFormat);
+    request.format(WireFormat.PROTOBUF);
     return consumerContext.succeededFuture(request);
   }
 

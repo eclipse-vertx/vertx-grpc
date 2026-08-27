@@ -14,6 +14,7 @@ import io.vertx.grpc.common.tests.Reply;
 import io.vertx.grpc.common.tests.Request;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
+import io.vertx.test.core.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -410,5 +411,27 @@ public class EventBusGrpcInterceptorTest extends EventBusGrpcTestBase {
     request.write(Request.getDefaultInstance()).await();
     async.awaitSuccess(20_000);
     should.assertEquals(1, sequence.get());
+  }
+
+  @Test
+  public void testPing() {
+    AtomicInteger pings = new AtomicInteger();
+    AtomicInteger pongs = new AtomicInteger();
+    vertx.eventBus().addOutboundInterceptor(new TransportInterceptor() {
+      @Override
+      protected Result onPing(String srcAddress, String dstAddress, long data, boolean ack) {
+        if (ack) {
+          pongs.incrementAndGet();
+        } else {
+          pings.incrementAndGet();
+        }
+        return super.onPing(srcAddress, dstAddress, data, ack);
+      }
+    });
+    server.callHandler(PIPE_SERVER, request -> {
+    });
+    GrpcClientRequest<Request, Reply> request = client.request(PIPE_CLIENT).await();
+    request.write(Request.getDefaultInstance()).await();
+    TestUtils.assertWaitUntil(() -> pings.get() > 0 && pongs.get() > 0);
   }
 }
