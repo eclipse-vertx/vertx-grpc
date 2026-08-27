@@ -18,27 +18,35 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.*;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 public class Http2GrpcInboundStream extends Http2GrpcOutboundStream {
 
+  private final long maxMessageSize;
+  private final Duration idleTimeout;
   private Handler<GrpcFrame> frameHandler;
   private Handler<Void> endHandler;
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcError> errorHandler;
   private GrpcDeframingStream stream;
-  private final long maxMessageSize;
   private boolean initialized;
 
   public Http2GrpcInboundStream(ContextInternal context,
                                 HttpClientRequest httpRequest,
                                 ServiceName serviceName,
                                 String methodName,
-                                long maxMessageSize) {
+                                long maxMessageSize,
+                                Duration idleTimeout) {
     super(context, httpRequest, serviceName, methodName);
     this.maxMessageSize = maxMessageSize;
+    this.idleTimeout = idleTimeout;
   }
 
   void init() {
+
+    if (idleTimeout != null && !(idleTimeout.isNegative() || idleTimeout.isZero())) {
+      httpRequest.idleTimeout(idleTimeout.toMillis());
+    }
 
     httpRequest.exceptionHandler(err -> {
       handleStreamException(err);

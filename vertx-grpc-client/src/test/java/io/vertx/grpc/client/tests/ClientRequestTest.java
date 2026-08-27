@@ -541,10 +541,10 @@ public class ClientRequestTest extends ClientTest {
     client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), SINK)
       .onComplete(should.asyncAssertSuccess(callRequest -> {
+        long now = System.currentTimeMillis();
+        callRequest.idleTimeout(1000);
         callRequest.write(Request.getDefaultInstance());
         cf.whenComplete((v, t) -> {
-          long now = System.currentTimeMillis();
-          callRequest.idleTimeout(1000);
           callRequest.exceptionHandler(err -> {
             should.assertTrue(System.currentTimeMillis() - now >= 1000);
             done.countDown();

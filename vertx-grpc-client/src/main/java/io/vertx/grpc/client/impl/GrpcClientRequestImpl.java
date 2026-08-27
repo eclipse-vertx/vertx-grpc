@@ -41,6 +41,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private ServiceName serviceName;
   private String methodName;
   private Promise<GrpcClientResponse<Req, Resp>> responsePromise;
+  private Duration idleTimeout;
   private long timeout;
   private TimeUnit timeoutUnit;
   private Timer deadline;
@@ -137,7 +138,13 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   @Override
   public GrpcClientRequest<Req, Resp> idleTimeout(long timeout) {
-    stream.write(new SetIdleTimeoutFrame(Duration.ofMillis(timeout)));
+    if (stream != null) {
+      throw new IllegalStateException("Idle timeout must be set prior stream interactions");
+    }
+    if (timeout < 0) {
+      throw new IllegalArgumentException("Idle timeout must be >= 0");
+    }
+    idleTimeout = timeout == 0L ? null : Duration.ofMillis(timeout);
     return this;
   }
 
@@ -162,7 +169,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       throw new IllegalStateException();
     }
 
-    stream = invoker.invoke(serviceName, methodName);
+    stream = invoker.invoke(serviceName, methodName, idleTimeout);
     stream.drainHandler(drainHandler);
     stream.handler(this::handleFrame);
     stream.endHandler(this::handleEnd);

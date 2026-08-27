@@ -85,11 +85,6 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
           return context.failedFuture("Trailers message sent");
         }
         return halfCloseSent = httpRequest.end();
-      case OTHER:
-        if (frame instanceof SetIdleTimeoutFrame) {
-          return handleSetIdleTimeout((SetIdleTimeoutFrame) frame);
-        }
-        // Fall through
       default:
         return context.failedFuture("Unsupported frame " + frame.type());
     }
@@ -138,11 +133,6 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
       return context.failedFuture(e);
     }
     return httpRequest.write(payload);
-  }
-
-  private Future<Void> handleSetIdleTimeout(SetIdleTimeoutFrame frame) {
-    httpRequest.idleTimeout(frame.timeout().toMillis());
-    return context.succeededFuture();
   }
 
   @Override
