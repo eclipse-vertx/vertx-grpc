@@ -8,25 +8,26 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.grpc.common.tests;
+package io.vertx.grpc.server.tests;
 
-import io.vertx.grpc.common.impl.GrpcMethodCall;
+import io.vertx.grpc.server.impl.GrpcMethodCall;
 import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 public class GrpcMethodCallTest {
 
-  private GrpcMethodCall grpcMethodCall0;
-  private GrpcMethodCall grpcMethodCall1;
-  private GrpcMethodCall grpcMethodCall2;
+  private GrpcMethodCall<?, ?> grpcMethodCall0;
+  private GrpcMethodCall<?, ?> grpcMethodCall1;
+  private GrpcMethodCall<?, ?> grpcMethodCall2;
 
   @Before
   public void setUp() {
-    grpcMethodCall0 = new GrpcMethodCall("/com.examples.MyService/Method1");
-    grpcMethodCall1 = new GrpcMethodCall("/com.examples/MyService/Method2");
-    grpcMethodCall2 = new GrpcMethodCall("/MyService/Method3");
+    grpcMethodCall0 = new GrpcMethodCall<>("/com.examples.MyService/Method1", null, null, null);
+    grpcMethodCall1 = new GrpcMethodCall<>("/com.examples/MyService/Method2", null, null, null);
+    grpcMethodCall2 = new GrpcMethodCall<>("/MyService/Method3", null, null, null);
   }
 
   @Test
@@ -39,14 +40,14 @@ public class GrpcMethodCallTest {
   @Test
   public void testServiceName() {
     assertEquals("com.examples.MyService", grpcMethodCall0.serviceName().fullyQualifiedName());
-    assertEquals("com.examples/MyService", grpcMethodCall1.serviceName().fullyQualifiedName());
+    assertNull(grpcMethodCall1.serviceName());
     assertEquals("MyService", grpcMethodCall2.serviceName().fullyQualifiedName());
   }
 
   @Test
   public void testMethodName() {
     assertEquals("Method1", grpcMethodCall0.methodName());
-    assertEquals("Method2", grpcMethodCall1.methodName());
+    assertNull(grpcMethodCall1.methodName());
     assertEquals("Method3", grpcMethodCall2.methodName());
   }
 }

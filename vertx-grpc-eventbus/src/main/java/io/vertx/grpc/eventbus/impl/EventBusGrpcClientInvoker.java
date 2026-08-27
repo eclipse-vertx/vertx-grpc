@@ -25,6 +25,11 @@ public class EventBusGrpcClientInvoker implements GrpcClientInvoker {
   }
 
   @Override
+  public ContextInternal context() {
+    return context;
+  }
+
+  @Override
   public GrpcStream invoke(ServiceName serviceName, String methodName) {
     return new EventBusGrpcClientCall(client, client.nextStreamId(), context, localUnary, remoteUnary, serviceName, methodName,
       initialInboundWindowSize, initialOutboundWindowSize);

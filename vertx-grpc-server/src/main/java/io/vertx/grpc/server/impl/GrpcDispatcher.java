@@ -7,41 +7,30 @@ import io.vertx.core.spi.context.storage.AccessMode;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
-import io.vertx.grpc.common.impl.GrpcStream;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
-import io.vertx.grpc.common.impl.GrpcMethodCall;
 import io.vertx.grpc.server.GrpcServerRequest;
 
 public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
 
-  private final GrpcStream stream;
+  private final GrpcMethodCall<Req, Resp> methodCall;
   private final ContextInternal context;
-  private final GrpcMessageDecoder<Req> messageDecoder;
-  private final GrpcMessageEncoder<Resp> messageEncoder;
-  private final GrpcMethodCall methodCall;
   private final HttpConnection httpConnection;
-  private final Handler<GrpcServerRequest<Req, Resp>> method;
+  private final Handler<GrpcServerRequest<Req, Resp>> handler;
   private final boolean propagateDeadline;
   private final boolean scheduleDeadline;
   private GrpcServerRequestImpl<Req, Resp> grpcRequest;
   private GrpcServerResponseImpl<Req, Resp> grpcResponse;
 
-  public GrpcDispatcher(GrpcStream stream,
-                        ContextInternal context,
-                        GrpcMessageDecoder<Req> messageDecoder,
-                        GrpcMessageEncoder<Resp> messageEncoder,
-                        GrpcMethodCall methodCall,
+  public GrpcDispatcher(ContextInternal context,
+                        GrpcMethodCall<Req, Resp> methodCall,
                         HttpConnection httpConnection,
-                        Handler<GrpcServerRequest<Req, Resp>> method,
+                        Handler<GrpcServerRequest<Req, Resp>> handler,
                         boolean propagateDeadline,
                         boolean scheduleDeadline) {
-    this.stream = stream;
-    this.context = context;
-    this.messageDecoder = messageDecoder;
-    this.messageEncoder = messageEncoder;
     this.methodCall = methodCall;
+    this.context = context;
     this.httpConnection = httpConnection;
-    this.method = method;
+    this.handler = handler;
     this.propagateDeadline = propagateDeadline;
     this.scheduleDeadline = scheduleDeadline;
   }
@@ -74,11 +63,13 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
       context,
       frame.headers(),
       format,
-      stream,
+      methodCall.stream(),
       frame.timeout(),
       frame.encoding(),
-      messageDecoder,
-      methodCall) {
+      methodCall.messageDecoder(),
+      methodCall.serviceName(),
+      methodCall.fullMethodName(),
+      methodCall.methodName()) {
       @Override
       public HttpConnection connection() {
         return httpConnection;
@@ -87,8 +78,8 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
     grpcResponse = new GrpcServerResponseImpl<>(
       context,
       grpcRequest,
-      stream,
-      messageEncoder);
+      methodCall.stream(),
+      methodCall.messageEncoder());
     grpcResponse.format(format);
     long timeout = grpcRequest.timeout();
     if (propagateDeadline && timeout > 0L) {
@@ -105,7 +96,7 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
     });
     grpcRequest.context().dispatch(grpcRequest, req -> {
       try {
-        method.handle(req);
+        handler.handle(req);
       } catch (Exception e) {
         handleInvocationFailure(e);
       }

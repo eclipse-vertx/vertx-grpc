@@ -128,23 +128,27 @@ public class GrpcClientImpl implements GrpcClient {
   }
 
   private <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(RequestOptions options, ServiceMethod<Resp, Req> method) {
-    return client.request(options)
-      .map(request -> {
+    return connect(options).map(invoker -> {
         GrpcClientRequestImpl<Req, Resp> call = new GrpcClientRequestImpl<>(
-          ((PromiseInternal<?>)request.response()).context(),
-          new Http2GrpcClientInvoker(request, maxMessageSize),
+          invoker.context(),
+          invoker,
           scheduleDeadlineAutomatically,
           method.encoder(),
           method.decoder()) {
           public HttpConnection connection() {
-            return request.connection();
+            return ((Http2GrpcClientInvoker)invoker).connection();
           }
         };
         call.serviceName(method.serviceName());
         call.methodName(method.methodName());
         configureTimeout(call);
         return call;
-      });
+    });
+  }
+
+  public Future<GrpcClientInvoker> connect(RequestOptions options) {
+    return client.request(options)
+      .map(request -> new Http2GrpcClientInvoker(request, maxMessageSize));
   }
 
   @Override
