@@ -941,8 +941,8 @@ public class ClientRequestTest extends ClientTest {
     client = GrpcClient.client(vertx);
     client.request(SocketAddress.inetSocketAddress(port, "localhost"), SINK)
       .onComplete(should.asyncAssertSuccess(callRequest -> {
-        callRequest.exceptionHandler(err -> {
-          if (err instanceof GrpcErrorException && ((GrpcErrorException)err).error() == CANCELLED) {
+        callRequest.errorHandler(err -> {
+          if (err == CANCELLED) {
             callRequest.exceptionHandler(null);
             should.assertTrue(callRequest.isCancelled());
             test.complete();

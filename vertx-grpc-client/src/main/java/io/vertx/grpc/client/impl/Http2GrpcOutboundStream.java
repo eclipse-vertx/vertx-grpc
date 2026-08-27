@@ -10,7 +10,6 @@ import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.GrpcCancelFrame;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessage;
@@ -39,6 +38,11 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
     this.httpRequest = httpRequest;
     this.serviceName = serviceName;
     this.methodName = methodName;
+  }
+
+  @Override
+  public Future<Void> fail(GrpcError error) {
+    return httpRequest.reset(error.http2ResetCode);
   }
 
   @Override
@@ -81,8 +85,6 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
           return context.failedFuture("Trailers message sent");
         }
         return halfCloseSent = httpRequest.end();
-      case CANCEL:
-        return handleCancelFrame((GrpcCancelFrame) frame);
       case OTHER:
         if (frame instanceof SetIdleTimeoutFrame) {
           return handleSetIdleTimeout((SetIdleTimeoutFrame) frame);
@@ -136,10 +138,6 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
       return context.failedFuture(e);
     }
     return httpRequest.write(payload);
-  }
-
-  private Future<Void> handleCancelFrame(GrpcCancelFrame frame) {
-    return httpRequest.reset(GrpcError.CANCELLED.http2ResetCode);
   }
 
   private Future<Void> handleSetIdleTimeout(SetIdleTimeoutFrame frame) {

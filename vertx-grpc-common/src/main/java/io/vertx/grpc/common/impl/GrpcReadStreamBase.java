@@ -144,13 +144,17 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
     if (err instanceof InvalidMessageException) {
       InvalidMessageException ime = (InvalidMessageException) err;
       handleInvalidMessage(ime);
-    } else if (err instanceof GrpcErrorException) {
-      Handler<GrpcError> handler = errorHandler;
-      if (handler != null) {
-        handler.handle(((GrpcErrorException)err).error());
-      }
     } else {
       tryFail(err);
+    }
+  }
+
+  public void handleError(GrpcError error) {
+    Handler<GrpcError> handler = errorHandler;
+    if (errorHandler != null) {
+      context.dispatch(error, handler);
+    } else {
+      handleException(new GrpcErrorException(error));
     }
   }
 

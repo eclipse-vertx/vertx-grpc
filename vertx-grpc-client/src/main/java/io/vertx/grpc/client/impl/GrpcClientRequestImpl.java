@@ -166,6 +166,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     stream.drainHandler(drainHandler);
     stream.handler(this::handleFrame);
     stream.endHandler(this::handleEnd);
+    stream.errorHandler(this::handleError);
     stream.exceptionHandler(this::internalHandleException);
 
     Duration to = timeout > 0L ? Duration.of(timeout, timeoutUnit.toChronoUnit()) : null;
@@ -224,9 +225,9 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   protected Future<Void> sendCancel() {
     GrpcStream s = stream;
     if (s != null) {
-      return s.write(DefaultGrpcCancelFrame.INSTANCE);
+      return s.fail(GrpcError.CANCELLED);
     } else {
-      internalHandleException(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED));
+      handleError(GrpcError.CANCELLED);
       return Future.succeededFuture();
     }
   }
@@ -292,9 +293,6 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       case HALF_CLOSE:
         handleTrailersFrame((GrpcTrailersFrame) frame);
         break;
-      case CANCEL:
-        handleCancelFrame((GrpcCancelFrame) frame);
-        break;
       default:
         //
         break;
@@ -336,10 +334,6 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     }
   }
 
-  private void handleCancelFrame(GrpcCancelFrame frame) {
-    handleCancel();
-  }
-
   private void handleEnd(Void v) {
     GrpcClientResponseImpl<Req, Resp> r2 = response;
     if (r2 != null) {
@@ -353,6 +347,16 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       GrpcClientResponseImpl<Req, Resp> resp = response;
       if (resp != null) {
         resp.handleException(err);
+      }
+    }
+  }
+
+  public void handleError(GrpcError error) {
+    super.handleError(error);
+    if (!responsePromise.tryFail(new GrpcErrorException(error))) {
+      GrpcClientResponseImpl<Req, Resp> resp = response;
+      if (resp != null) {
+        resp.handleError(error);
       }
     }
   }

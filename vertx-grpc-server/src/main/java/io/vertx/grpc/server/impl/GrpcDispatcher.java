@@ -45,9 +45,6 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
       case MESSAGE:
         handleMessage((GrpcMessageFrame) frame);
         break;
-      case CANCEL:
-        handleCancel((GrpcCancelFrame) frame);
-        break;
       case HALF_CLOSE:
         handleHalfClose();
         break;
@@ -118,13 +115,6 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
     }
   }
 
-  private void handleCancel(GrpcCancelFrame frame) {
-    GrpcServerRequestImpl<Req, Resp> r = grpcRequest;
-    if (r != null) {
-      r.handleCancel();
-    }
-  }
-
   private void handleHalfClose() {
     if (grpcRequest != null) {
       grpcRequest.handleEnd();
@@ -134,6 +124,12 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
   public void handleException(Throwable exception) {
     if (grpcRequest != null) {
       grpcRequest.handleException(exception);
+    }
+  }
+
+  public void handleError(GrpcError error) {
+    if (grpcRequest != null) {
+      grpcRequest.handleError(error);
     }
   }
 

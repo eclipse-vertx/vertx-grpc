@@ -138,7 +138,7 @@ abstract class EventBusGrpcEndpoint {
   private void reapSilentRemoteEndpoints(long now) {
     for (RemoteEndpoint remoteEndpoint : new ArrayList<>(remoteEndpoints.values())) {
       if (remoteEndpoint.timeout > 0 && now - remoteEndpoint.lastSeenTimestamp > remoteEndpoint.timeout) {
-        GrpcErrorException err = new GrpcErrorException(GrpcError.UNAVAILABLE, GrpcStatus.UNAVAILABLE);
+        GrpcErrorException err = new GrpcErrorException(GrpcError.UNAVAILABLE);
         err.initCause(new TimeoutException("No ping from remote endpoint " + remoteEndpoint.address + " within " + remoteEndpoint.timeout + " ms"));
         remoteEndpointDown(remoteEndpoint, true);
       }
@@ -216,10 +216,9 @@ abstract class EventBusGrpcEndpoint {
   }
 
   private Future<?> closeStreams() {
-    GrpcErrorException cause = new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED);
     List<Future<?>> results = new ArrayList<>();
     for (EventBusGrpcStreamBase<?> stream : new ArrayList<>(streams.values())) {
-      Future<Void> result = stream.close(cause, true);
+      Future<Void> result = stream.close(GrpcError.CANCELLED, true);
       if (result != null) {
         results.add(result);
       }
@@ -302,7 +301,7 @@ abstract class EventBusGrpcEndpoint {
           closeOutbound();
         } else if (frame.getFrameCase() == TransportFrame.FrameCase.CANCEL) {
           // Should use a root cause for this to get unavailable instead ?
-          close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), false);
+          close(GrpcError.CANCELLED, false);
         }
         Object payload = EventBusGrpcCodec.encodeFrame(frame, wireFormat);
         if (options == null) {
@@ -335,6 +334,10 @@ abstract class EventBusGrpcEndpoint {
         remove();
         handleProducerClosed(null);
       }
+    }
+
+    Future<Void> close(GrpcError cause, boolean notify) {
+      return close(new GrpcErrorException(cause), notify);
     }
 
     Future<Void> close(Throwable cause, boolean notify) {

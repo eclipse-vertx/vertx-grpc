@@ -6,7 +6,6 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.impl.*;
-import io.vertx.grpc.common.GrpcCancelFrame;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.common.GrpcHeaderNames;
@@ -44,6 +43,7 @@ public class HttpGrpcInboundStream implements GrpcInboundStream {
   private Handler<GrpcFrame> frameHandler;
   private Handler<Throwable> exceptionHandler;
   private Handler<Void> endHandler;
+  private Handler<GrpcError> errorHandler;
 
   // Initialization state
   private GrpcHeadersFrame initialMessage;
@@ -77,15 +77,19 @@ public class HttpGrpcInboundStream implements GrpcInboundStream {
     return this;
   }
 
+  public HttpGrpcInboundStream errorHandler(Handler<GrpcError> handler) {
+    this.errorHandler = handler;
+    return this;
+  }
+
   void handleException(Throwable err) {
     if (err instanceof StreamResetException) {
       StreamResetException reset = (StreamResetException) err;
-      GrpcErrorException grpcError = GrpcErrorException.create(reset);
-      if (grpcError.error() == GrpcError.CANCELLED) {
-        GrpcCancelFrame frame = DefaultGrpcCancelFrame.INSTANCE;
-        emit(frame);
+      GrpcErrorException errorEx = GrpcErrorException.create(reset);
+      Handler<GrpcError> handler = errorHandler;
+      if (handler != null) {
+        handler.handle(errorEx.error());
       }
-      err = grpcError;
     }
     Handler<Throwable> handler = exceptionHandler;
     if (handler != null) {

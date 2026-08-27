@@ -391,6 +391,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
 
       stream.handler(dispatcher);
       stream.exceptionHandler(dispatcher::handleException);
+      stream.errorHandler(dispatcher::handleError);
       stream.endHandler(dispatcher::handleEnd);
 
       stream.handleConnect(message);

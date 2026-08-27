@@ -151,15 +151,20 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase.Client {
   }
 
   @Override
-  public Future<Void> write(GrpcFrame frame) {
-    if (frame.type() == GrpcFrameType.CANCEL) {
+  public Future<Void> fail(GrpcError error) {
+    if (error == GrpcError.CANCELLED) {
       return writeCancel();
     } else {
-      if (state == State.CLOSED) {
-        return consumerContext.failedFuture("Stream closed");
-      }
-      return outbound.write(frame);
+      return consumerContext.failedFuture("Not implemented");
     }
+  }
+
+  @Override
+  public Future<Void> write(GrpcFrame frame) {
+    if (state == State.CLOSED) {
+      return consumerContext.failedFuture("Stream closed");
+    }
+    return outbound.write(frame);
   }
 
   @Override
@@ -206,7 +211,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase.Client {
         return consumerContext.failedFuture("Stream closed");
       case IDLE:
         state = State.CLOSED;
-        handleException(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED));
+        handleError(GrpcError.CANCELLED);
         return consumerContext.succeededFuture();
       case CONNECTING:
         Promise<Void> promise = consumerContext.promise();
