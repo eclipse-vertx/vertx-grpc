@@ -33,7 +33,7 @@ abstract class EventBusGrpcEndpoint {
   private final Map<String, RemoteEndpoint> remoteEndpoints = new HashMap<>();
   private final AtomicLong pingData = new AtomicLong();
   protected final int initialWindowSize;
-  private MessageConsumer<Object> consumer;
+  private MessageConsumer<TransportFrame> consumer;
   private final long cleanerPeriod;
   private long livenessTimerId = -1L;
 
@@ -44,6 +44,14 @@ abstract class EventBusGrpcEndpoint {
                        int initialWindowSize) {
 
     UUID uuid = UUID.randomUUID();
+
+    EventBusInternal eventBus = producerContext.owner().eventBus();
+    try {
+      eventBus.registerCodec(EventBusGrpcProtobufMessageCodec.INSTANCE);
+      eventBus.registerCodec(EventBusGrpcJsonMessageCodec.INSTANCE);
+    } catch (IllegalStateException e) {
+      // Already registered ...
+    }
 
     this.vertx = producerContext.owner();
     this.producerContext = producerContext;
@@ -107,8 +115,8 @@ abstract class EventBusGrpcEndpoint {
     return eventBus.request(producerContext, address, body, options);
   }
 
-  MessageConsumer<Object> consumer(String address, Handler<Message<Object>> handler) {
-    MessageConsumer<Object> consumer = eventBus.consumer(producerContext, new MessageConsumerOptions().setAddress(address));
+  <T> MessageConsumer<T> consumer(String address, Handler<Message<T>> handler) {
+    MessageConsumer<T> consumer = eventBus.consumer(producerContext, new MessageConsumerOptions().setAddress(address));
     consumer.handler(handler);
     return consumer;
   }
@@ -123,13 +131,23 @@ abstract class EventBusGrpcEndpoint {
         }
       }
       for (RemoteEndpoint remoteEndpoint : toPing) {
-        Ping.Builder ping = Ping.newBuilder().setData(data);
+        TransportFrame frame = TransportFrame.newBuilder().setPing(Ping.newBuilder().setData(data)).build();
         DeliveryOptions options = new DeliveryOptions()
           .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, remoteEndpoint.format.name())
           .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
+        switch (remoteEndpoint.format.name()) {
+          case "json":
+            options.setCodecName(EventBusGrpcJsonMessageCodec.CODEC_NAME);
+            break;
+          case "proto":
+            options.setCodecName(EventBusGrpcProtobufMessageCodec.CODEC_NAME);
+            break;
+          default:
+            throw new UnsupportedOperationException();
+        }
         remoteEndpoint.lastPingTimestamp = now;
         remoteEndpoint.producer
-          .write(EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ping).build(), remoteEndpoint.format), options)
+          .write(frame, options)
           .onFailure(cause -> remoteEndpointDown(remoteEndpoint, false));
       }
     }
@@ -156,8 +174,8 @@ abstract class EventBusGrpcEndpoint {
     }
   }
 
-  private void dispatch(Message<Object> message) {
-    TransportFrame frame = EventBusGrpcCodec.decodeFrame(message);
+  private void dispatch(Message<TransportFrame> message) {
+    TransportFrame frame = message.body();
     if (frame.getFrameCase() == TransportFrame.FrameCase.PING) {
       handlePing(frame.getPing(), message);
       return;
@@ -172,20 +190,20 @@ abstract class EventBusGrpcEndpoint {
     }
   }
 
-  private void handlePing(Ping ping, Message<Object> message) {
+  private void handlePing(Ping ping, Message<TransportFrame> message) {
     String remoteAddress = message.headers().get(EventBusHeaders.ENDPOINT_ADDRESS);
     RemoteEndpoint remoteEndpoint = remoteEndpoints.get(remoteAddress);
     if (remoteEndpoint != null) {
       remoteEndpoint.lastSeenTimestamp = System.currentTimeMillis();
-    }
-    if (!ping.getAck()) {
-      String wireFormatName = message.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT);
-      WireFormat wireFormat = JsonWireFormat.NAME.equals(wireFormatName) ? WireFormat.JSON : WireFormat.PROTOBUF;
-      DeliveryOptions options = new DeliveryOptions()
-        .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name())
-        .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
-      Ping.Builder ack = Ping.newBuilder().setData(ping.getData()).setAck(true);
-      eventBus.send(remoteAddress, EventBusGrpcCodec.encodeFrame(TransportFrame.newBuilder().setPing(ack).build(), wireFormat), options);
+      if (!ping.getAck()) {
+        String wireFormatName = message.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT);
+        WireFormat wireFormat = JsonWireFormat.NAME.equals(wireFormatName) ? WireFormat.JSON : WireFormat.PROTOBUF;
+        DeliveryOptions options = new DeliveryOptions()
+          .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name())
+          .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
+        Ping.Builder ack = Ping.newBuilder().setData(ping.getData()).setAck(true);
+        remoteEndpoint.sendTransportFrame(TransportFrame.newBuilder().setPing(ack).build(), wireFormat, options);
+      }
     }
   }
 
@@ -251,6 +269,21 @@ abstract class EventBusGrpcEndpoint {
       remoteEndpoints.remove(address, this);
       return producer.close();
     }
+
+    Future<Void> sendTransportFrame(TransportFrame frame, WireFormat format, DeliveryOptions options) {
+      options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, format.name());
+      switch (format.name()) {
+        case "json":
+          options.setCodecName(EventBusGrpcJsonMessageCodec.CODEC_NAME);
+          break;
+        case "proto":
+          options.setCodecName(EventBusGrpcProtobufMessageCodec.CODEC_NAME);
+          break;
+        default:
+          throw new UnsupportedOperationException();
+      }
+      return producer.write(frame, options);
+    }
   }
 
   static abstract class StreamRegistration {
@@ -303,13 +336,22 @@ abstract class EventBusGrpcEndpoint {
           // Should use a root cause for this to get unavailable instead ?
           close(GrpcError.CANCELLED, false);
         }
-        Object payload = EventBusGrpcCodec.encodeFrame(frame, wireFormat);
         if (options == null) {
           options = new DeliveryOptions();
         }
         options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
-        MessageProducer<Object> producer = remote.producer;
-        Future<Void> res = producer.write(payload, options);
+        switch (wireFormat.name()) {
+          case "json":
+            options.setCodecName(EventBusGrpcJsonMessageCodec.CODEC_NAME);
+            break;
+          case "proto":
+            options.setCodecName(EventBusGrpcProtobufMessageCodec.CODEC_NAME);
+            break;
+          default:
+            throw new UnsupportedOperationException();
+        }
+
+        Future<Void> res = remote.sendTransportFrame(frame, wireFormat, options);
         return res.andThen(ar -> {
           if (ar.failed()) {
             localEndpoint.remoteEndpointDown(remote, false);
@@ -352,11 +394,7 @@ abstract class EventBusGrpcEndpoint {
             .setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code).setReason("Closed"))
             .setStreamId(id)
             .build();
-          WireFormat format = format();
-          DeliveryOptions options = new DeliveryOptions();
-          options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, format.name());
-          Object payload = EventBusGrpcCodec.encodeFrame(frame, format);
-          remoteEndpoint.producer.write(payload, options);
+          remoteEndpoint.sendTransportFrame(frame, remoteEndpoint.format, new DeliveryOptions());
         }
         Future<Void> res = remove();
         handleProducerClosed(cause);

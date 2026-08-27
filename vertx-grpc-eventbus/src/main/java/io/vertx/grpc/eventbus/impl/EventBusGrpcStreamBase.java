@@ -255,7 +255,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     });
   }
 
-  void handle(TransportFrame frame, io.vertx.core.eventbus.Message<Object> message) {
+  void handle(TransportFrame frame, io.vertx.core.eventbus.Message<TransportFrame> message) {
     long sequence;
     if ((sequence = frame.getStreamSequence()) > 0 && sequence != inboundSequence++) {
       close(GrpcError.CANCELLED, true);

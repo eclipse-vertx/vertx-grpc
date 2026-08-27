@@ -10,7 +10,6 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.ReplyException;
 import io.vertx.core.eventbus.ReplyFailure;
 import io.vertx.grpc.common.WireFormat;
-import io.vertx.grpc.eventbus.impl.EventBusGrpcCodec;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
 import io.vertx.grpc.eventbus.transport.v1alpha.Ping;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
@@ -104,7 +103,7 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
         }
       } else {
         if (wireFormat != null) {
-          TransportFrame frame = EventBusGrpcCodec.decodeFrame(msg);
+          TransportFrame frame = (TransportFrame)msg.body();
           String streamId = "" + frame.getStreamId();
           if (streamId.equals("0")) {
             if (frame.getFrameCase() == TransportFrame.FrameCase.PING) {
