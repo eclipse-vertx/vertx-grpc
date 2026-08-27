@@ -5,6 +5,8 @@ import io.vertx.grpc.client.impl.GrpcClientInvoker;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.impl.GrpcStream;
 
+import java.time.Duration;
+
 public class EventBusGrpcClientInvoker implements GrpcClientInvoker {
 
   private final ContextInternal context;
@@ -30,7 +32,7 @@ public class EventBusGrpcClientInvoker implements GrpcClientInvoker {
   }
 
   @Override
-  public GrpcStream invoke(ServiceName serviceName, String methodName) {
+  public GrpcStream invoke(ServiceName serviceName, String methodName, Duration idleTimeout) {
     return new EventBusGrpcClientCall(client, client.nextStreamId(), context, localUnary, remoteUnary, serviceName, methodName,
       initialInboundWindowSize, initialOutboundWindowSize);
   }

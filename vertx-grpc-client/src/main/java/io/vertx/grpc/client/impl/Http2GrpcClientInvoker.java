@@ -6,6 +6,8 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.grpc.common.ServiceName;
 
+import java.time.Duration;
+
 public class Http2GrpcClientInvoker implements GrpcClientInvoker {
 
   private final HttpClientRequest httpRequest;
@@ -28,7 +30,7 @@ public class Http2GrpcClientInvoker implements GrpcClientInvoker {
   }
 
   @Override
-  public Http2GrpcInboundStream invoke(ServiceName serviceName, String methodName) {
-    return new Http2GrpcInboundStream(context, httpRequest, serviceName, methodName, maxMessageSize);
+  public Http2GrpcInboundStream invoke(ServiceName serviceName, String methodName, Duration idleTimeout) {
+    return new Http2GrpcInboundStream(context, httpRequest, serviceName, methodName, maxMessageSize, idleTimeout);
   }
 }

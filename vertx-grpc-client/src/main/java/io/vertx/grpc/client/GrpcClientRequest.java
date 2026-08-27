@@ -117,10 +117,13 @@ public interface GrpcClientRequest<Req, Resp> extends GrpcWriteStream<Req> {
 
   /**
    * Sets the amount of time after which, if the request does not return any data within the timeout period,
-   * the request/response is cancelled and the related futures.
+   * the request/response is cancelled and the related futures. This method must be called before interacting
+   * with the request.
    *
    * @param timeout the amount of time in milliseconds.
    * @return a reference to this, so the API can be used fluently
+   * @throws IllegalStateException if the request has already been sent
+   * @throws IllegalArgumentException if the timeout is negative
    */
   @Fluent
   GrpcClientRequest<Req, Resp> idleTimeout(long timeout);
