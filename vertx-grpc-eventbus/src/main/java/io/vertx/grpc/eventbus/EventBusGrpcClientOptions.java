@@ -23,14 +23,8 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
    */
   public static final Duration DEFAULT_PING_TIMEOUT = Duration.ofSeconds(60);
 
-  /**
-   * The default initial window size for inbound messages = {@code 64}
-   */
-  public static final int DEFAULT_INITIAL_WINDOW_SIZE = 64;
-
   private Duration pingInterval;
   private Duration pingTimeout;
-  private int initialWindowSize;
 
   /**
    * Default options.
@@ -38,7 +32,6 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
   public EventBusGrpcClientOptions() {
     pingInterval = DEFAULT_PING_INTERVAL;
     pingTimeout = DEFAULT_PING_TIMEOUT;
-    initialWindowSize = DEFAULT_INITIAL_WINDOW_SIZE;
   }
 
   /**
@@ -48,7 +41,6 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
     super(other);
     pingInterval = other.pingInterval;
     pingTimeout = other.pingTimeout;
-    initialWindowSize = other.initialWindowSize;
   }
 
   /**
@@ -100,27 +92,6 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
     return this;
   }
 
-  /**
-   * @return the initial window size
-   */
-  public int getInitialWindowSize() {
-    return initialWindowSize;
-  }
-
-  /**
-   * Set the initial window size.
-   *
-   * @param initialWindowSize the new value
-   * @return a reference to this, so the API can be used fluently
-   */
-  public EventBusGrpcClientOptions setInitialWindowSize(int initialWindowSize) {
-    if (initialWindowSize < 1) {
-      throw new IllegalArgumentException("initialWindowSize must be > 0");
-    }
-    this.initialWindowSize = initialWindowSize;
-    return this;
-  }
-
   @Override
   public EventBusGrpcClientOptions setCleanerPeriod(Duration cleanerPeriod) {
     return (EventBusGrpcClientOptions)super.setCleanerPeriod(cleanerPeriod);
@@ -129,5 +100,10 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
   @Override
   public EventBusGrpcClientOptions setWireFormat(WireFormat wireFormat) {
     return (EventBusGrpcClientOptions)super.setWireFormat(wireFormat);
+  }
+
+  @Override
+  public EventBusGrpcClientOptions setInitialWindowSize(int initialWindowSize) {
+    return (EventBusGrpcClientOptions)super.setInitialWindowSize(initialWindowSize);
   }
 }
