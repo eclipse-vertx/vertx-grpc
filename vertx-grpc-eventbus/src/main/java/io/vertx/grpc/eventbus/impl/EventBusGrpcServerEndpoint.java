@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 
 public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements EventBusGrpcServer {
 
-  private final Set<WireFormat> supportedWireFormats;
+  private final Set<WireFormat> acceptedWireFormats;
   private final long maxPingTimeout;
   private final ContextInternal consumerContext;
   private final AtomicReference<Map<String, ServiceConsumer>> consumersRef;
@@ -31,7 +31,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
     super(Utils.eventLoopCtx(consumerContext),  options.getWireFormat(), "grpc.eb.server.", options.getCleanerPeriod().toMillis(),
       0L, options.getInitialWindowSize());
     this.consumerContext = consumerContext;
-    this.supportedWireFormats = new LinkedHashSet<>(options.getSupportedWireFormats());
+    this.acceptedWireFormats = new LinkedHashSet<>(options.getEnabledFormats());
     this.maxPingTimeout = options.getMaxPingTimeout().toMillis();
     this.consumersRef = new AtomicReference<>(new HashMap<>());
   }
@@ -260,7 +260,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
         }
       }
 
-      if (!supportedWireFormats.contains(wireFormat)) {
+      if (!acceptedWireFormats.contains(wireFormat)) {
         message.fail(GrpcStatus.UNIMPLEMENTED.code, "Unsupported wire format: " + wireFormat);
         return;
       }

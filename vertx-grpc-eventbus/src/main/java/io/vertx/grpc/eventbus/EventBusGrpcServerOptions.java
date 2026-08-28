@@ -20,29 +20,22 @@ public class EventBusGrpcServerOptions extends EventBusGrpcEndpointOptions {
   /**
    * The default set of wire formats the server accepts = {@code [proto, json]}
    */
-  public static final Set<WireFormat> DEFAULT_SUPPORTED_WIRE_FORMATS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(WireFormat.PROTOBUF, WireFormat.JSON)));
+  public static final Set<WireFormat> DEFAULT_ENABLED_WIRE_FORMATS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(WireFormat.PROTOBUF, WireFormat.JSON)));
 
   /**
    * The default maximum ping timeout = {@code 2} minutes
    */
   public static final Duration DEFAULT_MAX_PING_TIMEOUT = Duration.ofMinutes(2);
 
-  /**
-   * The default initial window size for inbound messages = {@code 64}
-   */
-  public static final int DEFAULT_INITIAL_WINDOW_SIZE = 64;
-
-  private Set<WireFormat> supportedWireFormats;
+  private Set<WireFormat> enabledFormats;
   private Duration maxPingTimeout;
-  private int initialWindowSize;
 
   /**
    * Default options.
    */
   public EventBusGrpcServerOptions() {
-    supportedWireFormats = new LinkedHashSet<>(DEFAULT_SUPPORTED_WIRE_FORMATS);
+    enabledFormats = new LinkedHashSet<>(DEFAULT_ENABLED_WIRE_FORMATS);
     maxPingTimeout = DEFAULT_MAX_PING_TIMEOUT;
-    initialWindowSize = DEFAULT_INITIAL_WINDOW_SIZE;
   }
 
   /**
@@ -50,38 +43,29 @@ public class EventBusGrpcServerOptions extends EventBusGrpcEndpointOptions {
    */
   public EventBusGrpcServerOptions(EventBusGrpcServerOptions other) {
     super(other);
-    supportedWireFormats = new LinkedHashSet<>(other.supportedWireFormats);
+    enabledFormats = new LinkedHashSet<>(other.enabledFormats);
     maxPingTimeout = other.maxPingTimeout;
-    initialWindowSize = other.initialWindowSize;
   }
 
   /**
    * @return the set of wire formats the server accepts
    */
-  public Set<WireFormat> getSupportedWireFormats() {
-    return supportedWireFormats;
+  public Set<WireFormat> getEnabledFormats() {
+    return enabledFormats;
   }
 
   /**
-   * @param wireFormat the wire format to test
-   * @return whether the server accepts the given wire format
-   */
-  public boolean isWireFormatSupported(WireFormat wireFormat) {
-    return supportedWireFormats.contains(wireFormat);
-  }
-
-  /**
-   * Set the wire formats the server accepts. A request using a wire format outside this set is rejected with
+   * Set the wire formats the server accepts for the grpc payload. A request using a wire format outside this set is rejected with
    * {@code UNIMPLEMENTED}.
    *
-   * @param supportedWireFormats the supported wire formats, must not be empty
+   * @param enabledFormats the supported wire formats, must not be empty
    * @return a reference to this, so the API can be used fluently
    */
-  public EventBusGrpcServerOptions setSupportedWireFormats(Set<WireFormat> supportedWireFormats) {
-    if (supportedWireFormats == null || supportedWireFormats.isEmpty()) {
+  public EventBusGrpcServerOptions setEnabledFormats(Set<WireFormat> enabledFormats) {
+    if (enabledFormats == null || enabledFormats.isEmpty()) {
       throw new IllegalArgumentException("supportedWireFormats must not be empty");
     }
-    this.supportedWireFormats = new LinkedHashSet<>(supportedWireFormats);
+    this.enabledFormats = new LinkedHashSet<>(enabledFormats);
     return this;
   }
 
@@ -110,27 +94,6 @@ public class EventBusGrpcServerOptions extends EventBusGrpcEndpointOptions {
     return this;
   }
 
-  /**
-   * @return the initial window size
-   */
-  public int getInitialWindowSize() {
-    return initialWindowSize;
-  }
-
-  /**
-   * Set the initial window size.
-   *
-   * @param initialWindowSize the new value
-   * @return a reference to this, so the API can be used fluently
-   */
-  public EventBusGrpcServerOptions setInitialWindowSize(int initialWindowSize) {
-    if (initialWindowSize < 1) {
-      throw new IllegalArgumentException("initialWindowSize must be > 0");
-    }
-    this.initialWindowSize = initialWindowSize;
-    return this;
-  }
-
   @Override
   public EventBusGrpcServerOptions setCleanerPeriod(Duration cleanerPeriod) {
     return (EventBusGrpcServerOptions)super.setCleanerPeriod(cleanerPeriod);
@@ -139,5 +102,10 @@ public class EventBusGrpcServerOptions extends EventBusGrpcEndpointOptions {
   @Override
   public EventBusGrpcServerOptions setWireFormat(WireFormat wireFormat) {
     return (EventBusGrpcServerOptions)super.setWireFormat(wireFormat);
+  }
+
+  @Override
+  public EventBusGrpcServerOptions setInitialWindowSize(int initialWindowSize) {
+    return (EventBusGrpcServerOptions)super.setInitialWindowSize(initialWindowSize);
   }
 }

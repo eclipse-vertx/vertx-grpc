@@ -17,17 +17,25 @@ public abstract class EventBusGrpcEndpointOptions {
    */
   public static final WireFormat DEFAULT_WIRE_FORMAT = WireFormat.PROTOBUF;
 
+  /**
+   * The default initial window size for inbound messages = {@code 64}
+   */
+  public static final int DEFAULT_INITIAL_WINDOW_SIZE = 64;
+
   private Duration cleanerPeriod;
   private WireFormat wireFormat;
+  private int initialWindowSize;
 
   public EventBusGrpcEndpointOptions() {
     cleanerPeriod = DEFAULT_CLEANER_PERIOD;
     wireFormat = DEFAULT_WIRE_FORMAT;
+    initialWindowSize = DEFAULT_INITIAL_WINDOW_SIZE;
   }
 
   public EventBusGrpcEndpointOptions(EventBusGrpcEndpointOptions other) {
     cleanerPeriod = other.cleanerPeriod;
     wireFormat = other.wireFormat;
+    initialWindowSize = other.initialWindowSize;
   }
 
   public Duration getCleanerPeriod() {
@@ -57,6 +65,27 @@ public abstract class EventBusGrpcEndpointOptions {
    */
   public EventBusGrpcEndpointOptions setWireFormat(WireFormat wireFormat) {
     this.wireFormat = wireFormat;
+    return this;
+  }
+
+  /**
+   * @return the initial window size
+   */
+  public int getInitialWindowSize() {
+    return initialWindowSize;
+  }
+
+  /**
+   * Set the initial window size.
+   *
+   * @param initialWindowSize the new value
+   * @return a reference to this, so the API can be used fluently
+   */
+  public EventBusGrpcEndpointOptions setInitialWindowSize(int initialWindowSize) {
+    if (initialWindowSize < 1) {
+      throw new IllegalArgumentException("initialWindowSize must be > 0");
+    }
+    this.initialWindowSize = initialWindowSize;
     return this;
   }
 }

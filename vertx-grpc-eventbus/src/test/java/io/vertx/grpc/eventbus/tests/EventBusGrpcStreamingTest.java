@@ -1115,7 +1115,7 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
 
   @Test
   public void testUnsupportedWireFormatRejected() throws Exception {
-    EventBusGrpcServer protobufOnly = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setSupportedWireFormats(Collections.singleton(WireFormat.PROTOBUF))).await();
+    EventBusGrpcServer protobufOnly = EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions().setEnabledFormats(Collections.singleton(WireFormat.PROTOBUF))).await();
     protobufOnly.callHandler(PIPE_SERVER, request -> {
       request.handler(req -> request.response().write(Reply.newBuilder().setMessage("echo-" + req.getName()).build()));
       request.endHandler(v -> request.response().end());
