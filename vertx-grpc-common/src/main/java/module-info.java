@@ -12,7 +12,7 @@ module io.vertx.grpc.common {
   requires com.google.protobuf.util;
 
   exports io.vertx.grpc.common;
-  exports io.vertx.grpc.common.impl;
+  exports io.vertx.grpc.common.impl to io.vertx.grpc.server, io.vertx.grpc.client, io.vertx.grpc.eventbus, io.vertx.grpc.transcoding, io.vertx.grpc.server.tests;
 
   provides io.vertx.core.spi.VertxServiceProvider with io.vertx.grpc.common.impl.GrpcRequestLocalRegistration;
 }
