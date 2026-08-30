@@ -16,6 +16,7 @@ import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.grpc.common.MethodCardinality;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.GrpcServerOptions;
@@ -35,6 +36,15 @@ import java.util.stream.Collectors;
  */
 public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
 
+  public static final Map<MethodDescriptor.MethodType, MethodCardinality> CARDINALITY_MAP = new EnumMap<>(MethodDescriptor.MethodType.class);
+
+  static {
+    CARDINALITY_MAP.put(MethodDescriptor.MethodType.UNARY, MethodCardinality.UNARY);
+    CARDINALITY_MAP.put(MethodDescriptor.MethodType.CLIENT_STREAMING, MethodCardinality.CLIENT_STREAMING);
+    CARDINALITY_MAP.put(MethodDescriptor.MethodType.SERVER_STREAMING, MethodCardinality.SERVER_STREAMING);
+    CARDINALITY_MAP.put(MethodDescriptor.MethodType.BIDI_STREAMING, MethodCardinality.BIDI_STREAMING);
+  }
+
   private final List<MethodDescriptor<?, ?>> callHandlerMethods = new CopyOnWriteArrayList<>();
 
   public GrpcIoServerImpl(Vertx vertx, GrpcServerOptions options) {
@@ -47,11 +57,11 @@ public class GrpcIoServerImpl extends GrpcServerImpl implements GrpcIoServer {
   }
 
   public <Req, Resp> GrpcIoServerImpl callHandler(MethodDescriptor<Req, Resp> methodDesc, Handler<GrpcServerRequest<Req, Resp>> handler) {
+
     ServiceMethod<Req, Resp> serviceMethod = ServiceMethod.server(
       ServiceName.create(methodDesc.getServiceName()),
       methodDesc.getBareMethodName(),
-      !methodDesc.getType().clientSendsOneMessage(),
-      !methodDesc.getType().serverSendsOneMessage(),
+      CARDINALITY_MAP.get(methodDesc.getType()),
       new BridgeMessageEncoder<>(methodDesc.getResponseMarshaller(), null),
       new BridgeMessageDecoder<>(methodDesc.getRequestMarshaller(), null)
     );

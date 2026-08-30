@@ -16,19 +16,27 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.ServiceInvoker;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.*;
 import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
 import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
 
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
  * Bridge a gRPC service with a {@link io.vertx.grpc.client.GrpcClient}.
  */
 public class GrpcIoClientChannel extends io.grpc.Channel {
+
+  public static final Map<MethodDescriptor.MethodType, MethodCardinality> CARDINALITY_MAP = new EnumMap<>(MethodDescriptor.MethodType.class);
+
+  static {
+    CARDINALITY_MAP.put(MethodDescriptor.MethodType.UNARY, MethodCardinality.UNARY);
+    CARDINALITY_MAP.put(MethodDescriptor.MethodType.CLIENT_STREAMING, MethodCardinality.CLIENT_STREAMING);
+    CARDINALITY_MAP.put(MethodDescriptor.MethodType.SERVER_STREAMING, MethodCardinality.SERVER_STREAMING);
+    CARDINALITY_MAP.put(MethodDescriptor.MethodType.BIDI_STREAMING, MethodCardinality.BIDI_STREAMING);
+  }
 
   private ServiceInvoker invoker;
 
@@ -50,8 +58,8 @@ public class GrpcIoClientChannel extends io.grpc.Channel {
 
     GrpcMessageDecoder<ResponseT> messageDecoder = new BridgeMessageDecoder<>(methodDescriptor.getResponseMarshaller(), null);
     GrpcMessageEncoder<RequestT> messageEncoder = new BridgeMessageEncoder<>(methodDescriptor.getRequestMarshaller(), null);
-    ServiceMethod<ResponseT, RequestT> serviceMethod = ServiceMethod.client(ServiceName.create(methodDescriptor.getServiceName()), methodDescriptor.getBareMethodName(), !methodDescriptor.getType().clientSendsOneMessage(), !methodDescriptor.getType().serverSendsOneMessage(), messageEncoder, messageDecoder);
-
+    ServiceMethod<ResponseT, RequestT> serviceMethod = ServiceMethod.client(ServiceName.create(methodDescriptor.getServiceName()),
+      methodDescriptor.getBareMethodName(), CARDINALITY_MAP.get(methodDescriptor.getType()), messageEncoder, messageDecoder);
 
     String encoding = callOptions.getCompressor();
     Compressor compressor;

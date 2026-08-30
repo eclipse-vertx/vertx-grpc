@@ -26,6 +26,7 @@ import io.vertx.grpc.client.impl.GrpcClientImpl;
 import io.vertx.grpc.client.impl.GrpcClientInvoker;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.MethodCardinality;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.impl.GrpcStream;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
@@ -174,8 +175,7 @@ public class ProxyTest extends ProxyTestBase {
       ServiceMethod<Buffer, Buffer> serviceMethod = ServiceMethod.client(
         call.serviceName(),
         call.methodName(),
-        true,
-        true,
+        MethodCardinality.BIDI_STREAMING,
         GrpcMessageEncoder.IDENTITY,
         GrpcMessageDecoder.IDENTITY
       );

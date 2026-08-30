@@ -8,6 +8,7 @@ import io.vertx.core.eventbus.ReplyFailure;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.MethodCardinality;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
@@ -117,7 +118,7 @@ public class EventBusGrpcServerTest extends EventBusGrpcTestBase {
 
   @Test
   public void testUnimplementedMethod() throws TimeoutException {
-    ServiceMethod<Request, Reply> otherMethod = ServiceMethod.server(TestConstants.TEST_SERVICE, "Other", false, false, TestConstants.REPLY_ENC, TestConstants.REQUEST_DEC);
+    ServiceMethod<Request, Reply> otherMethod = ServiceMethod.server(TestConstants.TEST_SERVICE, "Other", MethodCardinality.UNARY, TestConstants.REPLY_ENC, TestConstants.REQUEST_DEC);
     server.callHandler(otherMethod, request -> request.handler(msg -> request.response().end(Reply.getDefaultInstance())));
 
     Buffer payload = Buffer.buffer(Request.newBuilder().setName("Julien").build().toByteArray());

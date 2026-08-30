@@ -77,12 +77,17 @@ public class ProtocRequestConverter {
    * @return the converted method descriptor containing detailed information about the method
    */
   private MethodDescriptor convertMethod(DescriptorProtos.MethodDescriptorProto methodProto, DescriptorProtos.FileDescriptorProto fileProto, int methodIndex) {
+    String cardinality;
+    if (methodProto.getClientStreaming()) {
+      cardinality = methodProto.getServerStreaming() ? MethodDescriptor.BIDI_STREAMING : MethodDescriptor.CLIENT_STREAMING;
+    } else {
+      cardinality = methodProto.getServerStreaming() ? MethodDescriptor.SERVER_STREAMING : MethodDescriptor.UNARY;
+    }
     MethodDescriptor method = new MethodDescriptor()
       .setName(methodProto.getName())
       .setInputType(typeMapper.toJavaTypeName(methodProto.getInputType()))
       .setOutputType(typeMapper.toJavaTypeName(methodProto.getOutputType()))
-      .setClientStreaming(methodProto.getClientStreaming())
-      .setServerStreaming(methodProto.getServerStreaming())
+      .setCardinality(cardinality)
       .setDeprecated(methodProto.hasOptions() && methodProto.getOptions().getDeprecated())
       .setMethodNumber(methodIndex);
 

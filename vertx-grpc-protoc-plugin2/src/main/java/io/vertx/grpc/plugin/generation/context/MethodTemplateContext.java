@@ -13,7 +13,7 @@ public class MethodTemplateContext {
   public boolean deprecated;
   public boolean isManyInput;
   public boolean isManyOutput;
-  public String methodType;
+  public String cardinality;
   public String vertxCallsMethodName;
   public String grpcCallsMethodName;
   public int methodNumber;
@@ -24,14 +24,15 @@ public class MethodTemplateContext {
   public static MethodTemplateContext fromMethodDescriptor(MethodDescriptor method) {
     MethodTemplateContext context = new MethodTemplateContext();
 
+    String cardinality = method.getCardinality();
     context.methodName = method.getName();
     context.vertxMethodName = method.getVertxMethodName();
     context.inputType = method.getInputType();
     context.outputType = method.getOutputType();
     context.deprecated = method.isDeprecated();
-    context.isManyInput = method.isClientStreaming();
-    context.isManyOutput = method.isServerStreaming();
-    context.methodType = methodType(method.isClientStreaming(), method.isServerStreaming());
+    context.isManyInput = MethodDescriptor.CLIENT_STREAMING.equals(cardinality) || MethodDescriptor.BIDI_STREAMING.equals(cardinality);
+    context.isManyOutput = MethodDescriptor.SERVER_STREAMING.equals(cardinality) || MethodDescriptor.BIDI_STREAMING.equals(cardinality);
+    context.cardinality = cardinality;
     context.vertxCallsMethodName = method.getVertxCallsMethodName();
     context.grpcCallsMethodName = method.getGrpcCallsMethodName();
     context.methodNumber = method.getMethodNumber();
@@ -46,19 +47,6 @@ public class MethodTemplateContext {
     }
 
     return context;
-  }
-
-  private static String methodType(boolean clientStreaming, boolean serverStreaming) {
-    if (clientStreaming && serverStreaming) {
-      return "BIDI";
-    }
-    if (clientStreaming) {
-      return "CLIENT_STREAMING";
-    }
-    if (serverStreaming) {
-      return "SERVER_STREAMING";
-    }
-    return "UNARY";
   }
 
   public String methodNameUpperUnderscore() {

@@ -19,10 +19,10 @@ import io.vertx.codegen.annotations.GenIgnore;
 public interface ServiceMethod<I, O> {
 
   static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
-    return client(serviceName, methodName, null, null, encoder, decoder);
+    return client(serviceName, methodName, null, encoder, decoder);
   }
 
-  static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, Boolean clientStreaming, Boolean serverStreaming, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
+  static <Req, Resp> ServiceMethod<Resp, Req> client(ServiceName serviceName, String methodName, MethodCardinality cardinality, GrpcMessageEncoder<Req> encoder, GrpcMessageDecoder<Resp> decoder) {
     return new ServiceMethod<>() {
       @Override
       public ServiceName serviceName() {
@@ -33,12 +33,8 @@ public interface ServiceMethod<I, O> {
         return methodName;
       }
       @Override
-      public Boolean clientStreaming() {
-        return clientStreaming;
-      }
-      @Override
-      public Boolean serverStreaming() {
-        return serverStreaming;
+      public MethodCardinality cardinality() {
+        return cardinality;
       }
       @Override
       public GrpcMessageDecoder<Resp> decoder() {
@@ -52,10 +48,10 @@ public interface ServiceMethod<I, O> {
   }
 
   static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
-    return server(serviceName, methodName, null, null, encoder, decoder);
+    return server(serviceName, methodName, null, encoder, decoder);
   }
 
-  static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, Boolean clientStreaming, Boolean serverStreaming, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
+  static <Req, Resp> ServiceMethod<Req, Resp> server(ServiceName serviceName, String methodName, MethodCardinality cardinality, GrpcMessageEncoder<Resp> encoder, GrpcMessageDecoder<Req> decoder) {
     return new ServiceMethod<>() {
       @Override
       public ServiceName serviceName() {
@@ -66,12 +62,16 @@ public interface ServiceMethod<I, O> {
         return methodName;
       }
       @Override
+      public MethodCardinality cardinality() {
+        return cardinality;
+      }
+      @Override
       public Boolean clientStreaming() {
-        return clientStreaming;
+        return cardinality != null ? cardinality == MethodCardinality.CLIENT_STREAMING || cardinality == MethodCardinality.BIDI_STREAMING : null;
       }
       @Override
       public Boolean serverStreaming() {
-        return serverStreaming;
+        return cardinality != null ? cardinality == MethodCardinality.SERVER_STREAMING || cardinality == MethodCardinality.BIDI_STREAMING : null;
       }
       @Override
       public GrpcMessageDecoder<Req> decoder() {
@@ -95,17 +95,22 @@ public interface ServiceMethod<I, O> {
   String methodName();
 
   /**
+   * @return the method cardinality, it might be {@code null} when its unknown.
+   */
+  MethodCardinality cardinality();
+
+  /**
    * @return whether the client side sends a stream of requests, {@code null} when this is not known
    */
   default Boolean clientStreaming() {
-    return null;
+    return cardinality() != null ? cardinality() == MethodCardinality.CLIENT_STREAMING || cardinality() == MethodCardinality.BIDI_STREAMING : null;
   }
 
   /**
    * @return whether the server side sends a stream of responses, {@code null} when this is not known
    */
   default Boolean serverStreaming() {
-    return null;
+    return cardinality() != null ? cardinality() == MethodCardinality.SERVER_STREAMING || cardinality() == MethodCardinality.BIDI_STREAMING : null;
   }
 
   /**

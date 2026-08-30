@@ -278,7 +278,7 @@ public class ServiceDescriptor {
    */
   public List<MethodDescriptor> getUnaryUnaryMethods() {
     return methods.stream()
-      .filter(m -> !m.isClientStreaming() && !m.isServerStreaming())
+      .filter(m -> MethodDescriptor.UNARY.equals(m.getCardinality()))
       .collect(Collectors.toList());
   }
 
@@ -292,7 +292,7 @@ public class ServiceDescriptor {
    */
   public List<MethodDescriptor> getUnaryStreamMethods() {
     return methods.stream()
-      .filter(m -> !m.isClientStreaming() && m.isServerStreaming())
+      .filter(m -> MethodDescriptor.SERVER_STREAMING.equals(m.getCardinality()))
       .collect(Collectors.toList());
   }
 
@@ -305,7 +305,7 @@ public class ServiceDescriptor {
    */
   public List<MethodDescriptor> getStreamUnaryMethods() {
     return methods.stream()
-      .filter(m -> m.isClientStreaming() && !m.isServerStreaming())
+      .filter(m -> MethodDescriptor.CLIENT_STREAMING.equals(m.getCardinality()))
       .collect(Collectors.toList());
   }
 
@@ -319,7 +319,7 @@ public class ServiceDescriptor {
    */
   public List<MethodDescriptor> getStreamStreamMethods() {
     return methods.stream()
-      .filter(m -> m.isClientStreaming() && m.isServerStreaming())
+      .filter(m -> MethodDescriptor.BIDI_STREAMING.equals(m.getCardinality()))
       .collect(Collectors.toList());
   }
 

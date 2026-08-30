@@ -2,6 +2,7 @@ package io.vertx.grpc.eventbus.tests;
 
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcReadStream;
+import io.vertx.grpc.common.MethodCardinality;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.tests.Reply;
 import io.vertx.grpc.common.tests.Request;
@@ -29,12 +30,9 @@ public class EventBusGrpcCardinalityInteropTest extends EventBusGrpcTestBase {
         .response()
         .end(Reply.getDefaultInstance())));
 
-    for (int i = 0;i < 4;i++) {
-      boolean clientStreaming = (i & 0x01) != 0;
-      boolean serverStreaming = (i & 0x02) != 0;
+    for (MethodCardinality cardinality : MethodCardinality.values()) {
       ServiceMethod<Reply, Request> a = ServiceMethod.client(UNARY_CLIENT.serviceName(), UNARY_CLIENT.methodName(),
-        clientStreaming,
-        serverStreaming, UNARY_CLIENT.encoder(), UNARY_CLIENT.decoder());
+        cardinality, UNARY_CLIENT.encoder(), UNARY_CLIENT.decoder());
       client.request(a)
         .compose(request -> {
           request.end(Request.getDefaultInstance());
@@ -51,12 +49,9 @@ public class EventBusGrpcCardinalityInteropTest extends EventBusGrpcTestBase {
       .handler(msg -> request.response().write(Reply.getDefaultInstance()))
       .endHandler(v -> request.response().end()));
 
-    for (int i = 0;i < 4;i++) {
-      boolean clientStreaming = (i & 0x01) != 0;
-      boolean serverStreaming = (i & 0x02) != 0;
+    for (MethodCardinality cardinality : MethodCardinality.values()) {
       ServiceMethod<Reply, Request> a = ServiceMethod.client(PIPE_SERVER.serviceName(), PIPE_SERVER.methodName(),
-        clientStreaming,
-        serverStreaming, UNARY_CLIENT.encoder(), UNARY_CLIENT.decoder());
+        cardinality, UNARY_CLIENT.encoder(), UNARY_CLIENT.decoder());
       client.request(a)
         .compose(request -> {
           request.end(Request.getDefaultInstance());
