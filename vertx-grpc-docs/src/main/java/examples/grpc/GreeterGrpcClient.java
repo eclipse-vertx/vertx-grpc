@@ -11,6 +11,7 @@ import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
+import io.vertx.grpc.common.MethodCardinality;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 
@@ -25,8 +26,7 @@ public interface GreeterGrpcClient extends GreeterClient {
   ServiceMethod<examples.grpc.HelloReply, examples.grpc.HelloRequest> SayHello = ServiceMethod.client(
     ServiceName.create("examples.grpc", "Greeter"),
     "SayHello",
-    false,
-    false,
+    MethodCardinality.UNARY,
     GrpcMessageEncoder.encoder(),
     GrpcMessageDecoder.decoder(examples.grpc.HelloReply.newBuilder()));
 

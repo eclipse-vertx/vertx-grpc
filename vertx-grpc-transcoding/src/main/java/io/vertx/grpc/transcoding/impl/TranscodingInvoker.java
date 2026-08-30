@@ -28,8 +28,7 @@ public class TranscodingInvoker implements GrpcHttpInvoker {
       transcodingServiceMethod = new TranscodingServiceMethodImpl<>(
         serviceMethod.serviceName(),
         serviceMethod.methodName(),
-        serviceMethod.clientStreaming(),
-        serviceMethod.serverStreaming(),
+        serviceMethod.cardinality(),
         serviceMethod.encoder(),
         serviceMethod.decoder(),
         null

@@ -23,8 +23,7 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
 
   private final ServiceName serviceName;
   private final String methodName;
-  private final Boolean clientStreaming;
-  private final Boolean serverStreaming;
+  private final MethodCardinality cardinality;
   private final GrpcMessageEncoder<O> encoder;
   private final GrpcMessageDecoder<I> decoder;
   private final MethodTranscodingOptions options;
@@ -32,18 +31,17 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
   private final PathMatcher pathMatcher;
 
   public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder) {
-    this(serviceName, methodName, null, null, encoder, decoder, null);
+    this(serviceName, methodName, null, encoder, decoder, null);
   }
 
   public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder, MethodTranscodingOptions options) {
-    this(serviceName, methodName, null, null, encoder, decoder, options);
+    this(serviceName, methodName, null, encoder, decoder, options);
   }
 
-  public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, Boolean clientStreaming, Boolean serverStreaming, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder, MethodTranscodingOptions options) {
+  public TranscodingServiceMethodImpl(ServiceName serviceName, String methodName, MethodCardinality cardinality, GrpcMessageEncoder<O> encoder, GrpcMessageDecoder<I> decoder, MethodTranscodingOptions options) {
     this.serviceName = serviceName;
     this.methodName = methodName;
-    this.clientStreaming = clientStreaming;
-    this.serverStreaming = serverStreaming;
+    this.cardinality = cardinality;
     this.encoder = encoder;
     this.decoder = decoder;
     this.options = options;
@@ -136,13 +134,8 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
   }
 
   @Override
-  public Boolean clientStreaming() {
-    return clientStreaming;
-  }
-
-  @Override
-  public Boolean serverStreaming() {
-    return serverStreaming;
+  public MethodCardinality cardinality() {
+    return cardinality;
   }
 
   @Override

@@ -2,10 +2,7 @@ package io.vertx.grpc.transcoding;
 
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.Unstable;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.GrpcMessageEncoder;
-import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.ServiceName;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.transcoding.impl.TranscodingServiceMethodImpl;
 
 @GenIgnore(GenIgnore.PERMITTED_TYPE)
@@ -29,17 +26,16 @@ public interface TranscodingServiceMethod<I, O> extends ServiceMethod<I, O> {
 
   static <Req, Resp> TranscodingServiceMethod<Req, Resp> server(ServiceName serviceName,
                                                                 String methodName,
-                                                                Boolean clientStreaming,
-                                                                Boolean serverStreaming,
+                                                                MethodCardinality cardinality,
                                                                 GrpcMessageEncoder<Resp> encoder,
                                                                 GrpcMessageDecoder<Req> decoder,
                                                                 MethodTranscodingOptions options) {
-    return new TranscodingServiceMethodImpl<>(serviceName, methodName, clientStreaming, serverStreaming, encoder, decoder, options);
+    return new TranscodingServiceMethodImpl<>(serviceName, methodName, cardinality, encoder, decoder, options);
   }
 
   static <Req, Resp> TranscodingServiceMethod<Req, Resp> server(ServiceMethod<Req, Resp> serviceMethod,
                                                                 MethodTranscodingOptions options) {
-    return server(serviceMethod.serviceName(), serviceMethod.methodName(), serviceMethod.clientStreaming(), serviceMethod.serverStreaming(), serviceMethod.encoder(), serviceMethod.decoder(), options);
+    return server(serviceMethod.serviceName(), serviceMethod.methodName(), serviceMethod.cardinality(), serviceMethod.encoder(), serviceMethod.decoder(), options);
   }
 
   MethodTranscodingOptions options();

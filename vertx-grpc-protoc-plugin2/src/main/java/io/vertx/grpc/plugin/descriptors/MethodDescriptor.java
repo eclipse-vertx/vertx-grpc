@@ -31,15 +31,15 @@ public class MethodDescriptor {
    */
   public static final String DEFAULT_OUTPUT_TYPE = "";
 
-  /**
-   * The default configuration for client streaming behavior. By default, client streaming is disabled.
-   */
-  public static final boolean DEFAULT_CLIENT_STREAMING = false;
+  public static final String UNARY = "UNARY";
+  public static final String CLIENT_STREAMING = "CLIENT_STREAMING";
+  public static final String SERVER_STREAMING = "SERVER_STREAMING";
+  public static final String BIDI_STREAMING = "BIDI_STREAMING";
 
   /**
-   * The default configuration for server streaming behavior. By default, server streaming is disabled.
+   * The default cardinality for the method. By default, methods are bidi.
    */
-  public static final boolean DEFAULT_SERVER_STREAMING = false;
+  public static final String DEFAULT_CARDINALITY = BIDI_STREAMING;
 
   /**
    * The default deprecation status for the method. By default, methods are not marked as deprecated.
@@ -59,8 +59,7 @@ public class MethodDescriptor {
   private String name;
   private String inputType;
   private String outputType;
-  private boolean clientStreaming;
-  private boolean serverStreaming;
+  private String cardinality;
   private boolean deprecated;
   private String documentation;
   private TranscodingDescriptor transcoding;
@@ -71,8 +70,7 @@ public class MethodDescriptor {
     this.name = DEFAULT_NAME;
     this.inputType = DEFAULT_INPUT_TYPE;
     this.outputType = DEFAULT_OUTPUT_TYPE;
-    this.clientStreaming = DEFAULT_CLIENT_STREAMING;
-    this.serverStreaming = DEFAULT_SERVER_STREAMING;
+    this.cardinality = DEFAULT_CARDINALITY;
     this.deprecated = DEFAULT_DEPRECATED;
     this.documentation = DEFAULT_DOCUMENTATION;
     this.methodNumber = DEFAULT_METHOD_NUMBER;
@@ -146,46 +144,22 @@ public class MethodDescriptor {
   }
 
   /**
-   * Determines whether this method uses client-side streaming.
+   * Retrieves the cardinality of this gRPC method.
    *
-   * @return true if the method accepts a stream of requests from the client, false otherwise
+   * @return the method cardinality
    */
-  public boolean isClientStreaming() {
-    return clientStreaming;
+  public String getCardinality() {
+    return cardinality;
   }
 
   /**
-   * Sets whether this method uses client-side streaming.
-   * <p>
-   * Client streaming methods allow the client to send multiple request messages in a single method call, typically used for bulk operations or real-time data feeds.
+   * Sets the cardinality of this gRPC method.
    *
-   * @param clientStreaming true to enable client streaming, false to disable
+   * @param cardinality the method cardinality to set
    * @return the current instance of {@code MethodDescriptor} for method chaining
    */
-  public MethodDescriptor setClientStreaming(boolean clientStreaming) {
-    this.clientStreaming = clientStreaming;
-    return this;
-  }
-
-  /**
-   * Determines whether this method uses server-side streaming.
-   *
-   * @return true if the method returns a stream of responses to the client, false otherwise
-   */
-  public boolean isServerStreaming() {
-    return serverStreaming;
-  }
-
-  /**
-   * Sets whether this method uses server-side streaming.
-   * <p>
-   * Server streaming methods allow the server to send multiple response messages for a single request, typically used for data subscriptions or large result sets.
-   *
-   * @param serverStreaming true to enable server streaming, false to disable
-   * @return the current instance of {@code MethodDescriptor} for method chaining
-   */
-  public MethodDescriptor setServerStreaming(boolean serverStreaming) {
-    this.serverStreaming = serverStreaming;
+  public MethodDescriptor setCardinality(String cardinality) {
+    this.cardinality = cardinality;
     return this;
   }
 
@@ -342,13 +316,18 @@ public class MethodDescriptor {
    * @return the Vert.x method call type: "oneToOne", "oneToMany", "manyToOne", or "manyToMany"
    */
   public String getVertxCallsMethodName() {
-    if (!clientStreaming && !serverStreaming)
-      return "oneToOne";
-    if (!clientStreaming && serverStreaming)
-      return "oneToMany";
-    if (clientStreaming && !serverStreaming)
-      return "manyToOne";
-    return "manyToMany";
+    switch (cardinality) {
+      case UNARY:
+        return "oneToOne";
+      case SERVER_STREAMING:
+        return "oneToMany";
+      case CLIENT_STREAMING:
+        return "manyToOne";
+      case BIDI_STREAMING:
+        return "manyToMany";
+      default:
+        throw new IllegalStateException("Unknown cardinality: " + cardinality);
+    }
   }
 
   /**
@@ -359,12 +338,17 @@ public class MethodDescriptor {
    * @return the gRPC method call type: "asyncUnaryCall", "asyncServerStreamingCall", "asyncClientStreamingCall", or "asyncBidiStreamingCall"
    */
   public String getGrpcCallsMethodName() {
-    if (!clientStreaming && !serverStreaming)
-      return "asyncUnaryCall";
-    if (!clientStreaming && serverStreaming)
-      return "asyncServerStreamingCall";
-    if (clientStreaming && !serverStreaming)
-      return "asyncClientStreamingCall";
-    return "asyncBidiStreamingCall";
+    switch (cardinality) {
+      case UNARY:
+        return "asyncUnaryCall";
+      case SERVER_STREAMING:
+        return "asyncServerStreamingCall";
+      case CLIENT_STREAMING:
+        return "asyncClientStreamingCall";
+      case BIDI_STREAMING:
+        return "asyncBidiStreamingCall";
+      default:
+        throw new IllegalStateException("Unknown cardinality: " + cardinality);
+    }
   }
 }

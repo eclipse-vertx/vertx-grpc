@@ -317,8 +317,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
       ServiceMethod<Req, Resp> serviceMethod = ServiceMethod.server(
         ServiceName.create(methodDesc.getServiceName()),
         methodDesc.getBareMethodName(),
-        !methodDesc.getType().clientSendsOneMessage(),
-        !methodDesc.getType().serverSendsOneMessage(),
+        GrpcIoServerImpl.CARDINALITY_MAP.get(methodDesc.getType()),
         new BridgeMessageEncoder<>(methodDesc.getResponseMarshaller(), null),
         new BridgeMessageDecoder<>(methodDesc.getRequestMarshaller(), null)
       );
