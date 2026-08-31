@@ -15,7 +15,6 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.ServiceContainer;
-import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.Service;
 import io.vertx.grpc.server.StatusException;
 
@@ -94,16 +93,16 @@ public class GreeterGrpcService extends GreeterService implements Service {
     SayHello_OPTIONS
   );
 
-  private final Invoker invoker = new Invoker(this, all());
+  private final RequestHandler handler = new RequestHandler(this, all());
 
   @Override
-  public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
-    return invoker.invoker(method);
+  public <Req, Resp> Handler<GrpcServerRequest<Req, Resp>> handler(ServiceMethod<Req, Resp> method) {
+    return handler.handler(method);
   }
 
   @Override
   public List<ServiceMethod<?, ?>> methods() {
-    return invoker.methods();
+    return handler.methods();
   }
 
   /**
@@ -141,25 +140,25 @@ public class GreeterGrpcService extends GreeterService implements Service {
     }
 
     public Service build() {
-      return new Invoker(instance, new ArrayList<>(serviceMethods));
+      return new RequestHandler(instance, new ArrayList<>(serviceMethods));
     }
   }
 
-  private static class Invoker implements Service {
+  private static class RequestHandler implements Service {
 
     private final GreeterService instance;
     private final List<ServiceMethod<?, ?>> serviceMethods;
-    private final Map<String, ServiceMethodInvoker<?, ?>> invokers;
+    private final Map<String, Handler<GrpcServerRequest<?, ?>>> handlers;
 
-    public Invoker(GreeterService instance, List<ServiceMethod<?, ?>> serviceMethods) {
-      Map<String, ServiceMethodInvoker<?, ?>> invokers = new HashMap<>();
+    public RequestHandler(GreeterService instance, List<ServiceMethod<?, ?>> serviceMethods) {
+      Map<String, Handler<GrpcServerRequest<?, ?>>> handlers = new HashMap<>();
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
-        ServiceMethodInvoker<?, ?> invoker = resolveHandler(serviceMethod);
-        invokers.put(serviceMethod.methodName(), invoker);
+        Handler<GrpcServerRequest<?, ?>> handler = resolveHandler(serviceMethod);
+        handlers.put(serviceMethod.methodName(), handler);
       }
 
       this.instance = instance;
-      this.invokers = invokers;
+      this.handlers = handlers;
       this.serviceMethods = serviceMethods;
     }
 
@@ -179,20 +178,19 @@ public class GreeterGrpcService extends GreeterService implements Service {
     }
 
     @Override
-    public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
-      ServiceMethodInvoker methodInvoker = invokers.get(method.methodName());
-      if (methodInvoker != null) {
-        return methodInvoker;
+    public <Req, Resp> Handler<GrpcServerRequest<Req, Resp>> handler(ServiceMethod<Req, Resp> method) {
+      Handler<GrpcServerRequest<?, ?>> handler = handlers.get(method.methodName());
+      if (handler != null) {
+        return (Handler)handler;
       } else {
-        return Service.super.invoker(method);
+        return Service.super.handler(method);
       }
     }
 
-    private <Req, Resp> ServiceMethodInvoker<Req, Resp> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
+    private <Req, Resp> Handler<GrpcServerRequest<?, ?>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {
       if (SayHello == serviceMethod) {
-        ServiceMethodInvoker<examples.grpc.HelloRequest, examples.grpc.HelloReply> handler = this::handle_sayHello;
-        ServiceMethodInvoker<?, ?> handler2 = handler;
-        return (ServiceMethodInvoker<Req, Resp>) handler2;
+        Handler<GrpcServerRequest<examples.grpc.HelloRequest, examples.grpc.HelloReply>> handler = this::handle_sayHello;
+        return (Handler) handler;
       }
       return null;
     }

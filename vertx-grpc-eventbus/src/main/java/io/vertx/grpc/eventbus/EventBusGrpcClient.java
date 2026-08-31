@@ -6,7 +6,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.grpc.client.GrpcClientRequest;
-import io.vertx.grpc.client.ServiceInvoker;
+import io.vertx.grpc.client.GrpcClientRequestProvider;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.eventbus.impl.EventBusGrpcClientEndpoint;
 
@@ -19,11 +19,11 @@ import io.vertx.grpc.eventbus.impl.EventBusGrpcClientEndpoint;
  * <p>The client sends gRPC messages over the event bus using the service name
  * as the event bus address and the method name as a header for routing.</p>
  *
- * <p>This implements {@link ServiceInvoker} so it can be used directly with generated gRPC client stubs
+ * <p>This implements {@link GrpcClientRequestProvider} so it can be used directly with generated gRPC client stubs
  * via the {@code create(GrpcClientService)} factory methods.</p>
  */
 @VertxGen
-public interface EventBusGrpcClient extends ServiceInvoker {
+public interface EventBusGrpcClient extends GrpcClientRequestProvider {
 
   /**
    * Create an event bus gRPC client using the event bus from the provided Vert.x instance. The returned future

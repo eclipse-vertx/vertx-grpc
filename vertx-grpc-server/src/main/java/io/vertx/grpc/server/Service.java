@@ -20,7 +20,7 @@ import java.util.Optional;
  * </ul>
  */
 @GenIgnore(GenIgnore.PERMITTED_TYPE)
-public interface Service extends ServiceInvoker {
+public interface Service extends GrpcServerRequestHandlerProvider {
 
   /**
    * Creates a new Service instance with the specified service name and descriptor.

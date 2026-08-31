@@ -10,8 +10,8 @@ import io.grpc.Metadata;
 import io.grpc.Status;
 import io.vertx.core.Future;
 import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.grpc.client.GrpcClientRequestProvider;
 import io.vertx.grpc.client.GrpcClientResponse;
-import io.vertx.grpc.client.ServiceInvoker;
 import io.vertx.grpc.common.GrpcErrorException;
 import io.vertx.grpc.client.impl.GrpcClientRequestImpl;
 import io.vertx.grpc.common.ServiceMethod;
@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 
 class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, ResponseT> {
 
-  private final ServiceInvoker client;
+  private final GrpcClientRequestProvider client;
   private final ServiceMethod<ResponseT, RequestT> serviceMethod;
   private final Executor exec;
   private final MethodDescriptor<RequestT, ResponseT> methodDescriptor;
@@ -42,7 +42,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
   private GrpcClientRequest<RequestT, ResponseT> request;
   private GrpcClientResponse<RequestT, ResponseT> grpcResponse;
 
-  VertxClientCall(ServiceInvoker client,
+  VertxClientCall(GrpcClientRequestProvider client,
                   ServiceMethod<ResponseT, RequestT> serviceMethod,
                   Executor exec,
                   MethodDescriptor<RequestT, ResponseT> methodDescriptor,
@@ -82,7 +82,7 @@ class VertxClientCall<RequestT, ResponseT> extends ClientCall<RequestT, Response
   @Override
   public void start(Listener<ResponseT> responseListener, Metadata headers) {
     listener = responseListener;
-    fut = client.invoker(serviceMethod);
+    fut = client.request(serviceMethod);
     fut.onComplete(ar1 -> {
       if (ar1.succeeded()) {
         request = ar1.result();

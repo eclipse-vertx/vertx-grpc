@@ -2,6 +2,7 @@ package io.vertx.grpc.health.impl;
 
 import com.google.protobuf.Descriptors;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.grpc.common.ServiceMethod;
@@ -12,8 +13,8 @@ import io.vertx.grpc.health.handler.GrpcHealthCheckV1Handler;
 import io.vertx.grpc.health.handler.GrpcHealthListV1Handler;
 import io.vertx.grpc.health.handler.GrpcHealthWatchV1Handler;
 import io.vertx.grpc.health.v1.HealthProto;
+import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.ServiceContainer;
-import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.impl.ServerAware;
 
 import java.util.List;
@@ -31,9 +32,9 @@ public class HealthServiceImpl implements HealthService, ServerAware {
   private final Map<String, Supplier<Future<Boolean>>> checks = new ConcurrentHashMap<>();
 
   private ServiceContainer server;
-  private ServiceMethodInvoker checkHandler;
-  private ServiceMethodInvoker listHandler;
-  private ServiceMethodInvoker watchHandler;
+  private Handler checkHandler;
+  private Handler listHandler;
+  private Handler watchHandler;
 
   public HealthServiceImpl(Vertx vertx) {
     this(vertx, new HealthServiceOptions());
@@ -61,8 +62,8 @@ public class HealthServiceImpl implements HealthService, ServerAware {
   }
 
   @Override
-  public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
-    ServiceMethodInvoker<Req, Resp> invoker;
+  public <Req, Resp> Handler<GrpcServerRequest<Req, Resp>> handler(ServiceMethod<Req, Resp> method) {
+    Handler<GrpcServerRequest<Req, Resp>> invoker;
     switch (method.methodName()) {
       case "Check":
         invoker = checkHandler;
@@ -74,7 +75,7 @@ public class HealthServiceImpl implements HealthService, ServerAware {
         invoker = watchHandler;
         break;
       default:
-        invoker = HealthService.super.invoker(method);
+        invoker = HealthService.super.handler(method);
         break;
     }
     return invoker;

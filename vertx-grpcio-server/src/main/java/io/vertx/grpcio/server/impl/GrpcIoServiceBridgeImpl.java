@@ -26,6 +26,7 @@ import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.Status;
 import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.net.SocketAddress;
@@ -37,7 +38,6 @@ import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.ServiceContainer;
-import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.impl.GrpcServerResponseImpl;
 import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
 import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
@@ -122,12 +122,12 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
   }
 
   @Override
-  public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
-    ServiceMethodHandler handler = handlers.get(method.methodName());
+  public <Req, Resp> Handler<GrpcServerRequest<Req, Resp>> handler(ServiceMethod<Req, Resp> method) {
+    Handler handler = handlers.get(method.methodName());
     if (handler != null) {
       return handler;
     } else {
-      return GrpcIoServiceBridge.super.invoker(method);
+      return GrpcIoServiceBridge.super.handler(method);
     }
   }
 
@@ -305,7 +305,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
     }
   }
 
-  private static class ServiceMethodHandler<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {
+  private static class ServiceMethodHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
 
     private final ServerMethodDefinition<Req, Resp> methodDef;
     private final ServiceMethod<Req, Resp> serviceMethod;
@@ -327,7 +327,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
     }
 
     @Override
-    public void invoke(GrpcServerRequest<Req, Resp> req) {
+    public void handle(GrpcServerRequest<Req, Resp> req) {
       ServerCallHandler<Req, Resp> callHandler = methodDef.getServerCallHandler();
       Context context = Context.current();
       if (req.timeout() > 0L) {

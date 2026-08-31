@@ -15,7 +15,7 @@ import io.vertx.grpc.common.ServiceMethod;
  */
 @Unstable
 @VertxGen
-public interface ServiceInvoker {
+public interface GrpcClientRequestProvider {
 
   /**
    * Create a request for the given service method.
@@ -24,6 +24,6 @@ public interface ServiceInvoker {
    * @return a future request
    */
   @GenIgnore(GenIgnore.PERMITTED_TYPE)
-  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method);
+  <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method);
 
 }

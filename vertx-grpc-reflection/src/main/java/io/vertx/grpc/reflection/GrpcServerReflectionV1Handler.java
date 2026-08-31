@@ -11,6 +11,7 @@
 package io.vertx.grpc.reflection;
 
 import com.google.protobuf.Descriptors;
+import io.vertx.core.Handler;
 import io.vertx.grpc.reflection.v1.*;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.*;
@@ -21,7 +22,7 @@ import java.util.stream.Collectors;
 /**
  *
  */
-class GrpcServerReflectionV1Handler implements ServiceMethodInvoker<ServerReflectionRequest, ServerReflectionResponse> {
+class GrpcServerReflectionV1Handler implements Handler<GrpcServerRequest<ServerReflectionRequest, ServerReflectionResponse>> {
 
   public static final ServiceMethod<ServerReflectionRequest, ServerReflectionResponse> SERVICE_METHOD = ServiceMethod.server(
     ServiceName.create("grpc.reflection.v1.ServerReflection"),
@@ -36,7 +37,7 @@ class GrpcServerReflectionV1Handler implements ServiceMethodInvoker<ServerReflec
   }
 
   @Override
-  public void invoke(GrpcServerRequest<ServerReflectionRequest, ServerReflectionResponse> request) {
+  public void handle(GrpcServerRequest<ServerReflectionRequest, ServerReflectionResponse> request) {
     request.handler(serverReflectionRequest -> {
       GrpcServerResponse<ServerReflectionRequest, ServerReflectionResponse> response = request.response();
       switch (serverReflectionRequest.getMessageRequestCase()) {

@@ -1,6 +1,7 @@
 package io.vertx.grpc.reflection;
 
 import com.google.protobuf.Descriptors;
+import io.vertx.core.Handler;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.reflection.v1.ServerReflectionProto;
 import io.vertx.grpc.common.ServiceName;
@@ -48,11 +49,11 @@ public class ReflectionService implements Service, ServerAware {
   }
 
   @Override
-  public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
+  public <Req, Resp> Handler<GrpcServerRequest<Req, Resp>> handler(ServiceMethod<Req, Resp> method) {
     if (method.equals(GrpcServerReflectionV1Handler.SERVICE_METHOD)) {
-      return (ServiceMethodInvoker<Req, Resp>) new GrpcServerReflectionV1Handler(server);
+      return (Handler) new GrpcServerReflectionV1Handler(server);
     } else {
-      return Service.super.invoker(method);
+      return Service.super.handler(method);
     }
   }
 

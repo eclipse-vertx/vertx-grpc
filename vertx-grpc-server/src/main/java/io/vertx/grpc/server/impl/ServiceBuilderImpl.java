@@ -41,13 +41,13 @@ public class ServiceBuilderImpl implements ServiceBuilder {
       }
 
       @Override
-      public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
+      public <Req, Resp> Handler<GrpcServerRequest<Req, Resp>> handler(ServiceMethod<Req, Resp> method) {
         for (ServiceMethodBinding<?, ?> handler : handlers) {
           if (handler.serviceMethod.equals(method)) {
-            return (ServiceMethodInvoker) handler;
+            return (Handler)handler.handler;
           }
         }
-        return Service.super.invoker(method);
+        return Service.super.handler(method);
       }
     };
   }
@@ -60,7 +60,7 @@ public class ServiceBuilderImpl implements ServiceBuilder {
    * @param <Req> the request type for the service method
    * @param <Resp> the response type for the service method
    */
-  public static final class ServiceMethodBinding<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {
+  public static final class ServiceMethodBinding<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
 
     private final ServiceMethod<Req, Resp> serviceMethod;
     private final Handler<GrpcServerRequest<Req, Resp>> handler;
@@ -71,7 +71,7 @@ public class ServiceBuilderImpl implements ServiceBuilder {
     }
 
     @Override
-    public void invoke(GrpcServerRequest<Req, Resp> request) {
+    public void handle(GrpcServerRequest<Req, Resp> request) {
       handler.handle(request);
     }
 
