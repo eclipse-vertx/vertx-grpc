@@ -32,9 +32,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   public void handleError(GrpcError error) {
     if (this.error == null) {
       this.error = error;
-      if (error == GrpcError.CANCELLED) {
-        handleCancel();
-      }
+      handleCancel();
       Handler<GrpcError> handler = errorHandler;
       if (handler != null) {
         context.dispatch(error, handler);
