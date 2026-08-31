@@ -50,6 +50,7 @@ public enum GrpcError {
     switch ((int)code) {
       case 0x00:
         // NO_ERROR
+        return GrpcError.CANCELLED;
       case 0x01:
         // PROTOCOL_ERROR
       case 0x02:
