@@ -12,7 +12,6 @@ import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
-import io.vertx.grpc.server.ServiceMethodInvoker;
 import io.vertx.grpc.server.impl.GrpcDispatcher;
 import io.vertx.grpc.server.impl.GrpcMethodCall;
 
@@ -142,7 +141,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
       .<Void>mapEmpty();
   }
 
-  private class MethodHandler<Req, Resp> implements ServiceMethodInvoker<Req, Resp> {
+  private class MethodHandler<Req, Resp> implements Handler<GrpcServerRequest<Req, Resp>> {
 
     private final Handler<GrpcServerRequest<Req, Resp>> handler;
 
@@ -151,7 +150,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
     }
 
     @Override
-    public void invoke(GrpcServerRequest<Req, Resp> request) {
+    public void handle(GrpcServerRequest<Req, Resp> request) {
       assert consumerContext.inThread();
       ContextInternal prev = consumerContext.beginDispatch();
       try {
@@ -201,12 +200,12 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
     }
 
     @Override
-    public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
+    public <Req, Resp> Handler<GrpcServerRequest<Req, Resp>> handler(ServiceMethod<Req, Resp> method) {
       MethodHandler<?, ?> methodHandler = handlers.get(method.methodName());
       if (methodHandler != null) {
-        return (ServiceMethodInvoker<Req, Resp>) methodHandler;
+        return (Handler) methodHandler;
       } else {
-        return Service.super.invoker(method);
+        return Service.super.handler(method);
       }
     }
   }
@@ -370,9 +369,9 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
         stream.registerRemoteEndpoint(clientAddress, remoteTimeout, clientFormat);
       }
 
-      ServiceMethodInvoker<Req, Resp> invoker;
+      Handler<GrpcServerRequest<Req, Resp>> invoker;
       try {
-        invoker = service.invoker(serviceMethod);
+        invoker = service.handler(serviceMethod);
       } catch (Exception e) {
         throw new UnsupportedOperationException("Handle me");
       }
@@ -385,7 +384,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
         consumerContext,
         methodCall,
         null,
-        invoker::invoke,
+        invoker,
         false,
         false);
 

@@ -45,11 +45,6 @@ public class EventBusGrpcClientEndpoint extends EventBusGrpcEndpoint implements 
   }
 
   @Override
-  public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method) {
-    return request(method);
-  }
-
-  @Override
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
     ContextInternal consumerContext = vertx.getOrCreateContext();
     EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(consumerContext, this,

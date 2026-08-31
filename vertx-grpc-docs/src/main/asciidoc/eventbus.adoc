@@ -53,7 +53,7 @@ The server registers an EventBus consumer using the service's fully qualified na
 
 === EventBus client
 
-The {@link io.vertx.grpc.eventbus.EventBusGrpcClient} sends gRPC requests over the event bus. It extends {@link io.vertx.grpc.client.ServiceInvoker}, so generated client stubs work out of the box.
+The {@link io.vertx.grpc.eventbus.EventBusGrpcClient} sends gRPC requests over the event bus. It extends {@link io.vertx.grpc.client.GrpcClientRequestProvider}, so generated client stubs work out of the box.
 
 [source,java]
 ----

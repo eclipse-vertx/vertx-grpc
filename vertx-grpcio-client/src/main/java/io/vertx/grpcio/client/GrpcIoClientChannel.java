@@ -15,7 +15,7 @@ import io.vertx.core.Future;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientRequest;
-import io.vertx.grpc.client.ServiceInvoker;
+import io.vertx.grpc.client.GrpcClientRequestProvider;
 import io.vertx.grpc.common.*;
 import io.vertx.grpcio.common.impl.BridgeMessageDecoder;
 import io.vertx.grpcio.common.impl.BridgeMessageEncoder;
@@ -38,16 +38,16 @@ public class GrpcIoClientChannel extends io.grpc.Channel {
     CARDINALITY_MAP.put(MethodDescriptor.MethodType.BIDI_STREAMING, MethodCardinality.BIDI_STREAMING);
   }
 
-  private ServiceInvoker invoker;
+  private GrpcClientRequestProvider invoker;
 
-  public GrpcIoClientChannel(ServiceInvoker invoker) {
+  public GrpcIoClientChannel(GrpcClientRequestProvider invoker) {
     this.invoker = invoker;
   }
 
   public GrpcIoClientChannel(GrpcClient client, SocketAddress server) {
-    this.invoker = new ServiceInvoker() {
+    this.invoker = new GrpcClientRequestProvider() {
       @Override
-      public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method) {
+      public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
         return client.request(server, method);
       }
     };

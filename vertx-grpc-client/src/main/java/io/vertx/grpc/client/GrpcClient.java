@@ -154,14 +154,15 @@ public interface GrpcClient {
    * @param server the server
    * @return the invoker
    */
-  default ServiceInvoker bind(Address server) {
+  default GrpcClientRequestProvider bind(Address server) {
     if (server == null) {
       throw new NullPointerException("Server argument must not be null");
     }
-    return new ServiceInvoker() {
+    GrpcClient client = this;
+    return new GrpcClientRequestProvider() {
       @Override
-      public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method) {
-        return request(server, method);
+      public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
+        return client.request(server, method);
       }
     };
   }

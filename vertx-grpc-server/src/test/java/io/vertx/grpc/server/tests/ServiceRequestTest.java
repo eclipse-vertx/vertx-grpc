@@ -2,6 +2,7 @@ package io.vertx.grpc.server.tests;
 
 import com.google.protobuf.Descriptors;
 import io.grpc.*;
+import io.vertx.core.Handler;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
@@ -32,7 +33,7 @@ public class ServiceRequestTest extends ServerTestBase {
         return List.of(UNARY);
       }
       @Override
-      public <Req, Resp> ServiceMethodInvoker<Req, Resp> invoker(ServiceMethod<Req, Resp> method) {
+      public <Req, Resp> Handler<GrpcServerRequest<Req, Resp>> handler(ServiceMethod<Req, Resp> method) {
         return request -> {
           handleUnary((GrpcServerRequest)request);;
         };
