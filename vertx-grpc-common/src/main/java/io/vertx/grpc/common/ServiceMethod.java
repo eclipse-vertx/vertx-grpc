@@ -66,14 +66,6 @@ public interface ServiceMethod<I, O> {
         return cardinality;
       }
       @Override
-      public Boolean clientStreaming() {
-        return cardinality != null ? cardinality == MethodCardinality.CLIENT_STREAMING || cardinality == MethodCardinality.BIDI_STREAMING : null;
-      }
-      @Override
-      public Boolean serverStreaming() {
-        return cardinality != null ? cardinality == MethodCardinality.SERVER_STREAMING || cardinality == MethodCardinality.BIDI_STREAMING : null;
-      }
-      @Override
       public GrpcMessageDecoder<Req> decoder() {
         return decoder;
       }
@@ -98,20 +90,6 @@ public interface ServiceMethod<I, O> {
    * @return the method cardinality, it might be {@code null} when its unknown.
    */
   MethodCardinality cardinality();
-
-  /**
-   * @return whether the client side sends a stream of requests, {@code null} when this is not known
-   */
-  default Boolean clientStreaming() {
-    return cardinality() != null ? cardinality() == MethodCardinality.CLIENT_STREAMING || cardinality() == MethodCardinality.BIDI_STREAMING : null;
-  }
-
-  /**
-   * @return whether the server side sends a stream of responses, {@code null} when this is not known
-   */
-  default Boolean serverStreaming() {
-    return cardinality() != null ? cardinality() == MethodCardinality.SERVER_STREAMING || cardinality() == MethodCardinality.BIDI_STREAMING : null;
-  }
 
   /**
    * Computes the fully qualified method name for a gRPC service method.

@@ -2,6 +2,7 @@ package io.vertx.grpc.eventbus.impl;
 
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.client.impl.GrpcClientInvoker;
+import io.vertx.grpc.common.MethodCardinality;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.impl.GrpcStream;
 
@@ -16,12 +17,12 @@ public class EventBusGrpcClientInvoker implements GrpcClientInvoker {
   private final int initialInboundWindowSize;
   private final int initialOutboundWindowSize;
 
-  public EventBusGrpcClientInvoker(ContextInternal context, EventBusGrpcClientEndpoint client, boolean localUnary,
-                                   boolean remoteUnary, int initialInboundWindowSize, int initialOutboundWindowSize) {
+  public EventBusGrpcClientInvoker(ContextInternal context, EventBusGrpcClientEndpoint client, MethodCardinality cardinality,
+                                   int initialInboundWindowSize, int initialOutboundWindowSize) {
     this.client = client;
     this.context = context;
-    this.localUnary = localUnary;
-    this.remoteUnary = remoteUnary;
+    this.localUnary = cardinality == MethodCardinality.UNARY || cardinality == MethodCardinality.SERVER_STREAMING;
+    this.remoteUnary = cardinality == MethodCardinality.UNARY || cardinality == MethodCardinality.CLIENT_STREAMING;
     this.initialInboundWindowSize = initialInboundWindowSize;
     this.initialOutboundWindowSize = initialOutboundWindowSize;
   }

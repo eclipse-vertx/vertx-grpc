@@ -5,6 +5,7 @@ import io.vertx.core.internal.VertxInternal;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClientRequest;
+import io.vertx.grpc.common.MethodCardinality;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
@@ -78,8 +79,8 @@ public class EventBusGrpcContextTest extends EventBusGrpcTestBase {
 
     Async async = should.async();
 
-    int clientMessages = clientMethod.clientStreaming() ? 128 : 1;
-    int serverMessages = clientMethod.serverStreaming() ? 128 : 1;
+    int clientMessages = clientMethod.cardinality() == MethodCardinality.CLIENT_STREAMING || clientMethod.cardinality() == MethodCardinality.BIDI_STREAMING ? 128 : 1;
+    int serverMessages = clientMethod.cardinality() == MethodCardinality.SERVER_STREAMING || clientMethod.cardinality() == MethodCardinality.BIDI_STREAMING ? 128 : 1;
 
     server.callHandler(serverMethod, new Handler<>() {
       private Request message;
