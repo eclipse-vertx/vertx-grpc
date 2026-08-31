@@ -150,6 +150,23 @@ public interface GrpcClient {
   <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method);
 
   /**
+   * Returns an invoker that interacts with the {@code server}
+   * @param server the server
+   * @return the invoker
+   */
+  default ServiceInvoker bind(Address server) {
+    if (server == null) {
+      throw new NullPointerException("Server argument must not be null");
+    }
+    return new ServiceInvoker() {
+      @Override
+      public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method) {
+        return request(server, method);
+      }
+    };
+  }
+
+  /**
    * Close this client.
    */
   Future<Void> close();

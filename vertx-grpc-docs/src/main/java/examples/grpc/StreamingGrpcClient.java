@@ -60,12 +60,7 @@ public interface StreamingGrpcClient extends StreamingClient {
    * @return the configured client
    */
   static StreamingGrpcClient create(GrpcClient client, SocketAddress host) {
-    return new StreamingGrpcClientImpl(new ServiceInvoker() {
-      @Override
-      public <Req, Resp> Future<io.vertx.grpc.client.GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method) {
-        return client.request(host, method);
-      }
-    });
+    return new StreamingGrpcClientImpl(client.bind(host));
   }
 
   /**
@@ -77,12 +72,7 @@ public interface StreamingGrpcClient extends StreamingClient {
    * @return the configured client
    */
   static StreamingGrpcClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new StreamingGrpcClientImpl(new ServiceInvoker() {
-      @Override
-      public <Req, Resp> Future<io.vertx.grpc.client.GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method) {
-        return client.request(host, method);
-      }
-    }, wireFormat);
+    return new StreamingGrpcClientImpl(client.bind(host), wireFormat);
   }
 
   /**

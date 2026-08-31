@@ -38,12 +38,7 @@ public interface GreeterGrpcClient extends GreeterClient {
    * @return the configured client
    */
   static GreeterGrpcClient create(GrpcClient client, SocketAddress host) {
-    return new GreeterGrpcClientImpl(new ServiceInvoker() {
-      @Override
-      public <Req, Resp> Future<io.vertx.grpc.client.GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method) {
-        return client.request(host, method);
-      }
-    });
+    return new GreeterGrpcClientImpl(client.bind(host));
   }
 
   /**
@@ -55,12 +50,7 @@ public interface GreeterGrpcClient extends GreeterClient {
    * @return the configured client
    */
   static GreeterGrpcClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new GreeterGrpcClientImpl(new ServiceInvoker() {
-      @Override
-      public <Req, Resp> Future<io.vertx.grpc.client.GrpcClientRequest<Req, Resp>> invoker(ServiceMethod<Resp, Req> method) {
-        return client.request(host, method);
-      }
-    }, wireFormat);
+    return new GreeterGrpcClientImpl(client.bind(host), wireFormat);
   }
 
   /**
