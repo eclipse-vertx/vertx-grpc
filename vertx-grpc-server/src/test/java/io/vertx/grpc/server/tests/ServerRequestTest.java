@@ -24,6 +24,7 @@ import io.vertx.core.net.SelfSignedCertificate;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -700,5 +701,30 @@ public class ServerRequestTest extends ServerTest {
     super.testCancelResponseSignalPropagation(should);
 
     async.awaitSuccess();
+  }
+
+  @Test
+  public void testClientSendsNoErrorRstStream(TestContext should) {
+
+    Async async = should.async();
+
+    startServer(GrpcServer.server(vertx).callHandler(UNARY, call -> {
+      call.errorHandler(err -> {
+        should.assertEquals(GrpcError.CANCELLED, err);
+        async.complete();
+      });
+    }));
+
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setHttp2ClearTextUpgrade(false)
+      .setProtocolVersion(HttpVersion.HTTP_2));
+    client.request(HttpMethod.POST, port, "localhost", "/" + UNARY.fullMethodName())
+      .onComplete(should.asyncAssertSuccess(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
+        req.end(DefaultGrpcMessage.encode(Buffer.buffer(Request.getDefaultInstance().toByteArray()), false, false));
+        req.reset(0x00); // NO_ERROR
+      }));
+
+    async.awaitSuccess(10_000);
   }
 }
