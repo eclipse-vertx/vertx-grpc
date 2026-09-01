@@ -177,7 +177,6 @@ public class ClientRequestTest extends ClientTest {
       }));
   }
 
-
   @Test
   public void testServerStreamingBackPressure(TestContext should) throws IOException {
     super.testServerStreamingBackPressure(should);
@@ -190,8 +189,8 @@ public class ClientRequestTest extends ClientTest {
           callResponse.pause();
           AtomicInteger num = new AtomicInteger();
           Runnable readBatch = () -> {
-            vertx.<Integer>executeBlocking(() -> {
-              while (batchQueue.size() == 0) {
+            vertx.executeBlocking(() -> {
+              while (batchQueue.isEmpty()) {
                 try {
                   Thread.sleep(10);
                 } catch (InterruptedException e) {
@@ -203,17 +202,20 @@ public class ClientRequestTest extends ClientTest {
               callResponse.resume();
             });
           };
-          readBatch.run();
           callResponse.messageHandler(item -> {
-            if (num.decrementAndGet() == 0) {
+            int val = num.decrementAndGet();
+            if (val == 0) {
               callResponse.pause();
               readBatch.run();
+            } else if (val < 0) {
+              should.fail();
             }
           });
           callResponse.endHandler(v -> {
             should.assertEquals(-1, num.get());
             test.complete();
           });
+          readBatch.run();
         }));
         callRequest.end(Empty.getDefaultInstance());
       }));
