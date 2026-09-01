@@ -97,7 +97,10 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
         options.setSendTimeout(timeout.toMillis());
       }
 
-      options.addHeader(EventBusHeaders.SERVICE_PROXY_ACTION, methodName);;
+      if (wireFormat.name().equals("json")) {
+        options.addHeader(EventBusHeaders.SERVICE_PROXY_ACTION, methodName);;
+      }
+
       options.addHeader(EventBusHeaders.STREAM_METHOD_NAME, methodName);;
       options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
       options.addHeader(EventBusHeaders.STREAM_ID, Long.toString(id()));

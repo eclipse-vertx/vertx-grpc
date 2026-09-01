@@ -39,7 +39,7 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
     Deque<Supplier<Result>> actions = new ArrayDeque<>();
     Message<?> msg = ctx.message();
     MultiMap headers = msg.headers();
-    String actionHeader = headers.get(EventBusHeaders.SERVICE_PROXY_ACTION);
+    String methodHeader = headers.get(EventBusHeaders.STREAM_METHOD_NAME);
     String formatHeader = headers.get(EventBusHeaders.STREAM_WIRE_FORMAT);
     WireFormat wireFormat;
     if (formatHeader != null) {
@@ -58,7 +58,7 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
       wireFormat = null;
     }
 
-    if (actionHeader != null) {
+    if (methodHeader != null) {
       if (msg.replyAddress() != null) {
         String address = headers.get(EventBusHeaders.ENDPOINT_ADDRESS);
         Stream stream = new Stream();
