@@ -10,7 +10,6 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.WireFormat;
-import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
@@ -86,13 +85,8 @@ public class WebGrpcOutboundStream extends HttpGrpcOutboundStream {
     }
   }
 
-  @Override
-  protected Future<Void> writeMessage(Buffer payload, boolean compressed) {
-    return httpResponse.write(encodeMessage(payload, compressed, false));
-  }
-
-  private Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
-    message = DefaultGrpcMessage.encode(message, compressed, trailer);
+  protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
+    message = super.encodeMessage(message, compressed, trailer);
     if (protocol == WEB_TEXT) {
       message = grpcWebEncode(message);
     }

@@ -1,7 +1,5 @@
 package io.vertx.grpc.server.impl;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -10,9 +8,9 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
-import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcStream;
@@ -31,13 +29,10 @@ public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream imple
   private boolean headersSent;
   private Future<Void> trailersSent;
   protected GrpcStatus status;
-  protected final ByteBufAllocator allocator;
 
   public HttpGrpcOutboundStream(HttpServerRequest httpRequest, GrpcProtocol protocol, GrpcMessageDeframer deframer) {
     super(((HttpServerRequestInternal) httpRequest).context(), protocol, deframer);
-
     this.httpResponse = httpRequest.response();
-    this.allocator = ((HttpServerRequestInternal)httpRequest).allocator();
   }
 
   protected abstract String contentType(WireFormat wireFormat);
@@ -156,25 +151,18 @@ public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream imple
   }
 
   protected Future<Void> writeMessage(GrpcMessageFrame frame) {
-    GrpcMessage msg = frame.message();
     Buffer payload;
     try {
-      payload = msg.payload();
+      payload = frame.message().payload();
     } catch (CodecException e) {
       return context.failedFuture(e);
     }
     headersSent = true;
-    return writeMessage(payload, msg.isCompressed());
+    return httpResponse.write(encodeMessage(payload, frame.message().isCompressed(), false));
   }
 
-  protected Future<Void> writeMessage(Buffer payload, boolean compressed) {
-    int len = payload.length();
-    ByteBuf buf = allocator.buffer(5);
-    buf.writeByte(compressed ? 0x01 : 0x00);
-    buf.writeInt(len);
-    Buffer prefix = BufferInternal.buffer(buf);
-    httpResponse.write(prefix);
-    return httpResponse.write(payload);
+  protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
+    return DefaultGrpcMessage.encode(message, compressed, trailer);
   }
 
   @Override
