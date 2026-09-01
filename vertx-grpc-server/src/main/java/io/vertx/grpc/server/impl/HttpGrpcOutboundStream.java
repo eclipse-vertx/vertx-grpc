@@ -158,11 +158,11 @@ public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream imple
       return context.failedFuture(e);
     }
     headersSent = true;
-    return httpResponse.write(encodeMessage(payload, frame.message().isCompressed(), false));
+    return httpResponse.write(encodeMessage(payload, frame.message().isCompressed()));
   }
 
-  protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
-    return DefaultGrpcMessage.encode(message, compressed, trailer);
+  protected Buffer encodeMessage(Buffer message, boolean compressed) {
+    return DefaultGrpcMessage.encode(message, compressed);
   }
 
   @Override

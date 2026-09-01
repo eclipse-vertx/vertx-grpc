@@ -10,6 +10,7 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.impl.DefaultGrpcMessage;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.server.GrpcProtocol;
@@ -85,11 +86,32 @@ public class WebGrpcOutboundStream extends HttpGrpcOutboundStream {
     }
   }
 
-  protected Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
-    message = super.encodeMessage(message, compressed, trailer);
+  protected Buffer encodeMessage(Buffer message, boolean compressed) {
+    return encodeMessage(message, compressed, false);
+  }
+
+  private Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
+    message = encode(message, compressed, trailer);
     if (protocol == WEB_TEXT) {
       message = grpcWebEncode(message);
     }
     return message;
+  }
+
+  /**
+   * Encode a gRPC-Web message;
+   *
+   * @param payload the message
+   * @param compressed wether the message is compressed
+   * @param trailer whether this message is a gRPC-Web trailer
+   * @return the encoded message
+   */
+  private static BufferInternal encode(Buffer payload, boolean compressed, boolean trailer) {
+    int len = payload.length();
+    BufferInternal encoded = BufferInternal.buffer(5 + len);
+    encoded.appendByte((byte) ((trailer ? 0x80 : 0x00) | (compressed ? 0x01 : 0x00)));
+    encoded.appendInt(len);
+    encoded.appendBuffer(payload);
+    return encoded;
   }
 }

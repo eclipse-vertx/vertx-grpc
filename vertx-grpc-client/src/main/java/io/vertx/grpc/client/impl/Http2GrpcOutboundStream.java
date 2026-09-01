@@ -127,8 +127,7 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
   private Future<Void> handleMessageFrame(GrpcMessageFrame frame) {
     Buffer payload;
     try {
-      GrpcMessage message = frame.message();
-      payload = DefaultGrpcMessage.encode(message.payload(), message.isCompressed(), false);
+      payload = DefaultGrpcMessage.encode(frame.message());
     } catch (CodecException e) {
       return context.failedFuture(e);
     }
