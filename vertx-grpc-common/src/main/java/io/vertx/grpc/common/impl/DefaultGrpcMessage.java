@@ -44,34 +44,27 @@ public class DefaultGrpcMessage implements GrpcMessage {
     return payload;
   }
 
-  public static Buffer encode(GrpcMessage message) {
-    return encode(message, false);
-  }
-
   /**
    * Encode a {@link GrpcMessage}.
    *
    * @param message the message
-   * @param trailer whether this message is a gRPC-Web trailer
    * @return the encoded message
    */
-  public static BufferInternal encode(GrpcMessage message, boolean trailer) {
-    boolean compressed = !message.encoding().equals("identity");
-    return encode(message.payload(), compressed, trailer);
+  public static BufferInternal encode(GrpcMessage message) {
+    return encode(message.payload(), !message.encoding().equals("identity"));
   }
 
   /**
    * Encode a gRPC message;
    *
-   * @param payload the message
+   * @param payload    the message
    * @param compressed wether the message is compressed
-   * @param trailer whether this message is a gRPC-Web trailer
    * @return the encoded message
    */
-  public static BufferInternal encode(Buffer payload, boolean compressed, boolean trailer) {
+  public static BufferInternal encode(Buffer payload, boolean compressed) {
     int len = payload.length();
     BufferInternal encoded = BufferInternal.buffer(5 + len);
-    encoded.appendByte((byte) ((trailer ? 0x80 : 0x00) | (compressed ? 0x01 : 0x00)));
+    encoded.appendByte((byte) (compressed ? 0x01 : 0x00));
     encoded.appendInt(len);
     encoded.appendBuffer(payload);
     return encoded;

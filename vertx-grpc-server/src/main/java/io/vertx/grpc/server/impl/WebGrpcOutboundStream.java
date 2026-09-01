@@ -92,10 +92,24 @@ public class WebGrpcOutboundStream extends HttpGrpcOutboundStream {
   }
 
   private Buffer encodeMessage(Buffer message, boolean compressed, boolean trailer) {
-    message = DefaultGrpcMessage.encode(message, compressed, trailer);
+    message = encode(message, compressed, trailer);
     if (protocol == WEB_TEXT) {
       message = grpcWebEncode(message);
     }
     return message;
+  }
+
+  /**
+   * Encode a gRPC message;
+   *
+   * @param payload the message
+   * @param compressed wether the message is compressed
+   * @param trailer whether this message is a gRPC-Web trailer
+   * @return the encoded message
+   */
+  private static BufferInternal encode(Buffer payload, boolean compressed, boolean trailer) {
+    BufferInternal encoded = DefaultGrpcMessage.encode(payload, compressed);
+    encoded.setByte(0, (byte)(encoded.getByte(0) | (byte)(trailer ? 0x80 : 0x00)));
+    return encoded;
   }
 }
