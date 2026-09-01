@@ -109,15 +109,18 @@ public abstract class ClientTest extends ClientTestBase {
         ServerCallStreamObserver obs = (ServerCallStreamObserver) responseObserver;
         AtomicInteger numRounds = new AtomicInteger(20);
         Runnable readyHandler = () -> {
-          if (numRounds.decrementAndGet() > 0) {
+          int val = numRounds.decrementAndGet();
+          if (val > 0) {
             int num = 0;
             while (obs.isReady()) {
               num++;
               Reply item = Reply.newBuilder().setMessage("the-value-" + num).build();
               responseObserver.onNext(item);
             }
-            batchQueue.add(num);
-          } else {
+            if (num > 0) {
+              batchQueue.add(num);
+            }
+          } else if (val == 0) {
             batchQueue.add(-1);
             responseObserver.onCompleted();
           }
