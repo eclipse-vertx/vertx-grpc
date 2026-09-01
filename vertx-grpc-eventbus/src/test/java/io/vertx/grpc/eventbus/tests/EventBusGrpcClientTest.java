@@ -35,7 +35,7 @@ public class EventBusGrpcClientTest extends EventBusGrpcTestBase {
   @Test
   public void testRequestReplyProtobuf(TestContext testContext) throws Exception {
     vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> {
-      testContext.assertEquals("Unary", msg.headers().get(EventBusHeaders.SERVICE_PROXY_ACTION));
+      testContext.assertNull(msg.headers().get(EventBusHeaders.SERVICE_PROXY_ACTION));
       testContext.assertEquals("Unary", msg.headers().get(EventBusHeaders.STREAM_METHOD_NAME));
       testContext.assertEquals(WireFormat.PROTOBUF.name(), msg.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT));
       try {
