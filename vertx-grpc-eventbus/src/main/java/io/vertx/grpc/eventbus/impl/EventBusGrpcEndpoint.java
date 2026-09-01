@@ -126,6 +126,7 @@ abstract class EventBusGrpcEndpoint {
 
   private void pingRemoteEndpoints(long now) {
     if (pingInterval > 0) {
+      // Only clients
       long data = pingData.incrementAndGet();
       List<RemoteEndpoint> toPing = new ArrayList<>();
       for (RemoteEndpoint remoteEndpoint : remoteEndpoints.values()) {
