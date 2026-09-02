@@ -1,10 +1,11 @@
 [[grpc-eventbus]]
 == gRPC EventBus transport
 
-The gRPC EventBus transport allows gRPC services to communicate over the Vert.x EventBus instead of HTTP.
-The transport supports both protobuf and JSON wire formats and works with generated gRPC service stubs.
+The gRPC event bus transport allows gRPC services to communicate over the Vert.x EventBus instead of HTTP.
 
-NOTE: this module is in tech preview in Vert.x 5.1 until the API becomes stable.
+The transport supports both protobuf and JSON wire formats.
+
+NOTE: this module is in tech preview in Vert.x 5.2
 
 === Using the EventBus transport
 
@@ -35,7 +36,7 @@ dependencies {
 
 === EventBus server
 
-The {@link io.vertx.grpc.eventbus.EventBusGrpcServer} registers event bus consumers for each service and dispatches incoming messages to service handlers. It extends {@link io.vertx.grpc.server.ServiceContainer}, so generated service stubs work out of the box.
+The {@link io.vertx.grpc.eventbus.EventBusGrpcServer} registers event bus consumers for each service and dispatches incoming messages to service handlers. It extends {@link io.vertx.grpc.server.ServiceContainer}, allowing easy stub registration.
 
 [source,java]
 ----
@@ -49,11 +50,11 @@ You can add generated services just like a regular gRPC server:
 {@link examples.GrpcEventBusExamples#serverWithService}
 ----
 
-The server registers an EventBus consumer using the service's fully qualified name as the address (e.g. `examples.grpc.Greeter`) and routes to specific methods using the `action` delivery header.
+The server registers an EventBus consumer using the service's fully qualified name as the address (e.g. `examples.grpc.Greeter`).
 
 === EventBus client
 
-The {@link io.vertx.grpc.eventbus.EventBusGrpcClient} sends gRPC requests over the event bus. It extends {@link io.vertx.grpc.client.GrpcClientRequestProvider}, so generated client stubs work out of the box.
+The {@link io.vertx.grpc.eventbus.EventBusGrpcClient} sends gRPC requests over the event bus. It extends {@link io.vertx.grpc.client.GrpcClientRequestProvider}, allowing creation of a proxy using the event bus client.
 
 [source,java]
 ----
@@ -69,15 +70,86 @@ You can use generated client stubs:
 
 === JSON wire format
 
-By default, the transport uses protobuf encoding. You can use JSON by passing the wire format when creating the client:
+By default, the transport encodes the service payload with protobuf. You can use JSON by passing the wire format when
+creating the client stub:
 
 [source,java]
 ----
 {@link examples.GrpcEventBusExamples#jsonWireFormat}
 ----
 
-The server responds in the same wire format than the `grpc-wire-format` delivery header specifies.
+=== Streaming
 
-=== Limitations
+The event bus transport supports all four gRPC call patterns: unary, server streaming, client streaming, and bidi streaming.
 
-This transport only supports unary (request/response) calls, streaming might be supported later.
+The following example registers a bidirectional streaming service on the server:
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#streamingServer}
+----
+
+On the client side:
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#streamingClient}
+----
+
+=== Configuration
+
+Both the client and server can be configured with options.
+
+==== Client options
+
+The {@link io.vertx.grpc.eventbus.EventBusGrpcClientOptions} configures the client endpoint:
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#clientOptions}
+----
+
+- `pingInterval`: how often the client pings server endpoints it holds streams with (default: 30 seconds).
+- `pingTimeout`: how long a server may go without acknowledging a ping before its streams are terminated (default: 60 seconds)
+- `initialWindowSize`: the flow control window for inbound messages, counted in messages (default: 64).
+
+==== Server options
+
+The {@link io.vertx.grpc.eventbus.EventBusGrpcServerOptions} configures the server endpoint:
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#serverOptions}
+----
+
+- `enabledFormats`: the set of wire formats the server accepts (default: protobuf and JSON). A request using a format outside this set is rejected with `UNIMPLEMENTED`.
+- `maxPingTimeout`: the longest ping timeout the server honours from a client (default: 2 minutes). A client that advertises a longer timeout, or none at all, is held to this value.
+
+=== Closing
+
+Both client and server should be closed when no longer needed. Closing unregisters the event bus consumers and terminates any in-flight streams.
+
+[source,java]
+----
+{@link examples.GrpcEventBusExamples#closing}
+----
+
+=== Clustering
+
+The event bus transport works transparently over a clustered Vert.x event bus. No special configuration is needed: the same server
+and client API applies. The event bus handles routing and load balancing across cluster nodes.
+
+=== Service proxy compatibility
+
+The event bus transport is an evolution of Vert.x service proxies, its design cares about compatibility with service proxies:
+
+Event bus gRPC server accepts service proxies request and treat them as unary calls carrying a JSON payload: a gRPC service
+is registered under the service fully qualified name, e.g. `examples.grpc.Greeter`, a method is called passing the gRPC method name
+as `action` header.
+
+Event bus gRPC client sends unary calls carrying a JSON payload compatible with a service proxy handler, likewise a client
+calls a service using the gRPC service fully qualified name and set the gRPC method name as `action` header.
+
+=== Protocol
+
+The latest version of the protocol is documented https://github.com/eclipse-vertx/vertx-grpc/blob/main/vertx-grpc-eventbus/README.md[here].
