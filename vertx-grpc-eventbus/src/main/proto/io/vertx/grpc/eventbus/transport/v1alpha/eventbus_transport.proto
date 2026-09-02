@@ -17,7 +17,7 @@ option java_multiple_files = true;
 // module README.
 message TransportFrame {
   uint64 stream_id = 1; // the destination endpoint's id for this call, demuxes it on the shared private address, 0 for an endpoint level frame
-  uint64 stream_sequence = 2; // per-stream, monotonic, advances on Message frames only
+  uint64 stream_sequence = 2; // per-stream, monotonic, advances on content frames (Message, Headers, Trailers, HalfClose)
 
   oneof frame {
     Message message = 3; // a message payload, either direction

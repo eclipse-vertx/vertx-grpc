@@ -2,15 +2,9 @@
 
 This module uses the Vert.x event bus as a transport for gRPC services.
 
-The protocol in this document is still a proposal, and not an agreed format, it might
-change in later revision of this project.
-
 ## Goals
 
-Implement a transport over the Vert.x event-bus exposing:
-
-- `GrpcClientRequestProvider` to interact with a gRPC server
-- `GrpcServerRequestHandlerProvider` to handle gRPC client interactions
+Implement a transport over the Vert.x event-bus:
 
 ```java
 // server
@@ -43,14 +37,24 @@ The reply contains the response message:
 
 - message headers prefixed by `grpc-stream-header.` form the response metadata
 - message headers prefixed by `grpc-stream-trailer.` form the trailers
-- a status `OK` responses translates into a message reply
-- otherwise the server fails the response with the gRPC status as  the failure code and the status message as the failure message
+- a status `OK` response translates into a message reply
+- otherwise the server fails the response with the gRPC status as the failure code and the status message as the failure message
 
 ### Streaming calls
 
 The event bus does not natively support streaming, instead any kind of streaming requires more than one request and one reply.
 
 To open a stream, the client sends a request and receives a reply.
+
+#### Topology
+
+Each endpoints registers an endpoint consumer with a unique identifier as address, this is called the endpoint address, it
+is sent to its peers when streaming is involved. This endpoint unidirectional channel carries transport frames for various needs.
+
+When a client calls a server and streaming is involved, the sides needing to receive frames will send their endpoint address in the
+initial request/reply.
+
+On a cluster, this lets the event bus perform an initial load balancing to locate a service, when an endpoint is designed for the service method call, the endpoint address ensures that the messages are efficiently routed to the endpoint address. As the endpoint address is registered at the creation of the endpoint, this ensures maximum stability.
 
 #### The request
 
@@ -62,7 +66,7 @@ The request contains the following message headers:
 - `grpc-endpoint-address`, the private address of the client, present when the client is streaming
 - `grpc-endpoint-wire-format`, the wire format of the client when the client is streaming
 - `grpc-stream-initial-window`, the initial flow control window when the server is streaming, see [Flow control](#flow-control).
-- `grpc-endpoint-ping-timeout`, the time in milliseconds that the client waits before it declares a peer down, tefer to [Liveness](#liveness).
+- `grpc-endpoint-ping-timeout`, the time in milliseconds that the client waits before it declares a peer down, refer to [Liveness](#liveness).
 - headers prefixed by `grpc-stream-header.` form the request metadata
 
 The request body depends on the client method cardinality:
@@ -85,7 +89,7 @@ The server follows these steps:
 
 The reply contains the following message headers:
 
-- `grpc-endpoint-address`, the private address of the servier, present when the server is streaming
+- `grpc-endpoint-address`, the private address of the server, present when the server is streaming
 - `grpc-endpoint-wire-format`, the wire format of the server when the client is streaming
 - `grpc-stream-initial-window`, the initial flow control window when the client is streaming, see [Flow control](#flow-control).
 
@@ -100,7 +104,7 @@ The endpoint address is used
 - by endpoints to exchange ping frames
 - by streams, the stream id is indicated in each message as a header `grpc-stream-id`
 
-A stream identifier is a 64 long value that uniquely identifies a stream.
+A stream identifier is a 64-bit value that uniquely identifies a stream.
 
 #### End of a stream
 
@@ -177,7 +181,7 @@ The server and the client can be configured:
 
 ```java
 EventBusGrpcServer.server(vertx, new EventBusGrpcServerOptions()
-  .setSupportedWireFormats(Collections.singleton(WireFormat.PROTOBUF)));
+  .setWireFormat(WireFormat.PROTOBUF));
 
 EventBusGrpcClient.client(vertx, new EventBusGrpcClientOptions()
   .setWireFormat(WireFormat.JSON)
@@ -204,19 +208,19 @@ Each endpoint sends the frames to the private address of its peers. A point-to-p
 
 When this happens, the recipient endpoint is evicted.
 
-### Method 2: ping frames
+### Ping frames
 
-Client endpoints are configured to ping its remote server peers at regular intervals. When an endpoint
+Client endpoints are configured to ping their remote server peers at regular intervals. When an endpoint
 receives a ping, it replies immediately with an acknowledgement of the ping.
 
 At regular intervals, endpoints for which no ping or ack has been received are evicted.
 
-NOTE: Unary calls are request/reply and do not trigger peers monitorint.
+NOTE: Unary calls are request/reply and do not trigger peer monitoring.
 
 ## Service proxy compatibility
 
 The protocol has been designed with Vert.x service proxies in mind: unary calls are compatible
-with the service proxies protocol when the RPC alls uses JSON.
+with the service proxies protocol when the RPC calls use JSON.
 
 The service proxies protocol relies on the `action` request message header and therefore
 the client will also send an `action` header when the RPC uses JSON and the server
