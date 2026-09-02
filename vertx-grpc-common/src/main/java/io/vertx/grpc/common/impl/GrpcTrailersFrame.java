@@ -26,8 +26,8 @@ public interface GrpcTrailersFrame extends GrpcHalfCloseFrame {
   String statusMessage();
 
   /**
-   * @return the trailers
+   * @return the trailers metadata
    */
-  MultiMap trailers();
+  MultiMap metadata();
 
 }

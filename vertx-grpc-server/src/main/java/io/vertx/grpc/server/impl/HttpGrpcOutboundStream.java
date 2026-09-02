@@ -81,7 +81,7 @@ public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream imple
     MultiMap httpHeaders = httpResponse.headers();
     String contentType = contentType(frame.format());
     httpHeaders.set("content-type", contentType);
-    encodeGrpcHeaders(frame.headers(), httpHeaders, frame.encoding());
+    encodeGrpcHeaders(frame.metadata(), httpHeaders, frame.encoding());
     return writeHead();
   }
 
@@ -127,7 +127,7 @@ public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream imple
       }
     }
     status = st;
-    writeTrailers(!headersSent, frame.trailers(), st, frame.statusMessage());
+    writeTrailers(!headersSent, frame.metadata(), st, frame.statusMessage());
     return writeEnd();
   }
 

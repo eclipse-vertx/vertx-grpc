@@ -28,9 +28,9 @@ public interface GrpcHeadersFrame extends GrpcFrame {
   String encoding();
 
   /**
-   * @return the headers
+   * @return the headers metadata
    */
-  MultiMap headers();
+  MultiMap metadata();
 
   /**
    * @return an optional timeout

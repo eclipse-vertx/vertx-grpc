@@ -10,17 +10,17 @@ public class DefaultGrpcHeadersFrame implements GrpcHeadersFrame {
 
   private final WireFormat format;
   private final String encoding;
-  private final MultiMap headers;
+  private final MultiMap metadata;
   private final Duration timeout;
 
-  public DefaultGrpcHeadersFrame(WireFormat format, String encoding, MultiMap headers) {
-    this(format, encoding, headers, null);
+  public DefaultGrpcHeadersFrame(WireFormat format, String encoding, MultiMap metadata) {
+    this(format, encoding, metadata, null);
   }
 
-  public DefaultGrpcHeadersFrame(WireFormat format, String encoding, MultiMap headers, Duration timeout) {
+  public DefaultGrpcHeadersFrame(WireFormat format, String encoding, MultiMap metadata, Duration timeout) {
     this.format = Objects.requireNonNull(format);
     this.encoding = encoding;
-    this.headers = headers;
+    this.metadata = metadata;
     this.timeout = timeout;
   }
 
@@ -33,8 +33,8 @@ public class DefaultGrpcHeadersFrame implements GrpcHeadersFrame {
     return encoding;
   }
 
-  public MultiMap headers() {
-    return headers;
+  public MultiMap metadata() {
+    return metadata;
   }
 
   @Override

@@ -410,7 +410,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
       .newBuilder()
       .setStatus(frame.status().code);
     MultiMap metadata;
-    if ((metadata = frame.trailers()) != null && !metadata.isEmpty()) {
+    if ((metadata = frame.metadata()) != null && !metadata.isEmpty()) {
       for (Map.Entry<String, String> entry : metadata) {
         trailersBuilder.putMetadata(entry.getKey(), entry.getValue());
       }
