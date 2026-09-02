@@ -91,7 +91,7 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
   }
 
   private Future<Void> handleHeadersFrame(GrpcHeadersFrame frame) {
-    MultiMap headers = frame.headers();
+    MultiMap headers = frame.metadata();
 
     if (headers != null && !headers.isEmpty()) {
       MultiMap requestHeaders = httpRequest.headers();

@@ -69,7 +69,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase.Client {
           if (headersFrame.encoding() != null) {
             encoding = headersFrame.encoding();
           }
-          requestHeaders = headersFrame.headers();
+          requestHeaders = headersFrame.metadata();
           timeout = headersFrame.timeout();
           return consumerContext.succeededFuture();
         case MESSAGE:
@@ -113,7 +113,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase.Client {
           if (headersFrame.encoding() != null) {
             encoding = headersFrame.encoding();
           }
-          requestHeaders = headersFrame.headers();
+          requestHeaders = headersFrame.metadata();
           timeout = headersFrame.timeout();
           state = State.CONNECTING;
           return connect();

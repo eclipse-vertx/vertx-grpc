@@ -317,7 +317,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       response.tryFail(invalidMsg);
     });
 
-    response.handleHeaders(frame.headers());
+    response.handleHeaders(frame.metadata());
 
     responsePromise.tryComplete(response);
   }
@@ -333,11 +333,11 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     if (response == null) {
       response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this, stream, WireFormat.PROTOBUF,
         null, messageDecoder);
-      response.handleHeaders(frame.trailers());
+      response.handleHeaders(frame.metadata());
       response.handleTrailers(frame.status(), frame.statusMessage(), HttpHeaders.headers());
       responsePromise.tryComplete(response);
     } else {
-      response.handleTrailers(frame.status(), frame.statusMessage(), frame.trailers());
+      response.handleTrailers(frame.status(), frame.statusMessage(), frame.metadata());
     }
   }
 

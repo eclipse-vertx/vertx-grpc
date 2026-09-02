@@ -10,6 +10,8 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.eventbus.transport.v1alpha.*;
 
+import java.util.Map;
+
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
@@ -110,7 +112,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
       }
       switch (frame.type()) {
         case HEADERS:
-          headers = ((GrpcHeadersFrame) frame).headers();
+          headers = ((GrpcHeadersFrame) frame).metadata();
           return consumerContext.succeededFuture();
         case MESSAGE:
           encodedMessage = ((GrpcMessageFrame) frame).message();
@@ -118,7 +120,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
         case HALF_CLOSE:
           closed = true;
           GrpcTrailersFrame trailersFrame = (GrpcTrailersFrame) frame;
-          handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), encodedMessage, headers, trailersFrame.trailers());
+          handleTrailers(trailersFrame.status(), trailersFrame.statusMessage(), encodedMessage, headers, trailersFrame.metadata());
           return consumerContext.succeededFuture();
         default:
           return consumerContext.succeededFuture();
@@ -182,7 +184,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
       Future<Void> written;
       switch (frame.type()) {
         case HEADERS:
-          MultiMap responseHeaders = ((GrpcHeadersFrame) frame).headers();
+          MultiMap responseHeaders = ((GrpcHeadersFrame) frame).metadata();
           written = writeResponseHeaders(responseHeaders);
           break;
         case HALF_CLOSE:
@@ -205,14 +207,15 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
     }
 
     private Future<Void> writeResponseHeaders(MultiMap headers) {
-      DeliveryOptions options = new DeliveryOptions();
+      Headers.Builder headersBuilder = Headers.newBuilder();
       if (headers != null && !headers.isEmpty()) {
-        MultiMap delivery = MultiMap.caseInsensitiveMultiMap();
-        EventBusHeaders.encodeMultiMap(HEADER_PREFIX, headers, delivery);
-        options.setHeaders(delivery);
+        for (Map.Entry<String, String> entry : headers) {
+          headersBuilder.putMetadata(entry.getKey(), entry.getValue());
+        }
       }
+      DeliveryOptions options = new DeliveryOptions();
       options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
-      return sendTransportFrame(TransportFrame.newBuilder().setHeaders(Headers.newBuilder()), options);
+      return sendTransportFrame(TransportFrame.newBuilder().setHeaders(headersBuilder), options);
     }
   }
 

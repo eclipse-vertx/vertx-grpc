@@ -7,12 +7,12 @@ public class DefaultGrpcTrailersFrame implements GrpcTrailersFrame {
 
   private final GrpcStatus status;
   private final String statusMessage;
-  private final MultiMap trailers;
+  private final MultiMap metadata;
 
-  public DefaultGrpcTrailersFrame(GrpcStatus status, String statusMessage, MultiMap trailers) {
+  public DefaultGrpcTrailersFrame(GrpcStatus status, String statusMessage, MultiMap metadata) {
     this.status = status;
     this.statusMessage = statusMessage;
-    this.trailers = trailers;
+    this.metadata = metadata;
   }
 
   public GrpcStatus status() {
@@ -23,7 +23,7 @@ public class DefaultGrpcTrailersFrame implements GrpcTrailersFrame {
     return statusMessage;
   }
 
-  public MultiMap trailers() {
-    return trailers;
+  public MultiMap metadata() {
+    return metadata;
   }
 }

@@ -36,13 +36,13 @@ The request contains the following message headers:
 - `grpc-stream-method-name`, the name of the method.
 - `grpc-stream-wire-format`, the wire format.
 - `grpc-stream-id`, the stream identifier.
-- headers prefixed by `__header__.` form the request metadata
+- headers prefixed by `grpc-stream-header.` form the request metadata
 - the body contains the encoded message
 
 The reply contains the response message:
 
-- message headers prefixed by `__header__.` form the response metadata
-- message headers prefixed by `__trailer__.` form the trailers
+- message headers prefixed by `grpc-stream-header.` form the response metadata
+- message headers prefixed by `grpc-stream-trailer.` form the trailers
 - a status `OK` responses translates into a message reply
 - otherwise the server fails the response with the gRPC status as  the failure code and the status message as the failure message
 
@@ -63,7 +63,7 @@ The request contains the following message headers:
 - `grpc-endpoint-wire-format`, the wire format of the client when the client is streaming
 - `grpc-stream-initial-window`, the initial flow control window when the server is streaming, see [Flow control](#flow-control).
 - `grpc-endpoint-ping-timeout`, the time in milliseconds that the client waits before it declares a peer down, tefer to [Liveness](#liveness).
-- headers prefixed by `__header__.` form the request metadata
+- headers prefixed by `grpc-stream-header.` form the request metadata
 
 The request body depends on the client method cardinality:
 
@@ -124,12 +124,12 @@ sequenceDiagram
 
     Note over C,S: The call is now full duplex. Each frame<br/>contains the stream_id of the destination.<br/>Refer to Frame ordering for sequence rules.
     C->>S: Message, stream_sequence 1
-    S->>C: Headers, stream_sequence 1
+    S->>C: Headers (response metadata), stream_sequence 1
     S->>C: Message, stream_sequence 2
     C->>S: Message, stream_sequence 2
     C->>S: HalfClose, stream_sequence 3
     S->>C: Message, stream_sequence 3
-    S->>C: Trailers, stream_sequence 4
+    S->>C: Trailers (trailing metadata + status), stream_sequence 4
     Note over C,S: The two endpoints remove the stream from their<br/>maps. The call is complete.
 ```
 
@@ -147,7 +147,8 @@ A frame contains a small header and one variant. The header contains the `stream
 - `Message`, a payload.
 - `WindowUpdate`, a flow control credit.
 - `HalfClose`, from the client.
-- `Headers` or `Trailers`, from the server.
+- `Headers`, response metadata from the server. The metadata is carried inside the frame as a `map<string, string>`.
+- `Trailers`, trailing metadata with gRPC status from the server. The metadata is carried inside the frame as a `map<string, string>`.
 - `Cancel`, from the client or from the server.
 - `Ping`, a liveness probe, from the client or from the server.
 

@@ -58,7 +58,7 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
     WireFormat format = frame.format();
     grpcRequest = new GrpcServerRequestImpl<>(
       context,
-      frame.headers(),
+      frame.metadata(),
       format,
       methodCall.stream(),
       frame.timeout(),
