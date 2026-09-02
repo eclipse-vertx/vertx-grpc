@@ -11,7 +11,7 @@ import io.vertx.grpc.eventbus.transport.v1alpha.*;
 
 import java.time.Duration;
 
-class EventBusGrpcClientCall extends EventBusGrpcStreamBase.Client {
+class EventBusGrpcClientStream extends EventBusGrpcStream.Client {
 
   private final ServiceName serviceName;
   private final String methodName;
@@ -25,8 +25,8 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase.Client {
   private State state;
   private final Outbound outbound;
 
-  public EventBusGrpcClientCall(EventBusGrpcClientEndpoint localEndpoint, long id, ContextInternal context, boolean localUnary, boolean remoteUnary,
-                                ServiceName serviceName, String methodName, int initialInboundWindowSize, int initialOutboundWindowSize) {
+  public EventBusGrpcClientStream(EventBusGrpcClientEndpoint localEndpoint, long id, ContextInternal context, boolean localUnary, boolean remoteUnary,
+                                  ServiceName serviceName, String methodName, int initialInboundWindowSize, int initialOutboundWindowSize) {
     super(localEndpoint, id, context, localUnary, remoteUnary, initialInboundWindowSize, initialOutboundWindowSize);
     this.serviceName = serviceName;
     this.methodName = methodName;
@@ -97,7 +97,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase.Client {
     private Future<Void> connect(GrpcMessage message) {
       Buffer payload = message.payload();
       Object body = EventBusGrpcCodec.encodeBody(payload, wireFormat);
-      return EventBusGrpcClientCall.this.connect(body);
+      return EventBusGrpcClientStream.this.connect(body);
     }
   }
 
@@ -129,7 +129,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase.Client {
     }
 
     private Future<Void> connect() {
-      return EventBusGrpcClientCall.this.connect(null);
+      return EventBusGrpcClientStream.this.connect(null);
     }
   }
 
@@ -198,7 +198,7 @@ class EventBusGrpcClientCall extends EventBusGrpcStreamBase.Client {
     if (!remoteUnary) {
       res = res.andThen(ar -> {
         if (ar.succeeded()) {
-          EventBusGrpcClientCall.this.state = State.STREAMING;
+          EventBusGrpcClientStream.this.state = State.STREAMING;
         }
       });
     }

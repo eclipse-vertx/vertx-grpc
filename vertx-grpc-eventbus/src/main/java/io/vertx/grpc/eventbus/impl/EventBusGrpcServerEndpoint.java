@@ -356,7 +356,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
 
       long remoteTimeout = remoteTimeout(message.headers().get(EventBusHeaders.ENDPOINT_PING_TIMEOUT));
 
-      EventBusGrpcServerCall stream = new EventBusGrpcServerCall(
+      EventBusGrpcServerStream stream = new EventBusGrpcServerStream(
         EventBusGrpcServerEndpoint.this,
         streamId,
         consumerContext,

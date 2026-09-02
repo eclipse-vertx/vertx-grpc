@@ -15,7 +15,7 @@ import java.util.Map;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
-class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEndpoint> {
+class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndpoint> {
 
   private final WireFormat wireFormat;
   private final String encoding;
@@ -23,7 +23,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
   private final Outbound outbound;
   private boolean closed;
 
-  public EventBusGrpcServerCall(
+  public EventBusGrpcServerStream(
     EventBusGrpcServerEndpoint localEndpoint,
     long id,
     ContextInternal context,
@@ -74,7 +74,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
       emitInbound(new DefaultGrpcHeadersFrame(wireFormat, "identity", headers));
       emitInbound(new DefaultGrpcMessageFrame(GrpcMessage.message("identity", wireFormat, payload)));
       emitInbound(DefaultGrpcHalfCloseFrame.INSTANCE);
-      EventBusGrpcEndpoint.StreamRegistration sr = EventBusGrpcServerCall.this;
+      EventBusGrpcEndpoint.StreamRegistration sr = EventBusGrpcServerStream.this;
       sr.closeInbound();
     }
   }
@@ -154,7 +154,7 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
           options.setHeaders(multiMap);
           message.reply(EventBusGrpcCodec.encodeBody(payload, wireFormat), options);
         }
-        EventBusGrpcEndpoint.StreamRegistration sr = EventBusGrpcServerCall.this;
+        EventBusGrpcEndpoint.StreamRegistration sr = EventBusGrpcServerStream.this;
         sr.closeOutbound();
       } else {
         producerContext.execute(() -> {
