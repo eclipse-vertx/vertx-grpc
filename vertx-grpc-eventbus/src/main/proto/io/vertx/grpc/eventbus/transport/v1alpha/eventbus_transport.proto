@@ -31,8 +31,9 @@ message TransportFrame {
 }
 
 // Server to client, response initial metadata, ordered ahead of the first response
-// message. The metadata itself rides as __header__. prefixed delivery headers.
+// message.
 message Headers {
+  map<string, string> metadata = 1;
 }
 
 // A message payload, either direction. The serialized message in the call's wire
@@ -54,11 +55,11 @@ message WindowUpdate {
 message HalfClose {
 }
 
-// Server to client, terminates the call. Trailing metadata rides as __trailer__.
-// prefixed delivery headers.
+// Server to client, terminates the call.
 message Trailers {
   uint32 status = 1; // gRPC status code
   string status_message = 2;
+  map<string, string> metadata = 3;
 }
 
 // Either direction, abnormal termination.

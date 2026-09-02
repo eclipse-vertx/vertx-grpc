@@ -54,12 +54,12 @@ public final class EventBusHeaders {
   /**
    * The prefix for grpc headers among delivery options.
    */
-  public static final String HEADER_PREFIX = "__header__.";
+  public static final String HEADER_PREFIX = "grpc-stream-header.";
 
   /**
    * The prefix for grpc trailers among delivery options.
    */
-  public static final String TRAILER_PREFIX = "__trailer__.";
+  public static final String TRAILER_PREFIX = "grpc-stream-trailer.";
 
   /**
    * Prefixed header encoding.

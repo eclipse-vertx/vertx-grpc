@@ -120,7 +120,7 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
               switch (frame.getFrameCase()) {
                 case HEADERS:
                   MultiMap streamHeaders = MultiMap.caseInsensitiveMultiMap();
-                  EventBusHeaders.decodeMultimap(HEADER_PREFIX, msg.headers(), streamHeaders);
+                  streamHeaders.addAll(frame.getHeaders().getMetadataMap());
                   actions.add(() -> onServerHeaders(stream.serverAddress, streamId, streamHeaders));
                   break;
                 case MESSAGE:
@@ -128,7 +128,7 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
                   break;
                 case TRAILERS:
                   MultiMap streamTrailers = MultiMap.caseInsensitiveMultiMap();
-                  EventBusHeaders.decodeMultimap(TRAILER_PREFIX, msg.headers(), streamTrailers);
+                  streamTrailers.addAll(frame.getTrailers().getMetadataMap());
                   int status = frame.getTrailers().getStatus();
                   String statusMessage = frame.getTrailers().getStatusMessage();
                   actions.add(() -> onServerHalfClose(stream.serverAddress, streamId, status, statusMessage, streamTrailers));

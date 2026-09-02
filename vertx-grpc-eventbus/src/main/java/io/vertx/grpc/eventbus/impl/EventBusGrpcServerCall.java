@@ -10,6 +10,8 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.eventbus.transport.v1alpha.*;
 
+import java.util.Map;
+
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
@@ -205,14 +207,15 @@ class EventBusGrpcServerCall extends EventBusGrpcStreamBase<EventBusGrpcServerEn
     }
 
     private Future<Void> writeResponseHeaders(MultiMap headers) {
-      DeliveryOptions options = new DeliveryOptions();
+      Headers.Builder headersBuilder = Headers.newBuilder();
       if (headers != null && !headers.isEmpty()) {
-        MultiMap delivery = MultiMap.caseInsensitiveMultiMap();
-        EventBusHeaders.encodeMultiMap(HEADER_PREFIX, headers, delivery);
-        options.setHeaders(delivery);
+        for (Map.Entry<String, String> entry : headers) {
+          headersBuilder.putMetadata(entry.getKey(), entry.getValue());
+        }
       }
+      DeliveryOptions options = new DeliveryOptions();
       options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
-      return sendTransportFrame(TransportFrame.newBuilder().setHeaders(Headers.newBuilder()), options);
+      return sendTransportFrame(TransportFrame.newBuilder().setHeaders(headersBuilder), options);
     }
   }
 
