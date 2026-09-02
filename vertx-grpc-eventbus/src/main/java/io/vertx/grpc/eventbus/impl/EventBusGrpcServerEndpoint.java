@@ -5,7 +5,7 @@ import io.vertx.core.*;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.internal.ContextInternal;
-import io.vertx.core.internal.PromiseInternal;
+import io.vertx.core.internal.VertxInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
@@ -21,18 +21,32 @@ import java.util.stream.Collectors;
 
 public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements EventBusGrpcServer {
 
+  public static Future<EventBusGrpcServer> create(VertxInternal vertx, EventBusGrpcServerOptions options) {
+    ContextInternal consumerContext = vertx.getOrCreateContext();
+    EventBusGrpcServerEndpoint server = new CleanableEventBusGrpcServer(consumerContext, options);
+    return server
+      .bind()
+      .map(server);
+  }
+
   private final Set<WireFormat> acceptedWireFormats;
   private final long maxPingTimeout;
   private final ContextInternal consumerContext;
   private final AtomicReference<Map<String, ServiceConsumer>> consumersRef;
 
-  private EventBusGrpcServerEndpoint(ContextInternal consumerContext, EventBusGrpcServerOptions options) {
+  EventBusGrpcServerEndpoint(ContextInternal consumerContext, EventBusGrpcServerOptions options) {
     super(Utils.eventLoopCtx(consumerContext),  options.getWireFormat(), "grpc.eb.server.", options.getCleanerPeriod().toMillis(),
       0L, options.getInitialWindowSize());
     this.consumerContext = consumerContext;
     this.acceptedWireFormats = new LinkedHashSet<>(options.getEnabledFormats());
     this.maxPingTimeout = options.getMaxPingTimeout().toMillis();
     this.consumersRef = new AtomicReference<>(new HashMap<>());
+  }
+
+  Future<Void> bind() {
+    Promise<Void> completion = consumerContext.promise();
+    bind(completion);
+    return completion.future();
   }
 
   /**
@@ -51,16 +65,6 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
       }
     }
     return maxPingTimeout;
-  }
-
-  public static Future<EventBusGrpcServer> create(Vertx vertx, EventBusGrpcServerOptions options) {
-    ContextInternal consumerContext = (ContextInternal) vertx.getOrCreateContext();
-    EventBusGrpcServerEndpoint server = new EventBusGrpcServerEndpoint(consumerContext, options);
-    PromiseInternal<Void> promise = consumerContext.promise();
-    server.bind(promise);
-    return promise
-      .future()
-      .map(server);
   }
 
   @Override

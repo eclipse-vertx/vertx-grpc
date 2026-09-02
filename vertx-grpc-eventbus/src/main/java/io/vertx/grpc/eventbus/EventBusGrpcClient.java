@@ -5,6 +5,7 @@ import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.internal.VertxInternal;
 import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientRequestProvider;
 import io.vertx.grpc.common.ServiceMethod;
@@ -33,7 +34,7 @@ public interface EventBusGrpcClient extends GrpcClientRequestProvider {
    * @return a future of the created client
    */
   static Future<EventBusGrpcClient> client(Vertx vertx) {
-    return EventBusGrpcClientEndpoint.create(vertx, new EventBusGrpcClientOptions());
+    return EventBusGrpcClientEndpoint.create((VertxInternal)vertx, new EventBusGrpcClientOptions());
   }
 
   /**
@@ -45,7 +46,7 @@ public interface EventBusGrpcClient extends GrpcClientRequestProvider {
    * @return a future of the created client
    */
   static Future<EventBusGrpcClient> client(Vertx vertx, EventBusGrpcClientOptions options) {
-    return EventBusGrpcClientEndpoint.create(vertx, options);
+    return EventBusGrpcClientEndpoint.create((VertxInternal)vertx, options);
   }
 
   /**
