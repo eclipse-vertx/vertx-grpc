@@ -22,7 +22,7 @@ import java.util.Optional;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
 
-abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends EventBusGrpcEndpoint.StreamRegistration implements GrpcStream {
+abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventBusGrpcEndpoint.StreamRegistration implements GrpcStream {
 
   protected final E localEndpoint;
   protected final ContextInternal consumerContext;
@@ -44,7 +44,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
   Throwable closeCause;
   private Throwable pendingWriteFailureCause;
 
-  EventBusGrpcStreamBase(E localEndpoint, long id, ContextInternal context, int initialInboundWindowSize, int initialOutboundWindowSize) {
+  EventBusGrpcStream(E localEndpoint, long id, ContextInternal context, int initialInboundWindowSize, int initialOutboundWindowSize) {
     super(localEndpoint, id);
     this.localEndpoint = localEndpoint;
     this.consumerContext = context;
@@ -55,7 +55,7 @@ abstract class EventBusGrpcStreamBase<E extends EventBusGrpcEndpoint> extends Ev
     this.inboundSequence = 1;
   }
 
-  abstract static class Client extends EventBusGrpcStreamBase<EventBusGrpcClientEndpoint> {
+  abstract static class Client extends EventBusGrpcStream<EventBusGrpcClientEndpoint> {
 
     protected final boolean localUnary;
     protected final boolean remoteUnary;

@@ -29,7 +29,7 @@ abstract class EventBusGrpcEndpoint {
   private final int id;
   private final AtomicInteger sequence = new AtomicInteger();
   private final long pingInterval;
-  private final LongObjectMap<EventBusGrpcStreamBase<?>> streams = new LongObjectHashMap<>();
+  private final LongObjectMap<EventBusGrpcStream<?>> streams = new LongObjectHashMap<>();
   private final Map<String, RemoteEndpoint> remoteEndpoints = new HashMap<>();
   private final AtomicLong pingData = new AtomicLong();
   final WireFormat wireFormat;
@@ -184,7 +184,7 @@ abstract class EventBusGrpcEndpoint {
       handlePing(frame.getPing(), message);
       return;
     }
-    EventBusGrpcStreamBase<?> stream = streams.get(frame.getStreamId());
+    EventBusGrpcStream<?> stream = streams.get(frame.getStreamId());
     if (stream != null) {
       if (frame.getFrameCase() == TransportFrame.FrameCase.CANCEL) {
         stream.close(new GrpcErrorException(GrpcError.CANCELLED, GrpcStatus.CANCELLED), false);
@@ -237,7 +237,7 @@ abstract class EventBusGrpcEndpoint {
 
   private Future<?> closeStreams() {
     List<Future<?>> results = new ArrayList<>();
-    for (EventBusGrpcStreamBase<?> stream : new ArrayList<>(streams.values())) {
+    for (EventBusGrpcStream<?> stream : new ArrayList<>(streams.values())) {
       Future<Void> result = stream.close(GrpcError.CANCELLED, true);
       if (result != null) {
         results.add(result);
@@ -313,7 +313,7 @@ abstract class EventBusGrpcEndpoint {
     final void registerStream() {
       assert localEndpoint.producerContext.inThread();
       assert id > 0;
-      localEndpoint.streams.put(id, (EventBusGrpcStreamBase<?>) this);
+      localEndpoint.streams.put(id, (EventBusGrpcStream<?>) this);
     }
 
     final void registerRemoteEndpoint(String remoteAddress, long remoteTimeout, WireFormat wireFormat) {
