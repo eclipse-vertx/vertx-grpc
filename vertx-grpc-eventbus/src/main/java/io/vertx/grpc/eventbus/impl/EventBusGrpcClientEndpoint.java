@@ -1,7 +1,7 @@
 package io.vertx.grpc.eventbus.impl;
 
 import io.vertx.core.Future;
-import io.vertx.core.Vertx;
+import io.vertx.core.internal.CloseableResource;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.core.internal.VertxInternal;
@@ -13,8 +13,33 @@ import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 
+import java.time.Duration;
+
 
 public class EventBusGrpcClientEndpoint extends EventBusGrpcEndpoint implements EventBusGrpcClient {
+
+  public static Future<EventBusGrpcClient> create(VertxInternal vertx, EventBusGrpcClientOptions options) {
+    ContextInternal context = vertx.getOrCreateContext();
+    ContextInternal producerContext = Utils.eventLoopCtx(context);
+    EventBusGrpcClientEndpoint client = new EventBusGrpcClientEndpoint(producerContext, options);
+    CloseableResource<EventBusGrpcClientEndpoint> res = new CloseableResource<>() {
+      @Override
+      public EventBusGrpcClientEndpoint get() {
+        return client;
+      }
+
+      @Override
+      public Future<Void> shutdown(Duration timeout) {
+        return client.close();
+      }
+    };
+    CleanableEventBusGrpcClient cleanableClient = new CleanableEventBusGrpcClient(vertx.cleaner(), vertx.registerResource(res));
+    PromiseInternal<Void> promise = context.promise();
+    client.bind(promise);
+    return promise
+      .future()
+      .map(cleanableClient);
+  }
 
   private final VertxInternal vertx;
   final long pingTimeout;
@@ -31,17 +56,6 @@ public class EventBusGrpcClientEndpoint extends EventBusGrpcEndpoint implements 
       throw new IllegalArgumentException("pingTimeout (" + options.getPingTimeout() + ") must be greater than pingInterval (" + options.getPingInterval() + ")");
     }
     return options.getPingTimeout().toMillis();
-  }
-
-  public static Future<EventBusGrpcClient> create(Vertx vertx, EventBusGrpcClientOptions options) {
-    ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
-    ContextInternal producerContext = Utils.eventLoopCtx(context);
-    EventBusGrpcClientEndpoint client = new EventBusGrpcClientEndpoint(producerContext, options);
-    PromiseInternal<Void> promise = context.promise();
-    client.bind(promise);
-    return promise
-      .future()
-      .map(client);
   }
 
   @Override

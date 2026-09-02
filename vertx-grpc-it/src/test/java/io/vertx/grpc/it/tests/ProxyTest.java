@@ -31,7 +31,7 @@ import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.impl.GrpcStream;
 import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
-import io.vertx.grpc.eventbus.impl.EventBusGrpcClientEndpoint;
+import io.vertx.grpc.eventbus.impl.CleanableEventBusGrpcClient;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
@@ -166,7 +166,7 @@ public class ProxyTest extends ProxyTestBase {
       });
     });
 
-    EventBusGrpcClientEndpoint grpcClient = (EventBusGrpcClientEndpoint)EventBusGrpcClient.client(vertx).await();
+    CleanableEventBusGrpcClient grpcClient = (CleanableEventBusGrpcClient)EventBusGrpcClient.client(vertx).await();
 
     GrpcServerImpl s = (GrpcServerImpl) GrpcServer.server(vertx);
     s.streamHandler(call -> {

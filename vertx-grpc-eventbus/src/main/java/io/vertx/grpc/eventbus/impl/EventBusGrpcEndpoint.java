@@ -211,7 +211,7 @@ abstract class EventBusGrpcEndpoint {
 
   protected abstract Future<Void> handleClose();
 
-  public final Future<Void> close() {
+  public Future<Void> close() {
     PromiseInternal<Void> completion = vertx.promise();
     if (producerContext.inThread()) {
       closeImpl(completion);
