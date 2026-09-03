@@ -214,7 +214,7 @@ message HelloResponse {
 
 === Server-streaming responses
 
-Server-streaming RPCs (`rpc Foo (Req) returns (stream Resp)`) are transcoded by emitting the response over chunked transfer encoding. The wire format is selected per-request from the HTTP `Accept` header so clients can pick the encoding that fits their consumption pattern without any server configuration:
+Server-streaming RPCs (`rpc Foo (Req) returns (stream Resp)`) are transcoded by emitting the response over chunked transfer encoding. The wire format is selected according to the HTTP `accept` header, letting the client choose the most appropriate encoding:
 
 |===
 | `Accept` value | Response `Content-Type` | Framing
@@ -242,9 +242,12 @@ curl -X POST -H "Accept: text/event-stream" -H "Content-Type: application/json" 
 # data: {"payload":"second"}
 ----
 
-If the RPC terminates with a non-OK gRPC status before any message has been written, the response is finished with the corresponding HTTP status code and no body. If messages have already been written, the stream ends (with the closing `]` for JSON array mode). Mid-stream errors cannot be signalled on the body since the HTTP status was already sent.
+A gRPC error is reported to the client depending on when it happens:
 
-Client-streaming and bidirectional-streaming RPCs are not supported by transcoding.
+- a gRPC trailers-only response sends the corresponding HTTP status error without content
+- a gRPC trailers response terminates the response with `]`, such error cannot be reported to the client
+
+Transcoding does not support client-streaming and bidirectional-streaming RPCs.
 
 === Transcoding error handling
 
