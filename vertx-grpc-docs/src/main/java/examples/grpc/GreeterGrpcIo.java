@@ -6,8 +6,6 @@ import static io.grpc.stub.ServerCalls.asyncServerStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncClientStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncBidiStreamingCall;
 
-import io.grpc.ClientCall;
-
 import io.grpc.stub.StreamObserver;
 
 import io.vertx.grpcio.client.GrpcIoClientChannel;
@@ -35,7 +33,7 @@ public final class GreeterGrpcIo {
   }
 
   
-  public static final class GreeterStub extends io.grpc.stub.AbstractStub<GreeterStub> implements GreeterClient {
+  public static final class GreeterStub extends io.grpc.stub.AbstractStub<GreeterStub> implements examples.grpc.GreeterClient {
     private final io.vertx.core.internal.ContextInternal context;
     private GreeterGrpc.GreeterStub delegateStub;
 
@@ -66,7 +64,7 @@ public final class GreeterGrpcIo {
   /**
    * @return a service binding the given {@code service}.
    */
-  public static io.grpc.BindableService bindableServiceOf(GreeterService service) {
+  public static io.grpc.BindableService bindableServiceOf(examples.grpc.GreeterService service) {
     return new io.grpc.BindableService() {
       public io.grpc.ServerServiceDefinition bindService() {
         return serverServiceDefinition(service);
@@ -74,7 +72,7 @@ public final class GreeterGrpcIo {
     };
   }
 
-  private static io.grpc.ServerServiceDefinition serverServiceDefinition(GreeterService service) {
+  private static io.grpc.ServerServiceDefinition serverServiceDefinition(examples.grpc.GreeterService service) {
     String compression = null;
     return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
       .addMethod(
@@ -95,11 +93,11 @@ public final class GreeterGrpcIo {
           io.grpc.stub.ServerCalls.ClientStreamingMethod<Req, Resp>,
           io.grpc.stub.ServerCalls.BidiStreamingMethod<Req, Resp> {
 
-    private final GreeterService serviceImpl;
+    private final examples.grpc.GreeterService serviceImpl;
     private final int methodId;
     private final String compression;
 
-    MethodHandlers(GreeterService serviceImpl, int methodId, String compression) {
+    MethodHandlers(examples.grpc.GreeterService serviceImpl, int methodId, String compression) {
       this.serviceImpl = serviceImpl;
       this.methodId = methodId;
       this.compression = compression;

@@ -4,7 +4,6 @@ package {{javaPackageFqn}};
 
 import io.vertx.core.Future;
 import io.vertx.core.Completable;
-import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientRequestProvider;
@@ -23,7 +22,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 {{#codegenEnabled}}
 @io.vertx.codegen.annotations.VertxGen
 {{/codegenEnabled}}
-public interface {{grpcClientFqn}} extends {{clientFqn}} {
+public interface {{serviceNameBase}}GrpcClient extends {{clientFqn}} {
 {{#allMethods}}
 
   /**
@@ -47,8 +46,8 @@ public interface {{grpcClientFqn}} extends {{clientFqn}} {
    * @param host   the host providing the service
    * @return the configured client
    */
-  static {{grpcClientFqn}} create(GrpcClient client, SocketAddress host) {
-    return new {{grpcClientFqn}}Impl(client.bind(host));
+  static {{serviceNameBase}}GrpcClient create(GrpcClient client, SocketAddress host) {
+    return new {{serviceNameBase}}GrpcClientImpl(client.bind(host));
   }
 
   /**
@@ -59,8 +58,8 @@ public interface {{grpcClientFqn}} extends {{clientFqn}} {
    * @param wireFormat the wire format
    * @return the configured client
    */
-  static {{grpcClientFqn}} create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new {{grpcClientFqn}}Impl(client.bind(host), wireFormat);
+  static {{serviceNameBase}}GrpcClient create(GrpcClient client, SocketAddress host, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new {{serviceNameBase}}GrpcClientImpl(client.bind(host), wireFormat);
   }
 
   /**
@@ -69,8 +68,8 @@ public interface {{grpcClientFqn}} extends {{clientFqn}} {
    * @param client the gRPC client service
    * @return the configured client
    */
-  static {{grpcClientFqn}} create(GrpcClientRequestProvider client) {
-    return new {{grpcClientFqn}}Impl(client);
+  static {{serviceNameBase}}GrpcClient create(GrpcClientRequestProvider client) {
+    return new {{serviceNameBase}}GrpcClientImpl(client);
   }
 
   /**
@@ -80,24 +79,24 @@ public interface {{grpcClientFqn}} extends {{clientFqn}} {
    * @param wireFormat the wire format
    * @return the configured client
    */
-  static {{grpcClientFqn}} create(GrpcClientRequestProvider client, io.vertx.grpc.common.WireFormat wireFormat) {
-    return new {{grpcClientFqn}}Impl(client, wireFormat);
+  static {{serviceNameBase}}GrpcClient create(GrpcClientRequestProvider client, io.vertx.grpc.common.WireFormat wireFormat) {
+    return new {{serviceNameBase}}GrpcClientImpl(client, wireFormat);
   }
 }
 
 /**
  * The proxy implementation.
  */
-class {{grpcClientFqn}}Impl implements {{grpcClientFqn}} {
+class {{serviceNameBase}}GrpcClientImpl implements {{serviceNameBase}}GrpcClient {
 
   private final GrpcClientRequestProvider client;
   private final io.vertx.grpc.common.WireFormat wireFormat;
 
-  {{grpcClientFqn}}Impl(GrpcClientRequestProvider client) {
+  {{serviceNameBase}}GrpcClientImpl(GrpcClientRequestProvider client) {
     this(client, io.vertx.grpc.common.WireFormat.PROTOBUF);
   }
 
-  {{grpcClientFqn}}Impl(GrpcClientRequestProvider client, io.vertx.grpc.common.WireFormat wireFormat) {
+  {{serviceNameBase}}GrpcClientImpl(GrpcClientRequestProvider client, io.vertx.grpc.common.WireFormat wireFormat) {
     this.client = java.util.Objects.requireNonNull(client);
     this.wireFormat = java.util.Objects.requireNonNull(wireFormat);
   }

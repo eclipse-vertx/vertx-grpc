@@ -2,7 +2,6 @@ package examples.grpc;
 
 import io.vertx.core.Future;
 import io.vertx.core.Completable;
-import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientRequestProvider;
@@ -18,7 +17,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the Greeter gRPC service.</p>
  */
-public interface GreeterGrpcClient extends GreeterClient {
+public interface GreeterGrpcClient extends examples.grpc.GreeterClient {
 
   /**
    * SayHello protobuf RPC client service method.

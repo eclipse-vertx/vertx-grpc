@@ -12,14 +12,11 @@ public class ServiceTemplateContext {
   public String javaPackageFqn;
   public String serviceName;
   public String packageName;
+  public String serviceNameBase;
   public String contractFqn;
   public String serviceFqn;
   public String clientFqn;
-  public String grpcClientFqn;
-  public String grpcServiceFqn;
-  public String grpcIoFqn;
   public String outerFqn;
-  public String prefixedServiceName;
   public boolean codegenEnabled;
   public String javaDoc;
 
@@ -39,19 +36,18 @@ public class ServiceTemplateContext {
     context.javaPackageFqn = service.getJavaPackage();
     context.serviceName = service.getName();
     context.packageName = service.getPackageName();
-    context.outerFqn = service.getOuterClass();
     context.codegenEnabled = options.isGenerateVertxGeneratorAnnotations();
     context.javaDoc = service.getDocumentation();
 
-    // Build FQN names with prefix
+    // Build the names with prefix, the templates declare their own type from serviceNameBase and refer to the other
+    // generated types with the package qualified names
     String prefix = options.getServicePrefix();
-    context.contractFqn = prefix + service.getName();
-    context.clientFqn = prefix + service.getName() + "Client";
-    context.serviceFqn = prefix + service.getName() + "Service";
-    context.grpcClientFqn = prefix + service.getName() + "GrpcClient";
-    context.grpcServiceFqn = prefix + service.getName() + "GrpcService";
-    context.grpcIoFqn = prefix + service.getName() + "GrpcIo";
-    context.prefixedServiceName = prefix + service.getName();
+    String packageQualifier = context.javaPackageFqn == null || context.javaPackageFqn.isEmpty() ? "" : context.javaPackageFqn + ".";
+    context.serviceNameBase = prefix + service.getName();
+    context.contractFqn = packageQualifier + context.serviceNameBase;
+    context.clientFqn = packageQualifier + context.serviceNameBase + "Client";
+    context.serviceFqn = packageQualifier + context.serviceNameBase + "Service";
+    context.outerFqn = packageQualifier + service.getOuterClass();
 
     // Convert methods
     context.allMethods = service.getMethods().stream()
