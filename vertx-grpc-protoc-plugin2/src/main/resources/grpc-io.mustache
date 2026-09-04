@@ -8,8 +8,6 @@ import static io.grpc.stub.ServerCalls.asyncServerStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncClientStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncBidiStreamingCall;
 
-import io.grpc.ClientCall;
-
 import io.grpc.stub.StreamObserver;
 
 import io.vertx.grpcio.client.GrpcIoClientChannel;
@@ -18,9 +16,9 @@ import io.vertx.grpcio.client.impl.GrpcIoClientImpl;
 /**
  * gRPC/IO client/service in a Vert.x idiomatic way.
  */
-public final class {{grpcIoFqn}} {
+public final class {{prefixedServiceName}}GrpcIo {
 
-  private {{grpcIoFqn}}() {}
+  private {{prefixedServiceName}}GrpcIo() {}
 
   /**
    * Build a new stub.
@@ -123,11 +121,11 @@ public final class {{grpcIoFqn}} {
           io.grpc.stub.ServerCalls.ClientStreamingMethod<Req, Resp>,
           io.grpc.stub.ServerCalls.BidiStreamingMethod<Req, Resp> {
 
-    private final {{prefixedServiceName}}Service serviceImpl;
+    private final {{serviceFqn}} serviceImpl;
     private final int methodId;
     private final String compression;
 
-    MethodHandlers({{prefixedServiceName}}Service serviceImpl, int methodId, String compression) {
+    MethodHandlers({{serviceFqn}} serviceImpl, int methodId, String compression) {
       this.serviceImpl = serviceImpl;
       this.methodId = methodId;
       this.compression = compression;

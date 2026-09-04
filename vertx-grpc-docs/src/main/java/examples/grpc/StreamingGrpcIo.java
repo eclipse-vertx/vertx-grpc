@@ -6,8 +6,6 @@ import static io.grpc.stub.ServerCalls.asyncServerStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncClientStreamingCall;
 import static io.grpc.stub.ServerCalls.asyncBidiStreamingCall;
 
-import io.grpc.ClientCall;
-
 import io.grpc.stub.StreamObserver;
 
 import io.vertx.grpcio.client.GrpcIoClientChannel;
@@ -35,7 +33,7 @@ public final class StreamingGrpcIo {
   }
 
   
-  public static final class StreamingStub extends io.grpc.stub.AbstractStub<StreamingStub> implements StreamingClient {
+  public static final class StreamingStub extends io.grpc.stub.AbstractStub<StreamingStub> implements examples.grpc.StreamingClient {
     private final io.vertx.core.internal.ContextInternal context;
     private StreamingGrpc.StreamingStub delegateStub;
 
@@ -75,7 +73,7 @@ public final class StreamingGrpcIo {
   /**
    * @return a service binding the given {@code service}.
    */
-  public static io.grpc.BindableService bindableServiceOf(StreamingService service) {
+  public static io.grpc.BindableService bindableServiceOf(examples.grpc.StreamingService service) {
     return new io.grpc.BindableService() {
       public io.grpc.ServerServiceDefinition bindService() {
         return serverServiceDefinition(service);
@@ -83,7 +81,7 @@ public final class StreamingGrpcIo {
     };
   }
 
-  private static io.grpc.ServerServiceDefinition serverServiceDefinition(StreamingService service) {
+  private static io.grpc.ServerServiceDefinition serverServiceDefinition(examples.grpc.StreamingService service) {
     String compression = null;
     return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
       .addMethod(
@@ -120,11 +118,11 @@ public final class StreamingGrpcIo {
           io.grpc.stub.ServerCalls.ClientStreamingMethod<Req, Resp>,
           io.grpc.stub.ServerCalls.BidiStreamingMethod<Req, Resp> {
 
-    private final StreamingService serviceImpl;
+    private final examples.grpc.StreamingService serviceImpl;
     private final int methodId;
     private final String compression;
 
-    MethodHandlers(StreamingService serviceImpl, int methodId, String compression) {
+    MethodHandlers(examples.grpc.StreamingService serviceImpl, int methodId, String compression) {
       this.serviceImpl = serviceImpl;
       this.methodId = methodId;
       this.compression = compression;
