@@ -254,7 +254,14 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       }
       for (ServiceMethod method : service.methods()) {
         Handler handler = service.handler(method);
-        registerMethodCallHandler(service.pathOfMethod(method.methodName()), new ServiceMethodCallHandler<Object, Object>(method, handler));
+        ServiceMethodCallHandler<Object, Object> smch = new ServiceMethodCallHandler<>(method, handler);
+        if (method instanceof MountPoint) {
+          MountPoint<Object, Object> mountPoint = (MountPoint<Object, Object>) method;
+          for (String path : mountPoint.paths()) {
+            registerMethodCallHandler(path, smch);
+          }
+        }
+        registerMethodCallHandler(service.pathOfMethod(method.methodName()), smch);
       }
 
       this.services.add(service);

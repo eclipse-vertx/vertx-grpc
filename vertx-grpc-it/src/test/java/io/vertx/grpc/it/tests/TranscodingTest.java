@@ -1,23 +1,39 @@
 package io.vertx.grpc.it.tests;
 
 import io.grpc.examples.helloworld.*;
+import io.grpc.examples.streamingtranscoding.StreamingHelloReply;
+import io.grpc.examples.streamingtranscoding.StreamingHelloRequest;
+import io.grpc.examples.streamingtranscoding.StreamingTranscodingGreeterClient;
+import io.grpc.examples.streamingtranscoding.StreamingTranscodingGreeterGrpcClient;
+import io.grpc.examples.streamingtranscoding.StreamingTranscodingGreeterGrpcService;
+import io.grpc.examples.streamingtranscoding.StreamingTranscodingGreeterService;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.core.streams.WriteStream;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpcio.server.GrpcIoServer;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class TranscodingTest extends ProxyTestBase {
 
@@ -342,6 +358,217 @@ public class TranscodingTest extends ProxyTestBase {
 
     HelloReply reply = greeterClient.sayHelloWithoutOptions(HelloRequest.newBuilder().setName("Julien").build()).await(10, TimeUnit.SECONDS);
     assertEquals("Hello Julien", reply.getMessage());
+  }
+
+  @Test
+  public void testUnaryAddService() throws TimeoutException {
+    HttpClient client = vertx.createHttpClient();
+
+    vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx).addService(GreeterGrpcService.of(new GreeterService() {
+        @Override
+        public Future<HelloReply> sayHello(HelloRequest request) {
+          return Future.succeededFuture(HelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+        }
+      }))).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/Julien").setMethod(HttpMethod.GET);
+
+    Buffer body = client.request(options).compose(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        req.putHeader(HttpHeaders.ACCEPT, "application/json");
+        return req.send();
+      }).expecting(HttpResponseExpectation.SC_OK)
+      .expecting(HttpResponseExpectation.JSON)
+      .compose(HttpClientResponse::body)
+      .await(10, TimeUnit.SECONDS);
+    assertEquals("Hello Julien", getMessage(body.toString()));
+  }
+
+  @Test
+  public void testServerStreamingAddService() throws TimeoutException {
+    HttpClient client = vertx.createHttpClient();
+
+    vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx).addService(StreamingTranscodingGreeterGrpcService.of(new StreamingTranscodingGreeterService() {
+        @Override
+        protected void sayHelloStreaming(StreamingHelloRequest request, WriteStream<StreamingHelloReply> response) {
+          response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 1").build());
+          response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 2").build());
+          response.end();
+        }
+      }))).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/stream/Julien").setMethod(HttpMethod.GET);
+
+    Buffer body = client.request(options).compose(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        req.putHeader(HttpHeaders.ACCEPT, "application/json");
+        return req.send();
+      }).expecting(HttpResponseExpectation.SC_OK)
+      .compose(HttpClientResponse::body)
+      .await(10, TimeUnit.SECONDS);
+
+    JsonArray array = new JsonArray(body);
+    assertEquals(2, array.size());
+    assertEquals("Hello Julien 1", array.getJsonObject(0).getString("message"));
+    assertEquals("Hello Julien 2", array.getJsonObject(1).getString("message"));
+  }
+
+  @Test
+  public void testServerStreaming() throws TimeoutException {
+    HttpClient client = vertx.createHttpClient();
+
+    vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx).callHandler(StreamingTranscodingGreeterGrpcService.SayHelloStreaming, call -> call.handler(request -> {
+        GrpcServerResponse<StreamingHelloRequest, StreamingHelloReply> response = call.response();
+        response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 1").build());
+        response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 2").build());
+        response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 3").build());
+        response.end();
+      }))).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/stream/Julien").setMethod(HttpMethod.GET);
+
+    HttpClientResponse response = client.request(options).compose(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        req.putHeader(HttpHeaders.ACCEPT, "application/json");
+        return req.send();
+      }).expecting(HttpResponseExpectation.SC_OK)
+      .compose(resp -> resp.body().map(resp))
+      .await(10, TimeUnit.SECONDS);
+
+    assertTrue(response.headers().contains(HttpHeaders.CONTENT_TYPE, "application/json", true));
+    // Streaming responses are chunked, so the length is not known up-front.
+    assertFalse(response.headers().contains(HttpHeaders.CONTENT_LENGTH));
+    JsonArray array = new JsonArray(response.body().result());
+    assertEquals(3, array.size());
+    assertEquals("Hello Julien 1", array.getJsonObject(0).getString("message"));
+    assertEquals("Hello Julien 2", array.getJsonObject(1).getString("message"));
+    assertEquals("Hello Julien 3", array.getJsonObject(2).getString("message"));
+  }
+
+  @Test
+  public void testServerStreamingNdjson() throws TimeoutException {
+    HttpClient client = vertx.createHttpClient();
+
+    vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx).callHandler(StreamingTranscodingGreeterGrpcService.SayHelloStreaming, call -> call.handler(request -> {
+        GrpcServerResponse<StreamingHelloRequest, StreamingHelloReply> response = call.response();
+        response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 1").build());
+        response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 2").build());
+        response.end();
+      }))).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/stream/Julien").setMethod(HttpMethod.GET);
+
+    HttpClientResponse response = client.request(options).compose(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        req.putHeader(HttpHeaders.ACCEPT, "application/x-ndjson");
+        return req.send();
+      }).expecting(HttpResponseExpectation.SC_OK)
+      .compose(resp -> resp.body().map(resp))
+      .await(10, TimeUnit.SECONDS);
+
+    assertTrue(response.headers().contains(HttpHeaders.CONTENT_TYPE, "application/x-ndjson", true));
+    String[] lines = response.body().result().toString().split("\n");
+    assertEquals(2, lines.length);
+    assertEquals("Hello Julien 1", new JsonObject(lines[0]).getString("message"));
+    assertEquals("Hello Julien 2", new JsonObject(lines[1]).getString("message"));
+  }
+
+  @Test
+  public void testServerStreamingSse() throws TimeoutException {
+    HttpClient client = vertx.createHttpClient();
+
+    vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx).callHandler(StreamingTranscodingGreeterGrpcService.SayHelloStreaming, call -> call.handler(request -> {
+        GrpcServerResponse<StreamingHelloRequest, StreamingHelloReply> response = call.response();
+        response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 1").build());
+        response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName() + " 2").build());
+        response.end();
+      }))).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/stream/Julien").setMethod(HttpMethod.GET);
+
+    HttpClientResponse response = client.request(options).compose(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        req.putHeader(HttpHeaders.ACCEPT, "text/event-stream");
+        return req.send();
+      }).expecting(HttpResponseExpectation.SC_OK)
+      .compose(resp -> resp.body().map(resp))
+      .await(10, TimeUnit.SECONDS);
+
+    assertTrue(response.headers().contains(HttpHeaders.CONTENT_TYPE, "text/event-stream", true));
+    String[] events = response.body().result().toString().split("\n\n");
+    assertEquals(2, events.length);
+    assertTrue(events[0].startsWith("data: "));
+    assertTrue(events[1].startsWith("data: "));
+    assertEquals("Hello Julien 1", new JsonObject(events[0].substring("data: ".length())).getString("message"));
+    assertEquals("Hello Julien 2", new JsonObject(events[1].substring("data: ".length())).getString("message"));
+  }
+
+  @Test
+  public void testServerStreamingEmpty() throws TimeoutException {
+    HttpClient client = vertx.createHttpClient();
+
+    vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx).callHandler(StreamingTranscodingGreeterGrpcService.SayHelloStreaming, call -> call.handler(request -> {
+        GrpcServerResponse<StreamingHelloRequest, StreamingHelloReply> response = call.response();
+        response.end();
+      }))).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/stream/Julien").setMethod(HttpMethod.GET);
+
+    Buffer body = client.request(options).compose(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        req.putHeader(HttpHeaders.ACCEPT, "application/json");
+        return req.send();
+      }).expecting(HttpResponseExpectation.SC_OK)
+      .compose(HttpClientResponse::body)
+      .await(10, TimeUnit.SECONDS);
+
+    assertEquals(0, new JsonArray(body).size());
+  }
+
+  @Test
+  public void testServerStreamingGrpcCollision() throws TimeoutException {
+    HttpClient httpClient = vertx.createHttpClient();
+
+    vertx.createHttpServer()
+      .requestHandler(GrpcServer.server(vertx).callHandler(StreamingTranscodingGreeterGrpcService.SayHelloStreaming, call -> call.handler(request -> {
+        GrpcServerResponse<StreamingHelloRequest, StreamingHelloReply> response = call.response();
+        response.write(StreamingHelloReply.newBuilder().setMessage("Hello " + request.getName()).build());
+        response.end();
+      }))).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
+
+    RequestOptions options = new RequestOptions().setHost("localhost").setPort(8080).setURI("/v1/hello/stream/Julien").setMethod(HttpMethod.GET);
+
+    Buffer httpBody = httpClient.request(options).compose(req -> {
+        req.putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        req.putHeader(HttpHeaders.ACCEPT, "application/json");
+        return req.send();
+      }).expecting(HttpResponseExpectation.SC_OK)
+      .compose(HttpClientResponse::body)
+      .await(10, TimeUnit.SECONDS);
+    assertEquals("Hello Julien", new JsonArray(httpBody).getJsonObject(0).getString("message"));
+
+    // The same service method is still reachable over plain gRPC.
+    GrpcClient grpcClient = GrpcClient.client(vertx);
+    StreamingTranscodingGreeterClient greeterClient = StreamingTranscodingGreeterGrpcClient.create(grpcClient, SocketAddress.inetSocketAddress(8080, "localhost"));
+
+    List<String> received = greeterClient
+      .sayHelloStreaming(StreamingHelloRequest.newBuilder().setName("Julien").build())
+      .compose(stream -> {
+        Promise<List<String>> promise = Promise.promise();
+        List<String> replies = new ArrayList<>();
+        stream.handler(reply -> replies.add(reply.getMessage()));
+        stream.endHandler(v -> promise.tryComplete(replies));
+        stream.exceptionHandler(promise::tryFail);
+        return promise.future();
+      })
+      .await(10, TimeUnit.SECONDS);
+    assertEquals(Collections.singletonList("Hello Julien"), received);
   }
 
   @Test

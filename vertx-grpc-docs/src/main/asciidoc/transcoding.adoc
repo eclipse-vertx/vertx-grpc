@@ -212,6 +212,43 @@ message HelloResponse {
 }
 ----
 
+=== Server-streaming responses
+
+Server-streaming RPCs (`rpc Foo (Req) returns (stream Resp)`) are transcoded by emitting the response over chunked transfer encoding. The wire format is selected according to the HTTP `accept` header, letting the client choose the most appropriate encoding:
+
+|===
+| `Accept` value | Response `Content-Type` | Framing
+
+| `application/json` (default) | `application/json` | Top-level JSON array: `[m1, m2, m3]`. Envoy-compatible. The body is not valid JSON until the final `]` arrives, so `JSON.parse(body)` only works after the stream completes.
+| `application/x-ndjson` | `application/x-ndjson` | One JSON object per line, `\n`-separated. Each line is independently parseable as it arrives.
+| `text/event-stream` | `text/event-stream` | Server-Sent Events: `data: <json>\n\n` per message. Consumable by the browser `EventSource` API.
+|===
+
+[source]
+----
+# JSON array (default)
+curl -X POST -H "Content-Type: application/json" -d '...' http://localhost:8080/stream
+# [{"payload":"first"},{"payload":"second"}]
+
+# NDJSON
+curl -X POST -H "Accept: application/x-ndjson" -H "Content-Type: application/json" -d '...' http://localhost:8080/stream
+# {"payload":"first"}
+# {"payload":"second"}
+
+# Server-Sent Events
+curl -X POST -H "Accept: text/event-stream" -H "Content-Type: application/json" -d '...' http://localhost:8080/stream
+# data: {"payload":"first"}
+#
+# data: {"payload":"second"}
+----
+
+A gRPC error is reported to the client depending on when it happens:
+
+- a gRPC trailers-only response sends the corresponding HTTP status error without content
+- a gRPC trailers response terminates the response with `]`, such error cannot be reported to the client
+
+Transcoding does not support client-streaming and bidirectional-streaming RPCs.
+
 === Transcoding error handling
 
 If an error occurs during transcoding, the server will return an HTTP error response with the appropriate status code.
