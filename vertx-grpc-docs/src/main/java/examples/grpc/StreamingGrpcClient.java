@@ -2,7 +2,6 @@ package examples.grpc;
 
 import io.vertx.core.Future;
 import io.vertx.core.Completable;
-import io.vertx.core.Handler;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientRequestProvider;
@@ -18,7 +17,7 @@ import io.vertx.grpc.common.GrpcMessageEncoder;
 /**
  * <p>A client for invoking the Streaming gRPC service.</p>
  */
-public interface StreamingGrpcClient extends StreamingClient {
+public interface StreamingGrpcClient extends examples.grpc.StreamingClient {
 
   /**
    * Source protobuf RPC client service method.
