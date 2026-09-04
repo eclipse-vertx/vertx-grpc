@@ -1,26 +1,17 @@
 package examples.grpc;
 
-import io.vertx.core.Future;
-import io.vertx.core.Promise;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.streams.ReadStream;
-import io.vertx.core.streams.WriteStream;
-import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.MethodCardinality;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.Service;
-import io.vertx.grpc.server.StatusException;
 
 import com.google.protobuf.Descriptors;
 
-import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +27,7 @@ import java.util.HashMap;
  *   <li>Pipe</li>
  * </ul>
  */
-public class StreamingGrpcService extends StreamingService implements Service {
+public class StreamingGrpcService extends examples.grpc.StreamingService implements Service {
 
   /**
    * Streaming service name.
@@ -46,7 +37,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
   /**
    * Streaming service descriptor.
    */
-  public static final Descriptors.ServiceDescriptor SERVICE_DESCRIPTOR = Docs.getDescriptor().findServiceByName("Streaming");
+  public static final Descriptors.ServiceDescriptor SERVICE_DESCRIPTOR = examples.grpc.Docs.getDescriptor().findServiceByName("Streaming");
 
   @Override
   public ServiceName name() {
@@ -61,7 +52,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
   /**
    * @return a service binding all methods of the given {@code service}
    */
-  public static Service of(StreamingService service) {
+  public static Service of(examples.grpc.StreamingService service) {
     return builder(service).bind(all()).build();
   }
 
@@ -122,7 +113,7 @@ public class StreamingGrpcService extends StreamingService implements Service {
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
-  public static Builder builder(StreamingService service) {
+  public static Builder builder(examples.grpc.StreamingService service) {
     return new Builder(service);
   }
 
@@ -132,9 +123,9 @@ public class StreamingGrpcService extends StreamingService implements Service {
   public static class Builder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
-    private final StreamingService instance;
+    private final examples.grpc.StreamingService instance;
 
-    private Builder(StreamingService instance) {
+    private Builder(examples.grpc.StreamingService instance) {
       this.instance = instance;
     }
 
@@ -160,11 +151,11 @@ public class StreamingGrpcService extends StreamingService implements Service {
 
   private static class RequestHandler implements Service {
 
-    private final StreamingService instance;
+    private final examples.grpc.StreamingService instance;
     private final List<ServiceMethod<?, ?>> serviceMethods;
     private final Map<String, Handler<GrpcServerRequest<?, ?>>> handlers;
 
-    public RequestHandler(StreamingService instance, List<ServiceMethod<?, ?>> serviceMethods) {
+    public RequestHandler(examples.grpc.StreamingService instance, List<ServiceMethod<?, ?>> serviceMethods) {
       Map<String, Handler<GrpcServerRequest<?, ?>>> handlers = new HashMap<>();
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
         Handler<GrpcServerRequest<?, ?>> handler = resolveHandler(serviceMethod);

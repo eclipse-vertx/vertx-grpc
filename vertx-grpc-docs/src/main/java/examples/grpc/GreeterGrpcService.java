@@ -1,26 +1,17 @@
 package examples.grpc;
 
-import io.vertx.core.Future;
-import io.vertx.core.Promise;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.streams.ReadStream;
-import io.vertx.core.streams.WriteStream;
-import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.MethodCardinality;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.server.GrpcServerRequest;
-import io.vertx.grpc.server.GrpcServer;
-import io.vertx.grpc.server.ServiceContainer;
 import io.vertx.grpc.server.Service;
-import io.vertx.grpc.server.StatusException;
 
 import com.google.protobuf.Descriptors;
 
-import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +25,7 @@ import java.util.HashMap;
  *   <li>SayHello</li>
  * </ul>
  */
-public class GreeterGrpcService extends GreeterService implements Service {
+public class GreeterGrpcService extends examples.grpc.GreeterService implements Service {
 
   /**
    * Greeter service name.
@@ -44,7 +35,7 @@ public class GreeterGrpcService extends GreeterService implements Service {
   /**
    * Greeter service descriptor.
    */
-  public static final Descriptors.ServiceDescriptor SERVICE_DESCRIPTOR = Docs.getDescriptor().findServiceByName("Greeter");
+  public static final Descriptors.ServiceDescriptor SERVICE_DESCRIPTOR = examples.grpc.Docs.getDescriptor().findServiceByName("Greeter");
 
   @Override
   public ServiceName name() {
@@ -59,7 +50,7 @@ public class GreeterGrpcService extends GreeterService implements Service {
   /**
    * @return a service binding all methods of the given {@code service}
    */
-  public static Service of(GreeterService service) {
+  public static Service of(examples.grpc.GreeterService service) {
     return builder(service).bind(all()).build();
   }
 
@@ -108,7 +99,7 @@ public class GreeterGrpcService extends GreeterService implements Service {
   /**
    * @return a free form builder that gives the opportunity to bind only certain methods of a service
    */
-  public static Builder builder(GreeterService service) {
+  public static Builder builder(examples.grpc.GreeterService service) {
     return new Builder(service);
   }
 
@@ -118,9 +109,9 @@ public class GreeterGrpcService extends GreeterService implements Service {
   public static class Builder {
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
-    private final GreeterService instance;
+    private final examples.grpc.GreeterService instance;
 
-    private Builder(GreeterService instance) {
+    private Builder(examples.grpc.GreeterService instance) {
       this.instance = instance;
     }
 
@@ -146,11 +137,11 @@ public class GreeterGrpcService extends GreeterService implements Service {
 
   private static class RequestHandler implements Service {
 
-    private final GreeterService instance;
+    private final examples.grpc.GreeterService instance;
     private final List<ServiceMethod<?, ?>> serviceMethods;
     private final Map<String, Handler<GrpcServerRequest<?, ?>>> handlers;
 
-    public RequestHandler(GreeterService instance, List<ServiceMethod<?, ?>> serviceMethods) {
+    public RequestHandler(examples.grpc.GreeterService instance, List<ServiceMethod<?, ?>> serviceMethods) {
       Map<String, Handler<GrpcServerRequest<?, ?>>> handlers = new HashMap<>();
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
         Handler<GrpcServerRequest<?, ?>> handler = resolveHandler(serviceMethod);
