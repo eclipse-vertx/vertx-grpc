@@ -386,7 +386,7 @@ public class EventBusGrpcInterceptorTest extends EventBusGrpcTestBase {
   }
 
   @Test
-  public void testClientCancel(TestContext should) throws Exception {
+  public void testClientCancel(TestContext should) {
     AtomicInteger sequence = new AtomicInteger();
     vertx.eventBus().addOutboundInterceptor(new TransportInterceptor() {
       @Override
@@ -402,13 +402,16 @@ public class EventBusGrpcInterceptorTest extends EventBusGrpcTestBase {
       });
       request.response().write(Reply.getDefaultInstance());
     });
-    GrpcClientRequest<Request, Reply> request = client.request(PIPE_CLIENT).await();
-    request.response().onComplete(should.asyncAssertSuccess(response -> {
-      response.handler(reply -> {
-        request.cancel();
-      });
-    }));
-    request.write(Request.getDefaultInstance()).await();
+    client.request(PIPE_CLIENT).compose(request -> {
+      request
+        .response()
+        .onComplete(should.asyncAssertSuccess(response -> {
+          response.handler(reply -> {
+            request.cancel();
+          });
+        }));
+      return request.write(Request.getDefaultInstance());
+    }).await();
     async.awaitSuccess(20_000);
     should.assertEquals(1, sequence.get());
   }
