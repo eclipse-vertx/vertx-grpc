@@ -36,6 +36,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
 
   private final GrpcClientInvoker invoker;
   private final boolean scheduleDeadline;
+  private final long maxMessagSize;
   private final GrpcMessageDecoder<Resp> messageDecoder;
   private GrpcStream stream;
   private ServiceName serviceName;
@@ -54,7 +55,16 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
                                boolean scheduleDeadline,
                                GrpcMessageEncoder<Req> messageEncoder,
                                GrpcMessageDecoder<Resp> messageDecoder) {
-    super(context, messageEncoder);
+    this(context, invoker, scheduleDeadline, messageEncoder, messageDecoder, Long.MAX_VALUE);
+  }
+
+  public GrpcClientRequestImpl(ContextInternal context,
+                               GrpcClientInvoker invoker,
+                               boolean scheduleDeadline,
+                               GrpcMessageEncoder<Req> messageEncoder,
+                               GrpcMessageDecoder<Resp> messageDecoder,
+                               long maxMessagSize) {
+    super(context, messageEncoder, maxMessagSize);
 
     Promise<GrpcClientResponse<Req, Resp>> promise = context().promise();
 
@@ -62,6 +72,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     this.scheduleDeadline = scheduleDeadline;
     this.timeout = 0L;
     this.timeoutUnit = null;
+    this.maxMessagSize = maxMessagSize;
     this.responsePromise = promise;
     this.messageDecoder = messageDecoder;
   }
@@ -310,7 +321,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
     WireFormat format = frame.format();
 
     response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this,
-      stream, format, frame.encoding(), messageDecoder);
+      stream, format, frame.encoding(), maxMessagSize, messageDecoder);
 
     response.invalidMessageHandler(invalidMsg -> {
       cancel();
@@ -332,7 +343,7 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
   private void handleTrailersFrame(GrpcTrailersFrame frame) {
     if (response == null) {
       response = new GrpcClientResponseImpl<>(context(), GrpcClientRequestImpl.this, stream, WireFormat.PROTOBUF,
-        null, messageDecoder);
+        null, maxMessagSize, messageDecoder);
       response.handleHeaders(frame.metadata());
       response.handleTrailers(frame.status(), frame.statusMessage(), HttpHeaders.headers());
       responsePromise.tryComplete(response);
