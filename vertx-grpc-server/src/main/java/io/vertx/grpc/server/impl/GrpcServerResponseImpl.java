@@ -48,8 +48,9 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   public GrpcServerResponseImpl(ContextInternal context,
                                 GrpcServerRequestImpl<Req, Resp> request,
                                 GrpcOutboundStream outbound,
-                                GrpcMessageEncoder<Resp> encoder) {
-    super(context, encoder);
+                                GrpcMessageEncoder<Resp> encoder,
+                                long maxMessageSize) {
+    super(context, encoder, maxMessageSize);
     this.outbound = outbound;
     this.request = request;
   }

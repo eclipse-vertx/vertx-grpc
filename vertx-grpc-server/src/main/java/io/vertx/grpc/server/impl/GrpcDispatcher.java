@@ -18,6 +18,7 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
   private final Handler<GrpcServerRequest<Req, Resp>> handler;
   private final boolean propagateDeadline;
   private final boolean scheduleDeadline;
+  private final long maxMessageSize;
   private GrpcServerRequestImpl<Req, Resp> grpcRequest;
   private GrpcServerResponseImpl<Req, Resp> grpcResponse;
 
@@ -27,12 +28,23 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
                         Handler<GrpcServerRequest<Req, Resp>> handler,
                         boolean propagateDeadline,
                         boolean scheduleDeadline) {
+    this(context, methodCall, httpConnection, handler, propagateDeadline, scheduleDeadline, Long.MAX_VALUE);
+  }
+
+  public GrpcDispatcher(ContextInternal context,
+                        GrpcMethodCall<Req, Resp> methodCall,
+                        HttpConnection httpConnection,
+                        Handler<GrpcServerRequest<Req, Resp>> handler,
+                        boolean propagateDeadline,
+                        boolean scheduleDeadline,
+                        long maxMessageSize) {
     this.methodCall = methodCall;
     this.context = context;
     this.httpConnection = httpConnection;
     this.handler = handler;
     this.propagateDeadline = propagateDeadline;
     this.scheduleDeadline = scheduleDeadline;
+    this.maxMessageSize = maxMessageSize;
   }
 
   @Override
@@ -60,6 +72,7 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
       context,
       frame.metadata(),
       format,
+      maxMessageSize,
       methodCall.stream(),
       frame.timeout(),
       frame.encoding(),
@@ -76,7 +89,8 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
       context,
       grpcRequest,
       methodCall.stream(),
-      methodCall.messageEncoder());
+      methodCall.messageEncoder(),
+      maxMessageSize);
     grpcResponse.format(format);
     long timeout = grpcRequest.timeout();
     if (propagateDeadline && timeout > 0L) {

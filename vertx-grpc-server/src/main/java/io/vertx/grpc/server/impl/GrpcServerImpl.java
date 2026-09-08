@@ -328,7 +328,8 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
             methodCall.connection,
             invoker::handle,
             options.getDeadlinePropagation(),
-            options.getScheduleDeadlineAutomatically());
+            options.getScheduleDeadlineAutomatically(),
+            options.getMaxMessageSize());
           GrpcStream stream = methodCall.stream();
           stream.handler(dispatcher);
           stream.exceptionHandler(dispatcher::handleException);

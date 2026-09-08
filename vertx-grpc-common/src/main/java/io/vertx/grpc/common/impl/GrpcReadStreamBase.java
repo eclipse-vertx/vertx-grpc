@@ -44,6 +44,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   protected final ContextInternal context;
   private final String encoding;
   private final WireFormat format;
+  private final long maxMessageSize;
   private Handler<Throwable> exceptionHandler;
   private Handler<GrpcMessage> messageHandler;
   private Handler<Void> endHandler;
@@ -56,11 +57,13 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   protected GrpcReadStreamBase(Context context,
                                String encoding,
                                WireFormat format,
+                               long maxMessageSize,
                                GrpcMessageDecoder<T> messageDecoder) {
     ContextInternal ctx = (ContextInternal) context;
     this.context = ctx;
     this.encoding = encoding;
     this.format = format;
+    this.maxMessageSize = maxMessageSize;
     this.messageDecoder = messageDecoder;
     this.end = ctx.promise();
   }
@@ -71,7 +74,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
         // Nothing to do
         break;
       case "gzip": {
-        msg = GrpcMessage.message("identity", msg.format(), Utils.GZIP_DECODER.apply(msg.payload()));
+        msg = GrpcMessage.message("identity", msg.format(), Utils.GZIP_DECODER.apply( maxMessageSize ,msg.payload()));
         break;
       }
       default:
