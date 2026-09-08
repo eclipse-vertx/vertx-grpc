@@ -40,6 +40,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   public GrpcServerRequestImpl(ContextInternal context,
                                MultiMap headers,
                                WireFormat format,
+                               long maxMessageSize,
                                GrpcInboundStream inbound,
                                Duration timeout,
                                String encoding,
@@ -47,7 +48,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                ServiceName serviceName,
                                String fullMethodName,
                                String methodName) {
-    super(context, encoding, format, messageDecoder);
+    super(context, encoding, format, maxMessageSize, messageDecoder);
 
     this.inbound = inbound;
     this.headers = headers;

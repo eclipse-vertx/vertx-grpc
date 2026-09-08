@@ -40,11 +40,13 @@ public class GrpcClientResponseImpl<Req, Resp> extends GrpcReadStreamBase<GrpcCl
                                 GrpcInboundStream inbound,
                                 WireFormat format,
                                 String encoding,
+                                long maxMessageSize,
                                 GrpcMessageDecoder<Resp> messageDecoder) {
     super(
       context,
       encoding,
       format,
+      maxMessageSize,
       messageDecoder);
     this.request = request;
     this.inbound = inbound;
