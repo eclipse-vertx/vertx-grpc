@@ -41,6 +41,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   private final GrpcServerRequestImpl<Req, Resp> request;
   private final HttpServerResponse httpResponse;
   private final GrpcMessageEncoder<Resp> encoder;
+  private final long maxMessageSize;
   private String encoding;
   private GrpcStatus status = GrpcStatus.OK;
   private String statusMessage;
@@ -50,10 +51,11 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
   private MultiMap headers, trailers;
   private Set<String> acceptedEncodings;
 
-  public GrpcServerResponseImpl(GrpcServerRequestImpl<Req, Resp> request, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder) {
+  public GrpcServerResponseImpl(GrpcServerRequestImpl<Req, Resp> request, HttpServerResponse httpResponse, GrpcMessageEncoder<Resp> encoder, long maxMessageSize) {
     this.request = request;
     this.httpResponse = httpResponse;
     this.encoder = encoder;
+    this.maxMessageSize = maxMessageSize;
   }
 
   void requestEnded() {
@@ -243,7 +245,7 @@ public class GrpcServerResponseImpl<Req, Resp> implements GrpcServerResponse<Req
             }
             Buffer decoded;
             try {
-              decoded = GrpcMessageDecoder.GZIP.decode(message);
+              decoded = GrpcMessageDecoder.decodeGzip(message, maxMessageSize);
             } catch (CodecException e) {
               return Future.failedFuture(e);
             }

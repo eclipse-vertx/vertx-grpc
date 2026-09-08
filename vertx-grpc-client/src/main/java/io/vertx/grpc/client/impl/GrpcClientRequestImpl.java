@@ -35,6 +35,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
 
   private final HttpClientRequest httpRequest;
   private final GrpcMessageEncoder<Req> messageEncoder;
+  private final long maxMessageSize;
   private ServiceName serviceName;
   private String methodName;
   private String encoding = null;
@@ -48,6 +49,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
 
     this.httpRequest = httpRequest;
     this.messageEncoder = messageEncoder;
+    this.maxMessageSize = maxMessageSize;
     this.response = httpRequest.response().map(httpResponse -> {
       GrpcClientResponseImpl<Req, Resp> grpcResponse = new GrpcClientResponseImpl<>(this, httpResponse, maxMessageSize, messageDecoder);
       grpcResponse.init();
@@ -172,7 +174,7 @@ public class GrpcClientRequestImpl<Req, Resp> implements GrpcClientRequest<Req, 
             }
             Buffer decoded;
             try {
-              decoded = GrpcMessageDecoder.GZIP.decode(message);
+              decoded = GrpcMessageDecoder.decodeGzip(message, maxMessageSize);
             } catch (CodecException e) {
               return Future.failedFuture(e);
             }

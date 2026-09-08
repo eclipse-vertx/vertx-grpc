@@ -101,7 +101,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
         // Nothing to do
         break;
       case "gzip": {
-        msg = GrpcMessage.message("identity", GrpcMessageDecoder.GZIP.decode(msg));
+        msg = GrpcMessage.message("identity", GrpcMessageDecoder.decodeGzip(msg, maxMessageSize));
         break;
       }
       default:

@@ -10,7 +10,7 @@
  */
 package io.vertx.grpc.client;
 
-import io.grpc.examples.helloworld.GreeterGrpc;
+import examples.GreeterGrpc;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
@@ -22,12 +22,12 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.GrpcTestUtils;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -144,6 +144,24 @@ public class ClientMessageEncodingTest extends ClientTestBase {
   public void testDecodeError(TestContext should) throws Exception {
     Async done = should.async();
     testDecode(should, done, Buffer.buffer("Hello World"), callResponse -> {
+      callResponse.handler(msg -> {
+        should.fail();
+      });
+    }, req -> {
+      req.response().exceptionHandler(err -> {
+        if (err instanceof StreamResetException) {
+          StreamResetException reset = (StreamResetException) err;
+          should.assertEquals(GrpcError.CANCELLED.http2ResetCode, reset.getCode());
+          done.complete();
+        }
+      });
+    });
+  }
+
+  @Test
+  public void testGzipDecodeExceedsMaxAllocation(TestContext should) throws Exception {
+    Async done = should.async();
+    testDecode(should, done, Buffer.buffer(GrpcTestUtils.gzipBomb((int)(GrpcClientOptions.DEFAULT_MAX_MESSAGE_SIZE + 1))), callResponse -> {
       callResponse.handler(msg -> {
         should.fail();
       });
