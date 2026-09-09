@@ -8,9 +8,10 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.impl.GrpcInvocation;
-import io.vertx.grpc.server.impl.MountPoint;
 import io.vertx.grpc.server.impl.HttpGrpcOutboundStream;
-import io.vertx.grpc.transcoding.*;
+import io.vertx.grpc.server.impl.MountPoint;
+import io.vertx.grpc.transcoding.MethodTranscodingOptions;
+import io.vertx.grpc.transcoding.TranscodingServiceMethod;
 import io.vertx.grpc.transcoding.impl.config.HttpTemplate;
 import io.vertx.grpc.transcoding.impl.config.HttpVariableBinding;
 
@@ -77,9 +78,11 @@ public class TranscodingServiceMethodImpl<I, O> implements TranscodingServiceMet
       }
       sb.append('/').append(a);
     }
-    String verb = tmpl.getVerb();
-    if (verb != null && !verb.isEmpty()) {
-      sb.append(':').append(verb);
+    if (tmpl.getVariables().isEmpty()) {
+      String verb = tmpl.getVerb();
+      if (verb != null && !verb.isEmpty()) {
+        sb.append(':').append(verb);
+      }
     }
     paths.add(sb.toString());
     List<MethodTranscodingOptions> extra = options.getAdditionalBindings();
