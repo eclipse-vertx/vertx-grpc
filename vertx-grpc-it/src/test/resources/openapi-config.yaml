@@ -1,0 +1,27 @@
+openapi: 3.0.0
+info:
+  title: Custom Greeting API
+  version: 2.0.0
+  description: A custom greeting service with full configuration
+  contact:
+    name: Test Support
+    email: test@example.com
+servers:
+  - url: https://api.example.com
+    description: Production server
+  - url: https://staging.example.com
+    description: Staging server
+security:
+  - bearerAuth: []
+tags:
+  - name: Greeter
+    description: Greeting operations for testing
+externalDocs:
+  description: External documentation
+  url: https://docs.example.com
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
