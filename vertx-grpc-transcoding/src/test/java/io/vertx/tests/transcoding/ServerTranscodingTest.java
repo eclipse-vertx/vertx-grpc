@@ -22,7 +22,10 @@ import io.vertx.core.http.*;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.common.*;
+import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -35,7 +38,8 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * A test class for grpc transcoding.
@@ -67,6 +71,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_VERB = new MethodTranscodingOptions().setPath("/foo:run");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_VERB_WITH_BODY = new MethodTranscodingOptions().setPath("/foo:take").setBody("request");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_PARAM = new MethodTranscodingOptions().setPath("/hello/{payload}");
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_PARAM_AND_VERB = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/task/{payload}:run").setBody("*");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_CUSTOM_METHOD = new MethodTranscodingOptions().setHttpMethod(HttpMethod.valueOf("ACL")).setPath("/hello").setBody("*");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_BODY = new MethodTranscodingOptions().setPath("/body").setBody("request");
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_RESPONSE_BODY = new MethodTranscodingOptions().setPath("/response").setResponseBody("response").setBody("*");
@@ -78,6 +83,8 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static final TranscodingServiceMethod<EchoRequestBody, EchoResponse> UNARY_CALL_WITH_VERB_WITH_BODY = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithVerbAndBody", ECHO_RESPONSE_ENCODER, ECHO_REQUEST_BODY_DECODER, UNARY_TRANSCODING_WITH_VERB_WITH_BODY);
   public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_PARAM = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithParam", ECHO_RESPONSE_ENCODER,
     ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_PARAM);
+  public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_PARAM_AND_VERB = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithParamAndVerb", ECHO_RESPONSE_ENCODER,
+    ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_PARAM_AND_VERB);
   public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_CUSTOM_METHOD = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithCustomMethod",
     ECHO_RESPONSE_ENCODER,
     ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_CUSTOM_METHOD);
@@ -163,8 +170,18 @@ public class ServerTranscodingTest extends GrpcTestBase {
         }
       });
     });
-    grpcServer.callHandler(UNARY_CALL_WITH_CUSTOM_METHOD, request -> {
+    grpcServer.callHandler(UNARY_CALL_WITH_PARAM_AND_VERB, request -> {
       request.handler(requestMsg -> {
+        GrpcServerResponse<EchoRequest, EchoResponse> response = request.response();
+        copyHeaders(request.headers(), response.headers());
+        copyTrailers(request.headers(), response.trailers());
+        EchoResponse responseMsg = EchoResponse.newBuilder()
+          .setPayload(requestMsg.getPayload())
+          .build();
+        response.end(responseMsg);
+      });
+    });
+    grpcServer.callHandler(UNARY_CALL_WITH_CUSTOM_METHOD, request -> {      request.handler(requestMsg -> {
         GrpcServerResponse<EchoRequest, EchoResponse> response = request.response();
         copyHeaders(request.headers(), response.headers());
         copyTrailers(request.headers(), response.trailers());
@@ -348,8 +365,23 @@ public class ServerTranscodingTest extends GrpcTestBase {
   }
 
   @Test
-  public void testPayloadWithBody(TestContext should) {
+  public void testPathParamWithVerb(TestContext should) {
     String payload = "foobar";
+    httpClient.request(HttpMethod.POST, "/task/" + payload + ":run").compose(req -> {
+      String body = encode(EchoRequest.newBuilder().setPayload(payload).build()).toString();
+      req.headers().addAll(HEADERS);
+      return req.send(body).compose(response -> response.body().map(response));
+    }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
+      assertEquals(200, response.statusCode());
+      MultiMap headers = response.headers();
+      assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonObject body = decodeBody(response.body().result());
+      assertEquals(payload, body.getString("payload"));
+    })));
+  }
+
+  @Test
+  public void testPayloadWithBody(TestContext should) {    String payload = "foobar";
     httpClient.request(HttpMethod.GET, "/hello").compose(req -> {
       String body = encode(EchoRequest.newBuilder().setPayload("foobar").build()).toString();
       req.headers().addAll(HEADERS);
