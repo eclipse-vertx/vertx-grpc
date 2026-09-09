@@ -70,7 +70,7 @@ public class InteropITest {
     if (GRPC_WEB_IMAGE != null) {
       image = new GenericContainer<>(DockerImageName.parse(GRPC_WEB_IMAGE));
     } else {
-      File dockerfile = new File(repoFile, "net/grpc/gateway/docker/prereqs/Dockerfile");
+      File dockerfile = new File("src/test/docker/grpc-web-interop/Dockerfile");
       assertTrue("Dockerfile doesn't exists or isn't a normal file", dockerfile.isFile());
       image = new GenericContainer<>(new ImageFromDockerfile()
         .withFileFromFile(".", repoFile)

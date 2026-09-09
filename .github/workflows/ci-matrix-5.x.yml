@@ -48,7 +48,7 @@ jobs:
       # (moby/moby#33974). Testcontainers can't drive BuildKit itself
       # (testcontainers/testcontainers-java#2857), so we prebuild and pass the tag.
       - name: Build gRPC-Web interop image
-        run: DOCKER_BUILDKIT=1 docker build -t grpcweb-interop:ci -f _grpc-web/net/grpc/gateway/docker/prereqs/Dockerfile _grpc-web
+        run: DOCKER_BUILDKIT=1 docker build -t grpcweb-interop:ci -f vertx-grpc-server/src/test/docker/grpc-web-interop/Dockerfile _grpc-web
       - name: Run tests
         run: mvn -s .github/maven-ci-settings.xml -q clean verify -B -pl :vertx-grpc-server -am -Dgrpc-web.repo.path="$GITHUB_WORKSPACE/_grpc-web" -Dgrpc-web.image=grpcweb-interop:ci
   Deploy:
