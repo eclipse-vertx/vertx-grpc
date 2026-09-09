@@ -368,7 +368,7 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public void testPathParamWithVerb(TestContext should) {
     String payload = "foobar";
     httpClient.request(HttpMethod.POST, "/task/" + payload + ":run").compose(req -> {
-      String body = encode(EchoRequest.newBuilder().setPayload(payload).build()).toString();
+      String body = encode(EchoRequest.newBuilder().build()).toString();
       req.headers().addAll(HEADERS);
       return req.send(body).compose(response -> response.body().map(response));
     }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
