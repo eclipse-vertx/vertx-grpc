@@ -241,12 +241,8 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
       } else {
         isServiceProxy = false;
         String wireFormatName = message.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT);
-        if (ProtobufWireFormat.NAME.equals(wireFormatName)) {
-          wireFormat = WireFormat.PROTOBUF;
-        } else if (JsonWireFormat.NAME.equals(wireFormatName)) {
-          wireFormat = WireFormat.JSON;
-        } else {
-          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Unknown wire format: " + wireFormatName);
+        if (wireFormatName == null || (wireFormat = Utils.fromCanonicalName(wireFormatName)) == null) {
+          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid wire format: " + wireFormatName);
           return;
         }
         String clientStreamIdHeader = message.headers().get(EventBusHeaders.STREAM_ID);

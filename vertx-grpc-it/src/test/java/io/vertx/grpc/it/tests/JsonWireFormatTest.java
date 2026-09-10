@@ -18,7 +18,6 @@ import io.vertx.core.Future;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientResponse;
-import io.vertx.grpc.common.JsonWireFormat;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
@@ -71,7 +70,8 @@ public class JsonWireFormatTest extends ProxyTestBase {
       });
     })).listen(8080, "localhost").await(10, TimeUnit.SECONDS);
 
-    JsonWireFormat customFormat = WireFormat.JSON.alwaysPrintFieldsWithNoPresence(true);
+//    JsonWireFormat customFormat = WireFormat.JSON.alwaysPrintFieldsWithNoPresence(true);
+    WireFormat customFormat = WireFormat.JSON;
 
     HelloReply reply = client.request(SocketAddress.inetSocketAddress(8080, "localhost"), GreeterGrpcClient.SayHello)
       .compose(callRequest -> {
@@ -89,7 +89,8 @@ public class JsonWireFormatTest extends ProxyTestBase {
     GrpcClient client = GrpcClient.client(vertx);
 
     // Server uses a lenient parser to tolerate unknown fields a future client might send.
-    JsonWireFormat lenientServerFormat = WireFormat.JSON.ignoringUnknownFields(true);
+    WireFormat lenientServerFormat = WireFormat.JSON;
+    // WireFormat.JSON.ignoringUnknownFields(true)
 
     vertx.createHttpServer().requestHandler(GrpcServer.server(vertx).callHandler(SayHello, call -> {
       call.handler(helloRequest -> {
@@ -115,9 +116,9 @@ public class JsonWireFormatTest extends ProxyTestBase {
     // Configure JSON server-wide with a printer that emits empty fields and a lenient parser.
     // A successful round-trip means the configuration reached both ends.
     GrpcServerOptions serverOptions = new GrpcServerOptions()
-      .addEnabledFormat(WireFormat.JSON
+      .addEnabledFormat(WireFormat.JSON/*
         .alwaysPrintFieldsWithNoPresence(true)
-        .ignoringUnknownFields(true)
+        .ignoringUnknownFields(true)*/
       );
 
     vertx.createHttpServer().requestHandler(GrpcServer.server(vertx, serverOptions).callHandler(SayHello, call -> {

@@ -10,36 +10,24 @@
  */
 package io.vertx.grpc.common;
 
-import io.vertx.codegen.annotations.DataObject;
-
 /**
  * The serialization format of gRPC messages on the wire.
  * <p>
- * Concrete instances are produced via the {@link ProtobufWireFormat} and {@link JsonWireFormat}
- * subtypes. Instances are compared by {@link #name()}, so subtypes carrying additional
- * configuration (e.g. a customized {@link JsonWireFormat}) match the canonical constants
+ * Concrete instances are produced via the {@link ProtobufWireFormat} and {@link JsonReaderConfig}
+ * subtypes. Instances are compared by {@link #canonicalName()}, so subtypes carrying additional
+ * configuration (e.g. a customized {@link JsonReaderConfig}) match the canonical constants
  * for dispatch purposes while still threading their configuration through encode/decode.
  */
-@DataObject
-public interface WireFormat {
+public enum WireFormat {
 
   /**
    * Canonical Protobuf wire format.
    */
-  ProtobufWireFormat PROTOBUF = new ProtobufWireFormat();
+  PROTOBUF(),
 
   /**
    * Canonical JSON wire format.
    */
-  JsonWireFormat JSON = JsonWireFormat.of(0);
+  JSON();
 
-  /**
-   * @return the canonical name of this wire format, e.g. {@code "proto"} or {@code "json"}
-   */
-  String name();
-
-  /**
-   * @return the media type carrying this wire format, e.g. {@code "application/grpc"} or {@code "application/grpc+json"}
-   */
-  String mediaType();
 }

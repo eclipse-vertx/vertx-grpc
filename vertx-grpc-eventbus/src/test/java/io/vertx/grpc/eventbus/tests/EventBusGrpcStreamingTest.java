@@ -19,6 +19,7 @@ import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
+import io.vertx.grpc.eventbus.impl.Utils;
 import io.vertx.grpc.eventbus.transport.v1alpha.Message;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -640,8 +641,8 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     // Open the stream by hand, omitting the advertisement a real client would send.
     DeliveryOptions handshake = new DeliveryOptions()
       .addHeader(EventBusHeaders.STREAM_METHOD_NAME, "Sink")
-      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, WireFormat.PROTOBUF.name())
-      .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, WireFormat.PROTOBUF.name())
+      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, Utils.PROTOBUF_CANONICAL_NAME)
+      .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, Utils.PROTOBUF_CANONICAL_NAME)
       .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, "grpc.eb.client.silent")
       .addHeader(EventBusHeaders.STREAM_ID, "1");
     vertx.eventBus().consumer("grpc.eb.client.silent", msg -> {

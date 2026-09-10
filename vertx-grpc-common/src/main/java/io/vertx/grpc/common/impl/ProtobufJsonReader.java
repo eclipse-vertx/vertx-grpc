@@ -5,14 +5,14 @@ import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.JsonWireFormat;
+import io.vertx.grpc.common.JsonReaderConfig;
 
 import java.nio.charset.StandardCharsets;
 
 /**
  * Reads JSON {@link Buffer} payloads into a protobuf {@link Message.Builder}.
  * <p>
- * Use {@link #create(JsonWireFormat)} to get an instance, backed by
+ * Use {@link #create(JsonReaderConfig)} to get an instance, backed by
  * {@code com.google.protobuf.util.JsonFormat}.
  */
 public final class ProtobufJsonReader {
@@ -20,13 +20,13 @@ public final class ProtobufJsonReader {
   /**
    * @return a reader configured from {@code format}
    */
-  public static ProtobufJsonReader create(JsonWireFormat format) {
+  public static ProtobufJsonReader create(JsonReaderConfig format) {
     return new ProtobufJsonReader(format);
   }
 
   private final JsonFormat.Parser parser;
 
-  private ProtobufJsonReader(JsonWireFormat format) {
+  private ProtobufJsonReader(JsonReaderConfig format) {
     JsonFormat.Parser parser = JsonFormat.parser();
     if (format.ignoringUnknownFields()) {
       parser = parser.ignoringUnknownFields();

@@ -15,7 +15,7 @@ public final class EventBusHeaders {
   public static final String SERVICE_PROXY_ACTION = "action";
 
   /**
-   * The endpoint wire format, carrying the {@link io.vertx.grpc.common.WireFormat#name()} value, e.g. {@code "proto"} or {@code "json"}, used
+   * The endpoint wire format, carrying the {@link io.vertx.grpc.common.WireFormat#canonicalName()} value, e.g. {@code "proto"} or {@code "json"}, used
    * for endpoint messaging such as ping.
    */
   public static final String ENDPOINT_WIRE_FORMAT = "grpc-endpoint-wire-format";
@@ -37,7 +37,7 @@ public final class EventBusHeaders {
   public static final String STREAM_METHOD_NAME = "grpc-stream-method-name";
 
   /**
-   * The wire format, carrying the {@link io.vertx.grpc.common.WireFormat#name()} value, e.g. {@code "proto"} or {@code "json"}.
+   * The wire format, carrying the {@link io.vertx.grpc.common.WireFormat#canonicalName()} value, e.g. {@code "proto"} or {@code "json"}.
    */
   public static final String STREAM_WIRE_FORMAT = "grpc-stream-wire-format";
 

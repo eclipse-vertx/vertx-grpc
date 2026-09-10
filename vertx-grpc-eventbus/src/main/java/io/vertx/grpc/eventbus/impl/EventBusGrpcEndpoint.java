@@ -20,6 +20,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static io.vertx.grpc.eventbus.impl.Utils.toCanonicalName;
+
 abstract class EventBusGrpcEndpoint {
 
   private final ContextInternal producerContext;
@@ -137,13 +139,13 @@ abstract class EventBusGrpcEndpoint {
       for (RemoteEndpoint remoteEndpoint : toPing) {
         TransportFrame frame = TransportFrame.newBuilder().setPing(Ping.newBuilder().setData(data)).build();
         DeliveryOptions options = new DeliveryOptions()
-          .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, remoteEndpoint.format.name())
+          .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, toCanonicalName(remoteEndpoint.format))
           .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
-        switch (remoteEndpoint.format.name()) {
-          case "json":
+        switch (remoteEndpoint.format) {
+          case JSON:
             options.setCodecName(EventBusGrpcJsonMessageCodec.CODEC_NAME);
             break;
-          case "proto":
+          case PROTOBUF:
             options.setCodecName(EventBusGrpcProtobufMessageCodec.CODEC_NAME);
             break;
           default:
@@ -201,7 +203,7 @@ abstract class EventBusGrpcEndpoint {
       remoteEndpoint.lastSeenTimestamp = System.currentTimeMillis();
       if (!ping.getAck()) {
         DeliveryOptions options = new DeliveryOptions()
-          .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, wireFormat.name())
+          .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, toCanonicalName(wireFormat))
           .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
         Ping.Builder ack = Ping.newBuilder().setData(ping.getData()).setAck(true);
         remoteEndpoint.sendTransportFrame(TransportFrame.newBuilder().setPing(ack).build(), options);
@@ -273,11 +275,11 @@ abstract class EventBusGrpcEndpoint {
     }
 
     Future<Void> sendTransportFrame(TransportFrame frame, DeliveryOptions options) {
-      switch (format.name()) {
-        case "json":
+      switch (format) {
+        case JSON:
           options.setCodecName(EventBusGrpcJsonMessageCodec.CODEC_NAME);
           break;
-        case "proto":
+        case PROTOBUF:
           options.setCodecName(EventBusGrpcProtobufMessageCodec.CODEC_NAME);
           break;
         default:
@@ -340,12 +342,12 @@ abstract class EventBusGrpcEndpoint {
         if (options == null) {
           options = new DeliveryOptions();
         }
-        options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, format().name());
-        switch (remote.format.name()) {
-          case "json":
+        options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, toCanonicalName(format()));
+        switch (remote.format) {
+          case JSON:
             options.setCodecName(EventBusGrpcJsonMessageCodec.CODEC_NAME);
             break;
-          case "proto":
+          case PROTOBUF:
             options.setCodecName(EventBusGrpcProtobufMessageCodec.CODEC_NAME);
             break;
           default:

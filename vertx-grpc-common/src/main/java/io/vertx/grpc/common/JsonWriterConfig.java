@@ -1,76 +1,48 @@
 package io.vertx.grpc.common;
 
 import io.vertx.codegen.annotations.DataObject;
-import io.vertx.core.json.JsonObject;
 
 /**
- * JSON {@link WireFormat}. Carries the protobuf-aware writer/reader flags that the JSON
- * encoder and decoder consult.
+ * Carries the protobuf-aware writer flags that the JSON encoder consults.
  * <p>
  * Instances are immutable. Each flag setter returns a new instance with that flag updated:
  * <pre>
- *   JsonWireFormat verbose = WireFormat.JSON
- *     .alwaysPrintFieldsWithNoPresence(true)
- *     .ignoringUnknownFields(true);
+ *   JsonWriterConfig verbose = JsonWriterConfig.DEFAULT
+ *     .alwaysPrintFieldsWithNoPresence(true);
  * </pre>
  */
 @DataObject
-public class JsonWireFormat implements WireFormat {
+public class JsonWriterConfig {
 
-  public static final String NAME = "json";
+  public static final JsonWriterConfig DEFAULT = new JsonWriterConfig();
 
-  private static final String MEDIA_TYPE = "application/grpc+json";
-  private static final JsonWireFormat[] CACHE = new JsonWireFormat[1 << Flag.values().length];
+  private static final JsonWriterConfig[] CACHE = new JsonWriterConfig[1 << Flag.values().length];
 
   private final byte flags;
 
-  public JsonWireFormat() {
+  private JsonWriterConfig() {
     this((byte) 0);
   }
 
-  private JsonWireFormat(byte flags) {
+  private JsonWriterConfig(byte flags) {
     this.flags = flags;
   }
 
-  public JsonWireFormat(JsonObject json) {
-    this(read(json));
-  }
-
-  static JsonWireFormat of(int flags) {
-    JsonWireFormat fmt = CACHE[flags];
+  static JsonWriterConfig of(int flags) {
+    JsonWriterConfig fmt = CACHE[flags];
     if (fmt == null) {
-      fmt = new JsonWireFormat((byte) flags);
+      fmt = new JsonWriterConfig((byte) flags);
       CACHE[flags] = fmt;
     }
     return fmt;
-  }
-
-  private static byte read(JsonObject json) {
-    int flags = 0;
-    for (Flag flag : Flag.values()) {
-      if (json.getBoolean(flag.key, false)) {
-        flags |= flag.mask;
-      }
-    }
-    return (byte) flags;
   }
 
   private boolean isSet(Flag flag) {
     return (flags & flag.mask) != 0;
   }
 
-  private JsonWireFormat with(Flag flag, boolean value) {
+  private JsonWriterConfig with(Flag flag, boolean value) {
     return of(value ? flags | flag.mask : flags & ~flag.mask);
-  }
-
-  @Override
-  public final String name() {
-    return NAME;
-  }
-
-  @Override
-  public String mediaType() {
-    return MEDIA_TYPE;
   }
 
   /**
@@ -83,7 +55,7 @@ public class JsonWireFormat implements WireFormat {
   /**
    * @return a copy of this format with {@code alwaysPrintFieldsWithNoPresence} set to {@code value}
    */
-  public JsonWireFormat alwaysPrintFieldsWithNoPresence(boolean value) {
+  public JsonWriterConfig alwaysPrintFieldsWithNoPresence(boolean value) {
     return with(Flag.ALWAYS_PRINT_FIELDS_WITH_NO_PRESENCE, value);
   }
 
@@ -97,7 +69,7 @@ public class JsonWireFormat implements WireFormat {
   /**
    * @return a copy of this format with {@code omittingInsignificantWhitespace} set to {@code value}
    */
-  public JsonWireFormat omittingInsignificantWhitespace(boolean value) {
+  public JsonWriterConfig omittingInsignificantWhitespace(boolean value) {
     return with(Flag.OMITTING_INSIGNIFICANT_WHITESPACE, value);
   }
 
@@ -111,7 +83,7 @@ public class JsonWireFormat implements WireFormat {
   /**
    * @return a copy of this format with {@code preservingProtoFieldNames} set to {@code value}
    */
-  public JsonWireFormat preservingProtoFieldNames(boolean value) {
+  public JsonWriterConfig preservingProtoFieldNames(boolean value) {
     return with(Flag.PRESERVING_PROTO_FIELD_NAMES, value);
   }
 
@@ -125,7 +97,7 @@ public class JsonWireFormat implements WireFormat {
   /**
    * @return a copy of this format with {@code printingEnumsAsInts} set to {@code value}
    */
-  public JsonWireFormat printingEnumsAsInts(boolean value) {
+  public JsonWriterConfig printingEnumsAsInts(boolean value) {
     return with(Flag.PRINTING_ENUMS_AS_INTS, value);
   }
 
@@ -139,51 +111,8 @@ public class JsonWireFormat implements WireFormat {
   /**
    * @return a copy of this format with {@code sortingMapKeys} set to {@code value}
    */
-  public JsonWireFormat sortingMapKeys(boolean value) {
+  public JsonWriterConfig sortingMapKeys(boolean value) {
     return with(Flag.SORTING_MAP_KEYS, value);
-  }
-
-  /**
-   * @return whether unknown fields encountered while parsing are ignored rather than rejected
-   */
-  public boolean ignoringUnknownFields() {
-    return isSet(Flag.IGNORING_UNKNOWN_FIELDS);
-  }
-
-  /**
-   * @return a copy of this format with {@code ignoringUnknownFields} set to {@code value}
-   */
-  public JsonWireFormat ignoringUnknownFields(boolean value) {
-    return with(Flag.IGNORING_UNKNOWN_FIELDS, value);
-  }
-
-  public JsonObject toJson() {
-    JsonObject json = new JsonObject();
-    for (Flag flag : Flag.values()) {
-      json.put(flag.key, isSet(flag));
-    }
-    return json;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (!(o instanceof WireFormat)) {
-      return false;
-    }
-    return NAME.equals(((WireFormat) o).name());
-  }
-
-  @Override
-  public int hashCode() {
-    return NAME.hashCode();
-  }
-
-  @Override
-  public String toString() {
-    return NAME;
   }
 
   private enum Flag {
@@ -191,8 +120,7 @@ public class JsonWireFormat implements WireFormat {
     OMITTING_INSIGNIFICANT_WHITESPACE("omittingInsignificantWhitespace"),
     PRESERVING_PROTO_FIELD_NAMES("preservingProtoFieldNames"),
     PRINTING_ENUMS_AS_INTS("printingEnumsAsInts"),
-    SORTING_MAP_KEYS("sortingMapKeys"),
-    IGNORING_UNKNOWN_FIELDS("ignoringUnknownFields");
+    SORTING_MAP_KEYS("sortingMapKeys");
 
     final String key;
     final int mask;

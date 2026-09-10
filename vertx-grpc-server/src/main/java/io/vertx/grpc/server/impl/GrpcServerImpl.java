@@ -22,9 +22,7 @@ import io.vertx.core.internal.http.HttpServerRequestInternal;
 import io.vertx.core.internal.logging.Logger;
 import io.vertx.core.internal.logging.LoggerFactory;
 import io.vertx.grpc.common.*;
-import io.vertx.grpc.common.impl.GrpcMessageDeframer;
-import io.vertx.grpc.common.impl.GrpcStream;
-import io.vertx.grpc.common.impl.Http2GrpcMessageDeframer;
+import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.server.*;
 
 import java.util.*;
@@ -153,7 +151,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       return 415;
     }
 
-    if (!options.isFormatEnabled(details.format)) {
+    if (!options.getEnabledFormats().contains(details.format)) {
       log.trace(details.format + " is not supported, sending error 415");
       return 415;
     }
@@ -345,13 +343,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     }
 
     protected GrpcStream createGrpcStream(GrpcProtocol protocol, HttpServerRequest httpRequest, WireFormat format) {
-      WireFormat configured = options.getEnabledFormat(format.name());
-      if (configured != null) {
-        format = configured;
-      }
-
       String encoding = httpRequest.headers().get(GrpcHeaderNames.GRPC_ENCODING);
-
       HttpGrpcOutboundStream outboundInvoker;
       switch (protocol) {
         case HTTP_2:
@@ -388,7 +380,15 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       if (stream == null) {
         return null;
       } else {
-        return new HttpGrpcMethodCall<>(context, connection, path, stream, messageDecoder, messageEncoder);
+        GrpcMessageDecoder<Req> md = messageDecoder;
+        if (md instanceof JsonGrpcMessageDecoder) {
+          md = ((JsonGrpcMessageDecoder<Req>)md).configure(options.getJsonReaderConfig());
+        }
+        GrpcMessageEncoder<Resp> me = messageEncoder;
+        if (me instanceof JsonGrpcMessageEncoder) {
+          me = ((JsonGrpcMessageEncoder<Resp>)me).configure(options.getJsonWriterConfig());
+        }
+        return new HttpGrpcMethodCall<>(context, connection, path, stream, md, me);
       }
     }
   }
@@ -403,11 +403,6 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     }
 
     protected GrpcStream createGrpcStream(GrpcProtocol protocol, HttpServerRequest httpRequest, WireFormat format) {
-      WireFormat configured = options.getEnabledFormat(format.name());
-      if (configured != null) {
-        format = configured;
-      }
-
       HttpGrpcOutboundStream stream;
       switch (protocol) {
         case HTTP_2:

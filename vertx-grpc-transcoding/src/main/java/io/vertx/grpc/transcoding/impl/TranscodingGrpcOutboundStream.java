@@ -11,7 +11,6 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcStatus;
-import io.vertx.grpc.common.JsonWireFormat;
 import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.common.impl.GrpcMessageDeframer;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
@@ -36,7 +35,7 @@ public class TranscodingGrpcOutboundStream extends HttpGrpcOutboundStream {
 
   @Override
   protected String contentType(WireFormat wireFormat) {
-    if (wireFormat instanceof JsonWireFormat) {
+    if (wireFormat == WireFormat.JSON) {
       return protocol.mediaType();
     }
     throw new UnsupportedOperationException();

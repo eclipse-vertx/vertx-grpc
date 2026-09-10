@@ -80,11 +80,11 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
       if (localUnary) {
         if (!remoteUnary) {
           options.addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
-          options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, localEndpoint.wireFormat.name());
+          options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, Utils.toCanonicalName(localEndpoint.wireFormat));
           options.addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address());
         }
       } else {
-        options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, localEndpoint.wireFormat.name());
+        options.addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, Utils.toCanonicalName(localEndpoint.wireFormat));
         options.addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address());
         if (!remoteUnary) {
           options.addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, "" + localEndpoint.initialWindowSize);
@@ -98,12 +98,12 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
         options.setSendTimeout(timeout.toMillis());
       }
 
-      if (wireFormat.name().equals("json")) {
+      if (wireFormat == WireFormat.JSON) {
         options.addHeader(EventBusHeaders.SERVICE_PROXY_ACTION, methodName);;
       }
 
       options.addHeader(EventBusHeaders.STREAM_METHOD_NAME, methodName);;
-      options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
+      options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, Utils.toCanonicalName(wireFormat));
       options.addHeader(EventBusHeaders.STREAM_ID, Long.toString(id()));
 
       if (requestHeaders != null) {
@@ -387,11 +387,11 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
     Promise<Void> completion = consumerContext.promise();
 
     Message.Builder messageBuilder;
-    switch (message.format().name()) {
-      case "proto":
+    switch (message.format()) {
+      case PROTOBUF:
         messageBuilder = Message.newBuilder().setBytes(ByteString.copyFrom(message.payload().getBytes()));
         break;
-      case "json":
+      case JSON:
         messageBuilder = Message.newBuilder().setStringBytes(ByteString.copyFrom(message.payload().getBytes()));
         break;
       default:

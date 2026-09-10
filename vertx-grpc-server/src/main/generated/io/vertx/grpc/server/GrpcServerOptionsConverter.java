@@ -12,6 +12,14 @@ public class GrpcServerOptionsConverter {
    static void fromJson(Iterable<java.util.Map.Entry<String, Object>> json, GrpcServerOptions obj) {
     for (java.util.Map.Entry<String, Object> member : json) {
       switch (member.getKey()) {
+        case "enabledFormats":
+          if (member.getValue() instanceof JsonArray) {
+            ((Iterable<Object>)member.getValue()).forEach( item -> {
+              if (item instanceof String)
+                obj.addEnabledFormat(io.vertx.grpc.common.WireFormat.valueOf((String)item));
+            });
+          }
+          break;
         case "enabledProtocols":
           if (member.getValue() instanceof JsonArray) {
             ((Iterable<Object>)member.getValue()).forEach( item -> {
@@ -44,6 +52,11 @@ public class GrpcServerOptionsConverter {
   }
 
    static void toJson(GrpcServerOptions obj, java.util.Map<String, Object> json) {
+    if (obj.getEnabledFormats() != null) {
+      JsonArray array = new JsonArray();
+      obj.getEnabledFormats().forEach(item -> array.add(item.name()));
+      json.put("enabledFormats", array);
+    }
     if (obj.getEnabledProtocols() != null) {
       JsonArray array = new JsonArray();
       obj.getEnabledProtocols().forEach(item -> array.add(item.name()));

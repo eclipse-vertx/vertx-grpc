@@ -11,7 +11,6 @@
 package io.vertx.grpc.common;
 
 import com.google.protobuf.Descriptors;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.Parser;
@@ -21,8 +20,10 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.json.JsonArray;
-import io.vertx.grpc.common.impl.ProtobufJsonReader;
+import io.vertx.grpc.common.impl.DefaultMessageDecoder;
+import io.vertx.grpc.common.impl.DefaultJsonMessageDecoder;
 
+import java.util.EnumSet;
 import java.util.function.Supplier;
 
 public interface GrpcMessageDecoder<T> {
@@ -35,34 +36,7 @@ public interface GrpcMessageDecoder<T> {
   static <T> GrpcMessageDecoder<T> decoder(MessageOrBuilder messageOrBuilder) {
     Message dit = messageOrBuilder.getDefaultInstanceForType();
     Parser<T> parser = (Parser<T>) dit.getParserForType();
-    return new GrpcMessageDecoder<>() {
-      @Override
-      public T decode(GrpcMessage msg) throws CodecException {
-        WireFormat format = msg.format();
-        if (format instanceof ProtobufWireFormat) {
-          try {
-            return parser.parseFrom(msg.payload().getBytes());
-          } catch (InvalidProtocolBufferException e) {
-            throw new CodecException(e);
-          }
-        } else if (format instanceof JsonWireFormat) {
-          JsonWireFormat json = (JsonWireFormat) format;
-          Message.Builder builder = dit.toBuilder();
-          ProtobufJsonReader.create(json).merge(msg.payload(), builder);
-          return (T) builder.build();
-        } else {
-          throw new IllegalArgumentException("Invalid wire format: " + format);
-        }
-      }
-      @Override
-      public boolean accepts(WireFormat format) {
-        return true;
-      }
-      @Override
-      public Descriptors.Descriptor messageDescriptor() {
-        return dit.getDescriptorForType();
-      }
-    };
+    return new DefaultMessageDecoder<>(JsonReaderConfig.DEFAULT, EnumSet.allOf(WireFormat.class), parser, dit);
   }
 
   GrpcMessageDecoder<Buffer> IDENTITY = new GrpcMessageDecoder<>() {
@@ -82,19 +56,7 @@ public interface GrpcMessageDecoder<T> {
    * @return the message decoder
    */
   static <T> GrpcMessageDecoder<T> json(Supplier<Message.Builder> builder) {
-    return new GrpcMessageDecoder<>() {
-      @Override
-      public T decode(GrpcMessage msg) throws CodecException {
-        JsonWireFormat json = (JsonWireFormat) msg.format();
-        Message.Builder builderInstance = builder.get();
-        ProtobufJsonReader.create(json).merge(msg.payload(), builderInstance);
-        return (T) builderInstance.build();
-      }
-      @Override
-      public boolean accepts(WireFormat format) {
-        return format instanceof JsonWireFormat;
-      }
-    };
+    return new DefaultJsonMessageDecoder<>(JsonReaderConfig.DEFAULT, builder);
   }
 
   /**
@@ -108,7 +70,7 @@ public interface GrpcMessageDecoder<T> {
     return new GrpcMessageDecoder<>() {
       @Override
       public T decode(GrpcMessage msg) throws CodecException {
-        if (!(msg.format() instanceof JsonWireFormat)) {
+        if (msg.format() != WireFormat.JSON) {
           throw new CodecException("Was expecting a json message");
         }
         try {
@@ -119,7 +81,7 @@ public interface GrpcMessageDecoder<T> {
       }
       @Override
       public boolean accepts(WireFormat format) {
-        return format instanceof JsonWireFormat;
+        return format == WireFormat.JSON;
       }
     };
   }
@@ -139,17 +101,17 @@ public interface GrpcMessageDecoder<T> {
     }
     @Override
     public boolean accepts(WireFormat format) {
-      return format instanceof JsonWireFormat;
+      return format == WireFormat.JSON;
     }
   };
 
   /**
    * A decoder in JSON format decoding arbitrary JSON values: {@link JsonObject}, {@link JsonArray} or string/number/boolean/null
    */
-  GrpcMessageDecoder<Object> JSON_VALUE = new GrpcMessageDecoder<Object>() {
+  GrpcMessageDecoder<Object> JSON_VALUE = new GrpcMessageDecoder<>() {
     @Override
     public Object decode(GrpcMessage msg) throws CodecException {
-      if (!(msg.format() instanceof JsonWireFormat)) {
+      if (msg.format() != WireFormat.JSON) {
         throw new CodecException("Was expecting a json message");
       }
       try {
@@ -160,7 +122,7 @@ public interface GrpcMessageDecoder<T> {
     }
     @Override
     public boolean accepts(WireFormat format) {
-      return format instanceof JsonWireFormat;
+      return format == WireFormat.JSON;
     }
   };
 

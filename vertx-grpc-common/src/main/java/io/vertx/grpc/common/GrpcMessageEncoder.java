@@ -6,7 +6,10 @@ import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
-import io.vertx.grpc.common.impl.ProtobufJsonWriter;
+import io.vertx.grpc.common.impl.DefaultMessageEncoder;
+import io.vertx.grpc.common.impl.DefaultJsonMessageEncoder;
+
+import java.util.EnumSet;
 
 public interface GrpcMessageEncoder<T> {
 
@@ -16,27 +19,7 @@ public interface GrpcMessageEncoder<T> {
    */
   @GenIgnore
   static <T extends MessageLite> GrpcMessageEncoder<T> encoder() {
-    return new GrpcMessageEncoder<T>() {
-      @Override
-      public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
-        if (format instanceof ProtobufWireFormat) {
-          byte[] bytes = msg.toByteArray();
-          return GrpcMessage.message("identity", format, Buffer.buffer(bytes));
-        } else if (format instanceof JsonWireFormat) {
-          JsonWireFormat json = (JsonWireFormat) format;
-          if (msg instanceof MessageOrBuilder) {
-            return GrpcMessage.message("identity", format, ProtobufJsonWriter.create(json).write((MessageOrBuilder) msg));
-          }
-          return GrpcMessage.message("identity", format, Json.encodeToBuffer(msg));
-        } else {
-          throw new IllegalArgumentException("Invalid wire format: " + format);
-        }
-      }
-      @Override
-      public boolean accepts(WireFormat format) {
-        return true;
-      }
-    };
+    return new DefaultMessageEncoder<>(JsonWriterConfig.DEFAULT, EnumSet.allOf(WireFormat.class));
   }
 
   GrpcMessageEncoder<Buffer> IDENTITY = new GrpcMessageEncoder<>() {
@@ -57,20 +40,7 @@ public interface GrpcMessageEncoder<T> {
    * @return an encoder in JSON format encoding instances of {@code <T>}.
    */
   static <T> GrpcMessageEncoder<T> json() {
-    return new GrpcMessageEncoder<>() {
-      @Override
-      public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
-        JsonWireFormat json = (JsonWireFormat) format;
-        if (msg instanceof MessageOrBuilder) {
-          return GrpcMessage.message("identity", format, ProtobufJsonWriter.create(json).write((MessageOrBuilder) msg));
-        }
-        return GrpcMessage.message("identity", format, Json.encodeToBuffer(msg));
-      }
-      @Override
-      public boolean accepts(WireFormat format) {
-        return format instanceof JsonWireFormat;
-      }
-    };
+    return new DefaultJsonMessageEncoder<>(JsonWriterConfig.DEFAULT);
   }
 
   /**
@@ -83,7 +53,7 @@ public interface GrpcMessageEncoder<T> {
     }
     @Override
     public boolean accepts(WireFormat format) {
-      return format instanceof JsonWireFormat;
+      return format == WireFormat.JSON;
     }
   };
 

@@ -11,15 +11,15 @@
 package io.vertx.grpc.server;
 
 import io.vertx.codegen.annotations.DataObject;
-import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.Unstable;
 import io.vertx.codegen.json.annotations.JsonGen;
 import io.vertx.core.json.JsonObject;
+import io.vertx.grpc.common.JsonReaderConfig;
+import io.vertx.grpc.common.JsonWriterConfig;
 import io.vertx.grpc.common.WireFormat;
 
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -39,7 +39,7 @@ public class GrpcServerOptions {
   /**
    * The default set of enabled wire formats = {@code [PROTOBUF, JSON]}
    */
-  public static final Set<WireFormat> DEFAULT_ENABLED_FORMATS = Set.of(WireFormat.PROTOBUF, WireFormat.JSON);
+  public static final Set<WireFormat> DEFAULT_ENABLED_FORMATS = Collections.unmodifiableSet(EnumSet.of(WireFormat.PROTOBUF, WireFormat.JSON));
 
   /**
    * Whether the server schedule deadline automatically when a request carrying a timeout is received, by default = {@code false}
@@ -56,13 +56,13 @@ public class GrpcServerOptions {
    */
   public static final long DEFAULT_MAX_MESSAGE_SIZE = 256 * 1024;
 
-  private Set<GrpcProtocol> enabledProtocols;
-  // TODO(?): the set holds mixed types (ProtobufWireFormat or JsonWireFormat with config) and
-  //          codegen has no way to pick the right one when reading JSON, so the accessors below
-  //          are @GenIgnore and the field doesn't round-trip. Revisit if we add more formats
-  //          or want the JSON config to show up in the serialized options.
-  private Set<WireFormat> enabledFormats;
+  public static final JsonReaderConfig DEFAULT_JSON_READER_CONFIG_CONFIG = JsonReaderConfig.DEFAULT;
+  public static final JsonWriterConfig DEFAULT_JSON_WRITER_CONFIG_CONFIG = JsonWriterConfig.DEFAULT;
 
+  private Set<GrpcProtocol> enabledProtocols;
+  private Set<WireFormat> enabledFormats;
+  private JsonReaderConfig jsonReaderConfig;
+  private JsonWriterConfig jsonWriterConfig;
   private boolean scheduleDeadlineAutomatically;
   private boolean deadlinePropagation;
   private long maxMessageSize;
@@ -72,7 +72,9 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions() {
     enabledProtocols = EnumSet.copyOf(DEFAULT_ENABLED_PROTOCOLS);
-    enabledFormats = new LinkedHashSet<>(DEFAULT_ENABLED_FORMATS);
+    enabledFormats = EnumSet.copyOf(DEFAULT_ENABLED_FORMATS);
+    jsonReaderConfig = DEFAULT_JSON_READER_CONFIG_CONFIG;
+    jsonWriterConfig = DEFAULT_JSON_WRITER_CONFIG_CONFIG;
     scheduleDeadlineAutomatically = DEFAULT_SCHEDULE_DEADLINE_AUTOMATICALLY;
     deadlinePropagation = DEFAULT_PROPAGATE_DEADLINE;
     maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
@@ -83,7 +85,9 @@ public class GrpcServerOptions {
    */
   public GrpcServerOptions(GrpcServerOptions other) {
     enabledProtocols = EnumSet.copyOf(other.enabledProtocols);
-    enabledFormats = new LinkedHashSet<>(other.enabledFormats);
+    enabledFormats = EnumSet.copyOf(other.enabledFormats);
+    jsonReaderConfig = other.jsonReaderConfig;
+    jsonWriterConfig = other.jsonWriterConfig;
     scheduleDeadlineAutomatically = other.scheduleDeadlineAutomatically;
     deadlinePropagation = other.deadlinePropagation;
     maxMessageSize = other.maxMessageSize;
@@ -105,6 +109,15 @@ public class GrpcServerOptions {
    */
   public boolean isProtocolEnabled(GrpcProtocol protocol) {
     return enabledProtocols.contains(protocol);
+  }
+
+  /**
+   * @return the wire formats the server accepts on inbound calls. The set is mutable. Entries
+   *         compare by {@link WireFormat#canonicalName()}, so it holds at most one instance per format
+   *         name. The configured one wins.
+   */
+  public Set<WireFormat> getEnabledFormats() {
+    return enabledFormats;
   }
 
   /**
@@ -139,39 +152,39 @@ public class GrpcServerOptions {
   }
 
   /**
-   * @return the wire formats the server accepts on inbound calls. The set is mutable. Entries
-   *         compare by {@link WireFormat#name()}, so it holds at most one instance per format
-   *         name. The configured one wins.
+   * @return the server json reader config
    */
-  @GenIgnore
-  public Set<WireFormat> getEnabledFormats() {
-    return enabledFormats;
+  public JsonReaderConfig getJsonReaderConfig() {
+    return jsonReaderConfig;
   }
 
   /**
-   * Determines if the specified wire format is enabled in the current server configuration.
+   * Configures the json input format parsed by the server, either for {@code application/grpc+json} or {@code application/json}
    *
-   * @param format the wire format to check
-   * @return true if the format is enabled; false otherwise
+   * @param jsonReaderConfig the config
+   * @return a reference to this, so the API can be used fluently
    */
-  @GenIgnore
-  public boolean isFormatEnabled(WireFormat format) {
-    return enabledFormats.contains(format);
+  public GrpcServerOptions setJsonReaderConfig(JsonReaderConfig jsonReaderConfig) {
+    this.jsonReaderConfig = jsonReaderConfig;
+    return this;
   }
 
   /**
-   * @return the configured instance of the wire format with the given {@code name}, or {@code null}
-   *         if no format with that name is enabled
+   * @return the server json writer config
    */
-  @GenIgnore
-  public WireFormat getEnabledFormat(String name) {
-    Objects.requireNonNull(name, "name");
-    for (WireFormat format : enabledFormats) {
-      if (name.equals(format.name())) {
-        return format;
-      }
-    }
-    return null;
+  public JsonWriterConfig getJsonWriterConfig() {
+    return jsonWriterConfig;
+  }
+
+  /**
+   * Configures the json output format emitted by the server, either for {@code application/grpc+json} or {@code application/json}
+   *
+   * @param jsonWriterConfig the config
+   * @return a reference to this, so the API can be used fluently
+   */
+  public GrpcServerOptions setJsonWriterConfig(JsonWriterConfig jsonWriterConfig) {
+    this.jsonWriterConfig = jsonWriterConfig;
+    return this;
   }
 
   /**
@@ -181,10 +194,8 @@ public class GrpcServerOptions {
    * @param format the wire format to enable, must not be null
    * @return a reference to this, so the API can be used fluently
    */
-  @GenIgnore
   public GrpcServerOptions addEnabledFormat(WireFormat format) {
     Objects.requireNonNull(format, "format");
-    enabledFormats.remove(format);
     enabledFormats.add(format);
     return this;
   }
@@ -195,7 +206,6 @@ public class GrpcServerOptions {
    * @param format the wire format to remove
    * @return a reference to this, so the API can be used fluently
    */
-  @GenIgnore
   public GrpcServerOptions removeEnabledFormat(WireFormat format) {
     enabledFormats.remove(format);
     return this;
