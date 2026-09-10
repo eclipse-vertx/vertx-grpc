@@ -28,12 +28,14 @@ import io.grpc.Status;
 import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpConnection;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.impl.*;
+import io.vertx.grpc.server.GrpcProtocol;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.ServiceContainer;
@@ -193,7 +195,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
       this.attributes = createAttributes();
     }
 
-    void init(ServerCall.Listener<Req> listener) {
+    void initWriteSide(ServerCall.Listener<Req> listener) {
       this.listener = listener;
       req.errorHandler(error -> {
         if (error == GrpcError.CANCELLED && !closed) {
@@ -201,8 +203,12 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
           listener.onCancel();
         }
       });
-      readAdapter.init(req, new BridgeMessageDecoder<>(methodDef.getMethodDescriptor().getRequestMarshaller(), decompressor));
       writeAdapter.init(req.response(), req.format(), new BridgeMessageEncoder<>(methodDef.getMethodDescriptor().getResponseMarshaller(), compressor));
+    }
+
+    void init(ServerCall.Listener<Req> listener) {
+      initWriteSide(listener);
+      readAdapter.init(req, new BridgeMessageDecoder<>(methodDef.getMethodDescriptor().getRequestMarshaller(), decompressor));
     }
 
     private Attributes createAttributes() {
@@ -343,7 +349,13 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
       Runnable task = theContext.wrap(() -> {
         ServerCallImpl<Req, Resp> call = new ServerCallImpl<>(theContext, req, methodDef);
         ServerCall.Listener<Req> listener = callHandler.startCall(call, io.vertx.grpcio.common.impl.Utils.readMetadata(req.headers()));
-        call.init(listener);
+        if (GrpcProtocol.TRANSCODING.mediaType().equals(req.headers().get(HttpHeaders.CONTENT_TYPE))) {
+          call.initWriteSide(listener);
+          req.handler(listener::onMessage);
+          req.endHandler(v -> listener.onHalfClose());
+        } else {
+          call.init(listener);
+        }
       });
       task.run();
     }
