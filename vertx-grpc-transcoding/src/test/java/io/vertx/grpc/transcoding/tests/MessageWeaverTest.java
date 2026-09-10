@@ -15,8 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.*;
 
 public class MessageWeaverTest {
 
@@ -82,14 +81,14 @@ public class MessageWeaverTest {
         .put("B", new JsonObject()
           .put("y", "b")));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(message.encode()),
       new ArrayList<>(),
       "*",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(message, new JsonObject(result.toString()));
+    assertEquals(message, result);
   }
 
   @Test
@@ -109,14 +108,14 @@ public class MessageWeaverTest {
       .put("_y", "b")
       .put("_z", "c");
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(original.encode()),
       bindings,
       "*",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -140,14 +139,14 @@ public class MessageWeaverTest {
         .put("z", "f")
         .put("_x", "c"));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(original.encode()),
       bindings,
       "*",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -179,14 +178,14 @@ public class MessageWeaverTest {
           .put("u", "g")
           .put("_x", "c")));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(original.encode()),
       bindings,
       "*",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -195,14 +194,14 @@ public class MessageWeaverTest {
       .put("field1", "value1")
       .put("field2", "value2");
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(message.encode()),
       new ArrayList<>(),
       "*",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(message, new JsonObject(result.toString()));
+    assertEquals(message, result);
   }
 
   @Test
@@ -213,14 +212,14 @@ public class MessageWeaverTest {
 
     JsonObject expected = new JsonObject().put("nested", new JsonObject().put("data", message));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(message.encode()),
       new ArrayList<>(),
       "nested.data",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -229,12 +228,12 @@ public class MessageWeaverTest {
       .put("field1", "value1")
       .put("field2", "value2");
 
-    Buffer result = MessageWeaver.weaveResponseMessage(
+    Object result = MessageWeaver.weaveResponseMessage(
       Buffer.buffer(message.encode()),
       null
     );
 
-    assertEquals(message, new JsonObject(result.toString()));
+    assertEquals(message, result);
   }
 
   @Test
@@ -243,12 +242,12 @@ public class MessageWeaverTest {
       .put("field1", "value1")
       .put("field2", "value2");
 
-    Buffer result = MessageWeaver.weaveResponseMessage(
+    Object result = MessageWeaver.weaveResponseMessage(
       Buffer.buffer(message.encode()),
       "*"
     );
 
-    assertEquals(message, new JsonObject(result.toString()));
+    assertEquals(message, result);
   }
 
   @Test
@@ -261,12 +260,53 @@ public class MessageWeaverTest {
       .put("response", new JsonObject()
         .put("data", nested));
 
-    Buffer result = MessageWeaver.weaveResponseMessage(
+    Object result = MessageWeaver.weaveResponseMessage(
       Buffer.buffer(message.encode()),
       "response.data"
     );
 
-    assertEquals(nested, new JsonObject(result.toString()));
+    assertEquals(nested, result);
+  }
+
+  @Test
+  public void testResponseBodyRepeatedField() {
+    JsonArray users = new JsonArray()
+      .add(new JsonObject().put("id", 1).put("name", "alice"))
+      .add(new JsonObject().put("id", 2).put("name", "bob"));
+
+    JsonObject message = new JsonObject().put("users", users);
+
+    Object result = MessageWeaver.weaveResponseMessage(
+      Buffer.buffer(message.encode()),
+      "users"
+    );
+
+    assertEquals(users, result);
+  }
+
+  @Test
+  public void testResponseBodyScalarField() {
+    JsonObject message = new JsonObject()
+      .put("response", new JsonObject().put("token", "abc123"));
+
+    Object result = MessageWeaver.weaveResponseMessage(
+      Buffer.buffer(message.encode()),
+      "response.token"
+    );
+
+    assertEquals("abc123", result);
+  }
+
+  @Test
+  public void testResponseBodyNullLeaf() {
+    JsonObject message = new JsonObject().put("response", new JsonObject().putNull("token"));
+
+    Object result = MessageWeaver.weaveResponseMessage(
+      Buffer.buffer(message.encode()),
+      "response.token"
+    );
+
+    assertNull(result);
   }
 
   @Test
@@ -276,7 +316,7 @@ public class MessageWeaverTest {
 
     assertThrows(IllegalArgumentException.class, () -> MessageWeaver.weaveResponseMessage(
       Buffer.buffer(message.encode()),
-      "invalid.path"
+      "field1.invalid"
     ));
   }
 
@@ -289,14 +329,14 @@ public class MessageWeaverTest {
     JsonObject expected = new JsonObject()
       .put("x", new JsonArray().add("a").add("b").add("c"));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       null,
       bindings,
       null,
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -309,14 +349,14 @@ public class MessageWeaverTest {
       .put("A", new JsonObject()
         .put("x", new JsonArray().add("b").add("c").add("d")));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       null,
       bindings,
       null,
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -333,14 +373,14 @@ public class MessageWeaverTest {
         .put("x", new JsonArray().add("b").add("c").add("d"))
         .put("y", "e"));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(body.encode()),
       bindings,
       "*",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -353,14 +393,14 @@ public class MessageWeaverTest {
       .put("x", new JsonArray().add("a").add("b"))
       .put("y", "c");
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       null,
       bindings,
       null,
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -371,38 +411,38 @@ public class MessageWeaverTest {
     JsonObject expected = new JsonObject()
       .put("keys", new JsonArray().add("A").add("B"));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       null,
       bindings,
       null,
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
   public void testEmptyMessageReturnsEmptyObject() {
-    Buffer fromNull = MessageWeaver.weaveRequestMessage(null, new ArrayList<>(), null, TEST_DESCRIPTOR);
-    assertEquals(new JsonObject(), new JsonObject(fromNull.toString()));
+    JsonObject fromNull = MessageWeaver.weaveRequestMessage(null, new ArrayList<>(), null, TEST_DESCRIPTOR);
+    assertEquals(new JsonObject(), fromNull);
 
-    Buffer fromEmpty = MessageWeaver.weaveRequestMessage(Buffer.buffer(), new ArrayList<>(), null, TEST_DESCRIPTOR);
-    assertEquals(new JsonObject(), new JsonObject(fromEmpty.toString()));
+    JsonObject fromEmpty = MessageWeaver.weaveRequestMessage(Buffer.buffer(), new ArrayList<>(), null, TEST_DESCRIPTOR);
+    assertEquals(new JsonObject(), fromEmpty);
 
-    Buffer fromEmptyBody = MessageWeaver.weaveRequestMessage(Buffer.buffer(), new ArrayList<>(), "", TEST_DESCRIPTOR);
-    assertEquals(new JsonObject(), new JsonObject(fromEmptyBody.toString()));
+    JsonObject fromEmptyBody = MessageWeaver.weaveRequestMessage(Buffer.buffer(), new ArrayList<>(), "", TEST_DESCRIPTOR);
+    assertEquals(new JsonObject(), fromEmptyBody);
   }
 
   @Test
   public void testUnsetBodyIgnoresHttpBody() {
     JsonObject httpBody = new JsonObject().put("field1", "value1");
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(httpBody.encode()),
       new ArrayList<>(),
       null,
       TEST_DESCRIPTOR
     );
-    assertEquals(new JsonObject(), new JsonObject(result.toString()));
+    assertEquals(new JsonObject(), result);
   }
 
   @Test
@@ -417,14 +457,14 @@ public class MessageWeaverTest {
       .put("y", "from-binding")
       .put("A", new JsonObject().put("y", "nested-body"));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(body.encode()),
       bindings,
       "*",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -437,14 +477,14 @@ public class MessageWeaverTest {
     JsonObject expected = new JsonObject()
       .put("A", new JsonObject().put("y", "from-binding").put("x", new JsonArray().add("k")));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(body.encode()),
       bindings,
       "*",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -457,14 +497,14 @@ public class MessageWeaverTest {
       .put("y", "root-body")
       .put("A", new JsonObject().put("y", "from-binding"));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(body.encode()),
       bindings,
       "*",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -477,14 +517,14 @@ public class MessageWeaverTest {
     JsonObject expected = new JsonObject()
       .put("x", new JsonArray().add("a").add("b").add("c"));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(body.encode()),
       bindings,
       "*",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -498,14 +538,14 @@ public class MessageWeaverTest {
         .put("x", new JsonArray().add("b"))
         .put("y", "from-binding"));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(body.encode()),
       bindings,
       "A",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -521,14 +561,14 @@ public class MessageWeaverTest {
         .add(new JsonObject().put("A", new JsonObject().put("x", "in-array"))))
       .put("A", new JsonObject().put("y", "from-binding"));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(body.encode()),
       bindings,
       "*",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
@@ -540,14 +580,14 @@ public class MessageWeaverTest {
         .put("b", new JsonObject()
           .put("c", body)));
 
-    Buffer result = MessageWeaver.weaveRequestMessage(
+    JsonObject result = MessageWeaver.weaveRequestMessage(
       Buffer.buffer(body.encode()),
       new ArrayList<>(),
       "a.b.c",
       TEST_DESCRIPTOR
     );
 
-    assertEquals(expected, new JsonObject(result.toString()));
+    assertEquals(expected, result);
   }
 
   @Test
