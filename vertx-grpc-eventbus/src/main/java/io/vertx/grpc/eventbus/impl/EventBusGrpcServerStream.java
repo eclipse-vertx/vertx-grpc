@@ -14,6 +14,7 @@ import java.util.Map;
 
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
+import static io.vertx.grpc.eventbus.impl.Utils.toCanonicalName;
 
 class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndpoint> {
 
@@ -173,7 +174,7 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
     public void handleConnect(Message<Object> msg) {
       DeliveryOptions replyOptions = new DeliveryOptions()
         .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address())
-        .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, localEndpoint.wireFormat.name())
+        .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, toCanonicalName(localEndpoint.wireFormat))
         .addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, Integer.toString(localEndpoint.initialWindowSize));
 
       msg.reply(null, replyOptions);
@@ -214,7 +215,7 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
         }
       }
       DeliveryOptions options = new DeliveryOptions();
-      options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, wireFormat.name());
+      options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, toCanonicalName(wireFormat));
       return sendTransportFrame(TransportFrame.newBuilder().setHeaders(headersBuilder), options);
     }
   }

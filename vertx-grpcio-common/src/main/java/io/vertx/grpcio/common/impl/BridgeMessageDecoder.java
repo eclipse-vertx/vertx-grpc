@@ -20,13 +20,8 @@ import io.netty.buffer.ByteBufInputStream;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.json.DecodeException;
-import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcMessageDecoder;
-import io.vertx.grpc.common.JsonWireFormat;
-import io.vertx.grpc.common.ProtobufWireFormat;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.ProtobufJsonReader;
-import io.vertx.grpc.common.WireFormat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -60,7 +55,7 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
   @Override
   public T decode(GrpcMessage msg) {
     WireFormat format = msg.format();
-    if (format instanceof ProtobufWireFormat) {
+    if (format == WireFormat.PROTOBUF) {
       try (KnownLengthStream kls = new KnownLengthStream(msg.payload())) {
         if (msg.encoding().equals("identity")) {
           return marshaller.parse(kls);
@@ -74,8 +69,8 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
           throw new DecodeException();
         }
       }
-    } else if (format instanceof JsonWireFormat) {
-      JsonWireFormat json = (JsonWireFormat) format;
+    } else if (format == WireFormat.JSON) {
+      JsonReaderConfig json = JsonReaderConfig.DEFAULT;
       Message.Builder builder = (Message.Builder) messageLite.toBuilder();
       ProtobufJsonReader.create(json).merge(msg.payload(), builder);
       return (T) builder.build();
@@ -86,7 +81,7 @@ public class BridgeMessageDecoder<T> implements GrpcMessageDecoder<T> {
 
   @Override
   public boolean accepts(WireFormat format) {
-    return format instanceof ProtobufWireFormat;
+    return format == WireFormat.PROTOBUF;
   }
 
   @Override

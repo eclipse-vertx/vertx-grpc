@@ -5,12 +5,13 @@ import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.JsonWireFormat;
+import io.vertx.grpc.common.JsonReaderConfig;
+import io.vertx.grpc.common.JsonWriterConfig;
 
 /**
  * Writes a protobuf {@link MessageOrBuilder} as a JSON {@link Buffer}.
  * <p>
- * Use {@link #create(JsonWireFormat)} to get an instance, backed by
+ * Use {@link #create(JsonReaderConfig)} to get an instance, backed by
  * {@code com.google.protobuf.util.JsonFormat}.
  */
 public final class ProtobufJsonWriter {
@@ -18,13 +19,13 @@ public final class ProtobufJsonWriter {
   /**
    * @return a writer configured from {@code format}
    */
-  public static ProtobufJsonWriter create(JsonWireFormat format) {
+  public static ProtobufJsonWriter create(JsonWriterConfig format) {
     return new ProtobufJsonWriter(format);
   }
 
   private final JsonFormat.Printer printer;
 
-  private ProtobufJsonWriter(JsonWireFormat format) {
+  private ProtobufJsonWriter(JsonWriterConfig format) {
     JsonFormat.Printer printer = JsonFormat.printer();
     if (format.alwaysPrintFieldsWithNoPresence()) {
       printer = printer.alwaysPrintFieldsWithNoPresence();

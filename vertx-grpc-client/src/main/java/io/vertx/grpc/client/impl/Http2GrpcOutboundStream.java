@@ -109,7 +109,17 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
       httpRequest.putHeader(GrpcHeaderNames.GRPC_TIMEOUT, headerValue);
     }
 
-    String contentType = frame.format().mediaType();
+    String contentType;
+    switch (frame.format()) {
+      case JSON:
+        contentType = "application/grpc+json";
+        break;
+      case PROTOBUF:
+        contentType = "application/grpc";
+        break;
+      default:
+        throw new UnsupportedOperationException();
+    }
 
     String uri = serviceName.pathOf(methodName);
     httpRequest.putHeader(HttpHeaders.CONTENT_TYPE, contentType);

@@ -13,6 +13,7 @@ import io.vertx.grpc.eventbus.EventBusGrpcClient;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
 import io.vertx.grpc.common.tests.Reply;
 import io.vertx.grpc.common.tests.Request;
+import io.vertx.grpc.eventbus.impl.Utils;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -37,7 +38,7 @@ public class EventBusGrpcClientTest extends EventBusGrpcTestBase {
     vertx.eventBus().<Buffer> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> {
       testContext.assertNull(msg.headers().get(EventBusHeaders.SERVICE_PROXY_ACTION));
       testContext.assertEquals("Unary", msg.headers().get(EventBusHeaders.STREAM_METHOD_NAME));
-      testContext.assertEquals(WireFormat.PROTOBUF.name(), msg.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT));
+      testContext.assertEquals(Utils.PROTOBUF_CANONICAL_NAME, msg.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT));
       try {
         Request request = Request.parseFrom(msg.body().getBytes());
         Reply reply = Reply.newBuilder().setMessage("Hello " + request.getName()).build();
@@ -65,7 +66,7 @@ public class EventBusGrpcClientTest extends EventBusGrpcTestBase {
     vertx.eventBus().<JsonObject> consumer(UNARY_CLIENT.serviceName().fullyQualifiedName(), msg -> {
       testContext.assertEquals("Unary", msg.headers().get(EventBusHeaders.SERVICE_PROXY_ACTION));
       testContext.assertEquals("Unary", msg.headers().get(EventBusHeaders.STREAM_METHOD_NAME));
-      testContext.assertEquals(WireFormat.JSON.name(), msg.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT));
+      testContext.assertEquals(Utils.JSON_CANONICAL_NAME, msg.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT));
       String name = msg.body().getString("name");
       msg.reply(new JsonObject().put("message", "Hello " + name));
     });

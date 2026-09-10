@@ -3,7 +3,8 @@ package io.vertx.grpc.eventbus.impl;
 import io.vertx.core.VertxException;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.MessageCodec;
-import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.JsonReaderConfig;
+import io.vertx.grpc.common.JsonWriterConfig;
 import io.vertx.grpc.common.impl.ProtobufJsonReader;
 import io.vertx.grpc.common.impl.ProtobufJsonWriter;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
@@ -19,7 +20,7 @@ public class EventBusGrpcJsonMessageCodec implements MessageCodec<TransportFrame
 
   @Override
   public void encodeToWire(Buffer buffer, TransportFrame transportFrame) {
-    Buffer data = ProtobufJsonWriter.create(WireFormat.JSON).write(transportFrame);
+    Buffer data = ProtobufJsonWriter.create(JsonWriterConfig.DEFAULT).write(transportFrame);
     buffer.appendInt(data.length());
     buffer.appendBuffer(data);
   }
@@ -30,7 +31,7 @@ public class EventBusGrpcJsonMessageCodec implements MessageCodec<TransportFrame
     pos += 4;
     Buffer data = buffer.getBuffer(pos, pos + length);
     TransportFrame.Builder builder = TransportFrame.newBuilder();
-    ProtobufJsonReader.create(WireFormat.JSON).merge(data, builder);
+    ProtobufJsonReader.create(JsonReaderConfig.DEFAULT).merge(data, builder);
     try {
       return builder.build();
     } catch (Exception e) {

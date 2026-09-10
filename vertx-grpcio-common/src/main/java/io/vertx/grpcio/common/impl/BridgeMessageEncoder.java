@@ -15,13 +15,8 @@ import io.grpc.Compressor;
 import io.grpc.Drainable;
 import io.grpc.MethodDescriptor;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.grpc.common.CodecException;
-import io.vertx.grpc.common.JsonWireFormat;
-import io.vertx.grpc.common.ProtobufWireFormat;
+import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.ProtobufJsonWriter;
-import io.vertx.grpc.common.WireFormat;
-import io.vertx.grpc.common.GrpcMessage;
-import io.vertx.grpc.common.GrpcMessageEncoder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -40,13 +35,13 @@ public class BridgeMessageEncoder<T> implements GrpcMessageEncoder<T> {
 
   @Override
   public boolean accepts(WireFormat format) {
-    return format instanceof ProtobufWireFormat;
+    return format == WireFormat.PROTOBUF;
   }
 
   @Override
   public GrpcMessage encode(T msg, WireFormat format) throws CodecException {
     Buffer encoded;
-    if (format instanceof ProtobufWireFormat) {
+    if (format == WireFormat.PROTOBUF) {
       ByteArrayOutputStream output = new ByteArrayOutputStream(); // Improve that ???
       try (InputStream is = marshaller.stream(msg)) {
         OutputStream compressingStream;
@@ -71,8 +66,8 @@ public class BridgeMessageEncoder<T> implements GrpcMessageEncoder<T> {
         throw new CodecException(e);
       }
       encoded = Buffer.buffer(output.toByteArray());
-    } else if (format instanceof JsonWireFormat) {
-      JsonWireFormat json = (JsonWireFormat) format;
+    } else if (format == WireFormat.JSON) {
+      JsonWriterConfig json = JsonWriterConfig.DEFAULT;
       if (msg instanceof MessageOrBuilder) {
         encoded = ProtobufJsonWriter.create(json).write((MessageOrBuilder) msg);
       } else {

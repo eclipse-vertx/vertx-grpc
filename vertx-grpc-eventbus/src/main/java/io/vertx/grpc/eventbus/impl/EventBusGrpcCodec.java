@@ -36,11 +36,11 @@ public final class EventBusGrpcCodec {
 
   static GrpcMessage message(TransportFrame frame, String encoding, WireFormat wireFormat) {
     Buffer buffer;
-    switch (wireFormat.name()) {
-      case "proto":
+    switch (wireFormat) {
+      case PROTOBUF:
         buffer = Buffer.buffer(frame.getMessage().getBytes().toByteArray());
         break;
-      case "json":
+      case JSON:
         buffer = Buffer.buffer(frame.getMessage().getString());
         break;
       default:

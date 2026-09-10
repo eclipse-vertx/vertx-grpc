@@ -10,9 +10,9 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.MethodCardinality;
 import io.vertx.grpc.common.ServiceMethod;
-import io.vertx.grpc.common.WireFormat;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
+import io.vertx.grpc.eventbus.impl.Utils;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.grpc.server.StatusException;
 import io.vertx.grpc.common.tests.Reply;
@@ -50,7 +50,7 @@ public class EventBusGrpcServerTest extends EventBusGrpcTestBase {
     DeliveryOptions opts = new DeliveryOptions()
       .addHeader(EventBusHeaders.STREAM_METHOD_NAME, "Unary")
       .addHeader(EventBusHeaders.STREAM_ID, "1")
-      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, WireFormat.PROTOBUF.name());
+      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, Utils.PROTOBUF_CANONICAL_NAME);
 
     Buffer body = vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).map(Message::body).await(10, TimeUnit.SECONDS);
 
@@ -68,7 +68,7 @@ public class EventBusGrpcServerTest extends EventBusGrpcTestBase {
     DeliveryOptions opts = new DeliveryOptions()
       .addHeader(EventBusHeaders.STREAM_METHOD_NAME, "Unary")
       .addHeader(EventBusHeaders.STREAM_ID, "1")
-      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, WireFormat.JSON.name());
+      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, Utils.JSON_CANONICAL_NAME);
 
     JsonObject payload = new JsonObject().put("name", "Julien");
     JsonObject body = vertx.eventBus().<JsonObject> request(ADDRESS, payload, opts).map(Message::body).await(10, TimeUnit.SECONDS);
@@ -84,7 +84,7 @@ public class EventBusGrpcServerTest extends EventBusGrpcTestBase {
     DeliveryOptions opts = new DeliveryOptions()
       .addHeader(EventBusHeaders.STREAM_METHOD_NAME, "Unary")
       .addHeader(EventBusHeaders.STREAM_ID, "1")
-      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, WireFormat.PROTOBUF.name());
+      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, Utils.PROTOBUF_CANONICAL_NAME);
 
     try {
       vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).await(10, TimeUnit.SECONDS);
@@ -105,7 +105,7 @@ public class EventBusGrpcServerTest extends EventBusGrpcTestBase {
     DeliveryOptions opts = new DeliveryOptions()
       .addHeader(EventBusHeaders.STREAM_METHOD_NAME, "Unary")
       .addHeader(EventBusHeaders.STREAM_ID, "1")
-      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, WireFormat.PROTOBUF.name());
+      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, Utils.PROTOBUF_CANONICAL_NAME);
 
     try {
       vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).await(10, TimeUnit.SECONDS);
@@ -125,7 +125,7 @@ public class EventBusGrpcServerTest extends EventBusGrpcTestBase {
     DeliveryOptions opts = new DeliveryOptions()
       .addHeader(EventBusHeaders.STREAM_METHOD_NAME, "Unary")
       .addHeader(EventBusHeaders.STREAM_ID, "1")
-      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, WireFormat.PROTOBUF.name());
+      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, Utils.PROTOBUF_CANONICAL_NAME);
 
     try {
       vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).await(10, TimeUnit.SECONDS);
@@ -147,7 +147,7 @@ public class EventBusGrpcServerTest extends EventBusGrpcTestBase {
     DeliveryOptions opts = new DeliveryOptions()
       .addHeader(EventBusHeaders.STREAM_METHOD_NAME, "Unary")
       .addHeader(EventBusHeaders.STREAM_ID, "1")
-      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, WireFormat.PROTOBUF.name());
+      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, Utils.PROTOBUF_CANONICAL_NAME);
 
     Buffer body = vertx.eventBus().<Buffer> request(ADDRESS, payload, opts).map(Message::body).await(10, TimeUnit.SECONDS);
 
@@ -177,7 +177,7 @@ public class EventBusGrpcServerTest extends EventBusGrpcTestBase {
     DeliveryOptions opts = new DeliveryOptions()
       .addHeader(EventBusHeaders.STREAM_METHOD_NAME, "Unary")
       .addHeader(EventBusHeaders.STREAM_ID, "1")
-      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, WireFormat.PROTOBUF.name())
+      .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, Utils.PROTOBUF_CANONICAL_NAME)
       .addHeader(EventBusHeaders.HEADER_PREFIX + "x-custom", "request_header_value");
 
     Buffer payload = Buffer.buffer(Request.newBuilder().setName("Julien").build().toByteArray());

@@ -10,7 +10,7 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.grpc.common.WireFormat;
+import io.vertx.grpc.common.JsonReaderConfig;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -93,9 +93,8 @@ public class ServerTranscodingJsonFormatTest extends GrpcTestBase {
 
   @Test
   public void testServerOptionsLenientParserAcceptsUnknownField(TestContext should) {
-    GrpcServerOptions lenient = new GrpcServerOptions().addEnabledFormat(
-      WireFormat.JSON.ignoringUnknownFields(true)
-    );
+    GrpcServerOptions lenient = new GrpcServerOptions()
+      .setJsonReaderConfig(JsonReaderConfig.DEFAULT.ignoringUnknownFields(true));
 
     startServer(should, lenient);
 
