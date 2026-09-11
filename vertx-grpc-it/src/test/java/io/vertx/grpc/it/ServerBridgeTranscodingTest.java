@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package io.vertx.tests.server;
+package io.vertx.grpc.it;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
