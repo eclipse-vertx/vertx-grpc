@@ -1,6 +1,7 @@
 package io.vertx.grpc.eventbus.tests;
 
 import io.vertx.core.*;
+import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.VertxInternal;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -16,8 +17,8 @@ import org.junit.Test;
 
 public class EventBusGrpcContextTest extends EventBusGrpcTestBase {
 
-  Context serverContext;
-  Context clientContext;
+  ContextInternal serverContext;
+  ContextInternal clientContext;
   EventBusGrpcServer server;
   EventBusGrpcClient client;
 
@@ -86,13 +87,15 @@ public class EventBusGrpcContextTest extends EventBusGrpcTestBase {
       private Request message;
       @Override
       public void handle(GrpcServerRequest<Request, Reply> request) {
-        should.assertEquals(serverContext, Vertx.currentContext());
+        ContextInternal current = ContextInternal.current();
+        should.assertTrue(current.isDuplicate());
+        should.assertEquals(serverContext.executor(), current.executor());
         request.handler(msg -> {
-          should.assertEquals(serverContext, Vertx.currentContext());
+          should.assertEquals(current, Vertx.currentContext());
           message = msg;
         });
         request.endHandler(v -> {
-          should.assertEquals(serverContext, Vertx.currentContext());
+          should.assertEquals(current, Vertx.currentContext());
           for (int idx = 0;idx < serverMessages;idx++) {
             request.response().write(Reply.newBuilder().setMessage("reply-" + idx).build());
           }

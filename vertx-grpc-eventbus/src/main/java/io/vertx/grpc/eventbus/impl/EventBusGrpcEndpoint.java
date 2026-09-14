@@ -89,7 +89,7 @@ abstract class EventBusGrpcEndpoint {
   }
 
   void bind(Promise<Void> promise) {
-    consumer = consumer(address, this::dispatch);
+    consumer = consumer(producerContext, address, this::dispatch);
     consumer
       .completion()
       .andThen(ar -> {
@@ -120,8 +120,8 @@ abstract class EventBusGrpcEndpoint {
     return eventBus.request(producerContext, address, body, options);
   }
 
-  <T> MessageConsumer<T> consumer(String address, Handler<Message<T>> handler) {
-    MessageConsumer<T> consumer = eventBus.consumer(producerContext, new MessageConsumerOptions().setAddress(address));
+  <T> MessageConsumer<T> consumer(ContextInternal contextInternal,  String address, Handler<Message<T>> handler) {
+    MessageConsumer<T> consumer = eventBus.consumer(contextInternal, new MessageConsumerOptions().setAddress(address));
     consumer.handler(handler);
     return consumer;
   }

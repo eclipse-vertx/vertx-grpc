@@ -113,7 +113,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
         }
       }
       String serviceFqn = service.name().fullyQualifiedName();
-      MessageConsumer<Object> consumer = consumer(serviceFqn, new Adapter(service));
+      MessageConsumer<Object> consumer = consumer(consumerContext, serviceFqn, new Adapter(service));
       copy = new HashMap<>(consumers);
       copy.put(serviceFqn, new ServiceConsumer(consumer, service));
     }
@@ -155,13 +155,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
 
     @Override
     public void handle(GrpcServerRequest<Req, Resp> request) {
-      assert consumerContext.inThread();
-      ContextInternal prev = consumerContext.beginDispatch();
-      try {
-        handler.handle(request);
-      } finally {
-        consumerContext.endDispatch(prev);
-      }
+      handler.handle(request);
     }
   }
 
@@ -226,7 +220,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
     public void handle(Message<Object> message) {
 
       boolean isServiceProxy;
-      WireFormat wireFormat;
+      WireFormat streamFormat;
       long streamId;
       String methodName = message.headers().get(EventBusHeaders.STREAM_METHOD_NAME);
       if (methodName == null) {
@@ -236,12 +230,12 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
           return;
         }
         isServiceProxy = true;
-        wireFormat = WireFormat.JSON;
+        streamFormat = WireFormat.JSON;
         streamId = nextStreamId();
       } else {
         isServiceProxy = false;
         String wireFormatName = message.headers().get(EventBusHeaders.STREAM_WIRE_FORMAT);
-        if (wireFormatName == null || (wireFormat = Utils.fromCanonicalName(wireFormatName)) == null) {
+        if (wireFormatName == null || (streamFormat = Utils.fromCanonicalName(wireFormatName)) == null) {
           message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid wire format: " + wireFormatName);
           return;
         }
@@ -259,18 +253,12 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
         }
       }
 
-      if (!acceptedWireFormats.contains(wireFormat)) {
-        message.fail(GrpcStatus.UNIMPLEMENTED.code, "Unsupported wire format: " + wireFormat);
+      if (!acceptedWireFormats.contains(streamFormat)) {
+        message.fail(GrpcStatus.UNIMPLEMENTED.code, "Unsupported wire format: " + streamFormat);
         return;
       }
 
-      ServiceMethod<?, ?> serviceMethod = null;
-      for (ServiceMethod<?, ?> candidate : service.methods()) {
-        if (candidate.methodName().equals(methodName)) {
-          serviceMethod = candidate;
-          break;
-        }
-      }
+      ServiceMethod<?, ?> serviceMethod = findServiceMethod(methodName);
 
       boolean clientStreaming = message.body() == null;
       boolean serverStreaming;
@@ -285,77 +273,96 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
       } else if (isServiceProxy && (clientStreaming || serverStreaming)) {
         message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Unsupported service proxy action");
       } else {
-        dispatchStreaming(message, serviceMethod, clientStreaming, serverStreaming, streamId, wireFormat);
+
+        boolean clientAddressRequired = serverStreaming || clientStreaming;
+        String clientAddress = message.headers().get(EventBusHeaders.ENDPOINT_ADDRESS);
+        String clientFormatName = message.headers().get(EventBusHeaders.ENDPOINT_WIRE_FORMAT);
+
+        WireFormat clientFormat;
+        if (clientAddressRequired) {
+          if (clientAddress == null) {
+            message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ENDPOINT_ADDRESS + "' header");
+            return;
+          }
+          if (clientFormatName == null) {
+            message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ENDPOINT_WIRE_FORMAT + "' header");
+            return;
+          }
+          switch (clientFormatName) {
+            case "json":
+              clientFormat = WireFormat.JSON;
+              break;
+            case "proto":
+              clientFormat = WireFormat.PROTOBUF;
+              break;
+            default:
+              message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.ENDPOINT_WIRE_FORMAT + "' header");
+              return;
+          }
+        } else {
+          if (clientAddress != null) {
+            message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.ENDPOINT_ADDRESS + "' header");
+            return;
+          }
+          if (clientFormatName != null) {
+            message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.ENDPOINT_WIRE_FORMAT + "' header");
+            return;
+          }
+          clientFormat = null;
+        }
+
+        int initialOutboundWindowSize;
+        if (serverStreaming) {
+          String initialWindowHeader = message.headers().get(EventBusHeaders.STREAM_INITIAL_WINDOW);
+          if (initialWindowHeader == null) {
+            message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.STREAM_INITIAL_WINDOW + "' header");
+            return;
+          }
+          try {
+            initialOutboundWindowSize = Integer.parseInt(initialWindowHeader);
+          } catch (NumberFormatException e) {
+            message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.STREAM_INITIAL_WINDOW + "' header");
+            return;
+          }
+        } else {
+          initialOutboundWindowSize = EventBusGrpcClientOptions.DEFAULT_INITIAL_WINDOW_SIZE;
+        }
+
+        long remoteTimeout = remoteTimeout(message.headers().get(EventBusHeaders.ENDPOINT_PING_TIMEOUT));
+
+        ContextInternal requestContext = ContextInternal.current();
+        producerContext().execute(() -> {
+          dispatchStream(requestContext, message, serviceMethod, clientAddress, clientFormat, clientStreaming,
+            serverStreaming, streamId, streamFormat, initialOutboundWindowSize, remoteTimeout);
+        });
       }
     }
 
-    private <Req, Resp> void dispatchStreaming(Message<Object> message,
-                                               ServiceMethod<Req, Resp> serviceMethod,
-                                               boolean clientStreaming,
-                                               boolean serverStreaming,
-                                               long streamId,
-                                               WireFormat wireFormat) {
-
-      boolean needClientAddress = serverStreaming || clientStreaming;
-      String clientAddress = message.headers().get(EventBusHeaders.ENDPOINT_ADDRESS);
-      String s = message.headers().get(EventBusHeaders.ENDPOINT_WIRE_FORMAT);
-
-      WireFormat clientFormat;
-      if (needClientAddress) {
-        if (clientAddress == null) {
-          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ENDPOINT_ADDRESS + "' header");
-          return;
+    private ServiceMethod<?, ?> findServiceMethod(String methodName) {
+      for (ServiceMethod<?, ?> candidate : service.methods()) {
+        if (candidate.methodName().equals(methodName)) {
+          return candidate;
         }
-        if (s == null) {
-          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.ENDPOINT_WIRE_FORMAT + "' header");
-          return;
-        }
-        switch (s) {
-          case "json":
-            clientFormat = WireFormat.JSON;
-            break;
-          case "proto":
-            clientFormat = WireFormat.PROTOBUF;
-            break;
-          default:
-            message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.ENDPOINT_WIRE_FORMAT + "' header");
-            return;
-        }
-      } else {
-        if (clientAddress != null) {
-          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.ENDPOINT_ADDRESS + "' header");
-          return;
-        }
-        if (s != null) {
-          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.ENDPOINT_WIRE_FORMAT + "' header");
-          return;
-        }
-        clientFormat = null;
       }
+      return null;
+    }
 
-      int initialOutboundWindowSize;
-      if (serverStreaming) {
-        String initialWindowHeader = message.headers().get(EventBusHeaders.STREAM_INITIAL_WINDOW);
-        if (initialWindowHeader == null) {
-          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Missing '" + EventBusHeaders.STREAM_INITIAL_WINDOW + "' header");
-          return;
-        }
-        try {
-          initialOutboundWindowSize = Integer.parseInt(initialWindowHeader);
-        } catch (NumberFormatException e) {
-          message.fail(GrpcStatus.INVALID_ARGUMENT.code, "Invalid '" + EventBusHeaders.STREAM_INITIAL_WINDOW + "' header");
-          return;
-        }
-      } else {
-        initialOutboundWindowSize = EventBusGrpcClientOptions.DEFAULT_INITIAL_WINDOW_SIZE;
-      }
-
-      long remoteTimeout = remoteTimeout(message.headers().get(EventBusHeaders.ENDPOINT_PING_TIMEOUT));
+    private <Req, Resp> void dispatchStream(ContextInternal requestContext,
+                                            Message<Object> message,
+                                            ServiceMethod<Req, Resp> serviceMethod,
+                                            String clientAddress,
+                                            WireFormat clientFormat,
+                                            boolean clientStreaming,
+                                            boolean serverStreaming,
+                                            long streamId,
+                                            WireFormat wireFormat,
+                                            int initialOutboundWindowSize,
+                                            long remoteTimeout) {
 
       EventBusGrpcServerStream stream = new EventBusGrpcServerStream(
         EventBusGrpcServerEndpoint.this,
         streamId,
-        consumerContext,
+        requestContext,
         !serverStreaming,
         !clientStreaming,
         wireFormat,
@@ -381,7 +388,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
         stream, serviceMethod.decoder(), serviceMethod.encoder());
 
       GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
-        consumerContext,
+        requestContext,
         methodCall,
         null,
         invoker,
