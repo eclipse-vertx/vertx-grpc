@@ -228,9 +228,12 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
   protected final void handleProducerClosed(Throwable cause) {
     closeCause = cause;
     closed = true;
+    if (cause != null) {
+      failPendingWrites(cause);
+    }
+    outboundQueue.close();
     consumerContext.execute(cause, err -> {
       if (cause != null) {
-        failPendingWrites(cause);
         if (cause instanceof GrpcErrorException) {
           handleError(((GrpcErrorException)cause).error());
         } else {
@@ -442,7 +445,6 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
 
   protected void failPendingWrites(Throwable cause) {
     this.pendingWriteFailureCause = cause;
-    outboundQueue.close();
   }
 
   @Override
