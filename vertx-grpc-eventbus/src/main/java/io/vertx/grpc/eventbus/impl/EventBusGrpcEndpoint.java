@@ -10,6 +10,7 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.core.internal.VertxInternal;
 import io.vertx.core.internal.eventbus.EventBusInternal;
+import io.vertx.core.tracing.TracingPolicy;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.eventbus.transport.v1alpha.Cancel;
 import io.vertx.grpc.eventbus.transport.v1alpha.Ping;
@@ -121,7 +122,10 @@ abstract class EventBusGrpcEndpoint {
   }
 
   <T> MessageConsumer<T> consumer(ContextInternal contextInternal,  String address, Handler<Message<T>> handler) {
-    MessageConsumer<T> consumer = eventBus.consumer(contextInternal, new MessageConsumerOptions().setAddress(address));
+    MessageConsumerOptions consumerOptions = new MessageConsumerOptions()
+      .setAddress(address)
+      .setTracingPolicy(TracingPolicy.IGNORE);
+    MessageConsumer<T> consumer = eventBus.consumer(contextInternal, consumerOptions);
     consumer.handler(handler);
     return consumer;
   }
@@ -139,6 +143,7 @@ abstract class EventBusGrpcEndpoint {
       for (RemoteEndpoint remoteEndpoint : toPing) {
         TransportFrame frame = TransportFrame.newBuilder().setPing(Ping.newBuilder().setData(data)).build();
         DeliveryOptions options = new DeliveryOptions()
+          .setTracingPolicy(TracingPolicy.IGNORE)
           .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, toCanonicalName(remoteEndpoint.format))
           .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, address);
         switch (remoteEndpoint.format) {
@@ -275,6 +280,7 @@ abstract class EventBusGrpcEndpoint {
     }
 
     Future<Void> sendTransportFrame(TransportFrame frame, DeliveryOptions options) {
+      options.setTracingPolicy(TracingPolicy.IGNORE);
       switch (format) {
         case JSON:
           options.setCodecName(EventBusGrpcJsonMessageCodec.CODEC_NAME);
@@ -353,6 +359,8 @@ abstract class EventBusGrpcEndpoint {
           default:
             throw new UnsupportedOperationException();
         }
+
+        options.setTracingPolicy(TracingPolicy.IGNORE);
 
         Future<Void> res = remote.sendTransportFrame(frame, options);
         return res.andThen(ar -> {

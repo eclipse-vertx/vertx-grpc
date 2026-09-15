@@ -6,6 +6,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.core.tracing.TracingPolicy;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.eventbus.transport.v1alpha.*;
@@ -144,6 +145,7 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
           message.fail(status.code, msg);
         } else {
           DeliveryOptions options = new DeliveryOptions();
+          options.setTracingPolicy(TracingPolicy.IGNORE);
           MultiMap multiMap = MultiMap.caseInsensitiveMultiMap();
           if (headers != null) {
             EventBusHeaders.encodeMultiMap(HEADER_PREFIX, headers, multiMap);
@@ -173,10 +175,10 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
     @Override
     public void handleConnect(Message<Object> msg) {
       DeliveryOptions replyOptions = new DeliveryOptions()
+        .setTracingPolicy(TracingPolicy.IGNORE)
         .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address())
         .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, toCanonicalName(localEndpoint.wireFormat))
         .addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, Integer.toString(localEndpoint.initialWindowSize));
-
       msg.reply(null, replyOptions);
     }
 

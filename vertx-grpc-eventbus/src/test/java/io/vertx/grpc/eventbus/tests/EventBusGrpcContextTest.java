@@ -3,6 +3,10 @@ package io.vertx.grpc.eventbus.tests;
 import io.vertx.core.*;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.core.internal.VertxInternal;
+import io.vertx.core.spi.tracing.SpanKind;
+import io.vertx.core.spi.tracing.TagExtractor;
+import io.vertx.core.spi.tracing.VertxTracer;
+import io.vertx.core.tracing.TracingPolicy;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClientRequest;
@@ -15,12 +19,43 @@ import io.vertx.grpc.common.tests.Reply;
 import io.vertx.grpc.common.tests.Request;
 import org.junit.Test;
 
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+
 public class EventBusGrpcContextTest extends EventBusGrpcTestBase {
 
+  final AtomicInteger traceActivity = new AtomicInteger();
   ContextInternal serverContext;
   ContextInternal clientContext;
   EventBusGrpcServer server;
   EventBusGrpcClient client;
+
+  @Override
+  protected Vertx newVertx() {
+    return Vertx.builder().withTracer(options -> new VertxTracer<>() {
+      @Override
+      public <R> Object sendRequest(Context context, SpanKind kind, TracingPolicy policy, R request, String operation, BiConsumer<String, String> headers, TagExtractor<R> tagExtractor) {
+        if (policy != TracingPolicy.IGNORE) {
+          traceActivity.incrementAndGet();
+        }
+        return VertxTracer.super.sendRequest(context, kind, policy, request, operation, headers, tagExtractor);
+      }
+      @Override
+      public <R> Object receiveRequest(Context context, SpanKind kind, TracingPolicy policy, R request, String operation, Iterable<Map.Entry<String, String>> headers, TagExtractor<R> tagExtractor) {
+        if (policy != TracingPolicy.IGNORE) {
+          traceActivity.incrementAndGet();
+        }
+        return VertxTracer.super.receiveRequest(context, kind, policy, request, operation, headers, tagExtractor);
+      }
+    }).build();
+  }
+
+  @Override
+  public void setUp(TestContext should) {
+    traceActivity.set(0);
+    super.setUp(should);
+  }
 
   private void init(TestContext should, ThreadingModel threadingModel) {
     initServer(should, threadingModel);
@@ -126,5 +161,7 @@ public class EventBusGrpcContextTest extends EventBusGrpcTestBase {
     });
 
     async.awaitSuccess();
+
+    should.assertEquals(0, traceActivity.get());
   }
 }

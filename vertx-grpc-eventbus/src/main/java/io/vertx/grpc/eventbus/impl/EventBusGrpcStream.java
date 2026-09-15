@@ -9,6 +9,7 @@ import io.vertx.core.internal.EventExecutor;
 import io.vertx.core.internal.PromiseInternal;
 import io.vertx.core.internal.concurrent.InboundMessageQueue;
 import io.vertx.core.internal.concurrent.OutboundMessageQueue;
+import io.vertx.core.tracing.TracingPolicy;
 import io.vertx.grpc.client.InvalidStatusException;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.*;
@@ -76,6 +77,8 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
                                              String methodName, long pingTimeout, String encoding, WireFormat wireFormat,
                                              java.time.Duration timeout) {
       DeliveryOptions options = new DeliveryOptions();
+
+      options.setTracingPolicy(TracingPolicy.IGNORE);
 
       if (localUnary) {
         if (!remoteUnary) {
