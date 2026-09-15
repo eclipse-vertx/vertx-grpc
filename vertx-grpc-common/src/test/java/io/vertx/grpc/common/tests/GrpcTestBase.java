@@ -37,7 +37,11 @@ public abstract class GrpcTestBase {
   @Before
   public void setUp(TestContext should) {
     port = 8080;
-    vertx = Vertx.vertx();
+    vertx = newVertx();
+  }
+
+  protected Vertx newVertx() {
+    return Vertx.vertx();
   }
 
   @After
