@@ -45,8 +45,9 @@ public class WriteStreamAdapter<T> {
 
   public final void write(T msg) {
     stream.writeMessage(encoder.encode(msg));
+    boolean full = stream.writeQueueFull();
     synchronized (this) {
-      ready = !stream.writeQueueFull();
+      ready = !full;
     }
   }
 
