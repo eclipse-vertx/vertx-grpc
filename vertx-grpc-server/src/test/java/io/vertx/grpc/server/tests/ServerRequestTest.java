@@ -685,6 +685,67 @@ public class ServerRequestTest extends ServerTest {
   }
 
   @Test
+  public void testClientStreamingFetchBackPressure(TestContext should) {
+    startServer(GrpcServer.server(vertx).callHandler(SINK, call -> {
+      call.pause();
+      call.handler(item -> {
+      });
+      call.endHandler(v -> {
+        call.response().end(Empty.getDefaultInstance());
+      });
+      vertx.setPeriodic(2, id -> {
+        call.fetch(1);
+      });
+    }));
+
+    Async test = should.async();
+
+    Buffer msg = Buffer.buffer(Request.newBuilder()
+      .setName("ABCDEFGH".repeat(512))
+      .build().toByteArray());
+    Buffer grpcFrame = Buffer.buffer(5 + msg.length());
+    grpcFrame.appendByte((byte) 0);
+    grpcFrame.appendInt(msg.length());
+    grpcFrame.appendBuffer(msg);
+
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setProtocolVersion(HttpVersion.HTTP_2)
+      .setHttp2ClearTextUpgrade(false)
+    );
+
+    client.request(HttpMethod.POST, port, "localhost", "/" + TestServiceGrpc.SERVICE_NAME + "/Sink")
+      .onComplete(should.asyncAssertSuccess(request -> {
+        request.putHeader("content-type", "application/grpc");
+        request.setChunked(true);
+        request.response().onComplete(should.asyncAssertSuccess(response -> {
+          response.end().onComplete(should.asyncAssertSuccess(v -> {
+            test.complete();
+          }));
+        }));
+        sendUntilFull(request, grpcFrame, 4);
+      }));
+
+    test.awaitSuccess(20_000);
+  }
+
+  private void sendUntilFull(HttpClientRequest request, Buffer msg, int remainingDrains) {
+    if (request.writeQueueFull()) {
+      request.drainHandler(v -> {
+        if (remainingDrains > 0) {
+          sendUntilFull(request, msg, remainingDrains - 1);
+        } else {
+          request.end();
+        }
+      });
+    } else {
+      request.write(msg);
+      vertx.setTimer(1, v -> {
+        sendUntilFull(request, msg, remainingDrains);
+      });
+    }
+  }
+
+  @Test
   public void testCancelResponseSignalPropagation(TestContext should) {
 
     Async async = should.async();

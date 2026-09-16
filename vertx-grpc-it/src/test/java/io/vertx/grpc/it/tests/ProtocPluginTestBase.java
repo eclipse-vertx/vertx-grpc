@@ -657,7 +657,7 @@ public abstract class ProtocPluginTestBase extends ProxyTestBase {
 
     Messages.StreamingInputCallRequest msg = Messages.StreamingInputCallRequest.newBuilder()
             .setPayload(Messages.Payload.newBuilder()
-                    .setBody(ByteString.copyFromUtf8("ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ"))).build();
+                    .setBody(ByteString.copyFromUtf8("ABCDEFGH".repeat(512)))).build();
 
     Future<GrpcClientRequest<Messages.StreamingInputCallRequest, Messages.StreamingInputCallResponse>> fut = grpcClient.request(SocketAddress.inetSocketAddress(8080, "localhost"), TestServiceGrpcClient.StreamingInputCall).onComplete(should.asyncAssertSuccess(request -> {
       sendUntil(request, msg, 4);
@@ -677,7 +677,7 @@ public abstract class ProtocPluginTestBase extends ProxyTestBase {
 
     Messages.StreamingOutputCallResponse msg2 = Messages.StreamingOutputCallResponse.newBuilder()
             .setPayload(Messages.Payload.newBuilder()
-                    .setBody(ByteString.copyFromUtf8("ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ"))).build();
+                    .setBody(ByteString.copyFromUtf8("ABCDEFGH".repeat(512)))).build();
 
     // Create gRPC Server
     GrpcServer grpcServer = grpcServer();
