@@ -195,7 +195,7 @@ class EventBusGrpcClientStream extends EventBusGrpcStream.Client {
 
   private Future<Void> connect(Object body) {
     Future<Void> res = connect(body, requestHeaders, serviceName, methodName, localEndpoint.pingTimeout, encoding, wireFormat, timeout);
-    if (!remoteUnary) {
+    if (!remoteUnary || !localUnary) {
       res = res.andThen(ar -> {
         if (ar.succeeded()) {
           EventBusGrpcClientStream.this.state = State.STREAMING;
@@ -203,6 +203,17 @@ class EventBusGrpcClientStream extends EventBusGrpcStream.Client {
       });
     }
     return res;
+  }
+
+  @Override
+  void handleAck(String endpointAddress, String endpointWireFormat, int initialWindow) {
+    super.handleAck(endpointAddress, endpointWireFormat, initialWindow);
+    Promise<Void> c = cancellation;
+    if (c != null) {
+      cancellation = null;
+      Future<Void> fut = sendTransportFrame(TransportFrame.newBuilder().setCancel(Cancel.newBuilder().setStatus(GrpcStatus.CANCELLED.code)), null);
+      fut.onComplete(c);
+    }
   }
 
   private Future<Void> writeCancel() {

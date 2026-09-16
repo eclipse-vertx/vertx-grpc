@@ -111,6 +111,7 @@ The {@link io.vertx.grpc.eventbus.EventBusGrpcClientOptions} configures the clie
 
 - `pingInterval`: how often the client pings server endpoints it holds streams with (default: 30 seconds).
 - `pingTimeout`: how long a server may go without acknowledging a ping before its streams are terminated (default: 60 seconds)
+- `streamTimeout`: how long a streaming event bus request waits for a response before timing out (default: 5 minutes)
 - `initialWindowSize`: the flow control window for inbound messages, counted in messages (default: 64).
 
 ==== Server options

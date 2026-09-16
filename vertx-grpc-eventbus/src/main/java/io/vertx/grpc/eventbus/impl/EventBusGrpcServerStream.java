@@ -2,6 +2,7 @@ package io.vertx.grpc.eventbus.impl;
 
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
@@ -21,6 +22,7 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
 
   private final WireFormat wireFormat;
   private final String encoding;
+  private final boolean remoteUnary;
   private final Inbound inbound;
   private final Outbound outbound;
   private boolean closed;
@@ -38,9 +40,10 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
     super(localEndpoint, id, context, initialInboundWindowSize, initialOutboundWindowSize);
     this.wireFormat = wireFormat;
     this.encoding = encoding;
+    this.remoteUnary = remoteUnary;
 
     this.inbound = remoteUnary ? new UnaryInbound() : new StreamingInbound();
-    this.outbound = localUnary && remoteUnary ? new UnaryOutbound() : new StreamingOutbound();
+    this.outbound = localUnary ? new UnaryOutbound() : new StreamingOutbound();
   }
 
   void handleConnect(Message<Object> message) {
@@ -63,6 +66,16 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
   @Override
   void handleConsumerClosed() {
     closed = true;
+    outbound.handleClose(closeCause);
+  }
+
+  private void sendAck() {
+    TransportFrame.Builder frame = TransportFrame.newBuilder()
+      .setAck(Ack.newBuilder()
+        .setEndpointAddress(localEndpoint.address())
+        .setEndpointWireFormat(toCanonicalName(localEndpoint.wireFormat))
+        .setInitialWindow(localEndpoint.initialWindowSize));
+    sendTransportFrame(frame, null);
   }
 
   private interface Inbound {
@@ -93,6 +106,7 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
     void handleConnect(Message<Object> msg);
     Future<Void> write(GrpcFrame frame);
     Future<Void> end();
+    void handleClose(Throwable cause);
   }
 
   private class UnaryOutbound implements Outbound {
@@ -105,6 +119,19 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
     @Override
     public void handleConnect(Message<Object> msg) {
       this.message = msg;
+      if (!remoteUnary) {
+        sendAck();
+      }
+    }
+
+    @Override
+    public void handleClose(Throwable cause) {
+      if (!closed && message != null) {
+        closed = true;
+        GrpcStatus status = cause != null ? EventBusGrpcCodec.mapFailure(cause) : GrpcStatus.CANCELLED;
+        String msg = cause != null && cause.getMessage() != null ? cause.getMessage() : status.name();
+        message.fail(status.code, msg);
+      }
     }
 
     @Override
@@ -142,7 +169,10 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
       if (producerContext.inThread()) {
         if (status != GrpcStatus.OK) {
           String msg = statusMessage != null ? statusMessage : status.name();
-          message.fail(status.code, msg);
+          if (message != null) {
+            message.fail(status.code, msg);
+            message = null;
+          }
         } else {
           DeliveryOptions options = new DeliveryOptions();
           options.setTracingPolicy(TracingPolicy.IGNORE);
@@ -155,7 +185,10 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
           }
           Buffer payload = response != null ? response.payload() : Buffer.buffer();
           options.setHeaders(multiMap);
-          message.reply(EventBusGrpcCodec.encodeBody(payload, wireFormat), options);
+          if (message != null) {
+            message.reply(EventBusGrpcCodec.encodeBody(payload, wireFormat), options);
+            message = null;
+          }
         }
         EventBusGrpcEndpoint.StreamRegistration sr = EventBusGrpcServerStream.this;
         sr.closeOutbound();
@@ -170,16 +203,23 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
 
   private class StreamingOutbound implements Outbound {
 
+    private Message<Object> message;
     private Future<Void> lastWrite;
 
     @Override
     public void handleConnect(Message<Object> msg) {
-      DeliveryOptions replyOptions = new DeliveryOptions()
-        .setTracingPolicy(TracingPolicy.IGNORE)
-        .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address())
-        .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, toCanonicalName(localEndpoint.wireFormat))
-        .addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, Integer.toString(localEndpoint.initialWindowSize));
-      msg.reply(null, replyOptions);
+      this.message = msg;
+      sendAck();
+    }
+
+    @Override
+    public void handleClose(Throwable cause) {
+      if (message != null) {
+        GrpcStatus status = cause != null ? EventBusGrpcCodec.mapFailure(cause) : GrpcStatus.CANCELLED;
+        String msg = cause != null && cause.getMessage() != null ? cause.getMessage() : status.name();
+        message.fail(status.code, msg);
+        message = null;
+      }
     }
 
     @Override
@@ -191,6 +231,9 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
           written = writeResponseHeaders(responseHeaders);
           break;
         case HALF_CLOSE:
+          Future<Void> pending = lastWrite;
+          written = pending == null ? handleTrailers((GrpcTrailersFrame) frame) : pending.compose(v -> handleTrailers((GrpcTrailersFrame) frame));
+          break;
         case MESSAGE:
           written = enqueue(frame);
           break;
@@ -207,6 +250,40 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
         return consumerContext.failedFuture(new IllegalStateException("Cannot end a stream that did not write any frame"));
       }
       return last;
+    }
+
+    private Future<Void> handleTrailers(GrpcTrailersFrame frame) {
+      if (producerContext.inThread()) {
+        GrpcStatus status = frame.status();
+        if (status != GrpcStatus.OK) {
+          String msg = frame.statusMessage() != null ? frame.statusMessage() : status.name();
+          if (message != null) {
+            message.fail(status.code, msg);
+            message = null;
+          }
+        } else {
+          DeliveryOptions options = new DeliveryOptions();
+          options.setTracingPolicy(TracingPolicy.IGNORE);
+          MultiMap multiMap = MultiMap.caseInsensitiveMultiMap();
+          if (frame.metadata() != null) {
+            EventBusHeaders.encodeMultiMap(TRAILER_PREFIX, frame.metadata(), multiMap);
+          }
+          options.setHeaders(multiMap);
+          if (message != null) {
+            message.reply(null, options);
+            message = null;
+          }
+        }
+        EventBusGrpcEndpoint.StreamRegistration sr = EventBusGrpcServerStream.this;
+        sr.closeOutbound();
+        return producerContext.succeededFuture();
+      } else {
+        Promise<Void> p = consumerContext.promise();
+        producerContext.execute(() -> {
+          handleTrailers(frame).onComplete(p);
+        });
+        return p.future();
+      }
     }
 
     private Future<Void> writeResponseHeaders(MultiMap headers) {

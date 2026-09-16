@@ -79,11 +79,12 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
     } else {
       Message<?> pendingReply = pendingReplies.remove(msg.address());
       if (pendingReply != null) {
-        String address = headers.get(EventBusHeaders.ENDPOINT_ADDRESS);
         String streamId = pendingReply.headers().get(EventBusHeaders.STREAM_ID);
         Stream stream = streams.get(streamId);
-        stream.serverAddress = address;
-        actions.add(() -> onServerConnect(address, streamId));
+        String address = stream.serverAddress;
+        if (address == null) {
+          actions.add(() -> onServerConnect(null, streamId));
+        }
         Object body = msg.body();
         if (body != null) {
           if (body instanceof ReplyException) {
@@ -100,6 +101,10 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
             actions.add(() -> onServerMessage(address, streamId, wireFormat, (Buffer)body));
             actions.add(() -> onServerHalfClose(address, streamId, 0, null, streamTrailers));
           }
+        } else {
+          MultiMap streamTrailers = MultiMap.caseInsensitiveMultiMap();
+          EventBusHeaders.decodeMultimap(TRAILER_PREFIX, msg.headers(), streamTrailers);
+          actions.add(() -> onServerHalfClose(address, streamId, 0, null, streamTrailers));
         }
       } else {
         Object body = msg.body();
@@ -118,6 +123,10 @@ public class TransportInterceptor implements Handler<DeliveryContext<Object>> {
             Stream stream = streams.get(streamId);
             if (stream.clientAddress.equals(address)) {
               switch (frame.getFrameCase()) {
+                case ACK:
+                  stream.serverAddress = frame.getAck().getEndpointAddress();
+                  actions.add(() -> onServerConnect(stream.serverAddress, streamId));
+                  break;
                 case HEADERS:
                   MultiMap streamHeaders = MultiMap.caseInsensitiveMultiMap();
                   streamHeaders.addAll(frame.getHeaders().getMetadataMap());

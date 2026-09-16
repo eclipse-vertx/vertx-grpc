@@ -43,11 +43,13 @@ public class EventBusGrpcClientEndpoint extends EventBusGrpcEndpoint implements 
 
   private final VertxInternal vertx;
   final long pingTimeout;
+  final long streamTimeout;
 
   private EventBusGrpcClientEndpoint(ContextInternal producerContext, EventBusGrpcClientOptions options) {
     super(producerContext, options.getWireFormat(), "grpc.eb.client.", options.getCleanerPeriod().toMillis(),
       options.getPingInterval().toMillis(), options.getInitialWindowSize());
     this.pingTimeout = pingTimeout(options);
+    this.streamTimeout = options.getStreamTimeout().toMillis();
     this.vertx = producerContext.owner();
   }
 

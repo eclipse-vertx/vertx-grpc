@@ -84,16 +84,19 @@ The server deduces the communication pattern from the request:
 The server follows these steps:
 
 1. resolves the service method
-2. deduces the communication pattern from the request.
-3. sends a reply
+2. deduces the communication pattern from the request
+3. registers the client endpoint and sends an `Ack` transport frame to the client's private address
+4. keeps the event-bus request message pending until the call completes
 
-The reply contains the following message headers:
+When the call completes, the server replies to the request message:
 
-- `grpc-endpoint-address`, the private address of the server, present when the server is streaming
-- `grpc-endpoint-wire-format`, the wire format of the server when the client is streaming
-- `grpc-stream-initial-window`, the initial flow control window when the client is streaming, see [Flow control](#flow-control).
+- for client streaming calls, the reply body contains the encoded response message
+- message headers prefixed by `grpc-stream-header.` form response metadata
+- message headers prefixed by `grpc-stream-trailer.` form the trailers
+- a status `OK` response translates into a message reply
+- otherwise the server fails the request with the gRPC status as the failure code and the status message as the failure message
 
-The reply body is always null.
+Holding the request-reply open until stream completion ensures distributed tracing spans accurately measure the full stream duration.
 
 #### Endpoint addresses and multiplexing
 
@@ -121,10 +124,10 @@ sequenceDiagram
     participant C as Client
     participant S as Server
 
-    Note over C,S: Open the stream. A request and a reply on the<br/>service address. The bodies are empty.
+    Note over C,S: Open the stream. The client sends a request to the service address.<br/>The server acknowledges on the client's private address.
     C->>S: request, headers grpc-stream-method-name,<br/>grpc-stream-wire-format, grpc-stream-id,<br/>grpc-endpoint-address, grpc-endpoint-wire-format,<br/>grpc-stream-initial-window
-    Note right of S: The method type is a stream.<br/>Register the call in the stream map.
-    S-->>C: reply, headers grpc-endpoint-address,<br/>grpc-endpoint-wire-format, grpc-stream-initial-window
+    Note right of S: Register the call in the stream map.<br/>Send an Ack frame to the client endpoint.
+    S->>C: Ack frame (endpoint_address, endpoint_wire_format, initial_window)
 
     Note over C,S: The call is now full duplex. Each frame<br/>contains the stream_id of the destination.<br/>Refer to Frame ordering for sequence rules.
     C->>S: Message, stream_sequence 1
@@ -133,7 +136,8 @@ sequenceDiagram
     C->>S: Message, stream_sequence 2
     C->>S: HalfClose, stream_sequence 3
     S->>C: Message, stream_sequence 3
-    S->>C: Trailers (trailing metadata + status), stream_sequence 4
+    Note over S: Call completes. Server completes the initial event-bus request.
+    S-->>C: reply, headers grpc-stream-trailer.*
     Note over C,S: The two endpoints remove the stream from their<br/>maps. The call is complete.
 ```
 
@@ -155,6 +159,7 @@ A frame contains a small header and one variant. The header contains the `stream
 - `Trailers`, trailing metadata with gRPC status from the server. The metadata is carried inside the frame as a `map<string, string>`.
 - `Cancel`, from the client or from the server.
 - `Ping`, a liveness probe, from the client or from the server.
+- `Ack`, handshake acknowledgement from server to client carrying server endpoint details.
 
 ### Frame ordering
 

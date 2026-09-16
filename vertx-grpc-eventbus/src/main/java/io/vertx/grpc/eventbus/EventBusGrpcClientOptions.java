@@ -23,8 +23,14 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
    */
   public static final Duration DEFAULT_PING_TIMEOUT = Duration.ofSeconds(60);
 
+  /**
+   * The default stream timeout = {@code 5} minutes
+   */
+  public static final Duration DEFAULT_STREAM_TIMEOUT = Duration.ofMinutes(5);
+
   private Duration pingInterval;
   private Duration pingTimeout;
+  private Duration streamTimeout;
 
   /**
    * Default options.
@@ -32,6 +38,7 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
   public EventBusGrpcClientOptions() {
     pingInterval = DEFAULT_PING_INTERVAL;
     pingTimeout = DEFAULT_PING_TIMEOUT;
+    streamTimeout = DEFAULT_STREAM_TIMEOUT;
   }
 
   /**
@@ -41,6 +48,7 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
     super(other);
     pingInterval = other.pingInterval;
     pingTimeout = other.pingTimeout;
+    streamTimeout = other.streamTimeout;
   }
 
   /**
@@ -89,6 +97,27 @@ public class EventBusGrpcClientOptions extends EventBusGrpcEndpointOptions {
       throw new IllegalArgumentException("pingTimeout must be positive");
     }
     this.pingTimeout = pingTimeout;
+    return this;
+  }
+
+  /**
+   * @return the stream timeout
+   */
+  public Duration getStreamTimeout() {
+    return streamTimeout;
+  }
+
+  /**
+   * Set how long a streaming event bus request waits for a response before timing out.
+   *
+   * @param streamTimeout the timeout, must be positive
+   * @return a reference to this, so the API can be used fluently
+   */
+  public EventBusGrpcClientOptions setStreamTimeout(Duration streamTimeout) {
+    if (streamTimeout == null || streamTimeout.isNegative() || streamTimeout.isZero()) {
+      throw new IllegalArgumentException("streamTimeout must be positive");
+    }
+    this.streamTimeout = streamTimeout;
     return this;
   }
 

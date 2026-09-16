@@ -19,7 +19,9 @@ import io.vertx.grpc.eventbus.EventBusGrpcClientOptions;
 import io.vertx.grpc.eventbus.EventBusGrpcServer;
 import io.vertx.grpc.eventbus.EventBusGrpcServerOptions;
 import io.vertx.grpc.eventbus.impl.EventBusHeaders;
+import io.vertx.grpc.eventbus.impl.EventBusGrpcProtobufMessageCodec;
 import io.vertx.grpc.eventbus.impl.Utils;
+import io.vertx.grpc.eventbus.transport.v1alpha.Ack;
 import io.vertx.grpc.eventbus.transport.v1alpha.Message;
 import io.vertx.grpc.eventbus.transport.v1alpha.TransportFrame;
 import io.vertx.grpc.server.GrpcServerResponse;
@@ -528,7 +530,7 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     // message is on the wire, so the following writes have no consumer to deliver to.
     vertx.eventBus().addOutboundInterceptor(new TransportInterceptor() {
       @Override
-      protected Result onClientMessage(String clientAddress, WireFormat wireFormat, String streamId, Buffer msg) {
+      protected Result onServerMessage(String serverAddress, String streamId, WireFormat wireFormat, Buffer msg) {
         return Result.of(client.close());
       }
     });
@@ -596,6 +598,8 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
   public void testLivenessIsOnByDefault() throws Exception {
     assertFalse(new EventBusGrpcClientOptions().getPingInterval().isZero());
     assertTrue(new EventBusGrpcClientOptions().getPingTimeout().compareTo(new EventBusGrpcClientOptions().getPingInterval()) > 0);
+    assertFalse(new EventBusGrpcClientOptions().getStreamTimeout().isZero());
+    assertFalse(new EventBusGrpcClientOptions().getStreamTimeout().isNegative());
     assertFalse(new EventBusGrpcServerOptions().getMaxPingTimeout().isZero());
 
     for (Duration disabled : new Duration[]{Duration.ZERO, Duration.ofMillis(-1)}) {
@@ -607,6 +611,11 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
       try {
         new EventBusGrpcClientOptions().setPingTimeout(disabled);
         fail("pingTimeout " + disabled + " must be rejected");
+      } catch (IllegalArgumentException expected) {
+      }
+      try {
+        new EventBusGrpcClientOptions().setStreamTimeout(disabled);
+        fail("streamTimeout " + disabled + " must be rejected");
       } catch (IllegalArgumentException expected) {
       }
       try {
@@ -647,7 +656,8 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
       .addHeader(EventBusHeaders.STREAM_ID, "1");
     vertx.eventBus().consumer("grpc.eb.client.silent", msg -> {
     }).completion().await(10, TimeUnit.SECONDS);
-    vertx.eventBus().request(TestConstants.TEST_SERVICE.fullyQualifiedName(), null, handshake).await(10, TimeUnit.SECONDS);
+    vertx.eventBus().request(TestConstants.TEST_SERVICE.fullyQualifiedName(), null, handshake).onFailure(err -> {
+    });
 
     Throwable failure = serverFailed.future().await(10, TimeUnit.SECONDS);
     assertNotNull("a peer that never advertised must still be given up on", failure);
@@ -1010,8 +1020,17 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
   @Test
   public void testMalformedHandshakeReplyFailsFast() throws Exception {
     String fqn = PIPE_SERVER.serviceName().fullyQualifiedName();
-    vertx.eventBus().<Buffer>consumer(fqn, msg -> msg.reply(Buffer.buffer(), new DeliveryOptions()
-      .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, "s.addr"))).completion().await(5, TimeUnit.SECONDS);
+    vertx.eventBus().<Buffer>consumer(fqn, msg -> {
+      TransportFrame ack = TransportFrame.newBuilder()
+        .setStreamId(Long.parseLong(msg.headers().get(EventBusHeaders.STREAM_ID)))
+        .setAck(Ack.newBuilder()
+          .setEndpointAddress("s.addr")
+          .setEndpointWireFormat(Utils.PROTOBUF_CANONICAL_NAME))
+        .build();
+      vertx.eventBus().send(msg.headers().get(EventBusHeaders.ENDPOINT_ADDRESS), ack, new DeliveryOptions()
+        .setCodecName(EventBusGrpcProtobufMessageCodec.CODEC_NAME)
+        .addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, Utils.PROTOBUF_CANONICAL_NAME));
+    }).completion().await(5, TimeUnit.SECONDS);
     try {
       client.request(PIPE_CLIENT)
         .compose(request -> {
@@ -1112,6 +1131,16 @@ public class EventBusGrpcStreamingTest extends EventBusGrpcTestBase {
     assertEquals(2, replies.size());
     assertFalse("the client's default wire format should produce JSON frames without request.format()", frames.isEmpty());
     assertTrue(frames.stream().anyMatch(f -> f.getFrameCase() == TransportFrame.FrameCase.MESSAGE));
+    int ackIndex = -1;
+    int messageIndex = -1;
+    for (int i = 0; i < frames.size(); i++) {
+      if (frames.get(i).getFrameCase() == TransportFrame.FrameCase.ACK && ackIndex == -1) {
+        ackIndex = i;
+      } else if (frames.get(i).getFrameCase() == TransportFrame.FrameCase.MESSAGE && messageIndex == -1) {
+        messageIndex = i;
+      }
+    }
+    assertTrue("the server acknowledgement must precede streaming messages", ackIndex >= 0 && ackIndex < messageIndex);
   }
 
   @Test

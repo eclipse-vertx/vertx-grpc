@@ -27,7 +27,15 @@ message TransportFrame {
     Cancel cancel = 7; // either direction, abnormal termination
     Headers headers = 8; // server to client, response metadata, before the first message
     Ping ping = 9; // either direction, peer liveness probe, on stream_id 0
+    Ack ack = 10; // server to client, handshake acknowledgement carrying server endpoint details
   }
+}
+
+// Server to client upon receiving the initial stream request, carries server endpoint details.
+message Ack {
+  string endpoint_address = 1;
+  string endpoint_wire_format = 2;
+  uint32 initial_window = 3;
 }
 
 // Server to client, response initial metadata, ordered ahead of the first response
