@@ -19,6 +19,8 @@ import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientBuilder;
 import io.vertx.grpc.client.GrpcClientOptions;
 
+import java.util.List;
+
 
 /**
  * Implementation of {@link GrpcClientBuilder}.
@@ -72,8 +74,15 @@ public class GrpcClientBuilderImpl<C extends GrpcClient> implements GrpcClientBu
   @Override
   public GrpcClientBuilder<C> with(HttpClientConfig transportConfig) {
     if (transportConfig != null) {
-      transportConfig = new HttpClientConfig(transportConfig)
-        .setVersions(HttpVersion.HTTP_2);
+      transportConfig = new HttpClientConfig(transportConfig);
+      List<HttpVersion> versions = transportConfig.getVersions();
+      if (versions.contains(HttpVersion.HTTP_3)) {
+        transportConfig.setVersions(versions.stream()
+          .filter(version -> version == HttpVersion.HTTP_2 || version == HttpVersion.HTTP_3)
+          .toArray(HttpVersion[]::new));
+      } else {
+        transportConfig.setVersions(HttpVersion.HTTP_2);
+      }
       if (transportConfig.getHttp2Config() == null) {
         transportConfig.setHttp2Config(new Http2ClientConfig());
       }

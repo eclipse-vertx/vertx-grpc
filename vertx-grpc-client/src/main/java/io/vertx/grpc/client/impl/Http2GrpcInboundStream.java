@@ -75,7 +75,7 @@ public class Http2GrpcInboundStream extends Http2GrpcOutboundStream {
 
   private void handleStreamException(Throwable failure) {
     if (failure instanceof StreamResetException) {
-      GrpcErrorException error = GrpcErrorException.create((StreamResetException) failure);
+      GrpcErrorException error = GrpcErrorException.create((StreamResetException) failure, httpRequest.version());
       Handler<GrpcError> handler = errorHandler;
       if (errorHandler != null) {
         handler.handle(error.error());
@@ -180,7 +180,7 @@ public class Http2GrpcInboundStream extends Http2GrpcOutboundStream {
       } else {
         msg = "Invalid HTTP response content-type header";
       }
-      httpResponse.request().reset(GrpcError.CANCELLED.http2ResetCode);
+      httpResponse.request().reset(GrpcError.CANCELLED.resetCode(httpResponse.version()));
 //      return context().failedFuture(msg);
       throw new UnsupportedOperationException("Handle me: " + msg);
     }

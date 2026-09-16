@@ -42,7 +42,7 @@ abstract class Http2GrpcOutboundStream implements GrpcStream {
 
   @Override
   public Future<Void> fail(GrpcError error) {
-    return httpRequest.reset(error.http2ResetCode);
+    return httpRequest.reset(error.resetCode(httpRequest.version()));
   }
 
   @Override
