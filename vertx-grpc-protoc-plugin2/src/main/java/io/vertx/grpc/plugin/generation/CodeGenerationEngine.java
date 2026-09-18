@@ -80,6 +80,9 @@ public class CodeGenerationEngine {
     if (options.isGenerateIo()) {
       types.add(GenerationType.GRPC_IO);
     }
+    if (options.isGenerateOpenApi()) {
+      types.add(GenerationType.OPENAPI);
+    }
 
     return types;
   }
