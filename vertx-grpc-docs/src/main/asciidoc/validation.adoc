@@ -1,0 +1,104 @@
+== Vert.x gRPC Validation
+
+A server can validate a request message before the message goes to your handler.
+
+If a message does not obey the rules, the server stops the call with the status
+`{@link io.vertx.grpc.common.GrpcStatus#INVALID_ARGUMENT}`. The server does not call your handler for that
+message. The server also discards the subsequent messages of the stream.
+
+=== The protovalidate module
+
+The module `vertx-grpc-validation-protovalidate` uses https://buf.build/docs/protovalidate[protovalidate].
+protovalidate reads the rules from the descriptor of the message.
+
+Add this dependency to the _dependencies_ section of your build descriptor:
+
+[tabs]
+====
+pom.xml::
++
+[source,xml,subs="+attributes"]
+----
+<dependency>
+  <groupId>io.vertx</groupId>
+  <artifactId>vertx-grpc-validation-protovalidate</artifactId>
+  <version>${maven.version}</version>
+</dependency>
+----
+
+build.gradle::
++
+[source,groovy,subs="+attributes"]
+----
+dependencies {
+  compile 'io.vertx:vertx-grpc-validation-protovalidate:${maven.version}'
+}
+----
+====
+
+You declare the rules in the proto file:
+
+[source,proto]
+----
+syntax = "proto3";
+
+import "buf/validate/validate.proto";
+
+message HelloRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
+----
+
+=== Validate a service method
+
+Give a validator when you bind a method:
+
+[source,java]
+----
+{@link examples.GrpcValidationExamples#validateServiceMethod}
+----
+
+=== Validate a generated service
+
+A service from the <<vertx-grpc-protoc-plugin,Vert.x gRPC protoc plugin>> accepts one validator. This
+validator applies to all the methods of the service:
+
+[source,java]
+----
+{@link examples.GrpcValidationExamples#validateGeneratedService}
+----
+
+The builder of the service also accepts a validator. Use the builder when you bind only some of the methods:
+
+[source,java]
+----
+{@link examples.GrpcValidationExamples#validateBoundMethods}
+----
+
+=== Compile the rules at startup
+
+By default, protovalidate compiles the rules of a message type at the first validation of that type.
+
+You can compile the rules when you assemble the server. The server then reports a rule that does not compile
+at startup. This procedure also makes the cache of rules read-only, which removes the contention between
+threads:
+
+[source,java]
+----
+{@link examples.GrpcValidationExamples#compileRulesEagerly}
+----
+
+=== Write your own validator
+
+`GrpcMessageValidator` is a functional interface. Therefore you can write any rule in Java:
+
+[source,java]
+----
+{@link examples.GrpcValidationExamples#customValidator}
+----
+
+A `GrpcValidationException` gives the status `INVALID_ARGUMENT`.
+
+=== The result at the client
+
+The status of the call is `INVALID_ARGUMENT`. The status message contains the violations.

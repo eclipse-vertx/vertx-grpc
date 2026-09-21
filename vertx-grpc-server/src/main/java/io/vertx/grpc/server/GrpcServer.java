@@ -16,6 +16,8 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.codegen.annotations.GenIgnore;
+import io.vertx.grpc.common.GrpcMessageValidator;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.server.impl.GrpcServerImpl;
 
@@ -71,6 +73,22 @@ public interface GrpcServer extends ServiceContainer, Handler<HttpServerRequest>
    */
   @Fluent
   <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler);
+
+  /**
+   * Like {@link #callHandler(ServiceMethod, Handler)} but validating each request message with {@code validator}
+   * before it is delivered to the {@code handler}.
+   *
+   * <p>A message that does not satisfy the rules fails the call with {@link io.vertx.grpc.common.GrpcStatus#INVALID_ARGUMENT}
+   * and the handler is not invoked for it.
+   *
+   * @param serviceMethod the service method
+   * @param handler the service method call handler
+   * @param validator the request message validator
+   * @return a reference to this, so the API can be used fluently
+   */
+  @Fluent
+  @GenIgnore(GenIgnore.PERMITTED_TYPE)
+  <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler, GrpcMessageValidator<? super Req> validator);
 
   @Override
   @Fluent

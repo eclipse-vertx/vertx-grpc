@@ -50,6 +50,7 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
   private Handler<InvalidMessageException> invalidMessageHandler;
   private GrpcMessage last;
   private final GrpcMessageDecoder<T> messageDecoder;
+  private final GrpcMessageValidator<? super T> messageValidator;
   private final Promise<Void> end;
   private Handler<GrpcError> errorHandler;
 
@@ -57,11 +58,20 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
                                String encoding,
                                WireFormat format,
                                GrpcMessageDecoder<T> messageDecoder) {
+    this(context, encoding, format, messageDecoder, null);
+  }
+
+  protected GrpcReadStreamBase(Context context,
+                               String encoding,
+                               WireFormat format,
+                               GrpcMessageDecoder<T> messageDecoder,
+                               GrpcMessageValidator<? super T> messageValidator) {
     ContextInternal ctx = (ContextInternal) context;
     this.context = ctx;
     this.encoding = encoding;
     this.format = format;
     this.messageDecoder = messageDecoder;
+    this.messageValidator = messageValidator;
     this.end = ctx.promise();
   }
 
@@ -77,7 +87,12 @@ public abstract class GrpcReadStreamBase<S extends GrpcReadStreamBase<S, T>, T> 
       default:
         throw new UnsupportedOperationException();
     }
-    return messageDecoder.decode(msg);
+    T decoded = messageDecoder.decode(msg);
+    GrpcMessageValidator<? super T> validator = messageValidator;
+    if (validator != null) {
+      validator.validate(decoded);
+    }
+    return decoded;
   }
 
   @Override

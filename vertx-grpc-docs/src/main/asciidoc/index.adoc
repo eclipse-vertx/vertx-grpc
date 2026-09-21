@@ -20,6 +20,7 @@ Vert.x gRPC is split into several parts:
 
 - Vert.x gRPC Server
 - Vert.x gRPC Client
+- Vert.x gRPC Validation
 - Vert.x gRPC/IO Server
 - Vert.x gRPC/IO Client
 - Vert.x gRPC/IO Context Storage
@@ -31,6 +32,8 @@ include::server.adoc[]
 include::client.adoc[]
 
 include::transcoding.adoc[]
+
+include::validation.adoc[]
 
 include::eventbus.adoc[]
 

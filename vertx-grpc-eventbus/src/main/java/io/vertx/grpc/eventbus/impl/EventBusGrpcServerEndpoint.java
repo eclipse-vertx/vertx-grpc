@@ -383,9 +383,11 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
         throw new UnsupportedOperationException("Handle me");
       }
 
+      GrpcMessageValidator<? super Req> validator = service.validator(serviceMethod);
+
       GrpcMethodCall<Req, Resp> methodCall = new GrpcMethodCall<>(
         serviceMethod.serviceName().pathOf(serviceMethod.methodName()),
-        stream, serviceMethod.decoder(), serviceMethod.encoder());
+        stream, serviceMethod.decoder(), validator, serviceMethod.encoder());
 
       GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
         requestContext,

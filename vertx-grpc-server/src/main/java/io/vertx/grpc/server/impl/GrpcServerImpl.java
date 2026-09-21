@@ -110,9 +110,9 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     // Generic handling
     MethodCallHandler<Buffer, Buffer> mch = null;
     if (requestHandler != null) {
-      mch = new MethodCallHandler<>(httpRequest.path().substring(1), GrpcMessageDecoder.IDENTITY, GrpcMessageEncoder.IDENTITY, requestHandler::handle);
+      mch = new MethodCallHandler<>(httpRequest.path().substring(1), GrpcMessageDecoder.IDENTITY, null, GrpcMessageEncoder.IDENTITY, requestHandler::handle);
     } else if (streamHandler != null) {
-      mch = new MethodCallHandler<>(httpRequest.path().substring(1), GrpcMessageDecoder.IDENTITY, GrpcMessageEncoder.IDENTITY, streamHandler::handle);
+      mch = new MethodCallHandler<>(httpRequest.path().substring(1), GrpcMessageDecoder.IDENTITY, null, GrpcMessageEncoder.IDENTITY, streamHandler::handle);
     }
     if (mch != null && mch.handle(httpRequest.path(), httpRequest, details.protocol, details.format, context)) {
       return;
@@ -163,7 +163,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
     if (closing) {
       throw new IllegalStateException("Server closed");
     }
-    registerMethodCallHandler("/" + serviceMethod.fullMethodName(), new MethodCallHandler<>(serviceMethod, handler));
+    registerMethodCallHandler("/" + serviceMethod.fullMethodName(), new MethodCallHandler<>(serviceMethod, null, handler));
     return this;
   }
 
@@ -208,13 +208,18 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
   }
 
   @Override
+  public <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    return callHandler(serviceMethod, handler, null);
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
-  public synchronized <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+  public synchronized <Req, Resp> GrpcServer callHandler(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler, GrpcMessageValidator<? super Req> validator) {
     if (closing) {
       throw new IllegalStateException("Server closed");
     }
     if (handler != null) {
-      ServiceMethodCallHandler<Req, Resp> p = new ServiceMethodCallHandler<>(serviceMethod, handler::handle);
+      ServiceMethodCallHandler<Req, Resp> p = new ServiceMethodCallHandler<>(serviceMethod, validator, handler::handle);
       if (serviceMethod instanceof MountPoint) {
         MountPoint<Req, Resp> mountPoint = (MountPoint<Req, Resp>) serviceMethod;
         List<String> paths = mountPoint.paths();
@@ -252,7 +257,8 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       }
       for (ServiceMethod method : service.methods()) {
         Handler handler = service.handler(method);
-        ServiceMethodCallHandler<Object, Object> smch = new ServiceMethodCallHandler<>(method, handler);
+        GrpcMessageValidator validator = service.validator(method);
+        ServiceMethodCallHandler<Object, Object> smch = new ServiceMethodCallHandler<>(method, validator, handler);
         if (method instanceof MountPoint) {
           MountPoint<Object, Object> mountPoint = (MountPoint<Object, Object>) method;
           for (String path : mountPoint.paths()) {
@@ -278,8 +284,9 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
                               String path,
                               GrpcStream stream,
                               GrpcMessageDecoder<Req> messageDecoder,
+                              GrpcMessageValidator<? super Req> messageValidator,
                               GrpcMessageEncoder<Resp> messageEncoder) {
-      super(path, stream, messageDecoder, messageEncoder);
+      super(path, stream, messageDecoder, messageValidator, messageEncoder);
       this.context = context;
       this.connection = connection;
     }
@@ -294,24 +301,28 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
     private final String fullMethodName;
     private final GrpcMessageDecoder<Req> messageDecoder;
+    private final GrpcMessageValidator<? super Req> messageValidator;
     private final GrpcMessageEncoder<Resp> messageEncoder;
     private final Consumer<? super HttpGrpcMethodCall<Req, Resp>> handler;
 
     MethodCallHandler(String fullMethodName,
                       GrpcMessageDecoder<Req> messageDecoder,
+                      GrpcMessageValidator<? super Req> messageValidator,
                       GrpcMessageEncoder<Resp> messageEncoder,
                       Consumer<? super HttpGrpcMethodCall<Req, Resp>> handler) {
       this.fullMethodName = fullMethodName;
       this.messageDecoder = messageDecoder;
+      this.messageValidator = messageValidator;
       this.messageEncoder = messageEncoder;
       this.handler = handler;
     }
 
     MethodCallHandler(String fullMethodName,
                       GrpcMessageDecoder<Req> messageDecoder,
+                      GrpcMessageValidator<? super Req> messageValidator,
                       GrpcMessageEncoder<Resp> messageEncoder,
                       Handler<GrpcServerRequest<Req, Resp>> invoker) {
-      this(fullMethodName, messageDecoder, messageEncoder, new Consumer<>() {
+      this(fullMethodName, messageDecoder, messageValidator, messageEncoder, new Consumer<>() {
         @Override
         public void accept(HttpGrpcMethodCall<Req, Resp> methodCall) {
           GrpcDispatcher<Req, Resp> dispatcher = new GrpcDispatcher<>(
@@ -331,12 +342,12 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       });
     }
 
-    MethodCallHandler(ServiceMethod<Req, Resp> method, Consumer<? super HttpGrpcMethodCall<Req, Resp>> handler) {
-      this(method.fullMethodName(), method.decoder(), method.encoder(), handler);
+    MethodCallHandler(ServiceMethod<Req, Resp> method, GrpcMessageValidator<? super Req> messageValidator, Consumer<? super HttpGrpcMethodCall<Req, Resp>> handler) {
+      this(method.fullMethodName(), method.decoder(), messageValidator, method.encoder(), handler);
     }
 
-    MethodCallHandler(ServiceMethod<Req, Resp> method, Handler<GrpcServerRequest<Req, Resp>> invoker) {
-      this(method.fullMethodName(), method.decoder(), method.encoder(), invoker);
+    MethodCallHandler(ServiceMethod<Req, Resp> method, GrpcMessageValidator<? super Req> messageValidator, Handler<GrpcServerRequest<Req, Resp>> invoker) {
+      this(method.fullMethodName(), method.decoder(), messageValidator, method.encoder(), invoker);
     }
 
     boolean handle(String path, HttpServerRequest httpRequest, GrpcProtocol protocol,  WireFormat format, ContextInternal context) {
@@ -395,7 +406,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
         if (me instanceof JsonGrpcMessageEncoder) {
           me = ((JsonGrpcMessageEncoder<Resp>)me).configure(options.getJsonWriterConfig());
         }
-        return new HttpGrpcMethodCall<>(context, connection, path, stream, md, me);
+        return new HttpGrpcMethodCall<>(context, connection, path, stream, md, messageValidator, me);
       }
     }
   }
@@ -404,8 +415,8 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
 
     private final ServiceMethod<Req, Resp> method;
 
-    ServiceMethodCallHandler(ServiceMethod<Req, Resp> method, Handler<GrpcServerRequest<Req, Resp>> invoker) {
-      super(method, invoker);
+    ServiceMethodCallHandler(ServiceMethod<Req, Resp> method, GrpcMessageValidator<? super Req> messageValidator, Handler<GrpcServerRequest<Req, Resp>> invoker) {
+      super(method, messageValidator, invoker);
       this.method = method;
     }
 

@@ -23,14 +23,15 @@
   <properties>
     <grpc.version>1.70.0</grpc.version>
     <jprotoc.version>1.2.2</jprotoc.version>
-    <protoc.version>4.29.3</protoc.version>
-    <protobuf.version>4.29.3</protobuf.version>
+    <protoc.version>4.36.0</protoc.version>
+    <protobuf.version>4.36.0</protobuf.version>
     <!-- NOTE: We need to stay on version 3.x of ascopes protobuf maven plugin until we bump minimum version of java from
      java 11 to java 17 as starting from 4.x minimum required version is java 17.
      See: https://ascopes.github.io/protobuf-maven-plugin/plugin-info.html#system-requirements-history
      -->
     <protobuf.maven.plugin.version>3.10.3</protobuf.maven.plugin.version>
     <jmh.version>1.37</jmh.version>
+    <protovalidate.version>1.3.0</protovalidate.version>
   </properties>
 
   <dependencyManagement>
@@ -215,6 +216,7 @@
     <module>vertx-grpc-server</module>
     <module>vertx-grpc-reflection</module>
     <module>vertx-grpc-health</module>
+    <module>vertx-grpc-validation-protovalidate</module>
     <module>vertx-grpc-client</module>
     <module>vertx-grpc-eventbus</module>
     <module>vertx-grpcio-common</module>

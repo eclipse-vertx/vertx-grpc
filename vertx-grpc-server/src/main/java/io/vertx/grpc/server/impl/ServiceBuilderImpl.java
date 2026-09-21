@@ -2,6 +2,7 @@ package io.vertx.grpc.server.impl;
 
 import com.google.protobuf.Descriptors;
 import io.vertx.core.Handler;
+import io.vertx.grpc.common.GrpcMessageValidator;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.*;
@@ -23,7 +24,12 @@ public class ServiceBuilderImpl implements ServiceBuilder {
 
   @Override
   public <Req, Resp> ServiceBuilder bind(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
-    handlers.add(new ServiceMethodBinding<>(serviceMethod, handler));
+    return bind(serviceMethod, handler, null);
+  }
+
+  @Override
+  public <Req, Resp> ServiceBuilder bind(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler, GrpcMessageValidator<? super Req> validator) {
+    handlers.add(new ServiceMethodBinding<>(serviceMethod, handler, validator));
     return this;
   }
 
@@ -49,6 +55,17 @@ public class ServiceBuilderImpl implements ServiceBuilder {
         }
         return Service.super.handler(method);
       }
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public <Req, Resp> GrpcMessageValidator<? super Req> validator(ServiceMethod<Req, Resp> method) {
+        for (ServiceMethodBinding<?, ?> binding : handlers) {
+          if (binding.serviceMethod.equals(method)) {
+            return (GrpcMessageValidator<? super Req>) binding.validator;
+          }
+        }
+        return Service.super.validator(method);
+      }
     };
   }
 
@@ -64,10 +81,12 @@ public class ServiceBuilderImpl implements ServiceBuilder {
 
     private final ServiceMethod<Req, Resp> serviceMethod;
     private final Handler<GrpcServerRequest<Req, Resp>> handler;
+    private final GrpcMessageValidator<? super Req> validator;
 
-    public ServiceMethodBinding(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler) {
+    public ServiceMethodBinding(ServiceMethod<Req, Resp> serviceMethod, Handler<GrpcServerRequest<Req, Resp>> handler, GrpcMessageValidator<? super Req> validator) {
       this.serviceMethod = serviceMethod;
       this.handler = handler;
+      this.validator = validator;
     }
 
     @Override

@@ -35,6 +35,7 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   private final MultiMap headers;
   final Duration timeout;
   private GrpcServerResponseImpl<Req, Resp> response;
+  private boolean rejected;
   private Timer deadline;
 
   public GrpcServerRequestImpl(ContextInternal context,
@@ -44,10 +45,11 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                Duration timeout,
                                String encoding,
                                GrpcMessageDecoder<Req> messageDecoder,
+                               GrpcMessageValidator<? super Req> messageValidator,
                                ServiceName serviceName,
                                String fullMethodName,
                                String methodName) {
-    super(context, encoding, format, messageDecoder);
+    super(context, encoding, format, messageDecoder, messageValidator);
 
     this.inbound = inbound;
     this.headers = headers;
@@ -129,11 +131,24 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   public GrpcServerRequestImpl<Req, Resp> handler(Handler<Req> handler) {
     if (handler != null) {
       return messageHandler(msg -> {
+        if (rejected) {
+          // The call was failed by a previous message, drop the remaining ones
+          return;
+        }
         Req decoded;
         try {
           decoded = decodeMessage(msg);
+        } catch (GrpcValidationException e) {
+          rejected = true;
+          response.fail(e);
+          return;
         } catch (CodecException e) {
           response.cancel();
+          return;
+        } catch (Exception e) {
+          // A validator failed, the message itself might be fine
+          rejected = true;
+          response.fail(e);
           return;
         }
         try {

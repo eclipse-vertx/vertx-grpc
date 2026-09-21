@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package vertx.weather.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_package = "vertx.weather.v1";
+option java_multiple_files = true;
+
+// GetWeatherRequest is a request for weather at a point on Earth.
+message GetWeatherRequest {
+  // latitude must be between -90 and 90, inclusive, to be valid. Use of a
+  // float allows precision to about one square meter.
+  float latitude = 1 [
+    (buf.validate.field).float.gte = -90,
+    (buf.validate.field).float.lte = 90
+  ];
+  // longitude must be between -180 and 180, inclusive, to be valid. Use of a
+  // float allows precision to about one square meter.
+  float longitude = 2 [
+    (buf.validate.field).float.gte = -180,
+    (buf.validate.field).float.lte = 180
+  ];
+
+  // forecast_date for the weather request. It must be within the next
+  // three days.
+  google.protobuf.Timestamp forecast_date = 3 [(buf.validate.field).cel = {
+    id: "forecast_date.within_72_hours"
+    message: "Forecast date must be in the next 72 hours."
+    expression: "this >= now && this <= now + duration('72h')"
+  }];
+}
+
+message GetWeatherResponse {
+  string summary = 1;
+}
