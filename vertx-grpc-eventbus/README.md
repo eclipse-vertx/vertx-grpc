@@ -40,6 +40,16 @@ The reply contains the response message:
 - a status `OK` response translates into a message reply
 - otherwise the server fails the response with the gRPC status as the failure code and the status message as the failure message
 
+```mermaid
+sequenceDiagram
+    participant C as Client Producer
+    participant S as Server Consumer<br/>(hello.Greeter)
+
+    C-->>S: request(message)
+    S-->>C: reply(message)
+    Note over C,S: On error the server fails the reply with<br/>the gRPC status code and message.
+```
+
 ### Streaming calls
 
 The event bus does not natively support streaming, instead any kind of streaming requires more than one request and one reply.
@@ -63,8 +73,8 @@ The request contains the following message headers:
 - `grpc-stream-method-name`, the name of the method
 - `grpc-stream-wire-format`, the wire format
 - `grpc-stream-id`, the identifier that the client gives to this call
-- `grpc-endpoint-address`, the private address of the client, present when the client is streaming
-- `grpc-endpoint-wire-format`, the wire format of the client when the client is streaming
+- `grpc-endpoint-address`, the private address of the client, present when the server needs to reach the client back, e.g. to send streaming frames or flow control updates
+- `grpc-endpoint-wire-format`, the wire format of the client, present when `grpc-endpoint-address` is present
 - `grpc-stream-initial-window`, the initial flow control window when the server is streaming, see [Flow control](#flow-control).
 - `grpc-endpoint-ping-timeout`, the time in milliseconds that the client waits before it declares a peer down, refer to [Liveness](#liveness).
 - headers prefixed by `grpc-stream-header.` form the request metadata
@@ -77,7 +87,7 @@ The request body depends on the client method cardinality:
 The server deduces the communication pattern from the request:
 
 - a null body means the client will stream
-- presence of `grpc-endpoint-address` / `grpc-endpoint-wire-format` / `grpc-stream-initial-window` indicates the server can stream
+- presence of `grpc-stream-initial-window` indicates the server can stream
 
 #### The reply
 
@@ -89,8 +99,8 @@ The server follows these steps:
 
 The reply contains the following message headers:
 
-- `grpc-endpoint-address`, the private address of the server, present when the server is streaming
-- `grpc-endpoint-wire-format`, the wire format of the server when the client is streaming
+- `grpc-endpoint-address`, the private address of the server, present when the client needs to reach the server back, e.g. to send streaming frames or flow control updates
+- `grpc-endpoint-wire-format`, the wire format of the server, present when `grpc-endpoint-address` is present
 - `grpc-stream-initial-window`, the initial flow control window when the client is streaming, see [Flow control](#flow-control).
 
 The reply body is always null.
@@ -102,7 +112,7 @@ When an endpoint is created, it binds a consumer to a unique endpoint address.
 The endpoint address is used
 
 - by endpoints to exchange ping frames
-- by streams, the stream id is indicated in each message as a header `grpc-stream-id`
+- by streams, the stream id is indicated in each transport frame as the `stream_id` field
 
 A stream identifier is a 64-bit value that uniquely identifies a stream.
 
@@ -116,28 +126,7 @@ The endpoint disposes a stream when
 
 When you close an endpoint, the endpoint stops the active streams by sending a cancel frame for each stream.
 
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant S as Server
-
-    Note over C,S: Open the stream. A request and a reply on the<br/>service address. The bodies are empty.
-    C->>S: request, headers grpc-stream-method-name,<br/>grpc-stream-wire-format, grpc-stream-id,<br/>grpc-endpoint-address, grpc-endpoint-wire-format,<br/>grpc-stream-initial-window
-    Note right of S: The method type is a stream.<br/>Register the call in the stream map.
-    S-->>C: reply, headers grpc-endpoint-address,<br/>grpc-endpoint-wire-format, grpc-stream-initial-window
-
-    Note over C,S: The call is now full duplex. Each frame<br/>contains the stream_id of the destination.<br/>Refer to Frame ordering for sequence rules.
-    C->>S: Message, stream_sequence 1
-    S->>C: Headers (response metadata), stream_sequence 1
-    S->>C: Message, stream_sequence 2
-    C->>S: Message, stream_sequence 2
-    C->>S: HalfClose, stream_sequence 3
-    S->>C: Message, stream_sequence 3
-    S->>C: Trailers (trailing metadata + status), stream_sequence 4
-    Note over C,S: The two endpoints remove the stream from their<br/>maps. The call is complete.
-```
-
-## Frames
+#### Frames
 
 The event bus protocol uses a frame per event bus message: endpoints send event bus message to other endpoints
 with a frame body.
@@ -156,7 +145,7 @@ A frame contains a small header and one variant. The header contains the `stream
 - `Cancel`, from the client or from the server.
 - `Ping`, a liveness probe, from the client or from the server.
 
-### Frame ordering
+#### Frame ordering
 
 Content frames — `Message`, `Headers`, `Trailers`, and `HalfClose` — carry an
 incrementing `stream_sequence` value. Each direction counts independently, starting from
@@ -174,6 +163,118 @@ The full schema is in
 Transport frames are sent as is on the event bus, since they are immutable java objects. They are only
 encoded and decoded on a clustered event bus to Protobuf or JSON depending on the endpoint wire format configuration.
 The gRPC event bus therefore register event bus message codec to implement this.
+
+#### Server streaming
+
+```mermaid
+sequenceDiagram
+    box Client
+        participant C as Client Producer
+        participant CS as Client Stream
+        participant CE as Client Consumer Endpoint<br/>(grpc.eb.client.{uuid})
+    end
+    box Server
+        participant SE as Server Consumer Endpoint<br/>(grpc.eb.server.{uuid})
+        participant SS as Server Stream
+        participant S as Server Consumer<br/>(hello.Greeter)
+    end
+
+    C-->>S: request(message)
+    S-->>SS: create
+    S-->>C: reply(null)
+    C-->>CS: create
+    activate SS
+    activate CS
+
+    SS-->>CE: Headers(seq=1)
+    CE-->>CS: 
+    SS-->>CE: Message(seq=2)
+    CE-->>CS: 
+    SS-->>CE: Message(seq=3)
+    CE-->>CS: 
+    SS-->>CE: Trailers(status,seq=4)
+    CE-->>CS: 
+    deactivate SS
+    deactivate CS
+```
+
+#### Client streaming
+
+```mermaid
+sequenceDiagram
+    box Client
+        participant C as Client Producer
+        participant CS as Client Stream
+        participant CE as Client Consumer Endpoint<br/>(grpc.eb.client.{uuid})
+    end
+    box Server
+        participant SE as Server Consumer Endpoint<br/>(grpc.eb.server.{uuid})
+        participant SS as Server Stream
+        participant S as Server Consumer<br/>(hello.Greeter)
+    end
+
+    C-->>S: request(null)
+    S-->>SS: create
+    S-->>C: reply(null)
+    C-->>CS: create
+    activate SS
+    activate CS
+
+    CS-->>SE: Message(seq=1)
+    SE-->>SS: 
+    CS-->>SE: Message(seq=2)
+    SE-->>SS: 
+    CS-->>SE: HalfClose(seq=3)
+    SE-->>SS: 
+    SS-->>CE: Headers(seq=1)
+    CE-->>CS: 
+    SS-->>CE: Message(seq=2)
+    CE-->>CS: 
+    SS-->>CE: Trailers(status,seq=3)
+    CE-->>CS: 
+    deactivate SS
+    deactivate CS
+```
+
+#### Bidi streaming
+
+```mermaid
+sequenceDiagram
+    box Client
+        participant C as Client Producer
+        participant CS as Client Stream
+        participant CE as Client Consumer Endpoint<br/>(grpc.eb.client.{uuid})
+    end
+    box Server
+        participant SE as Server Consumer Endpoint<br/>(grpc.eb.server.{uuid})
+        participant SS as Server Stream
+        participant S as Server Consumer<br/>(hello.Greeter)
+    end
+
+    C-->>S: request(null)
+    S-->>SS: create
+    S-->>C: reply(null)
+    C-->>CS: create
+    activate SS
+    activate CS
+
+    CS-->>SE: Message(seq=1)
+    SE-->>SS: 
+    SS-->>CE: Headers(seq=1)
+    CE-->>CS: 
+    SS-->>CE: Message(seq=2)
+    CE-->>CS: 
+    CS-->>SE: Message(seq=2)
+    SE-->>SS: 
+    CS-->>SE: HalfClose(seq=3)
+    SE-->>SS: 
+    SS-->>CE: Message(seq=3)
+    CE-->>CS: 
+    SS-->>CE: Trailers(status,seq=4)
+    CE-->>CS: 
+    deactivate SS
+    deactivate CS
+```
 
 ## Configuration
 

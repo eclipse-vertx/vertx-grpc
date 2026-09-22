@@ -11,7 +11,6 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.*;
 import io.vertx.grpc.eventbus.transport.v1alpha.*;
 
-import java.util.Map;
 
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.HEADER_PREFIX;
 import static io.vertx.grpc.eventbus.impl.EventBusHeaders.TRAILER_PREFIX;
@@ -40,7 +39,7 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
     this.encoding = encoding;
 
     this.inbound = remoteUnary ? new UnaryInbound() : new StreamingInbound();
-    this.outbound = localUnary && remoteUnary ? new UnaryOutbound() : new StreamingOutbound();
+    this.outbound = localUnary && remoteUnary ? new UnaryOutbound() : new StreamingOutbound(!remoteUnary);
   }
 
   void handleConnect(Message<Object> message) {
@@ -170,15 +169,22 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
 
   private class StreamingOutbound implements Outbound {
 
+    private final boolean clientStreaming;
     private Future<Void> lastWrite;
+
+    StreamingOutbound(boolean clientStreaming) {
+      this.clientStreaming = clientStreaming;
+    }
 
     @Override
     public void handleConnect(Message<Object> msg) {
       DeliveryOptions replyOptions = new DeliveryOptions()
         .setTracingPolicy(TracingPolicy.IGNORE)
         .addHeader(EventBusHeaders.ENDPOINT_ADDRESS, localEndpoint.address())
-        .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, toCanonicalName(localEndpoint.wireFormat))
-        .addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, Integer.toString(localEndpoint.initialWindowSize));
+        .addHeader(EventBusHeaders.ENDPOINT_WIRE_FORMAT, toCanonicalName(localEndpoint.wireFormat));
+      if (clientStreaming) {
+        replyOptions.addHeader(EventBusHeaders.STREAM_INITIAL_WINDOW, Integer.toString(localEndpoint.initialWindowSize));
+      }
       msg.reply(null, replyOptions);
     }
 
@@ -187,9 +193,6 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
       Future<Void> written;
       switch (frame.type()) {
         case HEADERS:
-          MultiMap responseHeaders = ((GrpcHeadersFrame) frame).metadata();
-          written = writeResponseHeaders(responseHeaders);
-          break;
         case HALF_CLOSE:
         case MESSAGE:
           written = enqueue(frame);
@@ -207,18 +210,6 @@ class EventBusGrpcServerStream extends EventBusGrpcStream<EventBusGrpcServerEndp
         return consumerContext.failedFuture(new IllegalStateException("Cannot end a stream that did not write any frame"));
       }
       return last;
-    }
-
-    private Future<Void> writeResponseHeaders(MultiMap headers) {
-      Headers.Builder headersBuilder = Headers.newBuilder();
-      if (headers != null && !headers.isEmpty()) {
-        for (Map.Entry<String, String> entry : headers) {
-          headersBuilder.putMetadata(entry.getKey(), entry.getValue());
-        }
-      }
-      DeliveryOptions options = new DeliveryOptions();
-      options.addHeader(EventBusHeaders.STREAM_WIRE_FORMAT, toCanonicalName(wireFormat));
-      return sendTransportFrame(TransportFrame.newBuilder().setHeaders(headersBuilder), options);
     }
   }
 

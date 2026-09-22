@@ -117,10 +117,6 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
 
       return new OutboundWrite(promise) {
         @Override
-        long sequence() {
-          return 0L;
-        }
-        @Override
         void write() {
           registerStream();
           localEndpoint.request(serviceName.fullyQualifiedName(), body, options)
@@ -185,7 +181,7 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
           }
 
           int initialOutboundWindowSize;
-          if (remoteUnary) {
+          if (localUnary) {
             initialOutboundWindowSize = EventBusGrpcServerOptions.DEFAULT_INITIAL_WINDOW_SIZE;
           } else {
             String initialWindowHeader = reply.headers().get(EventBusHeaders.STREAM_INITIAL_WINDOW);
@@ -376,6 +372,8 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
 
   protected OutboundWrite frameWrite(GrpcFrame frame) {
     switch (frame.type()) {
+      case HEADERS:
+        return headersFrameWrite(((GrpcHeadersFrame)frame).metadata());
       case MESSAGE:
         return messageFrameWrite(((GrpcMessageFrame)frame).message());
       case HALF_CLOSE:
@@ -387,6 +385,20 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
       default:
         throw new IllegalArgumentException();
     }
+  }
+
+  private OutboundFrameWrite headersFrameWrite(MultiMap metadata) {
+    Promise<Void> completion = consumerContext.promise();
+    Headers.Builder headersBuilder = Headers.newBuilder();
+    if (metadata != null && !metadata.isEmpty()) {
+      for (Map.Entry<String, String> entry : metadata) {
+        headersBuilder.putMetadata(entry.getKey(), entry.getValue());
+      }
+    }
+    TransportFrame.Builder builder = TransportFrame
+      .newBuilder()
+      .setHeaders(headersBuilder);
+    return new OutboundFrameWrite(completion, builder, outboundSequence++);
   }
 
   private OutboundFrameWrite messageFrameWrite(GrpcMessage message) {
@@ -407,7 +419,12 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
       .newBuilder()
       .setMessage(messageBuilder);
 
-    return new OutboundFrameWrite(completion, builder, outboundSequence++);
+    return new OutboundFrameWrite(completion, builder, outboundSequence++) {
+      @Override
+      boolean flowControlled() {
+        return true;
+      }
+    };
   }
 
   private OutboundFrameWrite trailersFrameWrite(GrpcTrailersFrame frame) {
@@ -513,12 +530,17 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
 
     @Override
     public boolean test(OutboundWrite msg) {
-      if (window > 0) {
-        msg.write();
-        window--;
-        return true;
+      if (msg.flowControlled()) {
+        if (window > 0) {
+          msg.write();
+          window--;
+          return true;
+        } else {
+          return false;
+        }
       } else {
-        return false;
+        msg.write();
+        return true;
       }
     }
 
@@ -558,9 +580,11 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
       this.completion = completion;
     }
 
-    abstract long sequence();
-
     abstract void write();
+
+    boolean flowControlled() {
+      return false;
+    }
 
     void cancel(Throwable cause) {
       completion.tryFail(cause);
@@ -569,19 +593,13 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
 
   private class OutboundFrameWrite extends OutboundWrite {
 
-
-    final long sequence;
-    final TransportFrame.Builder frame;
+    private final long sequence;
+    private final TransportFrame.Builder frame;
 
     public OutboundFrameWrite(Promise<Void> completion, TransportFrame.Builder frame, long sequence) {
       super(completion);
       this.frame = frame;
       this.sequence = sequence;
-    }
-
-    @Override
-    long sequence() {
-      return sequence;
     }
 
     @Override
