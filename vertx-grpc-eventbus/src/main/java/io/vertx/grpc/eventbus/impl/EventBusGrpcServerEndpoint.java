@@ -261,12 +261,7 @@ public class EventBusGrpcServerEndpoint extends EventBusGrpcEndpoint implements 
       ServiceMethod<?, ?> serviceMethod = findServiceMethod(methodName);
 
       boolean clientStreaming = message.body() == null;
-      boolean serverStreaming;
-      if (clientStreaming) {
-        serverStreaming = message.headers().get(EventBusHeaders.STREAM_INITIAL_WINDOW) != null;
-      } else {
-        serverStreaming = message.headers().get(EventBusHeaders.ENDPOINT_ADDRESS) != null;
-      }
+      boolean serverStreaming = message.headers().get(EventBusHeaders.STREAM_INITIAL_WINDOW) != null;
 
       if (serviceMethod == null) {
         message.fail(GrpcStatus.UNIMPLEMENTED.code, "Method not found: " + methodName);

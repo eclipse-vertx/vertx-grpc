@@ -62,7 +62,7 @@ public class EventBusGrpcClientEndpoint extends EventBusGrpcEndpoint implements 
   public <Req, Resp> Future<GrpcClientRequest<Req, Resp>> request(ServiceMethod<Resp, Req> method) {
     ContextInternal consumerContext = vertx.getOrCreateContext();
     EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(consumerContext, this, method.cardinality(),
-      initialWindowSize, 1);
+      initialWindowSize, 0);
     GrpcClientRequestImpl<Req, Resp> request = new GrpcClientRequestImpl<>(
       consumerContext,
       invoker,
@@ -79,7 +79,7 @@ public class EventBusGrpcClientEndpoint extends EventBusGrpcEndpoint implements 
   public Future<GrpcClientInvoker> connect(ServiceMethod<?, ?> method) {
     ContextInternal consumerContext = vertx.getOrCreateContext();
     EventBusGrpcClientInvoker invoker = new EventBusGrpcClientInvoker(consumerContext, this,
-      method.cardinality(), initialWindowSize, 1);
+      method.cardinality(), initialWindowSize, 0);
     return consumerContext.succeededFuture(invoker);
   }
 
