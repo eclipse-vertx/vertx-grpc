@@ -64,6 +64,7 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
       frame.timeout(),
       frame.encoding(),
       methodCall.messageDecoder(),
+      methodCall.messageValidator(),
       methodCall.serviceName(),
       methodCall.fullMethodName(),
       methodCall.methodName()) {

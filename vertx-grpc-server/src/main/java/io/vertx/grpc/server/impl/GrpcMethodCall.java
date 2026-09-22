@@ -1,6 +1,7 @@
 package io.vertx.grpc.server.impl;
 
 import io.vertx.grpc.common.GrpcMessageDecoder;
+import io.vertx.grpc.common.GrpcMessageValidator;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.common.impl.GrpcStream;
@@ -24,11 +25,13 @@ public class GrpcMethodCall<Req, Resp> {
   private final String methodName;
   private final GrpcStream stream;
   private final GrpcMessageDecoder<Req> messageDecoder;
+  private final GrpcMessageValidator<? super Req> messageValidator;
   private final GrpcMessageEncoder<Resp> messageEncoder;
 
   public GrpcMethodCall(String path,
                         GrpcStream stream,
                         GrpcMessageDecoder<Req> messageDecoder,
+                        GrpcMessageValidator<? super Req> messageValidator,
                         GrpcMessageEncoder<Resp> messageEncoder) {
 
     Matcher matcher = PATH_REGEX.matcher(path);
@@ -48,6 +51,7 @@ public class GrpcMethodCall<Req, Resp> {
     this.methodName = methodName;
     this.stream = stream;
     this.messageDecoder = messageDecoder;
+    this.messageValidator = messageValidator;
     this.messageEncoder = messageEncoder;
   }
 
@@ -73,6 +77,10 @@ public class GrpcMethodCall<Req, Resp> {
 
   public GrpcMessageDecoder<Req> messageDecoder() {
     return messageDecoder;
+  }
+
+  public GrpcMessageValidator<? super Req> messageValidator() {
+    return messageValidator;
   }
 
   public GrpcMessageEncoder<Resp> messageEncoder() {

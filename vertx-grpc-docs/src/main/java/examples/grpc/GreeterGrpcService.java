@@ -7,6 +7,7 @@ import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.MethodCardinality;
 import io.vertx.grpc.common.GrpcMessageDecoder;
 import io.vertx.grpc.common.GrpcMessageEncoder;
+import io.vertx.grpc.common.GrpcMessageValidator;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.Service;
 
@@ -91,6 +92,25 @@ public class GreeterGrpcService extends examples.grpc.GreeterService implements 
     return handler.handler(method);
   }
 
+  private GrpcMessageValidator<?> validator;
+
+  /**
+   * Set the validator applied to the request messages of every method of this service.
+   *
+   * @param validator the request message validator
+   * @return a reference to this, so the API can be used fluently
+   */
+  public GreeterGrpcService validator(GrpcMessageValidator<?> validator) {
+    this.validator = validator;
+    return this;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public <Req, Resp> GrpcMessageValidator<? super Req> validator(ServiceMethod<Req, Resp> method) {
+    return (GrpcMessageValidator<? super Req>) validator;
+  }
+
   @Override
   public List<ServiceMethod<?, ?>> methods() {
     return handler.methods();
@@ -110,6 +130,7 @@ public class GreeterGrpcService extends examples.grpc.GreeterService implements 
 
     private final List<ServiceMethod<?, ?>> serviceMethods = new ArrayList<>();
     private final examples.grpc.GreeterService instance;
+    private GrpcMessageValidator<?> validator;
 
     private Builder(examples.grpc.GreeterService instance) {
       this.instance = instance;
@@ -130,8 +151,19 @@ public class GreeterGrpcService extends examples.grpc.GreeterService implements 
       return bind(java.util.Arrays.asList(methods));
     }
 
+    /**
+     * Set the validator applied to the request messages of the bound methods.
+     *
+     * @param validator the request message validator
+     * @return this builder
+     */
+    public Builder validator(GrpcMessageValidator<?> validator) {
+      this.validator = validator;
+      return this;
+    }
+
     public Service build() {
-      return new RequestHandler(instance, new ArrayList<>(serviceMethods));
+      return new RequestHandler(instance, new ArrayList<>(serviceMethods), validator);
     }
   }
 
@@ -140,8 +172,13 @@ public class GreeterGrpcService extends examples.grpc.GreeterService implements 
     private final examples.grpc.GreeterService instance;
     private final List<ServiceMethod<?, ?>> serviceMethods;
     private final Map<String, Handler<GrpcServerRequest<?, ?>>> handlers;
+    private final GrpcMessageValidator<?> validator;
 
     public RequestHandler(examples.grpc.GreeterService instance, List<ServiceMethod<?, ?>> serviceMethods) {
+      this(instance, serviceMethods, null);
+    }
+
+    public RequestHandler(examples.grpc.GreeterService instance, List<ServiceMethod<?, ?>> serviceMethods, GrpcMessageValidator<?> validator) {
       Map<String, Handler<GrpcServerRequest<?, ?>>> handlers = new HashMap<>();
       for (ServiceMethod<?, ?> serviceMethod : serviceMethods) {
         Handler<GrpcServerRequest<?, ?>> handler = resolveHandler(serviceMethod);
@@ -151,6 +188,7 @@ public class GreeterGrpcService extends examples.grpc.GreeterService implements 
       this.instance = instance;
       this.handlers = handlers;
       this.serviceMethods = serviceMethods;
+      this.validator = validator;
     }
 
     @Override
@@ -176,6 +214,12 @@ public class GreeterGrpcService extends examples.grpc.GreeterService implements 
       } else {
         return Service.super.handler(method);
       }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <Req, Resp> GrpcMessageValidator<? super Req> validator(ServiceMethod<Req, Resp> method) {
+      return (GrpcMessageValidator<? super Req>) validator;
     }
 
     private <Req, Resp> Handler<GrpcServerRequest<?, ?>> resolveHandler(ServiceMethod<Req, Resp> serviceMethod) {

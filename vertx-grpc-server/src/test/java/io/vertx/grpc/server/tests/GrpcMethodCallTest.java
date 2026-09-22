@@ -25,9 +25,9 @@ public class GrpcMethodCallTest {
 
   @Before
   public void setUp() {
-    grpcMethodCall0 = new GrpcMethodCall<>("/com.examples.MyService/Method1", null, null, null);
-    grpcMethodCall1 = new GrpcMethodCall<>("/com.examples/MyService/Method2", null, null, null);
-    grpcMethodCall2 = new GrpcMethodCall<>("/MyService/Method3", null, null, null);
+    grpcMethodCall0 = new GrpcMethodCall<>("/com.examples.MyService/Method1", null, null, null, null);
+    grpcMethodCall1 = new GrpcMethodCall<>("/com.examples/MyService/Method2", null, null, null, null);
+    grpcMethodCall2 = new GrpcMethodCall<>("/MyService/Method3", null, null, null, null);
   }
 
   @Test

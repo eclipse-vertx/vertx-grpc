@@ -10,6 +10,8 @@
  */
 package io.vertx.grpc.server.impl;
 
+import io.vertx.codegen.annotations.Nullable;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Timer;
@@ -18,6 +20,7 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcInboundStream;
 import io.vertx.grpc.common.impl.GrpcReadStreamBase;
+import io.vertx.grpc.common.impl.GrpcValidationStream;
 import io.vertx.grpc.server.GrpcServerRequest;
 
 import java.time.Duration;
@@ -26,13 +29,16 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcServerRequestImpl<Req, Resp>, Req> implements GrpcServerRequest<Req, Resp> {
+public class GrpcServerRequestImpl<Req, Resp> implements GrpcServerRequest<Req, Resp> {
 
+  private final ContextInternal context;
   private final ServiceName serviceName;
   private final String fullMethodName;
   private final String methodName;
   private final GrpcInboundStream inbound;
   private final MultiMap headers;
+  private final Stream base;
+  private final GrpcReadStream<Req> stream;
   final Duration timeout;
   private GrpcServerResponseImpl<Req, Resp> response;
   private Timer deadline;
@@ -44,17 +50,19 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                Duration timeout,
                                String encoding,
                                GrpcMessageDecoder<Req> messageDecoder,
+                               GrpcMessageValidator<? super Req> messageValidator,
                                ServiceName serviceName,
                                String fullMethodName,
                                String methodName) {
-    super(context, encoding, format, messageDecoder);
-
+    this.context = context;
     this.inbound = inbound;
     this.headers = headers;
     this.timeout = timeout;
     this.serviceName = serviceName;
     this.fullMethodName = fullMethodName;
     this.methodName = methodName;
+    this.base = new Stream(context, encoding, format, messageDecoder);
+    this.stream = messageValidator == null ? base : new GrpcValidationStream<>(base, messageValidator);
   }
 
   ContextInternal context() {
@@ -82,28 +90,22 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
     }
   }
 
-  @Override
+  public void handleMessage(GrpcMessage msg) {
+    base.handleMessage(msg);
+  }
+
+  public void handleEnd() {
+    base.handleEnd();
+  }
+
   public void handleException(Throwable err) {
-    super.handleException(err);
+    base.handleException(err);
     response.handleException(err);
   }
 
-  @Override
   public void handleError(GrpcError error) {
-    super.handleError(error);
+    base.handleError(error);
     response.handleError(error);
-  }
-
-  @Override
-  public GrpcServerRequestImpl<Req, Resp> pause() {
-    inbound.pause();
-    return this;
-  }
-
-  @Override
-  public GrpcServerRequestImpl<Req, Resp> fetch(long amount) {
-    inbound.fetch(amount);
-    return this;
   }
 
   public String fullMethodName() {
@@ -126,25 +128,77 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   }
 
   @Override
-  public GrpcServerRequestImpl<Req, Resp> handler(Handler<Req> handler) {
-    if (handler != null) {
-      return messageHandler(msg -> {
-        Req decoded;
-        try {
-          decoded = decodeMessage(msg);
-        } catch (CodecException e) {
-          response.cancel();
-          return;
-        }
-        try {
-          handler.handle(decoded);
-        } catch (Exception e) {
-          response.fail(e);
-        }
-      });
-    } else {
-      return messageHandler(null);
-    }
+  public String encoding() {
+    return stream.encoding();
+  }
+
+  @Override
+  public WireFormat format() {
+    return stream.format();
+  }
+
+  @Override
+  public GrpcServerRequestImpl<Req, Resp> handler(@Nullable Handler<Req> handler) {
+    stream.handler(handler);
+    return this;
+  }
+
+  @Override
+  public GrpcServerRequestImpl<Req, Resp> messageHandler(@Nullable Handler<GrpcMessage> handler) {
+    stream.messageHandler(handler);
+    return this;
+  }
+
+  @Override
+  public GrpcServerRequestImpl<Req, Resp> invalidMessageHandler(@Nullable Handler<InvalidMessageException> handler) {
+    stream.invalidMessageHandler(handler);
+    return this;
+  }
+
+  @Override
+  public GrpcServerRequestImpl<Req, Resp> errorHandler(@Nullable Handler<GrpcError> handler) {
+    stream.errorHandler(handler);
+    return this;
+  }
+
+  @Override
+  public GrpcServerRequestImpl<Req, Resp> exceptionHandler(@Nullable Handler<Throwable> handler) {
+    stream.exceptionHandler(handler);
+    return this;
+  }
+
+  @Override
+  public GrpcServerRequestImpl<Req, Resp> endHandler(@Nullable Handler<Void> handler) {
+    stream.endHandler(handler);
+    return this;
+  }
+
+  @Override
+  public GrpcServerRequestImpl<Req, Resp> pause() {
+    stream.pause();
+    return this;
+  }
+
+  @Override
+  public GrpcServerRequestImpl<Req, Resp> resume() {
+    stream.resume();
+    return this;
+  }
+
+  @Override
+  public GrpcServerRequestImpl<Req, Resp> fetch(long amount) {
+    stream.fetch(amount);
+    return this;
+  }
+
+  @Override
+  public Future<Req> last() {
+    return stream.last();
+  }
+
+  @Override
+  public Future<Void> end() {
+    return stream.end();
   }
 
   public GrpcServerResponseImpl<Req, Resp> response() {
@@ -164,5 +218,51 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
   @Override
   public Timer deadline() {
     return deadline;
+  }
+
+  private class Stream extends GrpcReadStreamBase<Stream, Req> {
+
+    Stream(ContextInternal context, String encoding, WireFormat format, GrpcMessageDecoder<Req> messageDecoder) {
+      super(context, encoding, format, messageDecoder);
+    }
+
+    @Override
+    public MultiMap headers() {
+      return headers;
+    }
+
+    @Override
+    public Stream pause() {
+      inbound.pause();
+      return this;
+    }
+
+    @Override
+    public Stream fetch(long amount) {
+      inbound.fetch(amount);
+      return this;
+    }
+
+    @Override
+    public Stream handler(@Nullable Handler<Req> handler) {
+      if (handler != null) {
+        return messageHandler(msg -> {
+          Req decoded;
+          try {
+            decoded = decodeMessage(msg);
+          } catch (CodecException e) {
+            response.cancel();
+            return;
+          }
+          try {
+            handler.handle(decoded);
+          } catch (Exception e) {
+            response.fail(e);
+          }
+        });
+      } else {
+        return messageHandler(null);
+      }
+    }
   }
 }

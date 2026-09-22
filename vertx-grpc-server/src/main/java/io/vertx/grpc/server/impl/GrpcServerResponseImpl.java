@@ -18,6 +18,7 @@ import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
+import io.vertx.grpc.common.GrpcValidationException;
 import io.vertx.grpc.common.impl.DefaultGrpcHeadersFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcMessageFrame;
 import io.vertx.grpc.common.impl.DefaultGrpcTrailersFrame;
@@ -104,6 +105,9 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
       StatusException se = (StatusException) failure;
       this.status = se.status();
       this.statusMessage = se.message();
+    } else if (failure instanceof GrpcValidationException) {
+      this.status = GrpcStatus.INVALID_ARGUMENT;
+      this.statusMessage = failure.getMessage();
     } else {
       this.status = mapStatus(failure);
     }
@@ -186,6 +190,8 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
   private static GrpcStatus mapStatus(Throwable t) {
     if (t instanceof StatusException) {
       return ((StatusException)t).status();
+    } else if (t instanceof GrpcValidationException) {
+      return GrpcStatus.INVALID_ARGUMENT;
     } else if (t instanceof UnsupportedOperationException) {
       return GrpcStatus.UNIMPLEMENTED;
     } else {
