@@ -23,6 +23,7 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
   private final ContextInternal context;
   private final GrpcProtocol protocol;
   private final WireFormat format;
+  private final long maxMessageSize;
   private final GrpcMessageDecoder<Req> messageDecoder;
   private final GrpcMethodCall methodCall;
   private final HttpConnection httpConnection;
@@ -42,10 +43,25 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
                  GrpcServerImpl.MethodCallHandler<Req, Resp> method,
                  boolean propagateDeadline,
                  boolean scheduleDeadline) {
+    this(stream, context, protocol, format, Long.MAX_VALUE, messageDecoder, methodCall, httpConnection, method, propagateDeadline, scheduleDeadline);
+  }
+
+  GrpcDispatcher(GrpcStream stream,
+                 ContextInternal context,
+                 GrpcProtocol protocol,
+                 WireFormat format,
+                 long maxMessageSize,
+                 GrpcMessageDecoder<Req> messageDecoder,
+                 GrpcMethodCall methodCall,
+                 HttpConnection httpConnection,
+                 GrpcServerImpl.MethodCallHandler<Req, Resp> method,
+                 boolean propagateDeadline,
+                 boolean scheduleDeadline) {
     this.stream = stream;
     this.context = context;
     this.protocol = protocol;
     this.format = format;
+    this.maxMessageSize = maxMessageSize;
     this.messageDecoder = messageDecoder;
     this.methodCall = methodCall;
     this.httpConnection = httpConnection;
@@ -83,7 +99,8 @@ class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
       frame.timeout(),
       frame.encoding(),
       messageDecoder,
-      methodCall) {
+      methodCall,
+      maxMessageSize) {
       @Override
       public HttpConnection connection() {
         return httpConnection;

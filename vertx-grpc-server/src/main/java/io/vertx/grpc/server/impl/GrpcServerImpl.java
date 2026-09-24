@@ -209,6 +209,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       context,
       protocol,
       format,
+      options.getMaxMessageSize(),
       messageDecoder,
       methodCall,
       httpRequest.connection(),

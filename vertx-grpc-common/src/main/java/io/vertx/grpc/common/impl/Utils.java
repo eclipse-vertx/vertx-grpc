@@ -23,12 +23,14 @@ import io.vertx.grpc.common.CodecException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Queue;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public class Utils {
 
-  public static final Function<Buffer, Buffer> GZIP_DECODER = data -> {
-    EmbeddedChannel channel = new EmbeddedChannel(ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP));
+  public static final BiFunction<Long, Buffer, Buffer> GZIP_DECODER = (max, data) -> {
+    int maxAllocation = (int)Math.min(Integer.MAX_VALUE, max);
+    EmbeddedChannel channel = new EmbeddedChannel(ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP, maxAllocation));
     channel.config().setAllocator(BufferInternal.buffer().getByteBuf().alloc());
     try {
       ChannelFuture fut = channel.writeOneInbound(((BufferInternal)data).getByteBuf());

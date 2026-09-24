@@ -70,6 +70,7 @@ public class GrpcClientImpl implements GrpcClient {
           ((PromiseInternal<?>)httpRequest.response()).context(),
           new Http2GrpcClientInvoker(httpRequest, maxMessageSize),
           scheduleDeadlineAutomatically,
+          maxMessageSize,
           GrpcMessageEncoder.IDENTITY,
           GrpcMessageDecoder.IDENTITY) {
           @Override
@@ -134,6 +135,7 @@ public class GrpcClientImpl implements GrpcClient {
           ((PromiseInternal<?>)request.response()).context(),
           new Http2GrpcClientInvoker(request, maxMessageSize),
           scheduleDeadlineAutomatically,
+          maxMessageSize,
           method.encoder(),
           method.decoder()) {
           public HttpConnection connection() {

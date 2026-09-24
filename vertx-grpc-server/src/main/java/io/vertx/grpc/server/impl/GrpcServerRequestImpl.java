@@ -47,7 +47,20 @@ public class GrpcServerRequestImpl<Req, Resp> extends GrpcReadStreamBase<GrpcSer
                                String encoding,
                                GrpcMessageDecoder<Req> messageDecoder,
                                GrpcMethodCall methodCall) {
-    super(context, encoding, format, messageDecoder);
+    this(context, headers, protocol, format, inbound, timeout, encoding, messageDecoder, methodCall, Long.MAX_VALUE);
+  }
+
+  public GrpcServerRequestImpl(ContextInternal context,
+                               MultiMap headers,
+                               GrpcProtocol protocol,
+                               WireFormat format,
+                               GrpcInboundStream inbound,
+                               Duration timeout,
+                               String encoding,
+                               GrpcMessageDecoder<Req> messageDecoder,
+                               GrpcMethodCall methodCall,
+                               long maxMessageSize) {
+    super(context, encoding, format, maxMessageSize, messageDecoder);
 
     this.inbound = inbound;
     this.headers = headers;

@@ -20,8 +20,10 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
+import io.vertx.grpc.client.GrpcClientOptions;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.*;
+import io.vertx.tests.common.GrpcTestUtils;
 import io.vertx.tests.common.grpc.TestServiceGrpc;
 import org.junit.Test;
 
@@ -147,6 +149,24 @@ public class ClientMessageEncodingTest extends ClientTestBase {
   public void testDecodeError(TestContext should) throws Exception {
     Async done = should.async();
     testDecode(should, done, Buffer.buffer("Hello World"), callResponse -> {
+      callResponse.handler(msg -> {
+        should.fail();
+      });
+    }, req -> {
+      req.response().exceptionHandler(err -> {
+        if (err instanceof StreamResetException) {
+          StreamResetException reset = (StreamResetException) err;
+          should.assertEquals(GrpcError.CANCELLED.http2ResetCode, reset.getCode());
+          done.complete();
+        }
+      });
+    });
+  }
+
+  @Test
+  public void testGzipDecodeExceedsMaxAllocation(TestContext should) throws Exception {
+    Async done = should.async();
+    testDecode(should, done, Buffer.buffer(GrpcTestUtils.gzipBomb((int)(GrpcClientOptions.DEFAULT_MAX_MESSAGE_SIZE + 1))), callResponse -> {
       callResponse.handler(msg -> {
         should.fail();
       });

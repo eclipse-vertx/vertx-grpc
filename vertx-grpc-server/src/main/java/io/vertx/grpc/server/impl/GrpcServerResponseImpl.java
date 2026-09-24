@@ -50,7 +50,16 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
                                 GrpcOutboundStream outbound,
                                 GrpcProtocol protocol,
                                 GrpcMessageEncoder<Resp> encoder) {
-    super(context, encoder);
+    this(context, request, outbound, protocol, encoder, Long.MAX_VALUE);
+  }
+
+  public GrpcServerResponseImpl(ContextInternal context,
+                                GrpcServerRequestImpl<Req, Resp> request,
+                                GrpcOutboundStream outbound,
+                                GrpcProtocol protocol,
+                                GrpcMessageEncoder<Resp> encoder,
+                                long maxMessageSize) {
+    super(context, encoder, maxMessageSize);
     this.outbound = outbound;
     this.request = request;
   }
