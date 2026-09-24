@@ -529,8 +529,10 @@ public abstract class ServerTest extends ServerTestBase {
     client.request(HttpMethod.POST, port, "localhost", "/" + UNARY.fullMethodName())
       .onComplete(should.asyncAssertSuccess(req -> {
         req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
-        req.end(DefaultGrpcMessage.encode(Buffer.buffer(Request.getDefaultInstance().toByteArray()), false, false));
-        req.reset(GrpcError.CANCELLED.http2ResetCode);
+        req.end(DefaultGrpcMessage.encode(Buffer.buffer(Request.getDefaultInstance().toByteArray()), false, false))
+          .onComplete(should.asyncAssertSuccess(v -> {
+            req.reset(GrpcError.CANCELLED.http2ResetCode);
+          }));
       }));
   }
 }
