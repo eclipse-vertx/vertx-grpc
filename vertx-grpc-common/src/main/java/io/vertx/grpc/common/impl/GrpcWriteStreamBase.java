@@ -12,6 +12,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
   protected final ContextInternal context;
   private final GrpcMessageEncoder<T> messageEncoder;
+  private final long maxMessageSize;
 
   protected String encoding;
   protected WireFormat format;
@@ -23,10 +24,11 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
   private MultiMap trailers;
   private Handler<Throwable> exceptionHandler;
 
-  public GrpcWriteStreamBase(ContextInternal context, GrpcMessageEncoder<T> messageEncoder) {
+  public GrpcWriteStreamBase(ContextInternal context, GrpcMessageEncoder<T> messageEncoder, long maxMessageSize) {
     this.context = context;
     this.messageEncoder = messageEncoder;
     this.format = null;
+    this.maxMessageSize = maxMessageSize;
   }
 
   public void handleError(GrpcError error) {
@@ -215,7 +217,7 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
               if (!message.encoding().equals("gzip")) {
                 return Future.failedFuture("Encoding " + message.encoding() + " is not supported");
               }
-              payload = new GrpcTransformedMessage(message, "identity", Utils.GZIP_DECODER);
+              payload = new GrpcTransformedMessage(message, "identity", buffer -> Utils.GZIP_DECODER.apply(maxMessageSize, buffer));
             } else {
               payload = message;
             }

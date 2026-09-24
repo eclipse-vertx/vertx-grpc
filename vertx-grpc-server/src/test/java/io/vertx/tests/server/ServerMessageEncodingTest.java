@@ -31,6 +31,7 @@ import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.server.GrpcServer;
+import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerRequest;
 import io.vertx.grpc.server.GrpcServerResponse;
 import io.vertx.tests.common.GrpcTestBase;
@@ -44,6 +45,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+
+import static io.vertx.tests.common.GrpcTestUtils.gzipBomb;
 
 public class ServerMessageEncodingTest extends ServerTestBase {
 
@@ -180,6 +183,18 @@ public class ServerMessageEncodingTest extends ServerTestBase {
   @Test
   public void testDecodeError(TestContext should) {
     testDecode(should, Buffer.buffer("Hello World"), req -> {
+      req.handler(msg -> {
+        should.fail();
+      });
+    }, req -> req.response().onComplete(should.asyncAssertSuccess(resp -> {
+      should.assertEquals(200, resp.statusCode());
+      should.assertEquals("" + GrpcStatus.CANCELLED.code, resp.getHeader("grpc-status"));
+    })));
+  }
+
+  @Test
+  public void testGzipDecodeExceedsMaxAllocation(TestContext should) {
+    testDecode(should, Buffer.buffer(gzipBomb((int)GrpcServerOptions.DEFAULT_MAX_MESSAGE_SIZE + 1)), req -> {
       req.handler(msg -> {
         should.fail();
       });
