@@ -354,10 +354,11 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       HttpGrpcOutboundStream outboundInvoker;
       switch (protocol) {
         case HTTP_2:
+        case HTTP_3:
           if (!httpRequest.path().equals("/" + fullMethodName)) {
             return null;
           }
-          outboundInvoker = new Http2GrpcOutboundStream(httpRequest, new Http2GrpcMessageDeframer(encoding, format));
+          outboundInvoker = new Http2GrpcOutboundStream(httpRequest, protocol, new Http2GrpcMessageDeframer(encoding, format));
           break;
         case WEB:
         case WEB_TEXT:
@@ -413,6 +414,7 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       HttpGrpcOutboundStream stream;
       switch (protocol) {
         case HTTP_2:
+        case HTTP_3:
         case WEB:
         case WEB_TEXT:
           return super.createGrpcStream(protocol, httpRequest, format);

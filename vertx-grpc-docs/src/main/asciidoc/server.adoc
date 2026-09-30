@@ -216,9 +216,10 @@ A bidi request/response is simply the combination of a streaming request and a s
 
 === gRPC protocols
 
-==== HTTP/2 protocol
+==== HTTP/2 and HTTP/3 protocols
 
-The default protocol served by the Vert.x gRPC server is HTTP/2.
+The Vert.x gRPC server supports the gRPC protocol over HTTP/2 and HTTP/3.
+HTTP/3 must be configured on the underlying Vert.x HTTP server and requires TLS.
 
 In addition, Vert.x gRPC server also supports https://github.com/grpc/grpc-web[gRPC-Web] protocol and HTTP/JSON transcoding.
 

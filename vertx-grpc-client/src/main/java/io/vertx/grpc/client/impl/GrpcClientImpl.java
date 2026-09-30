@@ -86,7 +86,6 @@ public class GrpcClientImpl implements GrpcClient {
   public Future<GrpcClientRequest<Buffer, Buffer>> request() {
     return request(new RequestOptions()
       .setMethod(HttpMethod.POST)
-      .setProtocolVersion(HttpVersion.HTTP_2)
     );
   }
 
@@ -95,7 +94,6 @@ public class GrpcClientImpl implements GrpcClient {
     return request(new RequestOptions()
       .setMethod(HttpMethod.POST)
       .setServer(server)
-      .setProtocolVersion(HttpVersion.HTTP_2)
     );
   }
 
