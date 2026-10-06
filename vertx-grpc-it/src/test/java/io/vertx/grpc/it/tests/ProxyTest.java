@@ -16,6 +16,7 @@ import io.grpc.examples.helloworld.HelloReply;
 import io.grpc.examples.helloworld.HelloRequest;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.core.net.SocketAddress;
@@ -108,7 +109,10 @@ public class ProxyTest extends ProxyTestBase {
 
     GrpcServerImpl s = (GrpcServerImpl) GrpcServer.server(vertx);
     s.streamHandler(call -> {
-      Future<GrpcClientInvoker> f = client.connect(new RequestOptions().setServer(SocketAddress.inetSocketAddress(8080, "localhost")));
+      RequestOptions options = new RequestOptions()
+        .setMethod(HttpMethod.POST)
+        .setServer(SocketAddress.inetSocketAddress(8080, "localhost"));
+      Future<GrpcClientInvoker> f = client.connect(options);
       f.onComplete(ar -> {
         if (ar.succeeded()) {
           GrpcClientInvoker invoker = ar.result();
