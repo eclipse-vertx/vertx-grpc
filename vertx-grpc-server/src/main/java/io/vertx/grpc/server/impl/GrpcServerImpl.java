@@ -88,6 +88,14 @@ public class GrpcServerImpl implements GrpcServer, Closeable {
       return;
     }
 
+    if (details.protocol != GrpcProtocol.TRANSCODING && httpRequest.method() != HttpMethod.POST) {
+      httpRequest.response()
+        .setStatusCode(405)
+        .putHeader("Allow", "POST")
+        .end();
+      return;
+    }
+
     io.vertx.core.internal.ContextInternal context = ((HttpServerRequestInternal) httpRequest).context();
 
     String path = httpRequest.path();
