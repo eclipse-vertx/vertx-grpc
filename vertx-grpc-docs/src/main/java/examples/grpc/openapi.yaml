@@ -1,0 +1,57 @@
+openapi: 3.0.0
+info:
+  title: examples.grpc gRPC API
+  version: 1.0.0
+  description: OpenAPI specification generated from gRPC service definitions with HTTP transcoding
+servers:
+  - url: http://localhost:8080
+    description: gRPC server
+paths:
+  /v1/hello/{name}:
+    GET:
+      summary: SayHello
+      description: 
+      operationId: sayHello
+      tags:
+        - 
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelloReply'
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrpcError'
+components:
+  schemas:
+    HelloRequest:
+      type: object
+      description: Protobuf message type .examples.grpc.HelloRequest
+      properties:
+        name:
+          type: string
+    HelloReply:
+      type: object
+      description: Protobuf message type .examples.grpc.HelloReply
+      properties:
+        message:
+          type: string
+    GrpcError:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: gRPC status code
+        message:
+          type: string
+          description: Error message
+        details:
+          type: array
+          items:
+            type: object
+          description: Additional error details
