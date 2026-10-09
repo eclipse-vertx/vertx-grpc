@@ -31,7 +31,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
@@ -198,7 +197,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
     void initWriteSide(ServerCall.Listener<Req> listener) {
       this.listener = listener;
       req.errorHandler(error -> {
-        if (error == GrpcError.CANCELLED && !closed) {
+        if (!closed) {
           cancelled = true;
           listener.onCancel();
         }
