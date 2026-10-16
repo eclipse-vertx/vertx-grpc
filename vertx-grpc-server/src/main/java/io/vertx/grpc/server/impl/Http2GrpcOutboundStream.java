@@ -10,7 +10,11 @@ import io.vertx.grpc.server.GrpcProtocol;
 public class Http2GrpcOutboundStream extends HttpGrpcOutboundStream {
 
   public Http2GrpcOutboundStream(HttpServerRequest httpRequest, GrpcMessageDeframer deframer) {
-    super(httpRequest, GrpcProtocol.HTTP_2, deframer);
+    this(httpRequest, GrpcProtocol.HTTP_2, deframer);
+  }
+
+  public Http2GrpcOutboundStream(HttpServerRequest httpRequest, GrpcProtocol protocol, GrpcMessageDeframer deframer) {
+    super(httpRequest, protocol, deframer);
   }
 
   @Override

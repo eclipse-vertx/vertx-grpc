@@ -3,6 +3,7 @@ package io.vertx.grpc.server.impl;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.StreamResetException;
 import io.vertx.core.internal.ContextInternal;
 import io.vertx.grpc.common.impl.*;
@@ -85,7 +86,8 @@ public class HttpGrpcInboundStream implements GrpcInboundStream {
   void handleException(Throwable err) {
     if (err instanceof StreamResetException) {
       StreamResetException reset = (StreamResetException) err;
-      GrpcErrorException errorEx = GrpcErrorException.create(reset);
+      HttpVersion version = protocol == GrpcProtocol.HTTP_3 ? HttpVersion.HTTP_3 : HttpVersion.HTTP_2;
+      GrpcErrorException errorEx = GrpcErrorException.create(reset, version);
       Handler<GrpcError> handler = errorHandler;
       if (handler != null) {
         handler.handle(errorEx.error());

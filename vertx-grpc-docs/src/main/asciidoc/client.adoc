@@ -38,6 +38,9 @@ You can easily create the gRPC client
 {@link examples.GrpcClientExamples#createClient}
 ----
 
+The client uses HTTP/2 by default. To use HTTP/3, create the client with an
+`HttpClientConfig` that enables `HttpVersion.HTTP_3`. HTTP/3 requires TLS.
+
 [[idiomatic-client]]
 === Idiomatic client API generation
 
