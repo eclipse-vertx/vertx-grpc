@@ -30,10 +30,15 @@ public class ReadStreamAdapter<T> {
     stream.endHandler(v -> {
       handleClose();
     });
-    this.stream = stream;
     stream.pause();
-    if (request > 0) {
-      stream.fetch(request);
+    int pending;
+    synchronized (this) {
+      this.stream = stream;
+      pending = request;
+      request = 0;
+    }
+    if (pending > 0) {
+      stream.fetch(pending);
     }
   }
 
@@ -55,10 +60,14 @@ public class ReadStreamAdapter<T> {
    * Request {@code num} messages
    */
   public final void request(int num) {
-    if (stream != null) {
-      stream.fetch(num);
-    } else {
-      request += num;
+    GrpcReadStream<T> s;
+    synchronized (this) {
+      s = stream;
+      if (s == null) {
+        request += num;
+        return;
+      }
     }
+    s.fetch(num);
   }
 }

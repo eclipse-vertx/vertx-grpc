@@ -578,6 +578,51 @@ public class ServerBridgeTest extends ServerTest {
   }
 
   @Test
+  public void testRequestFromAnotherThread(TestContext should) throws Exception {
+
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
+      @Override
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
+        responseObserver.onCompleted();
+      }
+    };
+
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      ServerInterceptor interceptor = new ServerInterceptor() {
+        @Override
+        public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+          // Request messages from another thread, racing with the bridge initialization of the read stream
+          call = new ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>(call) {
+            @Override
+            public void request(int numMessages) {
+              executor.execute(() -> super.request(numMessages));
+            }
+          };
+          return next.startCall(call, headers);
+        }
+      };
+
+      GrpcIoServer server = GrpcIoServer.server(vertx);
+      GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(ServerInterceptors.intercept(impl, interceptor));
+      serverStub.bind(server);
+      startServer(server);
+      channel = ManagedChannelBuilder.forAddress("localhost", port)
+        .usePlaintext()
+        .build();
+      TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+      Request request = Request.newBuilder().setName("Julien").build();
+      for (int i = 0; i < 2000; i++) {
+        Reply res = stub.withDeadlineAfter(5, TimeUnit.SECONDS).unary(request);
+        should.assertEquals("Hello Julien", res.getMessage());
+      }
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  @Test
   public void testJsonMessageFormat(TestContext should) throws Exception {
 
     MethodDescriptor<Request, Reply> sayHello =
