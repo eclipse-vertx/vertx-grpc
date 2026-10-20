@@ -14,7 +14,15 @@ import io.grpc.*;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpVersion;
+import io.vertx.grpc.common.GrpcHeaderNames;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.common.GrpcStatus;
@@ -728,5 +736,152 @@ public class ServerBridgeTest extends ServerTest {
     } finally {
       executor.shutdownNow();
     }
+  }
+
+  @Test
+  public void testContextCancelledOnCompletion(TestContext should) throws Exception {
+    testContextCancelledOnCompletion(should, true);
+  }
+
+  @Test
+  public void testContextCancelledOnCompletionWithoutDeadline(TestContext should) throws Exception {
+    testContextCancelledOnCompletion(should, false);
+  }
+
+  private void testContextCancelledOnCompletion(TestContext should, boolean withDeadline) throws Exception {
+    Async cancelled = should.async();
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
+      @Override
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
+        responseObserver.onNext(Reply.newBuilder().setMessage("Hello " + request.getName()).build());
+        responseObserver.onCompleted();
+      }
+    };
+    ServerServiceDefinition def = ServerInterceptors.intercept(impl, new ServerInterceptor() {
+      @Override
+      public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+        Context current = Context.current();
+        should.assertEquals(withDeadline, current.getDeadline() != null);
+        current.addListener(ctx -> {
+          should.assertNull(ctx.cancellationCause());
+          should.assertEquals(withDeadline, ctx.getDeadline() != null && !ctx.getDeadline().isExpired());
+          cancelled.complete();
+        }, Runnable::run);
+        return next.startCall(call, headers);
+      }
+    });
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(def);
+    serverStub.bind(server);
+    startServer(server);
+
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+    if (withDeadline) {
+      stub = stub.withDeadlineAfter(30, TimeUnit.SECONDS);
+    }
+    Reply res = stub.unary(Request.newBuilder().setName("Julien").build());
+    should.assertEquals("Hello Julien", res.getMessage());
+    cancelled.awaitSuccess(5_000);
+  }
+
+  @Test
+  public void testContextCancelledOnClientCancel(TestContext should) throws Exception {
+    testContextCancelledOnAbort(should, req -> req.reset(0x08));
+  }
+
+  @Test
+  public void testContextCancelledOnStartCallFailure(TestContext should) throws Exception {
+    Async cancelled = should.async();
+    RuntimeException failure = new RuntimeException("startCall failure");
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
+    };
+    ServerServiceDefinition def = ServerInterceptors.intercept(impl, new ServerInterceptor() {
+      @Override
+      public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+        Context.current().addListener(ctx -> {
+          should.assertEquals(failure, ctx.cancellationCause());
+          cancelled.complete();
+        }, Runnable::run);
+        throw failure;
+      }
+    });
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(def);
+    serverStub.bind(server);
+    startServer(server);
+
+    channel = ManagedChannelBuilder.forAddress("localhost", port)
+      .usePlaintext()
+      .build();
+    TestServiceGrpc.TestServiceBlockingStub stub = TestServiceGrpc.newBlockingStub(channel);
+    try {
+      stub.withDeadlineAfter(30, TimeUnit.SECONDS).unary(Request.newBuilder().setName("Julien").build());
+      should.fail();
+    } catch (StatusRuntimeException expected) {
+    }
+    cancelled.awaitSuccess(5_000);
+  }
+
+  @Test
+  public void testContextCancelledOnStreamReset(TestContext should) throws Exception {
+    // Reset with INTERNAL_ERROR instead of CANCEL
+    testContextCancelledOnAbort(should, req -> req.reset(0x02));
+  }
+
+  @Test
+  public void testContextCancelledOnConnectionClose(TestContext should) throws Exception {
+    testContextCancelledOnAbort(should, req -> req.connection().close());
+  }
+
+  private void testContextCancelledOnAbort(TestContext should, Handler<HttpClientRequest> abort) throws Exception {
+    Async received = should.async();
+    Async cancelled = should.async(2);
+    TestServiceGrpc.TestServiceImplBase impl = new TestServiceGrpc.TestServiceImplBase() {
+      @Override
+      public void unary(Request request, StreamObserver<Reply> responseObserver) {
+        // Never respond, let the client abort
+      }
+    };
+    ServerServiceDefinition def = ServerInterceptors.intercept(impl, new ServerInterceptor() {
+      @Override
+      public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+        Context.current().addListener(ctx -> {
+          Throwable cause = ctx.cancellationCause();
+          should.assertTrue(cause instanceof StatusException);
+          should.assertEquals(Status.Code.CANCELLED, ((StatusException) cause).getStatus().getCode());
+          cancelled.countDown();
+        }, Runnable::run);
+        received.complete();
+        return new ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>(next.startCall(call, headers)) {
+          @Override
+          public void onCancel() {
+            cancelled.countDown();
+            super.onCancel();
+          }
+        };
+      }
+    });
+
+    GrpcIoServer server = GrpcIoServer.server(vertx);
+    GrpcIoServiceBridge serverStub = GrpcIoServiceBridge.bridge(def);
+    serverStub.bind(server);
+    startServer(server);
+
+    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+      .setHttp2ClearTextUpgrade(false)
+      .setProtocolVersion(HttpVersion.HTTP_2));
+    HttpClientRequest req = client.request(HttpMethod.POST, port, "localhost", "/io.vertx.grpc.common.tests.tests.TestService/Unary")
+      .await(5, TimeUnit.SECONDS);
+    req.putHeader(GrpcHeaderNames.GRPC_TIMEOUT, "30S");
+    req.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
+    req.sendHead();
+    received.awaitSuccess(5_000);
+    abort.handle(req);
+    cancelled.awaitSuccess(5_000);
   }
 }
