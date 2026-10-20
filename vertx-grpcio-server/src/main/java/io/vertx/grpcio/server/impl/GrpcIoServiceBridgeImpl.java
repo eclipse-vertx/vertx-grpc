@@ -28,10 +28,10 @@ import io.grpc.Status;
 import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClosedException;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.grpc.common.GrpcError;
 import io.vertx.grpc.common.GrpcStatus;
 import io.vertx.grpc.common.ServiceMethod;
 import io.vertx.grpc.common.ServiceName;
@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
@@ -135,7 +136,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
 
   private static class ServerCallImpl<Req, Resp> extends ServerCall<Req, Resp> {
 
-    private final Context context;
+    private final Context.CancellableContext context;
     private final GrpcServerRequest<Req, Resp> req;
     private final ServerMethodDefinition<Req, Resp> methodDef;
     private final ReadStreamAdapter<Req> readAdapter;
@@ -149,7 +150,7 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
     private int messagesSent;
     private final Attributes attributes;
 
-    public ServerCallImpl(Context context, GrpcServerRequest<Req, Resp> req, ServerMethodDefinition<Req, Resp> methodDef) {
+    public ServerCallImpl(Context.CancellableContext context, GrpcServerRequest<Req, Resp> req, ServerMethodDefinition<Req, Resp> methodDef) {
 
       String encoding = req.encoding();
 
@@ -197,13 +198,25 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
 
     void initWriteSide(ServerCall.Listener<Req> listener) {
       this.listener = listener;
-      req.errorHandler(error -> {
-        if (error == GrpcError.CANCELLED && !closed) {
-          cancelled = true;
-          listener.onCancel();
+      // Any stream reset or connection close terminates the call
+      req.errorHandler(error -> handleCancel());
+      req.exceptionHandler(err -> {
+        if (err instanceof HttpClosedException) {
+          handleCancel();
         }
       });
       writeAdapter.init(req.response(), req.format(), new BridgeMessageEncoder<>(methodDef.getMethodDescriptor().getResponseMarshaller(), compressor));
+    }
+
+    private void handleCancel() {
+      if (!closed && !cancelled) {
+        cancelled = true;
+        try {
+          listener.onCancel();
+        } finally {
+          context.cancel(Status.CANCELLED.asException());
+        }
+      }
     }
 
     void init(ServerCall.Listener<Req> listener) {
@@ -277,7 +290,12 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
         response.statusMessage(status.getDescription());
         response.end();
       }
-      listener.onComplete();
+      try {
+        listener.onComplete();
+      } finally {
+        // Release the context (and its deadline timer) now that the call is over
+        context.cancel(null);
+      }
     }
 
     @Override
@@ -335,21 +353,34 @@ public class GrpcIoServiceBridgeImpl implements GrpcIoServiceBridge {
     @Override
     public void handle(GrpcServerRequest<Req, Resp> req) {
       ServerCallHandler<Req, Resp> callHandler = methodDef.getServerCallHandler();
-      Context context = Context.current();
+      Context.CancellableContext context;
       if (req.timeout() > 0L) {
-        Context.CancellableContext cancellable = context.withDeadlineAfter(req.timeout(), TimeUnit.MILLISECONDS, new VertxScheduledExecutorService(Vertx.currentContext()));
-        context = cancellable;
-        context.addListener(context1 -> ((GrpcServerResponseImpl)req.response()).handleTimeout(), new Executor() {
+        context = Context
+          .current()
+          .withDeadlineAfter(req.timeout(), TimeUnit.MILLISECONDS, new VertxScheduledExecutorService(Vertx.currentContext()));
+        context.addListener(ctx -> {
+          // The context is also cancelled when the call terminates, only a deadline expiration is a timeout
+          if (ctx.cancellationCause() instanceof TimeoutException) {
+            ((GrpcServerResponseImpl)req.response()).handleTimeout();
+          }
+        }, new Executor() {
           @Override
           public void execute(Runnable command) {
             command.run();
           }
         });
+      } else {
+        context = Context.current().withCancellation();
       }
-      Context theContext = context;
-      Runnable task = theContext.wrap(() -> {
-        ServerCallImpl<Req, Resp> call = new ServerCallImpl<>(theContext, req, methodDef);
-        ServerCall.Listener<Req> listener = callHandler.startCall(call, io.vertx.grpcio.common.impl.Utils.readMetadata(req.headers()));
+      Runnable task = context.wrap(() -> {
+        ServerCallImpl<Req, Resp> call = new ServerCallImpl<>(context, req, methodDef);
+        ServerCall.Listener<Req> listener;
+        try {
+          listener = callHandler.startCall(call, io.vertx.grpcio.common.impl.Utils.readMetadata(req.headers()));
+        } catch (RuntimeException | Error e) {
+          context.cancel(e);
+          throw e;
+        }
         if (GrpcProtocol.TRANSCODING.mediaType().equals(req.headers().get(HttpHeaders.CONTENT_TYPE))) {
           call.initWriteSide(listener);
           req.handler(listener::onMessage);
