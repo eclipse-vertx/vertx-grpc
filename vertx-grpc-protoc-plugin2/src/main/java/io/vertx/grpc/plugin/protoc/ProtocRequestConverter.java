@@ -5,12 +5,12 @@ import com.google.api.HttpRule;
 import com.google.common.html.HtmlEscapers;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.compiler.PluginProtos;
+import io.vertx.grpc.plugin.descriptors.MessageDescriptor;
 import io.vertx.grpc.plugin.descriptors.MethodDescriptor;
 import io.vertx.grpc.plugin.descriptors.ServiceDescriptor;
 import io.vertx.grpc.plugin.descriptors.TranscodingDescriptor;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 /**
  * Responsible for converting Protocol Buffers definitions into internal representations used for further processing or code generation. This class primarily focuses on
@@ -19,9 +19,30 @@ import java.util.List;
 public class ProtocRequestConverter {
 
   private final ProtobufTypeMapper typeMapper;
+  private final Map<String, DescriptorProtos.FileDescriptorProto> filesByName = new HashMap<>();
+  private final Map<String, MessageDescriptor> messagesByProtoType = new HashMap<>();
+  private final Map<String, DescriptorProtos.DescriptorProto> protoMessagesByType = new HashMap<>();
 
-  public ProtocRequestConverter(ProtobufTypeMapper typeMapper) {
+  public ProtocRequestConverter(ProtobufTypeMapper typeMapper, List<DescriptorProtos.FileDescriptorProto> files) {
     this.typeMapper = typeMapper;
+    // Index all files for lookup
+    for (DescriptorProtos.FileDescriptorProto file : files) {
+      filesByName.put(file.getName(), file);
+      // Index all messages in this file
+      for (DescriptorProtos.DescriptorProto message : file.getMessageTypeList()) {
+        indexMessage(message, file.getPackage(), "");
+      }
+    }
+  }
+
+  private void indexMessage(DescriptorProtos.DescriptorProto message, String protoPackage, String prefix) {
+    String protoTypeName = "." + protoPackage + "." + prefix + message.getName();
+    protoMessagesByType.put(protoTypeName, message);
+
+    // Index nested messages
+    for (DescriptorProtos.DescriptorProto nested : message.getNestedTypeList()) {
+      indexMessage(nested, protoPackage, prefix + message.getName() + ".");
+    }
   }
 
   /**
@@ -32,7 +53,148 @@ public class ProtocRequestConverter {
    */
   public static ProtocRequestConverter create(PluginProtos.CodeGeneratorRequest request) {
     ProtobufTypeMapper typeMapper = new ProtobufTypeMapper(request.getProtoFileList());
-    return new ProtocRequestConverter(typeMapper);
+    return new ProtocRequestConverter(typeMapper, request.getProtoFileList());
+  }
+
+  /**
+   * Gets all collected message descriptors.
+   *
+   * @return a map of Java type names to MessageDescriptor objects
+   */
+  public Map<String, MessageDescriptor> getMessageDescriptors() {
+    return new HashMap<>(messagesByProtoType);
+  }
+
+  /**
+   * Converts a protobuf message type to a MessageDescriptor.
+   *
+   * @param protoTypeName the protobuf type name (e.g., ".mypackage.MyMessage")
+   * @return the MessageDescriptor or null if not found
+   */
+  public MessageDescriptor convertMessage(String protoTypeName) {
+    // Check cache first
+    if (messagesByProtoType.containsKey(protoTypeName)) {
+      return messagesByProtoType.get(protoTypeName);
+    }
+
+    DescriptorProtos.DescriptorProto messageProto = protoMessagesByType.get(protoTypeName);
+    if (messageProto == null) {
+      return null;
+    }
+
+    String javaType = typeMapper.toJavaTypeName(protoTypeName);
+    MessageDescriptor message = new MessageDescriptor()
+      .setName(messageProto.getName())
+      .setFullName(protoTypeName)
+      .setJavaType(javaType);
+
+    // Convert fields
+    for (DescriptorProtos.FieldDescriptorProto fieldProto : messageProto.getFieldList()) {
+      MessageDescriptor.FieldDescriptor field = convertField(fieldProto);
+      message.addField(field);
+    }
+
+    messagesByProtoType.put(protoTypeName, message);
+    return message;
+  }
+
+  private MessageDescriptor.FieldDescriptor convertField(DescriptorProtos.FieldDescriptorProto fieldProto) {
+    MessageDescriptor.FieldDescriptor field = new MessageDescriptor.FieldDescriptor()
+      .setName(fieldProto.getName())
+      .setNumber(fieldProto.getNumber())
+      .setRepeated(fieldProto.getLabel() == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED)
+      .setRequired(fieldProto.getLabel() == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REQUIRED);
+
+    // Set json_name
+    if (fieldProto.hasJsonName() && !fieldProto.getJsonName().isEmpty()) {
+      field.setJsonName(fieldProto.getJsonName());
+    } else {
+      // Default json_name is camelCase version of field name
+      field.setJsonName(toCamelCase(fieldProto.getName()));
+    }
+
+    // Determine type
+    String protoType = getProtoFieldType(fieldProto);
+    field.setType(protoType);
+
+    // Set Java type
+    if (fieldProto.getType() == DescriptorProtos.FieldDescriptorProto.Type.TYPE_MESSAGE ||
+        fieldProto.getType() == DescriptorProtos.FieldDescriptorProto.Type.TYPE_ENUM) {
+      field.setJavaType(typeMapper.toJavaTypeName(fieldProto.getTypeName()));
+    } else {
+      field.setJavaType(mapFieldTypeToJava(fieldProto.getType()));
+    }
+
+    return field;
+  }
+
+  private String getProtoFieldType(DescriptorProtos.FieldDescriptorProto fieldProto) {
+    switch (fieldProto.getType()) {
+      case TYPE_DOUBLE: return "double";
+      case TYPE_FLOAT: return "float";
+      case TYPE_INT64: return "int64";
+      case TYPE_UINT64: return "uint64";
+      case TYPE_INT32: return "int32";
+      case TYPE_FIXED64: return "fixed64";
+      case TYPE_FIXED32: return "fixed32";
+      case TYPE_BOOL: return "bool";
+      case TYPE_STRING: return "string";
+      case TYPE_BYTES: return "bytes";
+      case TYPE_UINT32: return "uint32";
+      case TYPE_SFIXED32: return "sfixed32";
+      case TYPE_SFIXED64: return "sfixed64";
+      case TYPE_SINT32: return "sint32";
+      case TYPE_SINT64: return "sint64";
+      case TYPE_MESSAGE: return fieldProto.getTypeName();
+      case TYPE_ENUM: return fieldProto.getTypeName();
+      default: return "unknown";
+    }
+  }
+
+  private String mapFieldTypeToJava(DescriptorProtos.FieldDescriptorProto.Type type) {
+    switch (type) {
+      case TYPE_DOUBLE: return "double";
+      case TYPE_FLOAT: return "float";
+      case TYPE_INT64:
+      case TYPE_UINT64:
+      case TYPE_FIXED64:
+      case TYPE_SFIXED64:
+      case TYPE_SINT64:
+        return "long";
+      case TYPE_INT32:
+      case TYPE_UINT32:
+      case TYPE_FIXED32:
+      case TYPE_SFIXED32:
+      case TYPE_SINT32:
+        return "int";
+      case TYPE_BOOL: return "boolean";
+      case TYPE_STRING: return "String";
+      case TYPE_BYTES: return "ByteString";
+      default: return "Object";
+    }
+  }
+
+  private String toCamelCase(String input) {
+    if (input == null || input.isEmpty()) {
+      return input;
+    }
+
+    StringBuilder result = new StringBuilder();
+    boolean capitalizeNext = false;
+
+    for (int i = 0; i < input.length(); i++) {
+      char c = input.charAt(i);
+      if (c == '_') {
+        capitalizeNext = true;
+      } else if (capitalizeNext) {
+        result.append(Character.toUpperCase(c));
+        capitalizeNext = false;
+      } else {
+        result.append(c);
+      }
+    }
+
+    return result.toString();
   }
 
   /**

@@ -6,5 +6,6 @@ public enum GenerationType {
   GRPC_CLIENT,
   SERVICE,
   GRPC_SERVICE,
-  GRPC_IO
+  GRPC_IO,
+  OPENAPI
 }
