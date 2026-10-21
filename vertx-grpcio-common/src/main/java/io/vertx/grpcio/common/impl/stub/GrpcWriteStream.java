@@ -72,7 +72,7 @@ public class GrpcWriteStream<T> implements WriteStream<T> {
     if (ended) {
       throw new IllegalStateException();
     }
-    queue.write(data);
+    queue.add(data);
     return Future.succeededFuture();
   }
 
@@ -82,7 +82,7 @@ public class GrpcWriteStream<T> implements WriteStream<T> {
       throw new IllegalStateException();
     }
     ended = true;
-    queue.write((T) END_SENTINEL);
+    queue.add((T) END_SENTINEL);
     return Future.succeededFuture();
   }
 

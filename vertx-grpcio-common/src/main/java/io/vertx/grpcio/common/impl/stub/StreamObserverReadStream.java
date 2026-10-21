@@ -87,7 +87,7 @@ public class StreamObserverReadStream<T> implements StreamObserver<T>, ReadStrea
 
   @Override
   public void onNext(T t) {
-    queue.write(t);
+    queue.add(t);
     if (!paused) {
       streamObserver.request(1);
     }
@@ -95,12 +95,12 @@ public class StreamObserverReadStream<T> implements StreamObserver<T>, ReadStrea
 
   @Override
   public void onError(Throwable throwable) {
-    queue.write(new EndOfStream(throwable));
+    queue.add(new EndOfStream(throwable));
   }
 
   @Override
   public void onCompleted() {
-    queue.write(END_SENTINEL);
+    queue.add(END_SENTINEL);
   }
 
   @Override
