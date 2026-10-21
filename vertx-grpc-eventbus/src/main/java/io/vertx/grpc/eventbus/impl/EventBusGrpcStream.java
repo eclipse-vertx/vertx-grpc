@@ -350,11 +350,11 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
   }
 
   protected final void emitInbound(GrpcFrame frame) {
-    inboundQueue.write(frame);
+    inboundQueue.add(frame);
   }
 
   protected final void emitInbound(List<GrpcFrame> frames) {
-    inboundQueue.write(frames);
+    inboundQueue.add(frames);
   }
 
   protected void dispatchInbound(GrpcFrame frame) {
@@ -455,7 +455,7 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
   }
 
   Future<Void> enqueue(OutboundWrite write) {
-    outboundQueue.write(write);
+    outboundQueue.add(write);
     return write.completion.future();
   }
 

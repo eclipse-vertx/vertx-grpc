@@ -58,7 +58,7 @@ public class GrpcDeframingStream implements ReadStream<GrpcMessage> {
     stream.endHandler(v -> {
       deframer.end();
       deframe();
-      queue.write(END_SENTINEL);
+      queue.add(END_SENTINEL);
     });
     stream.exceptionHandler(err -> {
       Handler<Throwable> handler = exceptionHandler;
@@ -86,7 +86,7 @@ public class GrpcDeframingStream implements ReadStream<GrpcMessage> {
         }
       } else {
         GrpcMessage msg = (GrpcMessage) ret;
-        queue.write(msg);
+        queue.add(msg);
       }
     }
   }
