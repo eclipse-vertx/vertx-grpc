@@ -22,6 +22,16 @@ public enum GrpcProtocol {
   },
 
   /**
+   * gRPC over HTTP/3
+   */
+  HTTP_3("application/grpc", EnumSet.of(HttpVersion.HTTP_3)) {
+    @Override
+    public WireFormat wireFormat(String mediaType) {
+      return GrpcMediaType.parseContentType(mediaType, mediaType());
+    }
+  },
+
+  /**
    * gRPC transcoding HTTP/1
    */
   TRANSCODING("application/json", EnumSet.allOf(HttpVersion.class)) {

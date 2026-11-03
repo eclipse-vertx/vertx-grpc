@@ -32,7 +32,7 @@ import java.util.Set;
 public class GrpcServerOptions {
 
   /**
-   * The default set of enabled protocols = {@code [HTTP/2, TRANSCODING, WEB, WEB_TEXT]}
+   * The default set of enabled protocols = {@code [HTTP/2, HTTP/3, TRANSCODING, WEB, WEB_TEXT]}
    */
   public static final Set<GrpcProtocol> DEFAULT_ENABLED_PROTOCOLS = Collections.unmodifiableSet(EnumSet.allOf(GrpcProtocol.class));
 

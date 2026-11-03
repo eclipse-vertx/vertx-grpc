@@ -11,6 +11,7 @@
 package io.vertx.grpc.common;
 
 import io.vertx.codegen.annotations.VertxGen;
+import io.vertx.core.http.HttpVersion;
 
 /**
  * gRPC error, a subset of {@link GrpcStatus} elements.
@@ -22,22 +23,31 @@ import io.vertx.codegen.annotations.VertxGen;
 @VertxGen
 public enum GrpcError {
 
-  INTERNAL(GrpcStatus.INTERNAL, 0x02),
+  INTERNAL(GrpcStatus.INTERNAL, 0x02, 0x0102),
 
-  UNAVAILABLE(GrpcStatus.UNAVAILABLE, 0x07),
+  UNAVAILABLE(GrpcStatus.UNAVAILABLE, 0x07, 0x010B),
 
-  CANCELLED(GrpcStatus.CANCELLED, 0x08),
+  CANCELLED(GrpcStatus.CANCELLED, 0x08, 0x010C),
 
-  RESOURCE_EXHAUSTED(GrpcStatus.RESOURCE_EXHAUSTED, 0x0B),
+  RESOURCE_EXHAUSTED(GrpcStatus.RESOURCE_EXHAUSTED, 0x0B, 0x0107),
 
-  PERMISSION_DENIED(GrpcStatus.PERMISSION_DENIED, 0x0C);
+  PERMISSION_DENIED(GrpcStatus.PERMISSION_DENIED, 0x0C, 0x0102);
 
   public final GrpcStatus status;
   public final long http2ResetCode;
+  public final long http3ResetCode;
 
-  GrpcError(GrpcStatus status, long http2ResetCode) {
+  GrpcError(GrpcStatus status, long http2ResetCode, long http3ResetCode) {
     this.status = status;
     this.http2ResetCode = http2ResetCode;
+    this.http3ResetCode = http3ResetCode;
+  }
+
+  /**
+   * @return the reset code for the specified HTTP {@code version}
+   */
+  public long resetCode(HttpVersion version) {
+    return version == HttpVersion.HTTP_3 ? http3ResetCode : http2ResetCode;
   }
 
   /**
@@ -82,5 +92,67 @@ public enum GrpcError {
         // HTTP_1_1_REQUIRED
         return null;
     }
+  }
+
+  /**
+   * Map the HTTP/3 code to the gRPC error.
+   *
+   * @param code the HTTP/3 code
+   * @return the gRPC error or {@code null} when none applies
+   */
+  public static GrpcError mapHttp3ErrorCode(long code) {
+    switch ((int)code) {
+      case 0x0107:
+        // H3_EXCESSIVE_LOAD
+        return GrpcError.RESOURCE_EXHAUSTED;
+      case 0x010B:
+        // H3_REQUEST_REJECTED
+        return GrpcError.UNAVAILABLE;
+      case 0x010C:
+        // H3_REQUEST_CANCELLED
+        return GrpcError.CANCELLED;
+      case 0x0100:
+        // H3_NO_ERROR
+      case 0x0101:
+        // H3_GENERAL_PROTOCOL_ERROR
+      case 0x0102:
+        // H3_INTERNAL_ERROR
+      case 0x0103:
+        // H3_STREAM_CREATION_ERROR
+      case 0x0104:
+        // H3_CLOSED_CRITICAL_STREAM
+      case 0x0105:
+        // H3_FRAME_UNEXPECTED
+      case 0x0106:
+        // H3_FRAME_ERROR
+      case 0x0108:
+        // H3_ID_ERROR
+      case 0x0109:
+        // H3_SETTINGS_ERROR
+      case 0x010A:
+        // H3_MISSING_SETTINGS
+      case 0x010D:
+        // H3_REQUEST_INCOMPLETE
+      case 0x010E:
+        // H3_MESSAGE_ERROR
+      case 0x010F:
+        // H3_CONNECT_ERROR
+      case 0x0110:
+        // H3_VERSION_FALLBACK
+        return GrpcError.INTERNAL;
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Map the transport error code to the gRPC error.
+   *
+   * @param version the HTTP version
+   * @param code the transport error code
+   * @return the gRPC error or {@code null} when none applies
+   */
+  public static GrpcError mapErrorCode(HttpVersion version, long code) {
+    return version == HttpVersion.HTTP_3 ? mapHttp3ErrorCode(code) : mapHttp2ErrorCode(code);
   }
 }

@@ -32,7 +32,7 @@ final class GrpcServerRequestInspector {
         if (matcher.group(1) != null) {
           builder.protocol(matcher.group(2) == null ? GrpcProtocol.WEB : GrpcProtocol.WEB_TEXT);
         } else {
-          builder.protocol(GrpcProtocol.HTTP_2);
+          builder.protocol(builder.version == HttpVersion.HTTP_3 ? GrpcProtocol.HTTP_3 : GrpcProtocol.HTTP_2);
         }
         if (matcher.group(3) != null) {
           switch (matcher.group(4)) {

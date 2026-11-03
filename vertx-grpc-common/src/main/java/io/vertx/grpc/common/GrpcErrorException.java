@@ -11,17 +11,22 @@
 package io.vertx.grpc.common;
 
 import io.vertx.core.VertxException;
+import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.StreamResetException;
 
 /**
  * Thrown when a failure happens before the response, and it could be interpreted to a gRPC failure, e.g.
- * in practice it means an HTTP/2 stream reset mapped to a gRPC code according to the
- * <a href="https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#http2-transport-mapping">spec</a>.
+ * in practice it means an HTTP/2 or HTTP/3 stream reset mapped to a gRPC code according to the
+ * transport specification.
  */
 public final class GrpcErrorException extends VertxException {
 
   public static GrpcErrorException create(StreamResetException sre) {
-    GrpcError error = GrpcError.mapHttp2ErrorCode(sre.getCode());
+    return create(sre, HttpVersion.HTTP_2);
+  }
+
+  public static GrpcErrorException create(StreamResetException sre, HttpVersion version) {
+    GrpcError error = GrpcError.mapErrorCode(version, sre.getCode());
     GrpcStatus status = GrpcStatus.UNKNOWN;
     if (error != null) {
       status = error.status;
