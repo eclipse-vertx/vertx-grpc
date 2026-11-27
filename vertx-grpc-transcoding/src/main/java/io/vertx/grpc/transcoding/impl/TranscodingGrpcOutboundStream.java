@@ -129,7 +129,7 @@ public class TranscodingGrpcOutboundStream extends HttpGrpcOutboundStream {
       httpResponse.putHeader(HttpHeaders.CONTENT_TYPE, GrpcProtocol.TRANSCODING.mediaType());
       res = httpResponse.write(transcoded);
     } catch (Exception e) {
-      httpResponse.setStatusCode(500).end();
+      GrpcTranscodingError.INTERNAL.end(httpResponse, null);
       res = context.failedFuture(e);
     }
     Promise<Void> h = head;
@@ -145,7 +145,6 @@ public class TranscodingGrpcOutboundStream extends HttpGrpcOutboundStream {
     try {
       transcoded = Json.encodeToBuffer(MessageWeaver.weaveResponseMessage(payload, transcodingResponseBody));
     } catch (Exception e) {
-      httpResponse.setStatusCode(500).end();
       return context.failedFuture(e);
     }
     Buffer chunk;
@@ -173,20 +172,19 @@ public class TranscodingGrpcOutboundStream extends HttpGrpcOutboundStream {
 
   @Override
   public Future<Void> writeEnd() {
-    if (streaming) {
-      if (!firstMessageWritten && status != null && status != GrpcStatus.OK) {
-        httpResponse.setStatusCode(GrpcTranscodingError.fromHttp2Code(status.code).getHttpStatusCode());
-        return httpResponse.end();
-      }
-      if (streamFormat == StreamFormat.JSON_ARRAY) {
-        return httpResponse.end(firstMessageWritten ? CLOSE_ARRAY : EMPTY_ARRAY);
-      }
-      return httpResponse.end();
+    Future<Void> res;
+    if (httpResponse.ended()) {
+      // A message that could not be transcoded has answered the call already
+      res = context.succeededFuture();
+    } else if (status != null && status != GrpcStatus.OK && !httpResponse.headWritten()) {
+      res = GrpcTranscodingError.fromHttp2Code(status.code).end(httpResponse, statusMessage);
+    } else if (streaming && streamFormat == StreamFormat.JSON_ARRAY) {
+      res = httpResponse.end(firstMessageWritten ? CLOSE_ARRAY : EMPTY_ARRAY);
+    } else if (streaming) {
+      res = httpResponse.end();
+    } else {
+      res = super.writeEnd();
     }
-    if (status != GrpcStatus.OK) {
-      httpResponse.setStatusCode(GrpcTranscodingError.fromHttp2Code(status.code).getHttpStatusCode());
-    }
-    Future<Void> res = super.writeEnd();
     // A unary call can end without ever writing a message, e.g. a failed call: the head promise
     // is only resolved by writeUnaryMessage, so resolve it here instead of leaving it pending.
     Promise<Void> h = head;

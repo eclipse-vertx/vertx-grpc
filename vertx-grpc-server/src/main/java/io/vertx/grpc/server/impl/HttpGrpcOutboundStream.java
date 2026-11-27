@@ -33,6 +33,7 @@ public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream imple
   private boolean headersSent;
   private Future<Void> trailersSent;
   protected GrpcStatus status;
+  protected String statusMessage;
 
   public HttpGrpcOutboundStream(HttpServerRequest httpRequest, GrpcProtocol protocol, GrpcMessageDeframer deframer) {
     super(((HttpServerRequestInternal) httpRequest).context(), protocol, deframer);
@@ -127,6 +128,7 @@ public abstract class HttpGrpcOutboundStream extends HttpGrpcInboundStream imple
       }
     }
     status = st;
+    statusMessage = frame.statusMessage();
     writeTrailers(!headersSent, frame.metadata(), st, frame.statusMessage());
     return writeEnd();
   }
