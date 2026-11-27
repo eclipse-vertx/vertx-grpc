@@ -31,6 +31,7 @@ import io.vertx.grpc.common.ServiceName;
 import io.vertx.grpc.server.GrpcServer;
 import io.vertx.grpc.server.GrpcServerOptions;
 import io.vertx.grpc.server.GrpcServerResponse;
+import io.vertx.grpc.server.StatusException;
 import io.vertx.grpc.transcoding.MethodTranscodingOptions;
 import io.vertx.grpc.transcoding.TranscodingServiceMethod;
 import io.vertx.grpc.common.tests.GrpcTestBase;
@@ -106,6 +107,13 @@ public class ServerTranscodingTest extends GrpcTestBase {
   public static final MethodTranscodingOptions STREAMING_TRANSCODING = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/stream").setBody("*");
   public static final TranscodingServiceMethod<StreamingRequest, StreamingResponse> STREAMING_CALL = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "StreamingCall",
     MethodCardinality.SERVER_STREAMING, STREAMING_RESPONSE_ENCODER, STREAMING_REQUEST_DECODER, STREAMING_TRANSCODING);
+
+  public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_INVALID_RESPONSE_BODY = new MethodTranscodingOptions().setPath("/invalid-response").setResponseBody("payload.invalid").setBody("*");
+  public static final TranscodingServiceMethod<EchoRequest, EchoResponse> UNARY_CALL_WITH_INVALID_RESPONSE_BODY = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "UnaryCallWithInvalidResponseBody",
+    ECHO_RESPONSE_ENCODER, ECHO_REQUEST_DECODER, UNARY_TRANSCODING_WITH_INVALID_RESPONSE_BODY);
+  public static final MethodTranscodingOptions STREAMING_TRANSCODING_WITH_INVALID_RESPONSE_BODY = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/invalid-stream").setResponseBody("payload.invalid").setBody("*");
+  public static final TranscodingServiceMethod<StreamingRequest, StreamingResponse> STREAMING_CALL_WITH_INVALID_RESPONSE_BODY = TranscodingServiceMethod.server(TEST_SERVICE_NAME, "StreamingCallWithInvalidResponseBody",
+    MethodCardinality.SERVER_STREAMING, STREAMING_RESPONSE_ENCODER, STREAMING_REQUEST_DECODER, STREAMING_TRANSCODING_WITH_INVALID_RESPONSE_BODY);
 
   public static final MethodTranscodingOptions UNARY_TRANSCODING_WITH_ARRAY_RESPONSE_BODY = new MethodTranscodingOptions().setHttpMethod(HttpMethod.POST).setPath("/keylist").setBody("*").setResponseBody("keys");
   public static GrpcMessageEncoder<EchoRequest> ECHO_REQUEST_ENCODER = GrpcMessageEncoder.encoder();
@@ -232,6 +240,10 @@ public class ServerTranscodingTest extends GrpcTestBase {
         if ("boom".equals(payload)) {
           response.trailers().set("x-error-trailer", "boom");
           response.status(GrpcStatus.INTERNAL).end();
+        } else if ("not-found".equals(payload)) {
+          response.status(GrpcStatus.NOT_FOUND).statusMessage("No echo for ü, 100% sure").end();
+        } else if ("fail".equals(payload)) {
+          throw new StatusException(GrpcStatus.FAILED_PRECONDITION, "Precondition failed: ü 100%");
         } else {
           EchoResponse responseMsg = EchoResponse.newBuilder()
             .setPayload(payload)
@@ -281,6 +293,15 @@ public class ServerTranscodingTest extends GrpcTestBase {
         response.end(responseMsg);
       });
     });
+    grpcServer.callHandler(UNARY_CALL_WITH_INVALID_RESPONSE_BODY, request -> {
+      request.handler(requestMsg -> request.response().end(EchoResponse.newBuilder().setPayload(requestMsg.getPayload()).build()));
+    });
+    grpcServer.callHandler(STREAMING_CALL_WITH_INVALID_RESPONSE_BODY, request -> {
+      request.handler(requestMsg -> {
+        GrpcServerResponse<StreamingRequest, StreamingResponse> response = request.response();
+        response.write(StreamingResponse.newBuilder().setPayload("a").build()).onFailure(response::fail);
+      });
+    });
     grpcServer.callHandler(STREAMING_CALL, request -> {
       request.handler(requestMsg -> {
         GrpcServerResponse<StreamingRequest, StreamingResponse> response = request.response();
@@ -289,8 +310,13 @@ public class ServerTranscodingTest extends GrpcTestBase {
           return;
         }
         for (int size : requestMsg.getResponseSizeList()) {
+          if (size == -2) {
+            response.writeHead();
+            response.status(GrpcStatus.INVALID_ARGUMENT).statusMessage("Negative response size").end();
+            return;
+          }
           if (size < 0) {
-            response.status(GrpcStatus.INVALID_ARGUMENT).end();
+            response.status(GrpcStatus.INVALID_ARGUMENT).statusMessage("Negative response size").end();
             return;
           }
           char[] value = new char[size];
@@ -524,7 +550,39 @@ public class ServerTranscodingTest extends GrpcTestBase {
       assertEquals(500, response.statusCode());
       MultiMap headers = response.headers();
       assertTrue(headers.contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonObject error = new JsonObject(response.body().result());
+      assertEquals(GrpcStatus.INTERNAL.code, (int) error.getInteger("code"));
+      assertEquals("", error.getString("message"));
+      assertEquals(0, error.getJsonArray("details").size());
     })));
+  }
+
+  @Test
+  public void testMethodWithErrorStatusMessage() {
+    JsonObject error = errorBody("not-found", 404);
+    assertEquals(GrpcStatus.NOT_FOUND.code, (int) error.getInteger("code"));
+    assertEquals("No echo for ü, 100% sure", error.getString("message"));
+    assertEquals(0, error.getJsonArray("details").size());
+  }
+
+  @Test
+  public void testMethodWithErrorStatusException() {
+    JsonObject error = errorBody("fail", 400);
+    assertEquals(GrpcStatus.FAILED_PRECONDITION.code, (int) error.getInteger("code"));
+    assertEquals("Precondition failed: ü 100%", error.getString("message"));
+    assertEquals(0, error.getJsonArray("details").size());
+  }
+
+  private JsonObject errorBody(String payload, int statusCode) {
+    HttpClientRequest request = httpClient.request(HttpMethod.GET, "/body").await();
+    request.headers().addAll(HEADERS);
+    HttpClientResponse response = request.send(encode(EchoRequest.newBuilder().setPayload(payload).build()).toString())
+      .compose(resp -> resp.body().map(resp))
+      .await();
+
+    assertEquals(statusCode, response.statusCode());
+    assertTrue(response.headers().contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+    return new JsonObject(response.body().result());
   }
 
   @Test
@@ -650,7 +708,54 @@ public class ServerTranscodingTest extends GrpcTestBase {
       return req.send(body).compose(response -> response.body().map(response));
     }).onComplete(should.asyncAssertSuccess(response -> should.verify(v -> {
       assertEquals(400, response.statusCode());
+      assertTrue(response.headers().contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+      JsonObject error = new JsonObject(response.body().result());
+      assertEquals(GrpcStatus.INVALID_ARGUMENT.code, (int) error.getInteger("code"));
+      assertEquals("Negative response size", error.getString("message"));
+      assertEquals(0, error.getJsonArray("details").size());
     })));
+  }
+
+  @Test
+  public void testServerStreamingErrorAfterHeaders() {
+    HttpClientRequest request = httpClient.request(HttpMethod.POST, "/stream").await();
+    request.headers().addAll(HEADERS);
+    HttpClientResponse response = request.send(encode(StreamingRequest.newBuilder().addResponseSize(-2).build()).toString())
+      .compose(resp -> resp.body().map(resp))
+      .await();
+
+    assertEquals(200, response.statusCode());
+    assertEquals("[]", response.body().result().toString());
+    assertEquals("" + GrpcStatus.INVALID_ARGUMENT.code, response.getTrailer("grpc-status"));
+  }
+
+  @Test
+  public void testUnaryResponseEncodingFailure() {
+    HttpClientRequest request = httpClient.request(HttpMethod.GET, "/invalid-response").await();
+    request.headers().addAll(HEADERS);
+    HttpClientResponse response = request.send(encode(EchoRequest.newBuilder().setPayload("hello").build()).toString())
+      .compose(resp -> resp.body().map(resp))
+      .await();
+
+    assertEquals(500, response.statusCode());
+    assertTrue(response.headers().contains(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE, true));
+    JsonObject error = new JsonObject(response.body().result());
+    assertEquals(GrpcStatus.INTERNAL.code, (int) error.getInteger("code"));
+    assertEquals("", error.getString("message"));
+    assertEquals(0, error.getJsonArray("details").size());
+  }
+
+  @Test
+  public void testStreamingResponseEncodingFailure() {
+    HttpClientRequest request = httpClient.request(HttpMethod.POST, "/invalid-stream").await();
+    request.headers().addAll(HEADERS);
+    HttpClientResponse response = request.send(encode(StreamingRequest.newBuilder().addResponseSize(1).build()).toString())
+      .compose(resp -> resp.body().map(resp))
+      .await();
+
+    assertEquals(200, response.statusCode());
+    assertEquals("[]", response.body().result().toString());
+    assertEquals("" + GrpcStatus.UNKNOWN.code, response.getTrailer("grpc-status"));
   }
 
   @Test

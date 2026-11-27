@@ -1,5 +1,12 @@
 package io.vertx.grpc.transcoding.impl;
 
+import io.vertx.core.Future;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.vertx.grpc.server.GrpcProtocol;
+
 public enum GrpcTranscodingError {
 
   CANCELLED(0x01, 400, "Request timeout"),
@@ -48,6 +55,18 @@ public enum GrpcTranscodingError {
 
   public String getMessage() {
     return message;
+  }
+
+  public Future<Void> end(HttpServerResponse response, String statusMessage) {
+    return response
+      .setStatusCode(httpStatusCode)
+      .putHeader(HttpHeaders.CONTENT_TYPE, GrpcProtocol.TRANSCODING.mediaType())
+      .end(new JsonObject()
+        .put("code", http2StatusCode)
+        .put("message", statusMessage == null ? "" : statusMessage)
+        // could print the details of grpc-status-details-bin, given a TypeRegistry for their Any types
+        .put("details", new JsonArray())
+        .toBuffer());
   }
 
 }
