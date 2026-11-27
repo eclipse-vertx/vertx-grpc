@@ -12,7 +12,9 @@ package io.vertx.grpc.common.impl;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.grpc.common.GrpcMessage;
+import io.vertx.grpc.common.InvalidCompressedFlagException;
 import io.vertx.grpc.common.MessageSizeOverflowException;
+import io.vertx.grpc.common.UnsupportedMessageEncodingException;
 import io.vertx.grpc.common.WireFormat;
 
 /**
@@ -93,11 +95,7 @@ public class Http2GrpcMessageDeframer implements GrpcMessageDeframer {
       return null;
     }
     boolean compressed = buffer.getByte(idx) == 1;
-    if (compressed && encoding == null) {
-      throw new UnsupportedOperationException("Handle me");
-    }
     Buffer payload = buffer.slice(idx + 5, (int) (idx + 5 + len));
-    GrpcMessage message = GrpcMessage.message(compressed ? encoding : "identity", format, payload);
     idx += 5 + (int) len;
     if (idx < buffer.length()) {
       if (idx > 0) {
@@ -106,6 +104,19 @@ public class Http2GrpcMessageDeframer implements GrpcMessageDeframer {
     } else {
       buffer = null;
     }
-    return message;
+
+    // Spec: a compressed message needs a grpc-encoding other than identity
+    // https://github.com/grpc/grpc/blob/master/doc/compression.md#test-cases
+    if (compressed && (encoding == null || encoding.equals(Utils.IDENTITY))) {
+      return new InvalidCompressedFlagException(encoding);
+    }
+
+    // Only compressed messages are checked, so an unknown grpc-encoding is fine while the messages come uncompressed.
+    // see: grpc-go (rpc_util.go, checkRecvPayload)
+    if (compressed && !encoding.equals(Utils.GZIP)) {
+      return new UnsupportedMessageEncodingException(encoding);
+    }
+
+    return GrpcMessage.message(compressed ? encoding : Utils.IDENTITY, format, payload);
   }
 }

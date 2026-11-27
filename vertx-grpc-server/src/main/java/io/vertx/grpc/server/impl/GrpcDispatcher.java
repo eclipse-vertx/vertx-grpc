@@ -8,6 +8,7 @@ import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.impl.GrpcFrame;
 import io.vertx.grpc.common.impl.GrpcHeadersFrame;
 import io.vertx.grpc.common.impl.GrpcMessageFrame;
+import io.vertx.grpc.common.impl.Utils;
 import io.vertx.grpc.server.GrpcServerRequest;
 
 public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
@@ -101,6 +102,13 @@ public class GrpcDispatcher<Req, Resp> implements Handler<GrpcFrame> {
     grpcRequest.invalidMessageHandler(invalidMsg -> {
       if (invalidMsg instanceof MessageSizeOverflowException) {
         grpcRequest.response().status(GrpcStatus.RESOURCE_EXHAUSTED).end();
+      } else if (invalidMsg instanceof InvalidCompressedFlagException) {
+        // Spec: INTERNAL https://github.com/grpc/grpc/blob/master/doc/compression.md#test-cases
+        grpcRequest.response().status(GrpcStatus.INTERNAL).statusMessage(invalidMsg.getMessage()).end();
+      } else if (invalidMsg instanceof UnsupportedMessageEncodingException) {
+        // Spec: UNIMPLEMENTED, and grpc-accept-encoding must not list the encoding the client used
+        grpcRequest.response().trailers().set(GrpcHeaderNames.GRPC_ACCEPT_ENCODING, Utils.GZIP);
+        grpcRequest.response().status(GrpcStatus.UNIMPLEMENTED).statusMessage(invalidMsg.getMessage()).end();
       } else {
         grpcResponse.cancel();
       }

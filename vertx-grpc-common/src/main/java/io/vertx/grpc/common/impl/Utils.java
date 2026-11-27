@@ -28,6 +28,9 @@ import java.util.function.Function;
 
 public class Utils {
 
+  public static final String IDENTITY = "identity";
+  public static final String GZIP = "gzip";
+
   public static final BiFunction<Long, Buffer, Buffer> GZIP_DECODER = (max, data) -> {
     int maxAllocation = (int)Math.min(Integer.MAX_VALUE, max);
     EmbeddedChannel channel = new EmbeddedChannel(ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP, maxAllocation));

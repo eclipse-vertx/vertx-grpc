@@ -23,6 +23,10 @@ public abstract class InvalidMessageException extends VertxException {
         super((String) null, true);
     }
 
+    protected InvalidMessageException(String message) {
+        super(message, true);
+    }
+
     protected InvalidMessageException(Throwable cause) {
         super(cause, true);
     }

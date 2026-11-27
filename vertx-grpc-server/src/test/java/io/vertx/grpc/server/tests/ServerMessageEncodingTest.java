@@ -99,7 +99,7 @@ public class ServerMessageEncodingTest extends ServerTestBase {
       request.putHeader(HttpHeaders.CONTENT_TYPE, "application/grpc");
       request.send(Buffer
         .buffer()
-        .appendByte((byte)1)
+        .appendByte((byte)0)
         .appendInt(expected.length())
         .appendBuffer(expected)).onComplete(should.asyncAssertSuccess(resp -> {
           resp.body().onComplete(should.asyncAssertSuccess(body -> {
