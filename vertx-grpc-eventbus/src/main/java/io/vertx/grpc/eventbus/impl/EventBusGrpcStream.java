@@ -555,7 +555,7 @@ abstract class EventBusGrpcStream<E extends EventBusGrpcEndpoint> extends EventB
     }
 
     @Override
-    protected void handleDispose(OutboundWrite msg) {
+    protected void handleRelease(OutboundWrite msg) {
       Throwable c = pendingWriteFailureCause;
       if (c != null) {
         msg.cancel(c);
