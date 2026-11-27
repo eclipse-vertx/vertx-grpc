@@ -324,8 +324,17 @@ public class GrpcClientRequestImpl<Req, Resp> extends GrpcWriteStreamBase<GrpcCl
       stream, format, frame.encoding(), maxMessagSize, messageDecoder);
 
     response.invalidMessageHandler(invalidMsg -> {
-      cancel();
-      response.tryFail(invalidMsg);
+      if (invalidMsg instanceof InvalidCompressedFlagException || invalidMsg instanceof UnsupportedMessageEncodingException) {
+        // Spec: the client fails the call with INTERNAL
+        // https://github.com/grpc/grpc/blob/master/doc/compression.md#test-cases
+        // Reported as trailers so status() and statusMessage() show it, then the stream is reset.
+        handleTrailersFrame(new DefaultGrpcTrailersFrame(GrpcStatus.INTERNAL, invalidMsg.getMessage(), MultiMap.caseInsensitiveMultiMap()));
+        handleEnd(null);
+        cancel();
+      } else {
+        cancel();
+        response.tryFail(invalidMsg);
+      }
     });
 
     response.handleHeaders(frame.metadata());
