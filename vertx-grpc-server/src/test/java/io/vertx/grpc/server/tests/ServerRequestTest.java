@@ -31,7 +31,9 @@ import io.vertx.grpc.server.StatusException;
 import io.vertx.grpc.common.tests.Empty;
 import io.vertx.grpc.common.tests.Reply;
 import io.vertx.grpc.common.tests.Request;
+import io.vertx.grpc.common.tests.TestConstants;
 import io.vertx.grpc.common.tests.TestServiceGrpc;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
@@ -43,6 +45,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -132,6 +137,56 @@ public class ServerRequestTest extends ServerTest {
     }));
 
     super.testStatusUnary(should, Status.ALREADY_EXISTS, "status-msg");
+  }
+
+  private static final GrpcMessageEncoder<Reply> FAILING_REPLY_ENC = new GrpcMessageEncoder<>() {
+    @Override
+    public GrpcMessage encode(Reply msg, WireFormat format) throws CodecException {
+      throw new CodecException("cannot encode");
+    }
+
+    @Override
+    public boolean accepts(WireFormat format) {
+      return true;
+    }
+  };
+
+  @Test
+  public void testEncodingFailureUnary() {
+    ServiceMethod<Request, Reply> unary = ServiceMethod.server(TestConstants.TEST_SERVICE, "Unary", FAILING_REPLY_ENC, TestConstants.REQUEST_DEC);
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+
+    startServer(GrpcServer.server(vertx).callHandler(unary, call -> call.handler(request -> {
+      call.response().end(Reply.newBuilder().setMessage("Hello " + request.getName()).build()).onFailure(err -> {
+        failure.set(err);
+        call.response().fail(err);
+      });
+    })));
+
+    channel = ManagedChannelBuilder.forAddress("localhost", port).usePlaintext().build();
+    StatusRuntimeException e = assertThrows(StatusRuntimeException.class, () -> TestServiceGrpc.newBlockingStub(channel).unary(Request.newBuilder().setName("Julien").build()));
+
+    Assert.assertEquals(Status.Code.INTERNAL, e.getStatus().getCode());
+    assertTrue(String.valueOf(failure.get()), failure.get() instanceof CodecException);
+  }
+
+  @Test
+  public void testEncodingFailureStreaming() {
+    ServiceMethod<Empty, Reply> source = ServiceMethod.server(TestConstants.TEST_SERVICE, "Source", FAILING_REPLY_ENC, TestConstants.EMPTY_DEC);
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+
+    startServer(GrpcServer.server(vertx).callHandler(source, call -> call.handler(request -> {
+      call.response().write(Reply.newBuilder().setMessage("Hello").build()).onFailure(err -> {
+        failure.set(err);
+        call.response().fail(err);
+      });
+    })));
+
+    channel = ManagedChannelBuilder.forAddress("localhost", port).usePlaintext().build();
+    StatusRuntimeException e = assertThrows(StatusRuntimeException.class, () -> TestServiceGrpc.newBlockingStub(channel).source(Empty.getDefaultInstance()).hasNext());
+
+    Assert.assertEquals(Status.Code.INTERNAL, e.getStatus().getCode());
+    assertTrue(String.valueOf(failure.get()), failure.get() instanceof CodecException);
   }
 
   @Test
