@@ -144,12 +144,24 @@ public abstract class GrpcWriteStreamBase<S extends GrpcWriteStreamBase<S, T>, T
 
   @Override
   public final Future<Void> write(T message) {
-    return writeMessage(encodeMessage(message));
+    GrpcMessage encoded;
+    try {
+      encoded = encodeMessage(message);
+    } catch (CodecException e) {
+      return context.failedFuture(e);
+    }
+    return writeMessage(encoded);
   }
 
   @Override
   public final Future<Void> end(T message) {
-    return endMessage(encodeMessage(message));
+    GrpcMessage encoded;
+    try {
+      encoded = encodeMessage(message);
+    } catch (CodecException e) {
+      return context.failedFuture(e);
+    }
+    return endMessage(encoded);
   }
 
   private GrpcMessage encodeMessage(T message) {

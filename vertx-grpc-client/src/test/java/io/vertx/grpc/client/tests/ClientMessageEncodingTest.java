@@ -21,9 +21,13 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.grpc.client.GrpcClient;
 import io.vertx.grpc.client.GrpcClientOptions;
+import io.vertx.grpc.client.GrpcClientRequest;
 import io.vertx.grpc.client.GrpcClientResponse;
 import io.vertx.grpc.common.*;
 import io.vertx.grpc.common.tests.GrpcTestUtils;
+import io.vertx.grpc.common.tests.Reply;
+import io.vertx.grpc.common.tests.Request;
+import io.vertx.grpc.common.tests.TestConstants;
 import io.vertx.grpc.common.tests.TestServiceGrpc;
 import org.junit.Test;
 
@@ -32,12 +36,40 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static org.junit.Assert.assertTrue;
+
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
 public class ClientMessageEncodingTest extends ClientTestBase {
 
   private GrpcClient client;
+
+  @Test
+  public void testEncodingFailure() {
+    GrpcMessageEncoder<Request> failing = new GrpcMessageEncoder<>() {
+      @Override
+      public GrpcMessage encode(Request msg, WireFormat format) throws CodecException {
+        throw new CodecException("cannot encode");
+      }
+
+      @Override
+      public boolean accepts(WireFormat format) {
+        return true;
+      }
+    };
+    ServiceMethod<Reply, Request> unary = ServiceMethod.client(TestConstants.TEST_SERVICE, "Unary", failing, TestConstants.REPLY_DEC);
+
+    vertx.createHttpServer().requestHandler(req -> {}).listen(port, "localhost").await();
+
+    client = GrpcClient.client(vertx);
+    GrpcClientRequest<Request, Reply> request = client.request(SocketAddress.inetSocketAddress(port, "localhost"), unary).await();
+
+    Future<Void> end = request.end(Request.newBuilder().setName("Julien").build());
+
+    assertTrue(end.failed());
+    assertTrue(String.valueOf(end.cause()), end.cause() instanceof CodecException);
+  }
 
   @Test
   public void testZipRequestCompress(TestContext should) throws Exception {

@@ -15,6 +15,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.internal.ContextInternal;
+import io.vertx.grpc.common.CodecException;
 import io.vertx.grpc.common.GrpcMessage;
 import io.vertx.grpc.common.GrpcMessageEncoder;
 import io.vertx.grpc.common.GrpcStatus;
@@ -189,6 +190,9 @@ public final class GrpcServerResponseImpl<Req, Resp> extends GrpcWriteStreamBase
       return ((StatusException)t).status();
     } else if (t instanceof UnsupportedOperationException) {
       return GrpcStatus.UNIMPLEMENTED;
+    } else if (t instanceof CodecException) {
+      // A message that cannot be encoded is INTERNAL, see: grpc-java (ServerCallImpl) and grpc-go
+      return GrpcStatus.INTERNAL;
     } else {
       return GrpcStatus.UNKNOWN;
     }
